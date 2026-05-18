@@ -1,0 +1,560 @@
+---
+title: Hotel PMS — Entity Relationship Diagram (v2)
+---
+
+erDiagram
+
+  %% ─────────────────────────────────────────────
+  %% IDENTITY & ACCESS
+  %% ─────────────────────────────────────────────
+
+  Hotel {
+    uuid    id          PK
+    string  slug        UK
+    string  name
+    string  propertyType
+    string  region
+    string  province
+    string  country
+    string  ntn
+    string  strn
+    json    settings
+    bool    isActive
+    bool    isTrialAccount
+    ts      createdAt
+    ts      deletedAt
+  }
+
+  User {
+    uuid    id           PK
+    string  email        UK
+    string  phone        UK
+    string  passwordHash
+    string  name
+    bool    emailVerified
+    ts      lastLoginAt
+    ts      deletedAt
+  }
+
+  HotelUser {
+    uuid      id          PK
+    uuid      hotelId     FK
+    uuid      userId      FK
+    uuid      roleId      FK
+    enum      role
+    bool      isActive
+    ts        invitedAt
+    ts        acceptedAt
+  }
+
+  Role {
+    uuid    id          PK
+    uuid    hotelId     FK "nullable - NULL = system role"
+    string  name
+    string  displayName
+    bool    isSystem
+    bool    isCustom
+    int     sortOrder
+  }
+
+  Permission {
+    uuid    id          PK
+    string  key         UK
+    string  module
+    string  action
+    string  displayName
+  }
+
+  RolePermission {
+    uuid    id            PK
+    uuid    roleId        FK
+    uuid    permissionId  FK
+    uuid    grantedBy     "nullable userId"
+    ts      grantedAt
+  }
+
+  Hotel ||--o{ HotelUser        : "has staff"
+  Hotel ||--o{ Role             : "has custom roles"
+  User  ||--o{ HotelUser        : "belongs to"
+  Role  ||--o{ HotelUser        : "assigned to"
+  Role  ||--o{ RolePermission   : "has"
+  Permission ||--o{ RolePermission : "granted by"
+
+  %% ─────────────────────────────────────────────
+  %% ROOMS
+  %% ─────────────────────────────────────────────
+
+  RoomType {
+    uuid    id            PK
+    uuid    hotelId       FK
+    string  name
+    enum    typeName
+    int     maxOccupancy
+    int     defaultRate   "paise"
+    bool    isActive
+  }
+
+  Room {
+    uuid    id            PK
+    uuid    hotelId       FK
+    uuid    roomTypeId    FK
+    string  number
+    int     floor
+    enum    status
+    bool    isActive
+    ts      lastCleanedAt
+  }
+
+  Hotel    ||--o{ RoomType : "defines"
+  Hotel    ||--o{ Room     : "contains"
+  RoomType ||--o{ Room     : "typed as"
+
+  %% ─────────────────────────────────────────────
+  %% GUESTS
+  %% ─────────────────────────────────────────────
+
+  Guest {
+    uuid    id              PK
+    uuid    hotelId         FK
+    string  firstName
+    string  lastName
+    string  fullName        "trigger-maintained"
+    string  phone
+    enum    documentType
+    string  documentNumber
+    string  documentScanUrl
+    bool    isForeigner
+    int     totalStays      "trigger-maintained"
+    int     totalSpend      "paise, trigger-maintained"
+    int     vipLevel
+    bool    isBlacklisted
+    ts      deletedAt
+    tsvector searchVector   "GIN indexed"
+  }
+
+  GuestBlacklist {
+    uuid    id             PK
+    uuid    hotelId        FK
+    uuid    guestId        FK
+    string  documentNumber
+    string  reason
+    int     severity
+    bool    isShared
+  }
+
+  Hotel ||--o{ Guest          : "profiles"
+  Guest ||--o{ GuestBlacklist : "flagged in"
+
+  %% ─────────────────────────────────────────────
+  %% RESERVATIONS
+  %% ─────────────────────────────────────────────
+
+  Reservation {
+    uuid    id                  PK
+    uuid    hotelId             FK
+    uuid    guestId             FK
+    uuid    groupId             FK "nullable"
+    string  confirmationNumber  UK
+    enum    source
+    enum    status
+    date    checkInDate
+    date    checkOutDate
+    int     adults
+    int     totalAmount         "paise"
+    int     balanceDue          "paise"
+    bool    isVip
+    ts      createdAt
+  }
+
+  ReservationRoom {
+    uuid    id              PK
+    uuid    reservationId   FK
+    uuid    roomId          FK
+    uuid    roomTypeId      FK
+    int     ratePerNight    "paise"
+    date    checkInDate
+    date    checkOutDate
+  }
+
+  GroupBooking {
+    uuid    id              PK
+    uuid    hotelId         FK
+    string  name
+    string  billingType
+    string  payerType
+  }
+
+  GroupMember {
+    uuid    id        PK
+    uuid    groupId   FK
+    uuid    guestId   FK
+    bool    isLeader
+  }
+
+  Hotel        ||--o{ Reservation     : "receives"
+  Guest        ||--o{ Reservation     : "makes"
+  GroupBooking ||--o{ Reservation     : "contains"
+  Reservation  ||--o{ ReservationRoom : "assigns"
+  Room         ||--o{ ReservationRoom : "allocated in"
+  RoomType     ||--o{ ReservationRoom : "typed as"
+  Hotel        ||--o{ GroupBooking    : "manages"
+  GroupBooking ||--o{ GroupMember     : "has"
+  Guest        ||--o{ GroupMember     : "is"
+
+  %% ─────────────────────────────────────────────
+  %% FOLIO & PAYMENTS
+  %% ─────────────────────────────────────────────
+
+  Folio {
+    uuid    id              PK
+    uuid    hotelId         FK
+    uuid    reservationId   FK UK
+    uuid    invoiceId       FK "nullable"
+    string  folioNumber     UK
+    int     chargesTotal    "paise, trigger"
+    int     taxTotal        "paise, trigger"
+    int     paymentsTotal   "paise, trigger"
+    int     balanceDue      "paise, trigger"
+    bool    isOpen
+    ts      closedAt
+  }
+
+  FolioItem {
+    uuid    id              PK
+    uuid    hotelId         FK
+    uuid    folioId         FK
+    uuid    posOrderItemId  FK "nullable"
+    enum    type
+    string  description
+    int     quantity
+    int     unitAmount      "paise"
+    int     netAmount       "paise"
+    bool    isVoided
+    date    chargeDate
+  }
+
+  FolioSplit {
+    uuid    id          PK
+    uuid    folioId     FK
+    string  payerName
+    string  payerType
+    int     amount      "paise"
+    bool    isPaid
+  }
+
+  Payment {
+    uuid    id              PK
+    uuid    hotelId         FK
+    uuid    folioId         FK "nullable"
+    uuid    reservationId   FK "nullable"
+    enum    method
+    enum    status
+    int     amount          "paise"
+    string  currencyCode
+    string  transactionRef
+    bool    isRefund
+    uuid    originalPaymentId "nullable"
+    ts      postedAt
+  }
+
+  Reservation ||--|| Folio      : "has one"
+  Hotel       ||--o{ Folio      : "owns"
+  Folio       ||--o{ FolioItem  : "contains"
+  Folio       ||--o{ FolioSplit : "split by"
+  Folio       ||--o{ Payment    : "settled by"
+  Reservation ||--o{ Payment    : "advance deposit"
+  Hotel       ||--o{ Payment    : "receives"
+
+  %% ─────────────────────────────────────────────
+  %% POINT OF SALE
+  %% ─────────────────────────────────────────────
+
+  PosCategory {
+    uuid    id        PK
+    uuid    hotelId   FK
+    string  name
+    bool    isActive
+    int     sortOrder
+  }
+
+  PosItem {
+    uuid    id               PK
+    uuid    hotelId          FK
+    uuid    categoryId       FK
+    uuid    inventoryItemId  FK "nullable Phase 2"
+    string  name
+    int     price            "paise"
+    bool    isAvailable
+    bool    isKitchenItem
+  }
+
+  PosOrder {
+    uuid    id              PK
+    uuid    hotelId         FK
+    uuid    reservationId   FK "nullable"
+    string  orderNumber     UK
+    string  tableNumber
+    string  roomNumber
+    int     total           "paise"
+    bool    isPostedToFolio
+  }
+
+  PosOrderItem {
+    uuid    id          PK
+    uuid    orderId     FK
+    uuid    posItemId   FK
+    string  name        "snapshot"
+    int     quantity
+    int     unitPrice   "snapshot paise"
+    int     lineTotal   "paise"
+  }
+
+  Hotel       ||--o{ PosCategory  : "has"
+  PosCategory ||--o{ PosItem      : "contains"
+  Hotel       ||--o{ PosOrder     : "receives"
+  PosOrder    ||--o{ PosOrderItem : "has"
+  PosItem     ||--o{ PosOrderItem : "ordered as"
+  PosOrderItem ||--o{ FolioItem   : "posts to"
+
+  %% ─────────────────────────────────────────────
+  %% HOUSEKEEPING & MAINTENANCE
+  %% ─────────────────────────────────────────────
+
+  HousekeepingTask {
+    uuid    id              PK
+    uuid    hotelId         FK
+    uuid    roomId          FK
+    uuid    assignedToId    FK "nullable userId"
+    string  taskType
+    enum    status
+    date    scheduledDate
+    bool    hasIssue
+    bool    isEscalated
+  }
+
+  MaintenanceTicket {
+    uuid    id            PK
+    uuid    hotelId       FK
+    uuid    roomId        FK "nullable"
+    uuid    assignedToId  FK "nullable userId"
+    string  ticketNumber  UK
+    string  category
+    enum    status
+    enum    priority
+    int     actualCost    "paise nullable"
+  }
+
+  Hotel  ||--o{ HousekeepingTask  : "manages"
+  Room   ||--o{ HousekeepingTask  : "cleaned by"
+  User   ||--o{ HousekeepingTask  : "assigned to"
+  Hotel  ||--o{ MaintenanceTicket : "logs"
+  Room   ||--o{ MaintenanceTicket : "reported for"
+  User   ||--o{ MaintenanceTicket : "assigned to"
+
+  %% ─────────────────────────────────────────────
+  %% INVENTORY (Phase 2 stub)
+  %% ─────────────────────────────────────────────
+
+  InventoryItem {
+    uuid    id            PK
+    uuid    hotelId       FK
+    string  name
+    string  category
+    string  unit
+    decimal currentStock
+    decimal parLevel
+    decimal reorderLevel
+    int     costPerUnit   "paise"
+    bool    isActive
+  }
+
+  InventoryTransaction {
+    uuid    id            PK
+    uuid    hotelId       FK
+    uuid    itemId        FK
+    enum    type
+    decimal quantity
+    int     unitCost      "paise nullable"
+    string  referenceType
+    ts      createdAt
+  }
+
+  Hotel          ||--o{ InventoryItem        : "stocks"
+  InventoryItem  ||--o{ InventoryTransaction : "tracked by"
+  InventoryItem  ||--o{ PosItem             : "consumed by"
+
+  %% ─────────────────────────────────────────────
+  %% MESSAGING
+  %% ─────────────────────────────────────────────
+
+  Conversation {
+    uuid    id              PK
+    uuid    hotelId         FK
+    uuid    guestId         FK "nullable"
+    uuid    assignedToId    FK "nullable userId"
+    enum    channel
+    bool    isOpen
+    bool    isRead
+    ts      lastMessageAt
+    int     unreadCount
+  }
+
+  Message {
+    uuid    id                PK
+    uuid    hotelId           FK
+    uuid    conversationId    FK
+    uuid    reservationId     FK "nullable"
+    enum    channel
+    enum    direction
+    enum    status
+    string  body
+    string  externalMessageId
+    ts      sentAt
+    ts      deliveredAt
+  }
+
+  Hotel        ||--o{ Conversation : "inbox"
+  Guest        ||--o{ Conversation : "participates"
+  User         ||--o{ Conversation : "handles"
+  Conversation ||--o{ Message      : "contains"
+  Reservation  ||--o{ Message      : "referenced in"
+
+  %% ─────────────────────────────────────────────
+  %% RATES & CHANNELS
+  %% ─────────────────────────────────────────────
+
+  RatePlan {
+    uuid    id            PK
+    uuid    hotelId       FK
+    string  name
+    enum    type
+    date    validFrom
+    date    validTo
+    int     minLos
+    bool    isActive
+    int     priority
+  }
+
+  RatePlanItem {
+    uuid    id          PK
+    uuid    ratePlanId  FK
+    uuid    roomTypeId  FK
+    int     rate        "paise per night"
+  }
+
+  ChannelConfig {
+    uuid    id              PK
+    uuid    hotelId         FK
+    enum    channelType
+    bool    isActive
+    json    credentials     "encrypted"
+    ts      lastSyncAt
+    string  lastSyncStatus
+    decimal commissionRate
+  }
+
+  Hotel    ||--o{ RatePlan     : "defines"
+  RatePlan ||--o{ RatePlanItem : "covers"
+  RoomType ||--o{ RatePlanItem : "priced by"
+  Hotel    ||--o{ ChannelConfig : "connects to"
+
+  %% ─────────────────────────────────────────────
+  %% STAFF, SHIFTS & COMPLIANCE
+  %% ─────────────────────────────────────────────
+
+  Staff {
+    uuid    id          PK
+    uuid    hotelId     FK
+    uuid    userId      FK
+    string  employeeId
+    string  department
+    bool    isActive
+  }
+
+  ShiftReport {
+    uuid    id              PK
+    uuid    hotelId         FK
+    uuid    staffId         FK
+    date    shiftDate
+    string  shiftType
+    int     cashCollected   "paise"
+    int     expectedBalance "paise"
+    int     variance        "paise"
+    ts      signedOffAt
+  }
+
+  TaxConfig {
+    uuid    id          PK
+    uuid    hotelId     FK
+    enum    taxType
+    decimal rate
+    bool    isInclusive
+    bool    isActive
+  }
+
+  Invoice {
+    uuid    id              PK
+    uuid    hotelId         FK
+    string  invoiceNumber   UK
+    enum    status
+    string  fbrInvoiceNumber
+    int     totalAmount     "paise"
+    ts      issuedAt
+  }
+
+  Hotel ||--o{ Staff       : "employs"
+  Hotel ||--o{ ShiftReport : "records"
+  Hotel ||--o{ TaxConfig   : "configures"
+  Hotel ||--o{ Invoice     : "issues"
+  Folio ||--o{ Invoice     : "invoiced by"
+
+  %% ─────────────────────────────────────────────
+  %% SYSTEM
+  %% ─────────────────────────────────────────────
+
+  AuditLog {
+    uuid    id        PK
+    uuid    hotelId   FK
+    uuid    userId    FK "nullable"
+    string  action
+    string  entity
+    uuid    entityId
+    json    before
+    json    after
+    string  ipAddress
+    ts      createdAt
+  }
+
+  Notification {
+    uuid    id        PK
+    uuid    hotelId   FK
+    uuid    userId    FK "nullable - null = broadcast"
+    string  type
+    string  title
+    string  body
+    json    metadata
+    bool    isRead
+    string  channel
+  }
+
+  CustomFieldDefinition {
+    uuid    id          PK
+    uuid    hotelId     FK
+    string  entity
+    string  key
+    string  fieldType
+    bool    isRequired
+  }
+
+  CustomFieldValue {
+    uuid    id            PK
+    uuid    definitionId  FK
+    uuid    entityId      "any entity's id"
+    string  value
+  }
+
+  Hotel                 ||--o{ AuditLog              : "logged in"
+  User                  ||--o{ AuditLog              : "performed by"
+  Hotel                 ||--o{ Notification          : "receives"
+  Hotel                 ||--o{ CustomFieldDefinition : "defines"
+  CustomFieldDefinition ||--o{ CustomFieldValue      : "values"

@@ -1,0 +1,25 @@
+RESOURCE                  OWNER   MANAGER   FRONT_DESK   HOUSEKEEPING   KITCHEN
+─────────────────────────────────────────────────────────────────────────────────
+Reservations (view)         ✓       ✓          ✓             ✗             ✗
+Reservations (create/edit)  ✓       ✓          ✓             ✗             ✗
+Reservations (cancel)       ✓       ✓          ✗             ✗             ✗
+Guest profiles (view)       ✓       ✓          ✓             ✗             ✗
+Guest CNIC data (view)      ✓       ✓          ✓             ✗             ✗
+Folio (view charges)        ✓       ✓          ✓             ✗             ✗
+Folio (post charges)        ✓       ✓          ✓             ✗             ✗
+Payments (view)             ✓       ✓          ✓             ✗             ✗
+Payments (process)          ✓       ✓          ✓             ✗             ✗
+Payments (refund)           ✓       ✓          ✗             ✗             ✗
+POS orders (view)           ✓       ✓          ✓             ✗             ✓
+POS orders (create)         ✓       ✓          ✓             ✗             ✓
+Room status (view)          ✓       ✓          ✓             ✓             ✗
+Room status (update)        ✓       ✓          ✓             ✓             ✗
+Housekeeping tasks          ✓       ✓          ✓             ✓             ✗
+Maintenance tickets         ✓       ✓          ✓             ✓             ✗
+Reports (view)              ✓       ✓          ✗             ✗             ✗
+Audit log (view)            ✓       ✗          ✗             ✗             ✗
+Staff management            ✓       ✓          ✗             ✗             ✗
+Hotel settings              ✓       ✗          ✗             ✗             ✗
+Shift reports               ✓       ✓          ✓             ✗             ✗
+Inventory (view)            ✓       ✓          ✗             ✓             ✓
+Inventory (update stock)    ✓       ✓          ✗             ✓             ✓

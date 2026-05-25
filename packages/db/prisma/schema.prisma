@@ -1,0 +1,1494 @@
+// ============================================================================
+// Hotel PMS — Prisma Schema  v2.0
+// Stack    : PostgreSQL 16 + Prisma ORM
+// Updated  : Roles & Permissions tables added, HotelUser updated,
+//            KITCHEN role added, indexing audit complete.
+//
+// MULTI-TENANCY
+//   Every table carries hotel_id. RLS policies (rls_and_triggers.sql)
+//   enforce isolation at DB level.
+//
+// ROLES & PERMISSIONS STRATEGY
+//   Role, Permission, RolePermission are seeded EMPTY.
+//   HotelUser keeps UserRole enum as fast JWT cache + roleId FK for Phase 2.
+//
+// NORMALIZATION
+//   3NF throughout. Documented exceptions (trigger-maintained denormalisations):
+//   - folio.balanceDue, guest.fullName, guest.totalStays, hotelUser.role
+//
+// MONEY
+//   All monetary columns are Int (paise). Never Float. Rs 5000 = 500000.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")   // runtime: hotel_pms_app (subject to RLS)
+  directUrl = env("DIRECT_URL")     // migrations: pms_user superuser (bypasses RLS)
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  OWNER
+  MANAGER
+  FRONT_DESK
+  HOUSEKEEPING
+  KITCHEN
+  MAINTENANCE
+  ACCOUNTANT
+}
+
+enum RoomStatus {
+  VACANT_CLEAN
+  VACANT_DIRTY
+  OCCUPIED
+  OUT_OF_ORDER
+  UNDER_MAINTENANCE
+  BLOCKED
+}
+
+enum RoomTypeName {
+  SINGLE
+  DOUBLE
+  TWIN
+  TRIPLE
+  FAMILY
+  SUITE
+  DORMITORY
+  COTTAGE
+  TENT_GLAMPING
+}
+
+enum ReservationStatus {
+  ENQUIRY
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  NO_SHOW
+  CANCELLED
+  WAITLISTED
+}
+
+enum BookingSource {
+  WALK_IN
+  PHONE
+  WHATSAPP
+  DIRECT_WEBSITE
+  BOOKING_COM
+  AGODA
+  EXPEDIA
+  AIRBNB
+  BOOKME_PK
+  SASTATICKET_PK
+  TRAVEL_AGENT
+  OTA_OTHER
+}
+
+enum GuestType {
+  INDIVIDUAL
+  GROUP
+  CORPORATE
+  TOUR_OPERATOR
+}
+
+enum PaymentMethod {
+  CASH
+  JAZZCASH
+  EASYPAISA
+  BANK_TRANSFER
+  CREDIT_CARD
+  DEBIT_CARD
+  CHEQUE
+  ADVANCE_DEPOSIT
+  OTA_COLLECT
+  COMPLIMENTARY
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIAL
+}
+
+enum FolioItemType {
+  ROOM_CHARGE
+  FOOD_BEVERAGE
+  LAUNDRY
+  TRANSPORT
+  SPA
+  ACTIVITY
+  MINIBAR
+  TELEPHONE
+  INTERNET
+  TAX
+  DISCOUNT
+  ADJUSTMENT
+  DAMAGE_CHARGE
+  MISCELLANEOUS
+}
+
+enum HousekeepingTaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+  ESCALATED
+}
+
+enum MaintenanceStatus {
+  OPEN
+  IN_PROGRESS
+  AWAITING_PARTS
+  RESOLVED
+  CLOSED
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum MessageChannel {
+  WHATSAPP
+  BOOKING_COM
+  AGODA
+  EXPEDIA
+  EMAIL
+  SMS
+  INTERNAL
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+  INTERNAL
+}
+
+enum MessageStatus {
+  RECEIVED
+  READ
+  REPLIED
+  PENDING_SEND
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum ChannelType {
+  BOOKING_COM
+  AGODA
+  EXPEDIA
+  AIRBNB
+  BOOKME_PK
+  SASTATICKET_PK
+  CHANNEL_MANAGER
+}
+
+enum RatePlanType {
+  STANDARD
+  SEASONAL
+  PROMOTIONAL
+  CORPORATE
+  TRAVEL_AGENT
+  OTA_NET
+  COMPLEMENTARY
+}
+
+enum InventoryTransactionType {
+  PURCHASE
+  CONSUMPTION
+  WASTE
+  ADJUSTMENT
+  TRANSFER
+  OPENING_STOCK
+}
+
+enum DocumentType {
+  CNIC
+  PASSPORT
+  DRIVING_LICENSE
+  NRIC
+  OTHER
+}
+
+enum PropertyType {
+  HOTEL
+  GUESTHOUSE
+  HOSTEL
+  RESORT
+  LODGE
+  CAMPSITE
+  SERVICED_APARTMENT
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  SUBMITTED_FBR
+  ACCEPTED_FBR
+  REJECTED_FBR
+  VOID
+}
+
+enum TaxType {
+  GST
+  PST_PRA
+  SST_SRB
+  KPST_KPRA
+  GBST_GBRA
+  WHT
+  ACCOMMODATION_TAX
+}
+
+// ============================================================================
+// ROLES & PERMISSIONS  (v2 addition — tables seeded EMPTY)
+// hotelId = NULL on system roles (apply to all hotels)
+// hotelId = set   on custom roles (hotel-specific, Phase 2)
+// ============================================================================
+
+model Role {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String?  @db.Uuid @map("hotel_id")
+
+  name        String               // "OWNER" | "MANAGER" etc. — matches UserRole enum
+  displayName String @map("display_name") // "Front Desk Staff"
+  description String?
+  color       String   @default("#6B7280")
+  isSystem    Boolean  @default(true) @map("is_system")
+  isCustom    Boolean  @default(false) @map("is_custom")
+  sortOrder   Int      @default(0) @map("sort_order")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  hotel       Hotel?         @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  permissions RolePermission[]
+  hotelUsers  HotelUser[]
+
+  @@unique([hotelId, name])
+  @@index([hotelId])
+  @@index([isSystem])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key         String   @unique   // "payments:refund" — matches TS Permission type
+  module      String             // "payments"
+  action      String             // "refund"
+  displayName String @map("display_name") // "Issue Refunds"
+  description String?
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  roles       RolePermission[]
+
+  @@index([module])
+  @@index([module, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roleId       String   @db.Uuid @map("role_id")
+  permissionId String   @db.Uuid @map("permission_id")
+  grantedAt    DateTime @default(now()) @map("granted_at")
+  grantedBy    String?  @db.Uuid @map("granted_by") // userId who granted
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+// ============================================================================
+// CORE — Hotels and Users
+// ============================================================================
+
+model Hotel {
+  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String
+  slug             String       @unique
+  propertyType     PropertyType @default(HOTEL) @map("property_type")
+
+  phone            String?
+  whatsappNumber   String? @map("whatsapp_number")
+  email            String?
+  website          String?
+
+  address          String?
+  city             String?
+  region           String?
+  province         String?
+  country          String       @default("PK")
+  latitude         Decimal?     @db.Decimal(10, 7)
+  longitude        Decimal?     @db.Decimal(10, 7)
+  googlePlaceId    String? @map("google_place_id")
+
+  ntn              String?
+  strn             String?
+  fbrPosId         String? @map("fbr_pos_id")
+
+  settings         Json         @default("{}")
+
+  isActive         Boolean      @default(true) @map("is_active")
+  isTrialAccount   Boolean      @default(true) @map("is_trial_account")
+  trialEndsAt      DateTime? @map("trial_ends_at")
+  onboardedAt      DateTime? @map("onboarded_at")
+
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  roles                 Role[]
+  users                 HotelUser[]
+  roomTypes             RoomType[]
+  rooms                 Room[]
+  guests                Guest[]
+  reservations          Reservation[]
+  folios                Folio[]
+  payments              Payment[]
+  housekeepingTasks     HousekeepingTask[]
+  maintenanceTickets    MaintenanceTicket[]
+  messages              Message[]
+  conversations         Conversation[]
+  posCategories         PosCategory[]
+  posItems              PosItem[]
+  posOrders             PosOrder[]
+  ratePlans             RatePlan[]
+  channels              ChannelConfig[]
+  inventoryItems        InventoryItem[]
+  inventoryTransactions InventoryTransaction[]
+  staff                 Staff[]
+  shiftReports          ShiftReport[]
+  invoices              Invoice[]
+  taxConfigs            TaxConfig[]
+  auditLogs             AuditLog[]
+  notifications         Notification[]
+  customFields          CustomFieldDefinition[]
+
+  @@index([slug])
+  @@index([isActive])
+  @@index([region])
+  @@map("hotels")
+}
+
+model User {
+  id                   String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                String      @unique
+  phone                String?     @unique
+  passwordHash         String @map("password_hash")
+  name                 String
+  avatarUrl            String? @map("avatar_url")
+
+  emailVerified        Boolean     @default(false) @map("email_verified")
+  phoneVerified        Boolean     @default(false) @map("phone_verified")
+  lastLoginAt          DateTime? @map("last_login_at")
+  refreshTokenHash     String? @map("refresh_token_hash")
+  passwordResetToken   String? @map("password_reset_token")
+  passwordResetExpiry  DateTime? @map("password_reset_expiry")
+
+  preferredLanguage    String      @default("en") @map("preferred_language")
+  timezone             String      @default("Asia/Karachi")
+
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+  deletedAt            DateTime? @map("deleted_at")
+
+  hotels                HotelUser[]
+  auditLogs             AuditLog[]
+  assignedTasks         HousekeepingTask[]   @relation("assignedTo")
+  assignedMaintenance   MaintenanceTicket[]  @relation("assignedMaintenance")
+  assignedConversations Conversation[]
+
+  @@index([deletedAt])
+  @@map("users")
+}
+
+// Updated in v2: adds roleId FK to Role table.
+// role (enum) is kept as fast cache for JWT — always in sync with Role.name.
+model HotelUser {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String    @db.Uuid @map("hotel_id")
+  userId      String    @db.Uuid @map("user_id")
+  role        UserRole            // fast enum cache for JWT and can() checks
+  roleId      String    @db.Uuid @map("role_id") // FK to Role table for DB-driven permissions
+  isActive    Boolean   @default(true) @map("is_active")
+  invitedAt   DateTime  @default(now()) @map("invited_at")
+  acceptedAt  DateTime? @map("accepted_at")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  hotel        Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedRole Role     @relation(fields: [roleId], references: [id])
+
+  @@unique([hotelId, userId])
+  @@index([hotelId])
+  @@index([userId])
+  @@index([hotelId, role])
+  @@index([roleId])
+  @@map("hotel_users")
+}
+
+// ============================================================================
+// ROOMS
+// ============================================================================
+
+model RoomType {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String       @db.Uuid @map("hotel_id")
+  name            String
+  typeName        RoomTypeName @default(DOUBLE) @map("type_name")
+  description     String?
+  maxOccupancy    Int @map("max_occupancy")
+  defaultRate     Int @map("default_rate")
+  extraBedRate    Int          @default(0) @map("extra_bed_rate")
+  amenities       String[]
+  photoUrls       String[] @map("photo_urls")
+  sortOrder       Int          @default(0) @map("sort_order")
+  isActive        Boolean      @default(true) @map("is_active")
+
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  hotel            Hotel             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  rooms            Room[]
+  ratePlanItems    RatePlanItem[]
+  reservationRooms ReservationRoom[]
+
+  @@index([hotelId])
+  @@index([hotelId, isActive])
+  @@map("room_types")
+}
+
+model Room {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String      @db.Uuid @map("hotel_id")
+  roomTypeId      String      @db.Uuid @map("room_type_id")
+  number          String
+  floor           Int?
+  status          RoomStatus  @default(VACANT_CLEAN)
+  notes           String?
+  isActive        Boolean     @default(true) @map("is_active")
+
+  lastCleanedAt   DateTime? @map("last_cleaned_at")
+  lastCheckedAt   DateTime? @map("last_checked_at")
+  lastInspectedBy String?     @db.Uuid @map("last_inspected_by")
+
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  hotel              Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  roomType           RoomType           @relation(fields: [roomTypeId], references: [id])
+  reservationRooms   ReservationRoom[]
+  housekeepingTasks  HousekeepingTask[]
+  maintenanceTickets MaintenanceTicket[]
+
+  @@unique([hotelId, number])
+  @@index([hotelId])
+  @@index([hotelId, status])
+  @@index([hotelId, isActive])
+  @@index([roomTypeId])
+  @@map("rooms")
+}
+
+// ============================================================================
+// GUESTS
+// ============================================================================
+
+model Guest {
+  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId          String       @db.Uuid @map("hotel_id")
+
+  firstName        String @map("first_name")
+  lastName         String @map("last_name")
+  fullName         String @map("full_name")
+  email            String?
+  phone            String?
+  alternatePhone   String? @map("alternate_phone")
+  nationality      String?
+  isForeigner      Boolean      @default(false) @map("is_foreigner")
+  language         String?
+
+  documentType     DocumentType @default(CNIC) @map("document_type")
+  documentNumber   String? @map("document_number")
+  documentExpiry   DateTime? @map("document_expiry")
+  documentScanUrl  String? @map("document_scan_url")
+  dateOfBirth      DateTime? @map("date_of_birth")
+  gender           String?
+
+  address          String?
+  city             String?
+  country          String?
+
+  totalStays       Int          @default(0) @map("total_stays")
+  totalSpend       Int          @default(0) @map("total_spend")
+  vipLevel         Int          @default(0) @map("vip_level")
+  tags             String[]
+  internalNotes    String? @map("internal_notes")
+  isBlacklisted    Boolean      @default(false) @map("is_blacklisted")
+  blacklistReason  String? @map("blacklist_reason")
+
+  source           BookingSource?
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  hotel            Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  reservations     Reservation[]
+  groupMembers     GroupMember[]
+  conversations    Conversation[]
+  blacklistEntries GuestBlacklist[]
+
+  searchVector     Unsupported("tsvector")?
+
+  @@index([hotelId])
+  @@index([hotelId, documentNumber])
+  @@index([hotelId, phone])
+  @@index([hotelId, isBlacklisted])
+  @@index([hotelId, isForeigner])
+  @@index([hotelId, deletedAt])
+  @@index([hotelId, vipLevel])
+  @@map("guests")
+}
+
+model GuestBlacklist {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String       @db.Uuid @map("hotel_id")
+  guestId         String       @db.Uuid @map("guest_id")
+  documentNumber  String? @map("document_number")
+  documentType    DocumentType? @map("document_type")
+  reason          String
+  severity        Int          @default(1)
+  isShared        Boolean      @default(false) @map("is_shared")
+  sharedAt        DateTime? @map("shared_at")
+
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  guest           Guest        @relation(fields: [guestId], references: [id])
+
+  @@index([documentNumber])
+  @@index([hotelId])
+  @@index([guestId])
+  @@index([isShared, documentNumber])
+  @@map("guest_blacklist")
+}
+
+// ============================================================================
+// RESERVATIONS
+// ============================================================================
+
+model Reservation {
+  id                  String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId             String            @db.Uuid @map("hotel_id")
+  guestId             String            @db.Uuid @map("guest_id")
+  groupId             String?           @db.Uuid @map("group_id")
+
+  confirmationNumber  String            @unique @map("confirmation_number")
+  source              BookingSource     @default(WALK_IN)
+  otaBookingRef       String? @map("ota_booking_ref")
+  status              ReservationStatus @default(CONFIRMED)
+  guestType           GuestType         @default(INDIVIDUAL) @map("guest_type")
+
+  checkInDate         DateTime          @db.Date @map("check_in_date")
+  checkOutDate        DateTime          @db.Date @map("check_out_date")
+  actualCheckIn       DateTime? @map("actual_check_in")
+  actualCheckOut      DateTime? @map("actual_check_out")
+
+  adults              Int               @default(1)
+  children            Int               @default(0)
+  infants             Int               @default(0)
+
+  quotedRate          Int               @default(0) @map("quoted_rate")
+  totalAmount         Int               @default(0) @map("total_amount")
+  discountAmount      Int               @default(0) @map("discount_amount")
+  advancePaid         Int               @default(0) @map("advance_paid")
+  balanceDue          Int               @default(0) @map("balance_due")
+
+  specialRequests     String? @map("special_requests")
+  internalNotes       String? @map("internal_notes")
+  dietaryRequirements String? @map("dietary_requirements")
+  purposeOfVisit      String? @map("purpose_of_visit")
+  arrivalMode         String? @map("arrival_mode")
+  estimatedArrivalTime DateTime? @map("estimated_arrival_time")
+
+  cancellationReason  String? @map("cancellation_reason")
+  cancelledAt         DateTime? @map("cancelled_at")
+  cancelledBy         String?           @db.Uuid @map("cancelled_by")
+  cancellationFee     Int               @default(0) @map("cancellation_fee")
+
+  isWalkIn            Boolean           @default(false) @map("is_walk_in")
+  requiresPickup      Boolean           @default(false) @map("requires_pickup")
+  isVip               Boolean           @default(false) @map("is_vip")
+
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+  createdBy           String?           @db.Uuid @map("created_by")
+
+  hotel               Hotel             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  guest               Guest             @relation(fields: [guestId], references: [id])
+  group               GroupBooking?     @relation(fields: [groupId], references: [id])
+  rooms               ReservationRoom[]
+  folio               Folio?
+  payments            Payment[]
+  messages            Message[]
+
+  @@index([hotelId, status])
+  @@index([hotelId, checkInDate])
+  @@index([hotelId, checkOutDate])
+  @@index([hotelId, guestId])
+  @@index([hotelId, source])
+  @@index([hotelId, createdAt])
+  @@index([hotelId, otaBookingRef])
+  @@index([hotelId, checkInDate, status])
+  @@map("reservations")
+}
+
+model ReservationRoom {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reservationId   String      @db.Uuid @map("reservation_id")
+  roomId          String      @db.Uuid @map("room_id")
+  roomTypeId      String      @db.Uuid @map("room_type_id")
+  guestId         String?     @db.Uuid @map("guest_id")
+  ratePerNight    Int @map("rate_per_night")
+  checkInDate     DateTime    @db.Date @map("check_in_date")
+  checkOutDate    DateTime    @db.Date @map("check_out_date")
+  actualCheckIn   DateTime? @map("actual_check_in")
+  actualCheckOut  DateTime? @map("actual_check_out")
+  notes           String?
+
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  reservation     Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  room            Room        @relation(fields: [roomId], references: [id])
+  roomType        RoomType    @relation(fields: [roomTypeId], references: [id])
+
+  @@index([reservationId])
+  @@index([roomId])
+  @@index([roomId, checkInDate, checkOutDate])
+  @@index([roomTypeId])
+  @@map("reservation_rooms")
+}
+
+// ============================================================================
+// GROUP BOOKINGS
+// ============================================================================
+
+model GroupBooking {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId          String    @db.Uuid @map("hotel_id")
+  name             String
+  groupRef         String? @map("group_ref")
+  tourOperatorId   String?   @db.Uuid @map("tour_operator_id")
+
+  billingType      String    @default("SPLIT") @map("billing_type")
+  payerType        String    @default("GUEST") @map("payer_type")
+  payerName        String? @map("payer_name")
+  payerContact     String? @map("payer_contact")
+
+  notes            String?
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  reservations     Reservation[]
+  members          GroupMember[]
+
+  @@index([hotelId])
+  @@index([hotelId, tourOperatorId])
+  @@map("group_bookings")
+}
+
+model GroupMember {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId       String       @db.Uuid @map("group_id")
+  guestId       String       @db.Uuid @map("guest_id")
+  isLeader      Boolean      @default(false) @map("is_leader")
+  roomPreference String? @map("room_preference")
+
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  group         GroupBooking @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  guest         Guest        @relation(fields: [guestId], references: [id])
+
+  @@unique([groupId, guestId])
+  @@index([groupId])
+  @@index([guestId])
+  @@map("group_members")
+}
+
+// ============================================================================
+// FOLIO & PAYMENTS
+// ============================================================================
+
+model Folio {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String    @db.Uuid @map("hotel_id")
+  reservationId   String    @unique @db.Uuid @map("reservation_id")
+  folioNumber     String    @unique @map("folio_number")
+
+  chargesTotal    Int       @default(0) @map("charges_total")
+  discountsTotal  Int       @default(0) @map("discounts_total")
+  taxTotal        Int       @default(0) @map("tax_total")
+  paymentsTotal   Int       @default(0) @map("payments_total")
+  balanceDue      Int       @default(0) @map("balance_due")
+
+  isOpen          Boolean   @default(true) @map("is_open")
+  closedAt        DateTime? @map("closed_at")
+  closedBy        String?   @db.Uuid @map("closed_by")
+
+  invoiceId       String?   @db.Uuid @map("invoice_id")
+
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  hotel       Hotel       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  reservation Reservation @relation(fields: [reservationId], references: [id])
+  items       FolioItem[]
+  payments    Payment[]
+  splitFolios FolioSplit[]
+  invoice     Invoice?    @relation(fields: [invoiceId], references: [id])
+
+  @@index([hotelId])
+  @@index([hotelId, isOpen])
+  @@index([hotelId, closedAt])
+  @@map("folios")
+}
+
+model FolioItem {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String        @db.Uuid @map("hotel_id")
+  folioId         String        @db.Uuid @map("folio_id")
+  type            FolioItemType
+  description     String
+  quantity        Int           @default(1)
+  unitAmount      Int @map("unit_amount")
+  amount          Int
+  discountAmount  Int           @default(0) @map("discount_amount")
+  taxAmount       Int           @default(0) @map("tax_amount")
+  netAmount       Int @map("net_amount")
+
+  posOrderItemId  String?       @db.Uuid @map("pos_order_item_id")
+  roomId          String?       @db.Uuid @map("room_id")
+  staffId         String?       @db.Uuid @map("staff_id")
+
+  chargeDate      DateTime      @default(now()) @map("charge_date")
+  isVoided        Boolean       @default(false) @map("is_voided")
+  voidedAt        DateTime? @map("voided_at")
+  voidedBy        String?       @db.Uuid @map("voided_by")
+  voidReason      String? @map("void_reason")
+
+  notes           String?
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  folio        Folio         @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  posOrderItem PosOrderItem? @relation(fields: [posOrderItemId], references: [id])
+
+  @@index([folioId])
+  @@index([hotelId, chargeDate])
+  @@index([hotelId, type])
+  @@index([posOrderItemId])
+  @@map("folio_items")
+}
+
+model FolioSplit {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  folioId     String   @db.Uuid @map("folio_id")
+  payerName   String @map("payer_name")
+  payerType   String @map("payer_type")
+  payerRef    String? @map("payer_ref")
+  amount      Int
+  isPaid      Boolean  @default(false) @map("is_paid")
+  paidAt      DateTime? @map("paid_at")
+  notes       String?
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  folio       Folio    @relation(fields: [folioId], references: [id], onDelete: Cascade)
+
+  @@index([folioId])
+  @@map("folio_splits")
+}
+
+model Payment {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String        @db.Uuid @map("hotel_id")
+  folioId         String?       @db.Uuid @map("folio_id")
+  reservationId   String?       @db.Uuid @map("reservation_id")
+  method          PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  amount          Int
+  currencyCode    String        @default("PKR") @map("currency_code")
+  exchangeRate    Decimal?      @db.Decimal(10, 4) @map("exchange_rate")
+
+  transactionRef  String? @map("transaction_ref")
+  gatewayResponse Json? @map("gateway_response")
+
+  cashDenominations Json? @map("cash_denominations")
+  receiptNumber   String? @map("receipt_number")
+
+  isRefund        Boolean       @default(false) @map("is_refund")
+  originalPaymentId String?     @db.Uuid @map("original_payment_id")
+  refundReason    String? @map("refund_reason")
+
+  postedAt        DateTime      @default(now()) @map("posted_at")
+  postedBy        String?       @db.Uuid @map("posted_by")
+  notes           String?
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  hotel       Hotel        @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  folio       Folio?       @relation(fields: [folioId], references: [id])
+  reservation Reservation? @relation(fields: [reservationId], references: [id])
+
+  @@index([hotelId, postedAt])
+  @@index([hotelId, method])
+  @@index([hotelId, status])
+  @@index([folioId])
+  @@index([reservationId])
+  @@index([originalPaymentId])
+  @@map("payments")
+}
+
+// ============================================================================
+// POINT OF SALE
+// ============================================================================
+
+model PosCategory {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String    @db.Uuid @map("hotel_id")
+  name        String
+  icon        String?
+  sortOrder   Int       @default(0) @map("sort_order")
+  isActive    Boolean   @default(true) @map("is_active")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  hotel       Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  items       PosItem[]
+
+  @@index([hotelId])
+  @@index([hotelId, isActive])
+  @@map("pos_categories")
+}
+
+model PosItem {
+  id                String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId           String      @db.Uuid @map("hotel_id")
+  categoryId        String      @db.Uuid @map("category_id")
+  name              String
+  nameUrdu          String? @map("name_urdu")
+  description       String?
+  price             Int
+  taxRate           Decimal     @default(0) @db.Decimal(5, 4) @map("tax_rate")
+  unit              String      @default("piece")
+
+  inventoryItemId   String?     @db.Uuid @map("inventory_item_id")
+  inventoryQtyUsed  Decimal?    @db.Decimal(10, 3) @map("inventory_qty_used")
+
+  isAvailable       Boolean     @default(true) @map("is_available")
+  isKitchenItem     Boolean     @default(true) @map("is_kitchen_item")
+  sortOrder         Int         @default(0) @map("sort_order")
+  photoUrl          String? @map("photo_url")
+
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  hotel         Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  category      PosCategory    @relation(fields: [categoryId], references: [id])
+  inventoryItem InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+  orderItems    PosOrderItem[]
+
+  @@index([hotelId])
+  @@index([hotelId, categoryId])
+  @@index([hotelId, isAvailable])
+  @@index([inventoryItemId])
+  @@map("pos_items")
+}
+
+model PosOrder {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String    @db.Uuid @map("hotel_id")
+  orderNumber     String    @unique @map("order_number")
+  reservationId   String?   @db.Uuid @map("reservation_id")
+  folioId         String?   @db.Uuid @map("folio_id")
+  tableNumber     String? @map("table_number")
+  roomNumber      String? @map("room_number")
+
+  subtotal        Int       @default(0)
+  taxAmount       Int       @default(0) @map("tax_amount")
+  discountAmount  Int       @default(0) @map("discount_amount")
+  total           Int       @default(0)
+
+  isPostedToFolio Boolean   @default(false) @map("is_posted_to_folio")
+  postedAt        DateTime? @map("posted_at")
+  servedBy        String?   @db.Uuid @map("served_by")
+  notes           String?
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  hotel Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  items PosOrderItem[]
+
+  @@index([hotelId, reservationId])
+  @@index([hotelId, createdAt])
+  @@index([hotelId, isPostedToFolio])
+  @@map("pos_orders")
+}
+
+model PosOrderItem {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId         String    @db.Uuid @map("order_id")
+  posItemId       String    @db.Uuid @map("pos_item_id")
+  name            String
+  quantity        Int
+  unitPrice       Int @map("unit_price")
+  taxRate         Decimal   @db.Decimal(5, 4) @map("tax_rate")
+  discountAmount  Int       @default(0) @map("discount_amount")
+  lineTotal       Int @map("line_total")
+  notes           String?
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  order      PosOrder    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  posItem    PosItem     @relation(fields: [posItemId], references: [id])
+  folioItems FolioItem[]
+
+  @@index([orderId])
+  @@index([posItemId])
+  @@map("pos_order_items")
+}
+
+// ============================================================================
+// HOUSEKEEPING
+// ============================================================================
+
+model HousekeepingTask {
+  id              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String                 @db.Uuid @map("hotel_id")
+  roomId          String                 @db.Uuid @map("room_id")
+  assignedToId    String?                @db.Uuid @map("assigned_to_id")
+
+  taskType        String @map("task_type")
+  status          HousekeepingTaskStatus @default(PENDING)
+  priority        Int                    @default(1)
+
+  scheduledDate   DateTime               @db.Date @map("scheduled_date")
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+
+  hasIssue        Boolean                @default(false) @map("has_issue")
+  issueDescription String? @map("issue_description")
+  issuePhotoUrls  String[] @map("issue_photo_urls")
+  isEscalated     Boolean                @default(false) @map("is_escalated")
+
+  notes           String?
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+
+  hotel      Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room       Room  @relation(fields: [roomId], references: [id])
+  assignedTo User? @relation("assignedTo", fields: [assignedToId], references: [id])
+
+  @@index([hotelId, scheduledDate])
+  @@index([hotelId, status])
+  @@index([roomId])
+  @@index([assignedToId, scheduledDate])
+  @@index([hotelId, isEscalated])
+  @@map("housekeeping_tasks")
+}
+
+// ============================================================================
+// MAINTENANCE — Phase 2 stub
+// ============================================================================
+
+model MaintenanceTicket {
+  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String              @db.Uuid @map("hotel_id")
+  roomId          String?             @db.Uuid @map("room_id")
+  reportedById    String?             @db.Uuid @map("reported_by_id")
+  assignedToId    String?             @db.Uuid @map("assigned_to_id")
+
+  ticketNumber    String              @unique @map("ticket_number")
+  title           String
+  description     String?
+  category        String
+  status          MaintenanceStatus   @default(OPEN)
+  priority        MaintenancePriority @default(MEDIUM)
+
+  photoUrls       String[] @map("photo_urls")
+  resolutionNotes String? @map("resolution_notes")
+
+  estimatedCost   Int? @map("estimated_cost")
+  actualCost      Int? @map("actual_cost")
+  partsUsed       Json? @map("parts_used")
+
+  scheduledFor    DateTime? @map("scheduled_for")
+  resolvedAt      DateTime? @map("resolved_at")
+
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  hotel      Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room       Room? @relation(fields: [roomId], references: [id])
+  assignedTo User? @relation("assignedMaintenance", fields: [assignedToId], references: [id])
+
+  @@index([hotelId, status])
+  @@index([hotelId, priority])
+  @@index([hotelId, category])
+  @@index([roomId])
+  @@index([assignedToId])
+  @@map("maintenance_tickets")
+}
+
+// ============================================================================
+// INVENTORY — Phase 2 stub
+// ============================================================================
+
+model InventoryItem {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String    @db.Uuid @map("hotel_id")
+  name            String
+  sku             String?
+  category        String
+  unit            String
+  currentStock    Decimal   @default(0) @db.Decimal(12, 3) @map("current_stock")
+  parLevel        Decimal   @default(0) @db.Decimal(12, 3) @map("par_level")
+  reorderLevel    Decimal   @default(0) @db.Decimal(12, 3) @map("reorder_level")
+  costPerUnit     Int       @default(0) @map("cost_per_unit")
+  supplier        String?
+  isActive        Boolean   @default(true) @map("is_active")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  hotel        Hotel                  @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  transactions InventoryTransaction[]
+  posItems     PosItem[]
+
+  @@index([hotelId])
+  @@index([hotelId, category])
+  @@index([hotelId, isActive])
+  @@map("inventory_items")
+}
+
+model InventoryTransaction {
+  id              String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String                   @db.Uuid @map("hotel_id")
+  itemId          String                   @db.Uuid @map("item_id")
+  type            InventoryTransactionType
+  quantity        Decimal                  @db.Decimal(12, 3)
+  unitCost        Int? @map("unit_cost")
+  totalCost       Int? @map("total_cost")
+  referenceId     String? @map("reference_id")
+  referenceType   String? @map("reference_type")
+  notes           String?
+  performedBy     String?                  @db.Uuid @map("performed_by")
+
+  createdAt       DateTime                 @default(now()) @map("created_at")
+
+  hotel Hotel         @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  item  InventoryItem @relation(fields: [itemId], references: [id])
+
+  @@index([hotelId, itemId])
+  @@index([hotelId, createdAt])
+  @@index([itemId, createdAt])
+  @@index([hotelId, type])
+  @@map("inventory_transactions")
+}
+
+// ============================================================================
+// MESSAGING / UNIFIED INBOX
+// ============================================================================
+
+model Conversation {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String          @db.Uuid @map("hotel_id")
+  guestId         String?         @db.Uuid @map("guest_id")
+  reservationId   String?         @db.Uuid @map("reservation_id")
+  assignedToId    String?         @db.Uuid @map("assigned_to_id")
+  subject         String?
+  channel         MessageChannel  @default(WHATSAPP)
+
+  isOpen          Boolean         @default(true) @map("is_open")
+  isRead          Boolean         @default(false) @map("is_read")
+  isSnoozed       Boolean         @default(false) @map("is_snoozed")
+  snoozedUntil    DateTime? @map("snoozed_until")
+  lastMessageAt   DateTime? @map("last_message_at")
+  unreadCount     Int             @default(0) @map("unread_count")
+
+  tags            String[]
+  internalNotes   String? @map("internal_notes")
+
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  hotel      Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  guest      Guest?    @relation(fields: [guestId], references: [id])
+  assignedTo User?     @relation(fields: [assignedToId], references: [id])
+  messages   Message[]
+
+  @@index([hotelId, isOpen])
+  @@index([hotelId, guestId])
+  @@index([hotelId, lastMessageAt])
+  @@index([hotelId, isRead])
+  @@index([assignedToId])
+  @@map("conversations")
+}
+
+model Message {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId           String           @db.Uuid @map("hotel_id")
+  conversationId    String           @db.Uuid @map("conversation_id")
+  reservationId     String?          @db.Uuid @map("reservation_id")
+  channel           MessageChannel
+  direction         MessageDirection
+  status            MessageStatus    @default(RECEIVED)
+
+  body              String
+  mediaUrls         String[] @map("media_urls")
+  isTemplate        Boolean          @default(false) @map("is_template")
+  templateName      String? @map("template_name")
+
+  externalMessageId String? @map("external_message_id")
+  sentAt            DateTime? @map("sent_at")
+  deliveredAt       DateTime? @map("delivered_at")
+  readAt            DateTime? @map("read_at")
+  failureReason     String? @map("failure_reason")
+
+  senderName        String? @map("sender_name")
+  senderPhone       String? @map("sender_phone")
+  staffId           String?          @db.Uuid @map("staff_id")
+
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  hotel        Hotel        @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  reservation  Reservation? @relation(fields: [reservationId], references: [id])
+
+  @@index([conversationId])
+  @@index([hotelId, createdAt])
+  @@index([externalMessageId])
+  @@index([hotelId, direction, status])
+  @@map("messages")
+}
+
+// ============================================================================
+// RATE PLANS
+// ============================================================================
+
+model RatePlan {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String       @db.Uuid @map("hotel_id")
+  name            String
+  type            RatePlanType @default(STANDARD)
+  description     String?
+
+  validFrom       DateTime?    @db.Date @map("valid_from")
+  validTo         DateTime?    @db.Date @map("valid_to")
+  daysOfWeek      Int[] @map("days_of_week")
+
+  minLos          Int          @default(1) @map("min_los")
+  maxLos          Int? @map("max_los")
+  minAdvance      Int? @map("min_advance")
+  maxAdvance      Int? @map("max_advance")
+  minOccupancy    Int? @map("min_occupancy")
+
+  modifierType    String       @default("FIXED") @map("modifier_type")
+  modifierValue   Int          @default(0) @map("modifier_value")
+
+  isActive        Boolean      @default(true) @map("is_active")
+  priority        Int          @default(0)
+
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  hotel Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  items RatePlanItem[]
+
+  @@index([hotelId])
+  @@index([hotelId, isActive])
+  @@index([hotelId, type])
+  @@index([hotelId, validFrom, validTo])
+  @@map("rate_plans")
+}
+
+model RatePlanItem {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ratePlanId  String    @db.Uuid @map("rate_plan_id")
+  roomTypeId  String    @db.Uuid @map("room_type_id")
+  rate        Int
+
+  ratePlan RatePlan @relation(fields: [ratePlanId], references: [id], onDelete: Cascade)
+  roomType RoomType @relation(fields: [roomTypeId], references: [id])
+
+  @@unique([ratePlanId, roomTypeId])
+  @@index([ratePlanId])
+  @@index([roomTypeId])
+  @@map("rate_plan_items")
+}
+
+// ============================================================================
+// CHANNEL MANAGER — Phase 2 stub
+// ============================================================================
+
+model ChannelConfig {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String      @db.Uuid @map("hotel_id")
+  channelType     ChannelType @map("channel_type")
+  isActive        Boolean     @default(false) @map("is_active")
+
+  credentials     Json        @default("{}")
+  lastSyncAt      DateTime? @map("last_sync_at")
+  lastSyncStatus  String? @map("last_sync_status")
+  lastSyncError   String? @map("last_sync_error")
+
+  syncInventory   Boolean     @default(true) @map("sync_inventory")
+  syncRates       Boolean     @default(true) @map("sync_rates")
+  commissionRate  Decimal     @default(0) @db.Decimal(5, 4) @map("commission_rate")
+
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, channelType])
+  @@index([hotelId])
+  @@index([hotelId, isActive])
+  @@map("channel_configs")
+}
+
+// ============================================================================
+// STAFF & SHIFT REPORTS
+// ============================================================================
+
+model Staff {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String    @db.Uuid @map("hotel_id")
+  userId          String    @db.Uuid @map("user_id")
+  employeeId      String? @map("employee_id")
+  department      String?
+  designation     String?
+  joiningDate     DateTime? @db.Date @map("joining_date")
+  isActive        Boolean   @default(true) @map("is_active")
+  notes           String?
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, userId])
+  @@index([hotelId])
+  @@index([hotelId, department])
+  @@index([hotelId, isActive])
+  @@map("staff")
+}
+
+model ShiftReport {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String    @db.Uuid @map("hotel_id")
+  staffId         String    @db.Uuid @map("staff_id")
+  shiftDate       DateTime  @db.Date @map("shift_date")
+  shiftType       String @map("shift_type")
+
+  openingBalance  Int       @default(0) @map("opening_balance")
+  cashCollected   Int       @default(0) @map("cash_collected")
+  cashExpenses    Int       @default(0) @map("cash_expenses")
+  closingBalance  Int       @default(0) @map("closing_balance")
+  expectedBalance Int       @default(0) @map("expected_balance")
+  variance        Int       @default(0)
+
+  checkIns        Int       @default(0) @map("check_ins")
+  checkOuts       Int       @default(0) @map("check_outs")
+  newBookings     Int       @default(0) @map("new_bookings")
+  posOrders       Int       @default(0) @map("pos_orders")
+
+  notes           String?
+  signedOffAt     DateTime? @map("signed_off_at")
+  signedOffBy     String?   @db.Uuid @map("signed_off_by")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, shiftDate])
+  @@index([hotelId, shiftDate, shiftType])
+  @@index([staffId, shiftDate])
+  @@map("shift_reports")
+}
+
+// ============================================================================
+// COMPLIANCE
+// ============================================================================
+
+model TaxConfig {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String    @db.Uuid @map("hotel_id")
+  taxType     TaxType @map("tax_type")
+  rate        Decimal   @db.Decimal(5, 4)
+  isInclusive Boolean   @default(false) @map("is_inclusive")
+  isActive    Boolean   @default(true) @map("is_active")
+  appliesTo   String[] @map("applies_to")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId])
+  @@index([hotelId, isActive])
+  @@map("tax_configs")
+}
+
+model Invoice {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId          String        @db.Uuid @map("hotel_id")
+  invoiceNumber    String        @unique @map("invoice_number")
+  status           InvoiceStatus @default(DRAFT)
+
+  fbrInvoiceNumber String? @map("fbr_invoice_number")
+  fbrSubmittedAt   DateTime? @map("fbr_submitted_at")
+  fbrResponse      Json? @map("fbr_response")
+
+  subtotal         Int
+  taxAmount        Int @map("tax_amount")
+  totalAmount      Int @map("total_amount")
+
+  issuedAt         DateTime      @default(now()) @map("issued_at")
+  dueAt            DateTime? @map("due_at")
+  notes            String?
+
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  hotel  Hotel   @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  folios Folio[]
+
+  @@index([hotelId])
+  @@index([hotelId, status])
+  @@index([hotelId, issuedAt])
+  @@map("invoices")
+}
+
+// ============================================================================
+// AUDIT LOG — append-only
+// ============================================================================
+
+model AuditLog {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String    @db.Uuid @map("hotel_id")
+  userId      String?   @db.Uuid @map("user_id")
+  action      String
+  entity      String
+  entityId    String    @db.Uuid @map("entity_id")
+  before      Json?
+  after       Json?
+  ipAddress   String? @map("ip_address")
+  userAgent   String? @map("user_agent")
+  notes       String?
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id])
+
+  @@index([hotelId, createdAt])
+  @@index([hotelId, entity, entityId])
+  @@index([userId, createdAt])
+  @@index([hotelId, action])
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+model Notification {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String    @db.Uuid @map("hotel_id")
+  userId      String?   @db.Uuid @map("user_id")
+  type        String
+  title       String
+  body        String
+  metadata    Json?
+  isRead      Boolean   @default(false) @map("is_read")
+  readAt      DateTime? @map("read_at")
+  channel     String    @default("IN_APP")
+  sentAt      DateTime? @map("sent_at")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, isRead])
+  @@index([userId, isRead])
+  @@index([hotelId, createdAt])
+  @@map("notifications")
+}
+
+// ============================================================================
+// CUSTOM FIELDS
+// ============================================================================
+
+model CustomFieldDefinition {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String   @db.Uuid @map("hotel_id")
+  entity      String
+  key         String
+  label       String
+  fieldType   String @map("field_type")
+  options     String[]
+  isRequired  Boolean  @default(false) @map("is_required")
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  hotel  Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  values CustomFieldValue[]
+
+  @@unique([hotelId, entity, key])
+  @@index([hotelId, entity])
+  @@map("custom_field_definitions")
+}
+
+model CustomFieldValue {
+  id           String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  definitionId String                @db.Uuid @map("definition_id")
+  entityId     String                @db.Uuid @map("entity_id")
+  value        String
+
+  createdAt    DateTime              @default(now()) @map("created_at")
+  updatedAt    DateTime              @updatedAt @map("updated_at")
+
+  definition CustomFieldDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+
+  @@unique([definitionId, entityId])
+  @@index([definitionId])
+  @@index([entityId])
+  @@map("custom_field_values")
+}

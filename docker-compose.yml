@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pms_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hotel_pms
+      POSTGRES_USER: pms_user
+      POSTGRES_PASSWORD: pms_pass
+    ports:
+      - "5433:5432"   # 5433 on host → avoids clashing with any existing Postgres
+    volumes:
+      - pms_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pms_user -d hotel_pms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pms_postgres_data:
+    driver: local

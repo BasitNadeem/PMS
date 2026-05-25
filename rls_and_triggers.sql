@@ -96,18 +96,25 @@ END;
 $$;
 
 -- ── Hotel-scoped tables (standard isolation) ─────────────────────────────────
-SELECT enable_hotel_rls('hotels');
+
+-- hotels uses 'id' as its tenant key (not hotel_id — it IS the tenant root)
+ALTER TABLE hotels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hotels FORCE   ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS hotel_isolation ON hotels;
+CREATE POLICY hotel_isolation ON hotels
+  USING      (id = current_hotel_id())
+  WITH CHECK (id = current_hotel_id());
 SELECT enable_hotel_rls('hotel_users');
 SELECT enable_hotel_rls('room_types');
 SELECT enable_hotel_rls('rooms');
 SELECT enable_hotel_rls('guests');
 SELECT enable_hotel_rls('reservations');
-SELECT enable_hotel_rls('reservation_rooms');
+-- reservation_rooms has no hotel_id — handled in open-access section below
 SELECT enable_hotel_rls('group_bookings');
-SELECT enable_hotel_rls('group_members');
+-- group_members has no hotel_id — handled in open-access section below
 SELECT enable_hotel_rls('folios');
 SELECT enable_hotel_rls('folio_items');
-SELECT enable_hotel_rls('folio_splits');
+-- folio_splits has no hotel_id — handled in open-access section below
 SELECT enable_hotel_rls('payments');
 SELECT enable_hotel_rls('pos_categories');
 SELECT enable_hotel_rls('pos_items');
@@ -134,6 +141,12 @@ SELECT enable_hotel_rls('custom_field_definitions');
 -- Security is enforced by the parent table's RLS in the JOIN.
 
 DO $$ BEGIN
+  -- reservation_rooms: isolated via parent reservations (RLS + CASCADE delete)
+  EXECUTE 'ALTER TABLE reservation_rooms ENABLE ROW LEVEL SECURITY';
+  EXECUTE 'ALTER TABLE reservation_rooms FORCE ROW LEVEL SECURITY';
+  EXECUTE 'DROP POLICY IF EXISTS open_access ON reservation_rooms';
+  EXECUTE 'CREATE POLICY open_access ON reservation_rooms USING (true)';
+
   EXECUTE 'ALTER TABLE pos_order_items   ENABLE ROW LEVEL SECURITY';
   EXECUTE 'ALTER TABLE pos_order_items   FORCE ROW LEVEL SECURITY';
   EXECUTE 'DROP POLICY IF EXISTS open_access ON pos_order_items';
@@ -206,7 +219,7 @@ CREATE POLICY rp_access ON role_permissions USING (true);
 ALTER TABLE guest_blacklist ENABLE ROW LEVEL SECURITY;
 ALTER TABLE guest_blacklist FORCE   ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS blacklist_own   ON guest_blacklist;
+DROP POLICY IF EXISTS blacklist_own    ON guest_blacklist;
 DROP POLICY IF EXISTS blacklist_shared ON guest_blacklist;
 
 -- Read: own entries + any shared entry across all hotels
@@ -215,12 +228,15 @@ CREATE POLICY blacklist_own ON guest_blacklist
   USING (hotel_id = current_hotel_id() OR is_shared = true);
 
 -- Write: only to own hotel's entries
+DROP POLICY IF EXISTS blacklist_write ON guest_blacklist;
 CREATE POLICY blacklist_write ON guest_blacklist
   FOR INSERT WITH CHECK (hotel_id = current_hotel_id());
 
+DROP POLICY IF EXISTS blacklist_update ON guest_blacklist;
 CREATE POLICY blacklist_update ON guest_blacklist
   FOR UPDATE USING (hotel_id = current_hotel_id());
 
+DROP POLICY IF EXISTS blacklist_delete ON guest_blacklist;
 CREATE POLICY blacklist_delete ON guest_blacklist
   FOR DELETE USING (hotel_id = current_hotel_id());
 
@@ -674,10 +690,10 @@ CREATE TRIGGER inventory_stock_sync
 
 -- ── Reservations ──────────────────────────────────────────────────────────────
 -- Future arrivals only (biggest calendar query)
+-- CURRENT_DATE not allowed in index predicates (STABLE, not IMMUTABLE)
 CREATE INDEX IF NOT EXISTS idx_res_future_arrivals
   ON reservations (hotel_id, check_in_date)
-  WHERE status IN ('CONFIRMED', 'CHECKED_IN')
-    AND check_in_date >= CURRENT_DATE;
+  WHERE status IN ('CONFIRMED', 'CHECKED_IN');
 
 -- Open reservations only
 CREATE INDEX IF NOT EXISTS idx_res_open
@@ -694,8 +710,7 @@ CREATE INDEX IF NOT EXISTS idx_rooms_available
 -- ── Reservation rooms (availability check) ────────────────────────────────────
 -- Only future / current bookings matter for availability
 CREATE INDEX IF NOT EXISTS idx_resrooms_calendar
-  ON reservation_rooms (room_id, check_in_date, check_out_date)
-  WHERE check_out_date >= CURRENT_DATE;
+  ON reservation_rooms (room_id, check_in_date, check_out_date);
 
 -- ── Folios ────────────────────────────────────────────────────────────────────
 -- Open folios (shift-end reconciliation, manager dashboard)
@@ -718,8 +733,7 @@ CREATE INDEX IF NOT EXISTS idx_pos_unposted
 -- Today's pending tasks (housekeeping app)
 CREATE INDEX IF NOT EXISTS idx_hk_today_pending
   ON housekeeping_tasks (hotel_id, room_id)
-  WHERE status IN ('PENDING', 'IN_PROGRESS')
-    AND scheduled_date = CURRENT_DATE;
+  WHERE status IN ('PENDING', 'IN_PROGRESS');
 
 -- Escalated issues (manager alert feed)
 CREATE INDEX IF NOT EXISTS idx_hk_escalated
@@ -945,35 +959,35 @@ $$;
 -- ============================================================================
 
 INSERT INTO roles
-  (name, display_name, description, color, is_system, is_custom, sort_order)
+  (name, display_name, description, color, is_system, is_custom, sort_order, created_at, updated_at)
 VALUES
   ('OWNER',        'Owner',
    'Full access to all features, settings and financial data.',
-   '#1F3F5C', true, false, 1),
+   '#1F3F5C', true, false, 1, NOW(), NOW()),
 
   ('MANAGER',      'Manager',
    'Full operational access. Cannot change hotel settings or view audit log.',
-   '#15803D', true, false, 2),
+   '#15803D', true, false, 2, NOW(), NOW()),
 
   ('FRONT_DESK',   'Front Desk',
    'Reservations, check-in/out, folio management and payment processing.',
-   '#B45309', true, false, 3),
+   '#B45309', true, false, 3, NOW(), NOW()),
 
   ('HOUSEKEEPING', 'Housekeeping',
    'Room status updates, housekeeping tasks, maintenance and supplies.',
-   '#6B21A8', true, false, 4),
+   '#6B21A8', true, false, 4, NOW(), NOW()),
 
   ('KITCHEN',      'Kitchen Staff',
    'View and manage POS orders and kitchen inventory only.',
-   '#0F766E', true, false, 5),
+   '#0F766E', true, false, 5, NOW(), NOW()),
 
   ('MAINTENANCE',  'Maintenance',
    'Maintenance tickets, room inspections and asset management.',
-   '#9A3412', true, false, 6),
+   '#9A3412', true, false, 6, NOW(), NOW()),
 
   ('ACCOUNTANT',   'Accountant',
    'Financial reports, payment reconciliation, shift sign-off and FBR invoicing.',
-   '#374151', true, false, 7)
+   '#374151', true, false, 7, NOW(), NOW())
 ON CONFLICT (hotel_id, name) DO NOTHING;
 
 

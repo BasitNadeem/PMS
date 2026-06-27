@@ -349,6 +349,10 @@ model Hotel {
   trialEndsAt      DateTime? @map("trial_ends_at")
   onboardedAt      DateTime? @map("onboarded_at")
 
+  subdomain           String?  @unique @map("subdomain")
+  onboardingCompleted Boolean  @default(false) @map("onboarding_completed")
+  onboardingStep      Int      @default(0) @map("onboarding_step")
+
   createdAt        DateTime     @default(now()) @map("created_at")
   updatedAt        DateTime     @updatedAt @map("updated_at")
   deletedAt        DateTime? @map("deleted_at")
@@ -379,6 +383,8 @@ model Hotel {
   auditLogs             AuditLog[]
   notifications         Notification[]
   customFields          CustomFieldDefinition[]
+  frontDeskNotes        FrontDeskNote[]
+  pushSubscriptions     PushSubscription[]
 
   @@index([slug])
   @@index([isActive])
@@ -404,6 +410,10 @@ model User {
   preferredLanguage    String      @default("en") @map("preferred_language")
   timezone             String      @default("Asia/Karachi")
 
+  isSuperAdmin         Boolean     @default(false) @map("is_super_admin")
+  isFirstLogin         Boolean     @default(true)  @map("is_first_login")
+  tempPassword         String?     @map("temp_password")
+
   createdAt            DateTime    @default(now()) @map("created_at")
   updatedAt            DateTime    @updatedAt @map("updated_at")
   deletedAt            DateTime? @map("deleted_at")
@@ -413,6 +423,9 @@ model User {
   assignedTasks         HousekeepingTask[]   @relation("assignedTo")
   assignedMaintenance   MaintenanceTicket[]  @relation("assignedMaintenance")
   assignedConversations Conversation[]
+  notesCreated          FrontDeskNote[]      @relation("NoteCreatedBy")
+  notesCompleted        FrontDeskNote[]      @relation("NoteCompletedBy")
+  pushSubscriptions     PushSubscription[]
 
   @@index([deletedAt])
   @@map("users")
@@ -881,6 +894,12 @@ model PosCategory {
   sortOrder   Int       @default(0) @map("sort_order")
   isActive    Boolean   @default(true) @map("is_active")
 
+  // QR guest-menu visibility — independent of isActive (POS-facing).
+  // availableFrom/availableUntil are "HH:MM" strings; both null = always available.
+  isQrVisible    Boolean @default(true) @map("is_qr_visible")
+  availableFrom  String? @map("available_from")
+  availableUntil String? @map("available_until")
+
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
@@ -910,6 +929,10 @@ model PosItem {
   isKitchenItem     Boolean     @default(true) @map("is_kitchen_item")
   sortOrder         Int         @default(0) @map("sort_order")
   photoUrl          String? @map("photo_url")
+
+  // QR guest-menu visibility — independent of isAvailable (POS-facing).
+  isQrVisible       Boolean     @default(true) @map("is_qr_visible")
+  isFeatured        Boolean     @default(false) @map("is_featured")
 
   createdAt         DateTime    @default(now()) @map("created_at")
   updatedAt         DateTime    @updatedAt @map("updated_at")
@@ -1491,4 +1514,45 @@ model CustomFieldValue {
   @@index([definitionId])
   @@index([entityId])
   @@map("custom_field_values")
+}
+
+// ============================================================================
+// FRONT DESK NOTES
+// ============================================================================
+
+model FrontDeskNote {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId       String    @db.Uuid    @map("hotel_id")
+  text          String
+  isCompleted   Boolean   @default(false)                               @map("is_completed")
+  completedAt   DateTime?                                               @map("completed_at")
+  completedById String?   @db.Uuid                                     @map("completed_by_id")
+  createdById   String    @db.Uuid                                     @map("created_by_id")
+  createdAt     DateTime  @default(now())                               @map("created_at")
+  updatedAt     DateTime  @updatedAt                                    @map("updated_at")
+
+  hotel       Hotel  @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  createdBy   User   @relation("NoteCreatedBy", fields: [createdById], references: [id])
+  completedBy User?  @relation("NoteCompletedBy", fields: [completedById], references: [id])
+
+  @@index([hotelId])
+  @@index([hotelId, isCompleted])
+  @@map("front_desk_notes")
+}
+
+model PushSubscription {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId   String   @db.Uuid @map("hotel_id")
+  userId    String   @db.Uuid @map("user_id")
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([hotelId])
+  @@map("push_subscriptions")
 }

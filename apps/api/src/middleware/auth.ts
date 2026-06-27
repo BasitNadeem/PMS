@@ -7,6 +7,7 @@ export interface JwtPayload {
   hotelId: string;
   role: string;
   permissions: string[];
+  isFirstLogin: boolean;
 }
 
 declare global {

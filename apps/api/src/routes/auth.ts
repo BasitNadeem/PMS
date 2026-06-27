@@ -4,6 +4,9 @@ import jwt, { type SignOptions } from "jsonwebtoken";
 import { z } from "zod";
 import { adminPrisma } from "@pms/db";
 import { env } from "../lib/env";
+import { authenticate } from "../middleware/auth";
+import { tenantMiddleware } from "../middleware/tenant";
+import { AppError } from "../utils/AppError";
 
 // @types/jsonwebtoken 9.x uses ms.StringValue (a branded type) for expiresIn.
 // Casting through SignOptions["expiresIn"] keeps the call type-safe without `any`.
@@ -55,7 +58,7 @@ router.post("/login", async (req, res) => {
   const permissions = hotelUser.assignedRole.permissions.map((rp) => rp.permission.key);
 
   const accessToken = jwt.sign(
-    { userId: user.id, hotelId: hotel.id, role: hotelUser.role, permissions },
+    { userId: user.id, hotelId: hotel.id, role: hotelUser.role, permissions, isFirstLogin: user.isFirstLogin },
     env.JWT_SECRET,
     jwtOpts(env.JWT_EXPIRES_IN)
   );
@@ -94,8 +97,9 @@ router.post("/login", async (req, res) => {
       email: user.email,
       role: hotelUser.role,
       permissions,
+      isFirstLogin: user.isFirstLogin,
     },
-    hotel: { id: hotel.id, name: hotel.name, slug: hotel.slug },
+    hotel: { id: hotel.id, name: hotel.name, slug: hotel.slug, onboardingCompleted: hotel.onboardingCompleted },
   });
 });
 
@@ -123,20 +127,66 @@ router.post("/refresh", async (req, res) => {
   }
 
   const hotelUser = await adminPrisma.hotelUser.findUnique({
-    where: { hotelId_userId: { hotelId: payload.hotelId, userId: payload.userId } },
+    where:   { hotelId_userId: { hotelId: payload.hotelId, userId: payload.userId } },
+    include: { assignedRole: { include: { permissions: { include: { permission: true } } } } },
   });
   if (!hotelUser?.isActive) {
     res.status(403).json({ error: "Access revoked" });
     return;
   }
 
+  const permissions = hotelUser.assignedRole.permissions.map((rp) => rp.permission.key);
+
   const accessToken = jwt.sign(
-    { userId: user.id, hotelId: payload.hotelId, role: hotelUser.role },
+    { userId: user.id, hotelId: payload.hotelId, role: hotelUser.role, permissions, isFirstLogin: user.isFirstLogin },
     env.JWT_SECRET,
     jwtOpts(env.JWT_EXPIRES_IN)
   );
 
   res.json({ accessToken });
+});
+
+router.post("/complete-onboarding", authenticate, tenantMiddleware, async (req, res) => {
+  await adminPrisma.user.update({
+    where: { id: req.user!.userId },
+    data: { isFirstLogin: false },
+  });
+
+  await req.withTenant((db) =>
+    db.hotel.update({
+      where: { id: req.user!.hotelId },
+      data: { onboardingCompleted: true, onboardingStep: 4 },
+    })
+  );
+
+  res.json({ success: true });
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+router.post("/change-password", authenticate, async (req, res) => {
+  const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+
+  const user = await adminPrisma.user.findUnique({ where: { id: req.user!.userId } });
+  if (!user || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
+    throw new AppError(400, "Current password is incorrect");
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+
+  await adminPrisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash,
+      tempPassword: null,
+      isFirstLogin: false,
+    },
+  });
+
+  res.json({ success: true, message: "Password changed successfully" });
 });
 
 router.post("/logout", async (req, res) => {

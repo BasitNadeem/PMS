@@ -1,0 +1,5 @@
+1. Reservations page py direct check out hojata hai without the payment settlement. Remove direct checkout. Check out sirf inner page sy.
+2. "Record Payment" ko dekhna hai. I think woh direct check out kar k payment record kar lega.
+3. Check out receipt must have a custom amount or advance amount paid section. Some flexibility.
+4. must add: split folio
+5. QR Orders "pay_now" (pay on delivery) flow is NOT recorded in Money Flow / cashbook. When kitchen marks delivered, no ledger entry is created. Fix via kitchen module — when marking a pay_now order delivered, prompt kitchen staff for payment method (cash/card) and call createLedgerEntryFromPosOrder. charge_to_room orders are fine — they go through folio and get recorded at checkout.

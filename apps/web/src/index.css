@@ -1,3 +1,199 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Theme palettes ────────────────────────────────────────────────────────────
+   Values match the "Dashboard Options v4" design mockup exactly.
+   Ink (text) stays CONSTANT across every theme — only neutrals (paper/mist/
+   line) and the brand accent change. This mirrors the mockup's approach
+   (ink is a fixed Tailwind color there, not part of the per-theme tokens)
+   and avoids contrast/readability risk from theming text color.
+   Functional status colors (pine/amber/clay/slate/dusk used in StatusBadge,
+   success/warning/danger states) are intentionally NOT themed — they carry
+   fixed meaning across the app regardless of brand palette.
+   Tailwind-mapped vars are stored as "R G B" triplets (not hex) so Tailwind's
+   opacity modifiers — bg-coral/20, text-ink/40, etc. — keep working via
+   rgb(var(--x) / <alpha-value>). See tailwind.config.ts withOpacity(). */
+:root {
+  --color-ink: 33 30 26;
+  --color-ink-soft: 74 69 62;
+  --color-ink-mute: 147 140 129;
+  --color-ink-faint: 184 177 166;
+}
+
+:root,
+[data-theme="WARM_CLAY"] {
+  --color-paper: 246 243 238;
+  --color-mist: 250 248 244;
+  --color-card: 255 255 255;
+  --color-line: 234 228 219;
+  --color-line-soft: 241 236 228;
+  --color-accent: 224 83 43;
+  --color-accent-dark: 194 67 31;
+  --color-accent-deep: 158 52 23;
+  --color-accent-soft: 251 234 225;
+  --color-accent-tint: 252 243 238;
+  --color-selection-bg: #FBD9CC;
+  --color-selection-fg: #9E3417;
+  --color-scrollbar-thumb: #DED6C9;
+  --color-scrollbar-thumb-hover: #CDC3B2;
+  --color-scrollbar-track-color: #D8D0C4;
+}
+
+[data-theme="PINE_TEAL"] {
+  --color-paper: 234 241 239;
+  --color-mist: 242 247 245;
+  --color-card: 255 255 255;
+  --color-line: 215 228 223;
+  --color-line-soft: 228 238 234;
+  --color-accent: 14 124 114;
+  --color-accent-dark: 10 92 84;
+  --color-accent-deep: 10 92 84;
+  --color-accent-soft: 214 238 233;
+  --color-accent-tint: 235 247 244;
+  --color-selection-bg: #C9EAE3;
+  --color-selection-fg: #0A5C54;
+  --color-scrollbar-thumb: #CBDAD4;
+  --color-scrollbar-thumb-hover: #B8CCC4;
+  --color-scrollbar-track-color: #C2D4CD;
+}
+
+[data-theme="AZURE_SLATE"] {
+  --color-paper: 235 238 243;
+  --color-mist: 243 245 249;
+  --color-card: 255 255 255;
+  --color-line: 216 223 232;
+  --color-line-soft: 229 234 241;
+  --color-accent: 61 90 115;
+  --color-accent-dark: 44 69 92;
+  --color-accent-deep: 44 69 92;
+  --color-accent-soft: 224 233 241;
+  --color-accent-tint: 240 244 248;
+  --color-selection-bg: #CBE1F0;
+  --color-selection-fg: #2C455C;
+  --color-scrollbar-thumb: #CBD7E2;
+  --color-scrollbar-thumb-hover: #B7C6D4;
+  --color-scrollbar-track-color: #C1D0DC;
+}
+
+[data-theme="INDIGO_NIGHT"] {
+  --color-paper: 236 237 245;
+  --color-mist: 244 244 250;
+  --color-card: 255 255 255;
+  --color-line: 222 223 236;
+  --color-line-soft: 232 233 243;
+  --color-accent: 75 83 201;
+  --color-accent-dark: 54 61 166;
+  --color-accent-deep: 46 52 144;
+  --color-accent-soft: 228 229 251;
+  --color-accent-tint: 242 242 253;
+  --color-selection-bg: #D6D7F7;
+  --color-selection-fg: #2E3490;
+  --color-scrollbar-thumb: #D2D3EA;
+  --color-scrollbar-thumb-hover: #BEC0DE;
+  --color-scrollbar-track-color: #C7C9E4;
+}
+
+/* ── QR guest menu — "Resort" theme ───────────────────────────────────────────
+   Deliberately independent of the admin app's data-theme system above: this
+   is the customer-facing ordering surface, reached straight from a table/
+   room QR code, not the staff dashboard — it gets its own vivid, vacation-
+   resort palette (sunset mango + lagoon teal + sand) rather than inheriting
+   whichever brand color the hotel picked for its back-office. */
+.qr-theme {
+  --qr-bg: 253 244 228;
+  --qr-bg-deep: 246 223 185;
+  --qr-card: 255 252 247;
+  --qr-line: 237 213 180;
+  --qr-line-soft: 245 231 209;
+
+  --qr-ink: 41 26 18;
+  --qr-ink-soft: 93 68 52;
+  --qr-ink-mute: 145 119 99;
+  --qr-ink-faint: 186 163 142;
+
+  --qr-accent: 237 103 22;
+  --qr-accent-deep: 189 75 11;
+  --qr-accent-soft: 252 226 202;
+
+  --qr-teal: 12 90 87;
+  --qr-teal-deep: 8 64 62;
+  --qr-teal-soft: 217 237 232;
+
+  --qr-gold: 213 152 36;
+  --qr-gold-soft: 250 233 195;
+
+  --qr-hero-1: 12 90 87;
+  --qr-hero-2: 184 88 38;
+  --qr-hero-3: 230 158 41;
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────────── */
+html, body {
+  margin: 0;
+  padding: 0;
+  background: rgb(var(--color-paper));
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: "Hanken Grotesk", system-ui, sans-serif;
+  color: rgb(var(--color-ink));
+}
+
+::selection {
+  background: var(--color-selection-bg);
+  color: var(--color-selection-fg);
+}
+
+/* ── Scrollbars ─────────────────────────────────────────────────────────────── */
+.scroll-area { scrollbar-width: thin; scrollbar-color: var(--color-scrollbar-track-color) transparent; }
+.scroll-area::-webkit-scrollbar { width: 10px; height: 10px; }
+.scroll-area::-webkit-scrollbar-thumb { background: var(--color-scrollbar-thumb); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+.scroll-area::-webkit-scrollbar-thumb:hover { background: var(--color-scrollbar-thumb-hover); background-clip: content-box; }
+.scroll-area::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Typography helpers ─────────────────────────────────────────────────────── */
+.tnum { font-variant-numeric: tabular-nums; }
+.serif { font-family: Newsreader, Georgia, serif; }
+
+/* ── Animations ─────────────────────────────────────────────────────────────── */
+@keyframes fadeUp  { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleIn { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes growW   { from { width: 0; } }
+
+.anim-fade-up  { animation: fadeUp  .5s cubic-bezier(.2,.7,.2,1) both; }
+.anim-fade-in  { animation: fadeIn  .4s ease both; }
+.anim-scale-in { animation: scaleIn .32s cubic-bezier(.2,.8,.2,1) both; }
+.anim-slide-in { animation: slideIn .34s cubic-bezier(.2,.8,.2,1) both; }
+.anim-grow     { animation: growW   1s cubic-bezier(.2,.8,.2,1) forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-up, .anim-fade-in, .anim-scale-in, .anim-slide-in, .anim-grow {
+    animation: none !important;
+  }
+}
+
+/* ── Hover lift ─────────────────────────────────────────────────────────────── */
+.lift {
+  transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease, border-color .2s ease;
+}
+.lift:hover { transform: translateY(-2px); }
+
+/* ── Dot pattern background ─────────────────────────────────────────────────── */
+.stripe-paper {
+  background-image: radial-gradient(color-mix(in srgb, rgb(var(--color-ink)) 2.2%, transparent) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* ── Print ──────────────────────────────────────────────────────────────────── */
+@media print {
+  .no-print { display: none !important; }
+  @page { margin: 20mm; size: A4; }
+}

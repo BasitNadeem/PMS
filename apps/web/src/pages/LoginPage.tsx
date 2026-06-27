@@ -15,7 +15,16 @@ export default function LoginPage() {
     try {
       const { data } = await api.post("/api/auth/login", form);
       localStorage.setItem("accessToken", data.accessToken);
-      navigate("/");
+      localStorage.setItem("refreshToken", data.refreshToken);
+      localStorage.setItem("userName", data.user.name);
+      localStorage.setItem("userRole", data.user.role ?? "");
+      localStorage.setItem("isFirstLogin", data.user.isFirstLogin.toString());
+      localStorage.setItem("onboardingCompleted", data.hotel.onboardingCompleted.toString());
+      if (data.user.role === "KITCHEN") {
+        navigate("/kitchen/dashboard");
+      } else {
+        navigate("/");
+      }
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })
         .response?.data?.error ?? "Login failed";

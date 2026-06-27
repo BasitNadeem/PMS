@@ -1,0 +1,1222 @@
+import { useState, useEffect, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useLocation } from "react-router-dom";
+import {
+  Building2, Clock, Receipt, AlertTriangle, ChevronLeft, Check,
+  MessageSquare, Info, ShieldCheck, KeyRound, Eye, EyeOff, History, QrCode, Copy, Download,
+} from "lucide-react";
+import QRCode from "qrcode";
+import { cn } from "@/lib/cn";
+import { settingsService, type UpdateSettingsDto, type RolePermissions, type ThemeKey } from "@/services/settings";
+import { getCurrentUserRole } from "@/lib/jwt";
+import { authService } from "@/services/auth";
+import { useToast } from "@/hooks/useToast";
+import { ToastContainer } from "@/components/ui/ToastContainer";
+import { usePermissions } from "@/hooks/usePermissions";
+import { ThemePicker } from "@/components/settings/ThemePicker";
+import { applyTheme, isThemeKey } from "@/lib/theme";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const inputCls = "w-full rounded-xl border border-line bg-mist px-3.5 py-2.5 text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors";
+const labelCls = "block text-[13px] font-semibold text-ink-soft mb-1.5";
+const sectionCardCls = "rounded-xl2 border border-line bg-card p-6 mb-5";
+
+function Toggle({
+  checked, onChange, label, subtext,
+}: { checked: boolean; onChange: (v: boolean) => void; label: string; subtext?: string }) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-2">
+      <div>
+        <div className="text-[13.5px] font-semibold text-ink">{label}</div>
+        {subtext && <div className="text-[12px] text-ink-mute mt-0.5">{subtext}</div>}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={cn(
+          "shrink-0 w-11 h-6 rounded-full transition-colors duration-200 flex items-center mt-0.5",
+          checked ? "bg-pine" : "bg-line-soft",
+        )}
+      >
+        <span className={cn(
+          "w-5 h-5 bg-white rounded-full shadow transition-transform duration-200",
+          checked ? "translate-x-5" : "translate-x-0.5",
+        )} />
+      </button>
+    </div>
+  );
+}
+
+function SaveButton({ saving, saved, onClick }: { saving: boolean; saved: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={saving}
+      className={cn(
+        "inline-flex items-center gap-2 h-10 px-5 rounded-full text-[13.5px] font-semibold transition-all shadow-pop disabled:opacity-50",
+        saved
+          ? "bg-pine text-white"
+          : "bg-ink text-white hover:bg-ink/90",
+      )}
+    >
+      {saved ? <><Check size={15} />Saved</> : saving ? "Saving…" : "Save changes"}
+    </button>
+  );
+}
+
+// ── Section types ─────────────────────────────────────────────────────────────
+
+type Section = "profile" | "operations" | "permissions" | "tax" | "notifications" | "security" | "danger";
+const ALL_SECTIONS: { key: Section; label: string; icon: React.ElementType; ownerOnly?: boolean }[] = [
+  { key: "profile",       label: "Hotel Profile",        icon: Building2 },
+  { key: "operations",    label: "Operations",           icon: Clock },
+  { key: "permissions",   label: "Permissions",          icon: ShieldCheck, ownerOnly: true },
+  { key: "tax",           label: "Tax & Billing",        icon: Receipt },
+  { key: "notifications", label: "Notifications",        icon: MessageSquare, ownerOnly: true },
+  { key: "security",      label: "Security",             icon: KeyRound },
+  { key: "danger",        label: "Danger Zone",          icon: AlertTriangle },
+];
+
+// ── Security section helpers ────────────────────────────────────────────────
+
+type PasswordStrength = "weak" | "fair" | "strong";
+
+function getPasswordStrength(password: string): PasswordStrength | null {
+  if (!password) return null;
+  if (password.length < 8) return "weak";
+  const hasNumber = /\d/.test(password);
+  const hasSpecial = /[^A-Za-z0-9]/.test(password);
+  return hasNumber && hasSpecial ? "strong" : "fair";
+}
+
+const STRENGTH_STYLES: Record<PasswordStrength, { bar: string; text: string; width: string }> = {
+  weak:   { bar: "bg-clay",  text: "text-clay",  width: "w-1/3" },
+  fair:   { bar: "bg-amber", text: "text-amber", width: "w-2/3" },
+  strong: { bar: "bg-pine",  text: "text-pine",  width: "w-full" },
+};
+
+function PasswordField({
+  label, value, onChange, show, onToggleShow, placeholder, error,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  show: boolean;
+  onToggleShow: () => void;
+  placeholder?: string;
+  error?: string | null;
+}) {
+  return (
+    <div>
+      <label className={labelCls}>{label}</label>
+      <div className="relative">
+        <input
+          type={show ? "text" : "password"}
+          className={cn(inputCls, "pr-10", error && "border-clay/50")}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          autoComplete="new-password"
+        />
+        <button
+          type="button"
+          onClick={onToggleShow}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-mute"
+        >
+          {show ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
+      {error && <p className="mt-1 text-[12px] text-clay">{error}</p>}
+    </div>
+  );
+}
+
+// ── Permissions section helpers ─────────────────────────────────────────────
+
+const ACTION_ORDER = ["read", "create", "update", "delete", "manage", "checkin", "checkout", "cancel", "refund", "settings"];
+
+// Modules to exclude entirely from the permissions UI.
+const HIDDEN_MODULES = new Set(["audit"]);
+
+// Which actions are meaningful per module — anything else is hidden rather
+// than shown disabled. Keys match the `module` field on Permission records
+// (see packages/db/src/seed.ts permission catalogue).
+const MODULE_ACTIONS: Record<string, string[]> = {
+  hotel:        ["read", "update", "settings"],
+  room:         ["read", "create", "update", "delete"],
+  room_type:    ["read", "create", "update", "delete"],
+  rate:         ["read", "create", "update", "delete"],
+  guest:        ["read", "create", "update", "delete"],
+  reservation:  ["read", "create", "update", "cancel", "checkin", "checkout"],
+  housekeeping: ["read", "create", "update"],
+  maintenance:  ["read", "create", "update"],
+  pos:          ["read", "create", "update"],
+  inventory:    ["read", "update"],
+  invoice:      ["read", "create", "update"],
+  payment:      ["read", "create", "refund"],
+  folio:        ["read", "update"],
+  channel:      ["read", "update"],
+  staff:        ["read", "create", "update", "delete"],
+  user:         ["read", "create", "update", "delete"],
+  report:       ["read"],
+};
+
+function formatLabel(s: string): string {
+  return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function PermissionToggle({ label, enabled, justSaved, onToggle }: { label: string; enabled: boolean; justSaved: boolean; onToggle: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="relative">
+        <button
+          type="button"
+          onClick={onToggle}
+          className={cn(
+            "relative w-9 h-5 rounded-full transition-colors duration-200",
+            enabled ? "bg-pine" : "bg-line-soft",
+          )}
+        >
+          <span className={cn(
+            "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200",
+            enabled ? "translate-x-4" : "translate-x-0",
+          )} />
+        </button>
+        {justSaved && <Check size={12} className="absolute -right-3.5 top-0.5 text-pine" />}
+      </div>
+      <span className="text-xs text-gray-500 capitalize">{label}</span>
+    </div>
+  );
+}
+
+const PROPERTY_TYPES = [
+  "HOTEL", "GUESTHOUSE", "RESORT", "LODGE",
+  "HOSTEL", "SERVICED_APARTMENT", "CAMPSITE",
+];
+const PROPERTY_LABELS: Record<string, string> = {
+  HOTEL: "Hotel", GUESTHOUSE: "Guesthouse", RESORT: "Resort", LODGE: "Lodge",
+  HOSTEL: "Hostel", SERVICED_APARTMENT: "Serviced Apartment", CAMPSITE: "Campsite",
+};
+const TIMEZONES = [
+  "Asia/Karachi", "Asia/Dubai", "Asia/Kolkata", "UTC",
+  "Europe/London", "America/New_York",
+];
+const SOURCES = [
+  { value: "WALK_IN",     label: "Walk-in" },
+  { value: "PHONE",       label: "Phone" },
+  { value: "WHATSAPP",    label: "WhatsApp" },
+  { value: "BOOKING_COM", label: "Booking.com" },
+  { value: "AGODA",       label: "Agoda" },
+  { value: "EXPEDIA",     label: "Expedia" },
+];
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+
+export default function SettingsPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const qc = useQueryClient();
+  const { toasts, addToast, removeToast } = useToast();
+  const [activeSection, setActiveSection] = useState<Section>("profile");
+
+  const userRole = getCurrentUserRole();
+  const isOwner  = userRole === "OWNER";
+  const SECTIONS = ALL_SECTIONS.filter((s) => !s.ownerOnly || isOwner);
+  const { has } = usePermissions();
+  const canUpdateSettings = has("settings:update");
+  const canReadSettings = has("settings:read");
+
+  useEffect(() => {
+    if (location.hash === "#security") setActiveSection("security");
+  }, [location.hash]);
+
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ["settings"],
+    queryFn: settingsService.getSettings,
+    staleTime: 30_000,
+  });
+
+  // ── Profile form ────────────────────────────────────────────────────────────
+  const [profile, setProfile] = useState({
+    name: "", propertyType: "HOTEL", starRating: "" as string,
+    description: "", phone: "", email: "", website: "",
+    address: "", city: "", country: "PK", timezone: "Asia/Karachi",
+  });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved,  setProfileSaved]  = useState(false);
+
+  // ── Operations form ─────────────────────────────────────────────────────────
+  const [ops, setOps] = useState({
+    checkInTime: "14:00", checkOutTime: "12:00",
+    lateCheckoutFee: "", earlyCheckinFee: "",
+    defaultSource: "WALK_IN",
+    autoConfirm: false, maxAdvanceDays: "365",
+  });
+  const [opsSaving, setOpsSaving] = useState(false);
+  const [opsSaved,  setOpsSaved]  = useState(false);
+
+  // ── Tax form ────────────────────────────────────────────────────────────────
+  const [tax, setTax] = useState({
+    gstEnabled: false, gstRate: "16",
+    pstEnabled: false, pstRate: "5",
+    taxInclusive: false, fbrEnabled: false,
+    invoicePrefix: "INV",
+  });
+  const [taxSaving, setTaxSaving] = useState(false);
+  const [taxSaved,  setTaxSaved]  = useState(false);
+
+  // ── Notifications form ──────────────────────────────────────────────────────
+  const [whatsappNumber,  setWhatsappNumber]  = useState("");
+  const [notifSaving,     setNotifSaving]     = useState(false);
+  const [notifSaved,      setNotifSaved]      = useState(false);
+  const [testSending,     setTestSending]     = useState(false);
+  const [whatsappError,   setWhatsappError]   = useState<string | null>(null);
+
+  // ── Security / change password ──────────────────────────────────────────────
+  const isFirstLogin = localStorage.getItem("isFirstLogin") === "true";
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword,     setNewPassword]     = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew,     setShowNew]     = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  const passwordStrength = getPasswordStrength(newPassword);
+  const passwordsMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
+  const canSubmitPassword =
+    !!currentPassword && !!newPassword && !!confirmPassword && !passwordsMismatch && !passwordSaving;
+
+  async function changePassword() {
+    setPasswordError(null);
+    setPasswordSaving(true);
+    try {
+      await authService.changePassword(currentPassword, newPassword);
+      setPasswordSuccess(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      localStorage.setItem("isFirstLogin", "false");
+      setTimeout(() => setPasswordSuccess(false), 3000);
+    } catch (e) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setPasswordError(msg ?? "Failed to update password");
+    } finally {
+      setPasswordSaving(false);
+    }
+  }
+
+  // ── Permissions ──────────────────────────────────────────────────────────────
+  const { data: permissionsData, isLoading: permissionsLoading } = useQuery({
+    queryKey: ["permissions"],
+    queryFn: settingsService.getPermissions,
+    enabled: isOwner,
+    staleTime: 30_000,
+  });
+  const [permissionsState, setPermissionsState] = useState<RolePermissions[]>([]);
+  const [selectedRoleId,   setSelectedRoleId]   = useState<string | null>(null);
+  const [justSavedKey,     setJustSavedKey]     = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!permissionsData) return;
+    setPermissionsState(permissionsData);
+    if (!selectedRoleId && permissionsData.length > 0) {
+      setSelectedRoleId(permissionsData[0].roleId);
+    }
+  }, [permissionsData, selectedRoleId]);
+
+  const togglePermissionMutation = useMutation({
+    mutationFn: ({ roleId, key, enabled }: { roleId: string; key: string; enabled: boolean }) =>
+      settingsService.updateRolePermission(roleId, [{ key, enabled }]),
+  });
+
+  function togglePermission(roleId: string, key: string, currentEnabled: boolean) {
+    const nextEnabled = !currentEnabled;
+    setPermissionsState((prev) => prev.map((role) => (
+      role.roleId !== roleId ? role : {
+        ...role,
+        permissions: role.permissions.map((p) => p.key === key ? { ...p, enabled: nextEnabled } : p),
+      }
+    )));
+    setJustSavedKey(key);
+    setTimeout(() => setJustSavedKey((k) => (k === key ? null : k)), 1200);
+
+    togglePermissionMutation.mutate({ roleId, key, enabled: nextEnabled }, {
+      onError: () => {
+        setPermissionsState((prev) => prev.map((role) => (
+          role.roleId !== roleId ? role : {
+            ...role,
+            permissions: role.permissions.map((p) => p.key === key ? { ...p, enabled: currentEnabled } : p),
+          }
+        )));
+        addToast("Failed to update permission", "error");
+      },
+    });
+  }
+
+  // Populate forms when data loads
+  useEffect(() => {
+    if (!settings) return;
+    const s = (settings.settings ?? {}) as Record<string, unknown>;
+    setProfile({
+      name:         settings.name ?? "",
+      propertyType: settings.propertyType ?? "HOTEL",
+      starRating:   String(s.starRating ?? ""),
+      description:  String(s.description ?? ""),
+      phone:        settings.phone ?? "",
+      email:        settings.email ?? "",
+      website:      settings.website ?? "",
+      address:      settings.address ?? "",
+      city:         settings.city ?? "",
+      country:      settings.country ?? "PK",
+      timezone:     String(s.timezone ?? "Asia/Karachi"),
+    });
+    setOps({
+      checkInTime:     String(s.checkInTime   ?? "14:00"),
+      checkOutTime:    String(s.checkOutTime  ?? "12:00"),
+      lateCheckoutFee: String(s.lateCheckoutFee ?? ""),
+      earlyCheckinFee: String(s.earlyCheckinFee ?? ""),
+      defaultSource:   String(s.defaultSource   ?? "WALK_IN"),
+      autoConfirm:     Boolean(s.autoConfirm),
+      maxAdvanceDays:  String(s.maxAdvanceDays  ?? "365"),
+    });
+    setTax({
+      gstEnabled:   Boolean(s.gstEnabled),
+      gstRate:      String(s.gstRate    ?? "16"),
+      pstEnabled:   Boolean(s.pstEnabled),
+      pstRate:      String(s.pstRate    ?? "5"),
+      taxInclusive: Boolean(s.taxInclusive),
+      fbrEnabled:   false,
+      invoicePrefix: String(s.invoicePrefix ?? "INV"),
+    });
+    setWhatsappNumber(String(s.ownerWhatsappNumber ?? ""));
+  }, [settings]);
+
+  const updateMutation = useMutation({
+    mutationFn: settingsService.updateSettings,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
+  });
+
+  async function saveProfile() {
+    setProfileSaving(true);
+    try {
+      const dto: UpdateSettingsDto = {
+        name: profile.name, propertyType: profile.propertyType,
+        phone: profile.phone, email: profile.email, website: profile.website,
+        address: profile.address, city: profile.city, country: profile.country,
+        timezone: profile.timezone,
+        description: profile.description,
+        starRating: profile.starRating ? parseInt(profile.starRating, 10) : null,
+      };
+      await updateMutation.mutateAsync(dto);
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2000);
+    } catch { addToast("Failed to save profile", "error"); }
+    finally  { setProfileSaving(false); }
+  }
+
+  const currentThemeKey: ThemeKey = isThemeKey(settings?.settings?.themeKey)
+    ? (settings!.settings!.themeKey as ThemeKey)
+    : "WARM_CLAY";
+
+  async function changeTheme(key: ThemeKey) {
+    applyTheme(key); // instant feedback, even before the save round-trips
+    try {
+      await updateMutation.mutateAsync({ themeKey: key });
+    } catch {
+      applyTheme(currentThemeKey); // revert visual on failure
+      addToast("Failed to save theme", "error");
+    }
+  }
+
+  async function saveOps() {
+    setOpsSaving(true);
+    try {
+      const dto: UpdateSettingsDto = {
+        checkInTime: ops.checkInTime, checkOutTime: ops.checkOutTime,
+        defaultSource: ops.defaultSource, autoConfirm: ops.autoConfirm,
+        maxAdvanceDays: parseInt(ops.maxAdvanceDays, 10) || 365,
+        lateCheckoutFee: ops.lateCheckoutFee ? parseInt(ops.lateCheckoutFee, 10) : 0,
+        earlyCheckinFee: ops.earlyCheckinFee ? parseInt(ops.earlyCheckinFee, 10) : 0,
+      };
+      await updateMutation.mutateAsync(dto);
+      setOpsSaved(true);
+      setTimeout(() => setOpsSaved(false), 2000);
+    } catch { addToast("Failed to save operations", "error"); }
+    finally  { setOpsSaving(false); }
+  }
+
+  async function saveTax() {
+    setTaxSaving(true);
+    try {
+      const dto: UpdateSettingsDto = {
+        gstEnabled: tax.gstEnabled, gstRate: parseFloat(tax.gstRate) || 0,
+        pstEnabled: tax.pstEnabled, pstRate: parseFloat(tax.pstRate) || 0,
+        taxInclusive: tax.taxInclusive, invoicePrefix: tax.invoicePrefix,
+      };
+      await updateMutation.mutateAsync(dto);
+      setTaxSaved(true);
+      setTimeout(() => setTaxSaved(false), 2000);
+    } catch { addToast("Failed to save tax settings", "error"); }
+    finally  { setTaxSaving(false); }
+  }
+
+  async function saveNotifications() {
+    setWhatsappError(null);
+    if (whatsappNumber && !/^\+\d{10,13}$/.test(whatsappNumber)) {
+      setWhatsappError("Must start with + and contain 10–13 digits, e.g. +923001234567");
+      return;
+    }
+    setNotifSaving(true);
+    try {
+      await updateMutation.mutateAsync({ ownerWhatsappNumber: whatsappNumber || null } as UpdateSettingsDto);
+      if (whatsappNumber) await settingsService.scheduleBriefing();
+      setNotifSaved(true);
+      setTimeout(() => setNotifSaved(false), 2000);
+    } catch { addToast("Failed to save notification settings", "error"); }
+    finally  { setNotifSaving(false); }
+  }
+
+  async function sendTestBriefing() {
+    setTestSending(true);
+    try {
+      const result = await settingsService.testBriefing();
+      if (result.stubMode) {
+        addToast("Stub mode — briefing logged to console. Add Meta credentials to send real messages.", "error");
+      } else {
+        addToast(`Test briefing sent! Check your WhatsApp (${result.sentTo})`);
+      }
+    } catch (e) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      addToast(msg ?? "Failed to send test briefing", "error");
+    } finally {
+      setTestSending(false);
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-8 bg-line-soft rounded-xl w-48 animate-pulse" />
+        <div className="h-64 bg-line-soft rounded-xl2 animate-pulse" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <button
+          onClick={() => navigate(-1)}
+          className="grid place-items-center h-9 w-9 rounded-full border border-line hover:bg-mist text-ink-mute transition-colors"
+        >
+          <ChevronLeft size={18} />
+        </button>
+        <div>
+          <div className="mb-0.5 text-[12px] font-bold uppercase tracking-[0.14em] text-coral">Property</div>
+          <h1 className="serif text-[28px] leading-none text-ink">Settings</h1>
+        </div>
+      </div>
+
+      <div className="flex gap-6 items-start">
+        {/* Secondary nav */}
+        <nav className="w-52 shrink-0 flex flex-col gap-1 sticky top-8">
+          {SECTIONS.map(({ key, label, icon: Icon }) => (  // filtered to user's role above
+            <button
+              key={key}
+              onClick={() => setActiveSection(key)}
+              className={cn(
+                "flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold text-left transition-colors",
+                activeSection === key
+                  ? "bg-coral-soft text-coral"
+                  : "text-ink-mute hover:bg-mist hover:text-ink-soft",
+              )}
+            >
+              <Icon size={17} />
+              {label}
+            </button>
+          ))}
+          {canReadSettings && (
+            <button
+              onClick={() => navigate("/settings/audit")}
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold text-left text-ink-mute hover:bg-mist hover:text-ink-soft transition-colors"
+            >
+              <History size={17} />
+              Audit Log
+            </button>
+          )}
+        </nav>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+
+          {/* ── Hotel Profile ─────────────────────────────────────────────── */}
+          {activeSection === "profile" && (
+            <div className={sectionCardCls}>
+              <h2 className="serif text-[22px] text-ink mb-5">Hotel Profile</h2>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Hotel name <span className="text-coral">*</span></label>
+                    <input
+                      className={inputCls} value={profile.name}
+                      onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))}
+                      placeholder="Serai Hunza Mountain Resort"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Slug (read-only)</label>
+                    <input
+                      className={cn(inputCls, "opacity-50 cursor-not-allowed")}
+                      value={settings?.slug ?? ""}
+                      readOnly
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Property type</label>
+                    <select
+                      className={cn(inputCls, "cursor-pointer")}
+                      value={profile.propertyType}
+                      onChange={(e) => setProfile((p) => ({ ...p, propertyType: e.target.value }))}
+                    >
+                      {PROPERTY_TYPES.map((t) => (
+                        <option key={t} value={t}>{PROPERTY_LABELS[t] ?? t}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Star rating</label>
+                    <select
+                      className={cn(inputCls, "cursor-pointer")}
+                      value={profile.starRating}
+                      onChange={(e) => setProfile((p) => ({ ...p, starRating: e.target.value }))}
+                    >
+                      <option value="">Unrated</option>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <option key={n} value={n}>{"★".repeat(n)} {n} Star</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Description</label>
+                  <textarea
+                    className={cn(inputCls, "resize-none h-24")}
+                    value={profile.description}
+                    onChange={(e) => setProfile((p) => ({ ...p, description: e.target.value }))}
+                    placeholder="A short description of the property…"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Phone number</label>
+                    <input
+                      className={inputCls} value={profile.phone}
+                      onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))}
+                      placeholder="+92 5812 000000"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Email address</label>
+                    <input
+                      type="email" className={inputCls} value={profile.email}
+                      onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))}
+                      placeholder="info@seraihunza.com"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Website URL</label>
+                  <input
+                    className={inputCls} value={profile.website}
+                    onChange={(e) => setProfile((p) => ({ ...p, website: e.target.value }))}
+                    placeholder="https://seraihunza.com"
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Address</label>
+                  <input
+                    className={inputCls} value={profile.address}
+                    onChange={(e) => setProfile((p) => ({ ...p, address: e.target.value }))}
+                    placeholder="Karimabad, Hunza"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>City</label>
+                    <input
+                      className={inputCls} value={profile.city}
+                      onChange={(e) => setProfile((p) => ({ ...p, city: e.target.value }))}
+                      placeholder="Hunza"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Country</label>
+                    <input
+                      className={inputCls} value={profile.country}
+                      onChange={(e) => setProfile((p) => ({ ...p, country: e.target.value }))}
+                      placeholder="PK"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Timezone</label>
+                  <select
+                    className={cn(inputCls, "cursor-pointer")}
+                    value={profile.timezone}
+                    onChange={(e) => setProfile((p) => ({ ...p, timezone: e.target.value }))}
+                  >
+                    {TIMEZONES.map((tz) => (
+                      <option key={tz} value={tz}>{tz}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {canUpdateSettings && (
+                <div className="mt-6 flex justify-end">
+                  <SaveButton saving={profileSaving} saved={profileSaved} onClick={saveProfile} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Appearance ────────────────────────────────────────────────── */}
+          {activeSection === "profile" && (
+            <div className={sectionCardCls}>
+              <h2 className="serif text-[22px] text-ink mb-1">Appearance</h2>
+              <p className="text-[13px] text-ink-mute mb-4">
+                Pick a color palette for the whole app. Applies instantly across every page.
+              </p>
+              {canUpdateSettings ? (
+                <ThemePicker value={currentThemeKey} onChange={changeTheme} />
+              ) : (
+                <ThemePicker value={currentThemeKey} onChange={() => {}} className="opacity-60 pointer-events-none" />
+              )}
+            </div>
+          )}
+
+          {/* ── QR Menu Code ──────────────────────────────────────────────── */}
+          {activeSection === "profile" && isOwner && settings?.slug && (
+            <QrMenuCard slug={settings.slug} />
+          )}
+
+          {/* ── Operations ────────────────────────────────────────────────── */}
+          {activeSection === "operations" && (
+            <div className={sectionCardCls}>
+              <h2 className="serif text-[22px] text-ink mb-5">Operations</h2>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Check-in time</label>
+                    <input
+                      type="time" className={inputCls} value={ops.checkInTime}
+                      onChange={(e) => setOps((o) => ({ ...o, checkInTime: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Check-out time</label>
+                    <input
+                      type="time" className={inputCls} value={ops.checkOutTime}
+                      onChange={(e) => setOps((o) => ({ ...o, checkOutTime: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Late check-out fee (PKR)</label>
+                    <input
+                      type="number" min="0" className={inputCls} value={ops.lateCheckoutFee}
+                      onChange={(e) => setOps((o) => ({ ...o, lateCheckoutFee: e.target.value }))}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Early check-in fee (PKR)</label>
+                    <input
+                      type="number" min="0" className={inputCls} value={ops.earlyCheckinFee}
+                      onChange={(e) => setOps((o) => ({ ...o, earlyCheckinFee: e.target.value }))}
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Default reservation source</label>
+                  <select
+                    className={cn(inputCls, "cursor-pointer")}
+                    value={ops.defaultSource}
+                    onChange={(e) => setOps((o) => ({ ...o, defaultSource: e.target.value }))}
+                  >
+                    {SOURCES.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Max advance booking days</label>
+                  <input
+                    type="number" min="1" className={inputCls} value={ops.maxAdvanceDays}
+                    onChange={(e) => setOps((o) => ({ ...o, maxAdvanceDays: e.target.value }))}
+                    placeholder="365"
+                  />
+                </div>
+                <div className="rounded-xl border border-line-soft bg-mist p-4 space-y-1 divide-y divide-line-soft">
+                  <Toggle
+                    checked={ops.autoConfirm}
+                    onChange={(v) => setOps((o) => ({ ...o, autoConfirm: v }))}
+                    label="Auto-confirm reservations"
+                    subtext="When off, all new reservations start as Pending"
+                  />
+                </div>
+              </div>
+              {canUpdateSettings && (
+                <div className="mt-6 flex justify-end">
+                  <SaveButton saving={opsSaving} saved={opsSaved} onClick={saveOps} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Permissions ───────────────────────────────────────────────── */}
+          {activeSection === "permissions" && isOwner && (
+            <div className={sectionCardCls}>
+              <h2 className="serif text-[22px] text-ink mb-1">Role Permissions</h2>
+              <p className="text-[13px] text-ink-mute mb-5">
+                Customize what each role can access. Changes take effect immediately.
+              </p>
+
+              {permissionsLoading ? (
+                <div className="flex gap-6">
+                  <div className="w-[200px] shrink-0 space-y-2">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="h-9 bg-line-soft rounded-lg animate-pulse" />
+                    ))}
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="h-16 bg-line-soft rounded-lg animate-pulse" />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-6">
+                  {/* Role selector */}
+                  <div className="w-[200px] shrink-0 space-y-1">
+                    {permissionsState.map((role) => (
+                      <button
+                        key={role.roleId}
+                        onClick={() => setSelectedRoleId(role.roleId)}
+                        className={cn(
+                          "w-full text-left px-4 py-2.5 rounded-lg text-sm transition-colors",
+                          selectedRoleId === role.roleId
+                            ? "bg-coral/10 text-coral font-medium border-l-2 border-coral"
+                            : "font-semibold text-ink-mute hover:bg-mist hover:text-ink-soft",
+                        )}
+                      >
+                        {role.roleName}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Permission toggles */}
+                  <div className="flex-1 min-w-0">
+                    {(() => {
+                      const role = permissionsState.find((r) => r.roleId === selectedRoleId);
+                      if (!role) return null;
+
+                      const moduleGroups = new Map<string, typeof role.permissions>();
+                      for (const perm of role.permissions) {
+                        if (HIDDEN_MODULES.has(perm.module)) continue;
+                        const group = moduleGroups.get(perm.module) ?? [];
+                        group.push(perm);
+                        moduleGroups.set(perm.module, group);
+                      }
+
+                      return (
+                        <>
+                          <h3 className="text-[16px] font-semibold text-ink mb-2">{role.roleName}</h3>
+                          {Array.from(moduleGroups.entries()).map(([module, perms]) => {
+                            const applicable = MODULE_ACTIONS[module];
+                            const visible = applicable
+                              ? perms.filter((p) => applicable.includes(p.action))
+                              : perms;
+                            if (visible.length === 0) return null;
+                            const sorted = [...visible].sort(
+                              (a, b) => ACTION_ORDER.indexOf(a.action) - ACTION_ORDER.indexOf(b.action),
+                            );
+                            return (
+                              <div key={module} className="mb-6">
+                                <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 pb-2 border-b border-gray-100 mb-3">
+                                  {formatLabel(module)}
+                                </div>
+                                <div className="flex gap-6">
+                                  {sorted.map((perm) => (
+                                    <PermissionToggle
+                                      key={perm.key}
+                                      label={formatLabel(perm.action)}
+                                      enabled={perm.enabled}
+                                      justSaved={justSavedKey === perm.key}
+                                      onToggle={() => togglePermission(role.roleId, perm.key, perm.enabled)}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Tax & Billing ─────────────────────────────────────────────── */}
+          {activeSection === "tax" && (
+            <div className={sectionCardCls}>
+              <h2 className="serif text-[22px] text-ink mb-5">Tax &amp; Billing</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className={labelCls}>Currency display</label>
+                  <input
+                    className={cn(inputCls, "opacity-50 cursor-not-allowed")}
+                    value="PKR — Pakistani Rupee"
+                    readOnly
+                  />
+                </div>
+                <div className="rounded-xl border border-line-soft bg-mist p-4 space-y-3 divide-y divide-line-soft">
+                  <Toggle
+                    checked={tax.gstEnabled}
+                    onChange={(v) => setTax((t) => ({ ...t, gstEnabled: v }))}
+                    label="GST"
+                    subtext="General Sales Tax"
+                  />
+                  {tax.gstEnabled && (
+                    <div className="pt-3">
+                      <label className={labelCls}>GST rate (%)</label>
+                      <input
+                        type="number" min="0" max="100" step="0.5" className={inputCls}
+                        value={tax.gstRate}
+                        onChange={(e) => setTax((t) => ({ ...t, gstRate: e.target.value }))}
+                        placeholder="16"
+                      />
+                    </div>
+                  )}
+                  <Toggle
+                    checked={tax.pstEnabled}
+                    onChange={(v) => setTax((t) => ({ ...t, pstEnabled: v }))}
+                    label="PST / PRA"
+                    subtext="Provincial Sales Tax"
+                  />
+                  {tax.pstEnabled && (
+                    <div className="pt-3">
+                      <label className={labelCls}>PST rate (%)</label>
+                      <input
+                        type="number" min="0" max="100" step="0.5" className={inputCls}
+                        value={tax.pstRate}
+                        onChange={(e) => setTax((t) => ({ ...t, pstRate: e.target.value }))}
+                        placeholder="5"
+                      />
+                    </div>
+                  )}
+                  <Toggle
+                    checked={tax.taxInclusive}
+                    onChange={(v) => setTax((t) => ({ ...t, taxInclusive: v }))}
+                    label="Prices include tax"
+                    subtext="When on, displayed prices already include tax"
+                  />
+                  <div className="pt-2 flex items-center justify-between">
+                    <div>
+                      <div className="text-[13.5px] font-semibold text-ink-mute">FBR Integration</div>
+                      <div className="text-[12px] text-ink-faint">Federal Board of Revenue</div>
+                    </div>
+                    <span className="text-[11px] font-semibold bg-amber-soft text-amber rounded-full px-2.5 py-1">
+                      Coming Soon
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Invoice prefix</label>
+                  <input
+                    className={inputCls} value={tax.invoicePrefix}
+                    onChange={(e) => setTax((t) => ({ ...t, invoicePrefix: e.target.value }))}
+                    placeholder="INV"
+                  />
+                  <p className="mt-1 text-[12px] text-ink-faint">
+                    Appears on all generated invoices e.g. {tax.invoicePrefix || "INV"}-0001
+                  </p>
+                </div>
+              </div>
+              {canUpdateSettings && (
+                <div className="mt-6 flex justify-end">
+                  <SaveButton saving={taxSaving} saved={taxSaved} onClick={saveTax} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Notifications & Alerts ───────────────────────────────────── */}
+          {activeSection === "notifications" && isOwner && (
+            <div className={sectionCardCls}>
+              <h2 className="serif text-[22px] text-ink mb-1">WhatsApp Nightly Briefing</h2>
+              <p className="text-[13px] text-ink-mute mb-5">
+                Receive a daily operations summary at 11:00 PM every night via WhatsApp.
+              </p>
+
+              <div className="space-y-4">
+                {/* Status indicator */}
+                <div className="flex items-center gap-2.5 py-2">
+                  {whatsappNumber ? (
+                    <>
+                      <span className="h-2 w-2 rounded-full bg-pine shrink-0" />
+                      <span className="text-[13px] text-pine-deep font-medium">
+                        Briefings scheduled — next send at 11:00 PM PKT
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="h-2 w-2 rounded-full bg-line shrink-0" />
+                      <span className="text-[13px] text-ink-mute">
+                        Enter your number to enable nightly briefings
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Number input */}
+                <div>
+                  <label className={labelCls}>Owner WhatsApp Number</label>
+                  <input
+                    type="tel"
+                    className={cn(inputCls, whatsappError && "border-clay/50")}
+                    value={whatsappNumber}
+                    onChange={(e) => { setWhatsappNumber(e.target.value); setWhatsappError(null); }}
+                    placeholder="+923001234567"
+                  />
+                  <p className="mt-1 text-[12px] text-ink-faint">
+                    Include country code e.g. +923001234567
+                  </p>
+                  {whatsappError && (
+                    <p className="mt-1 text-[12px] text-clay">{whatsappError}</p>
+                  )}
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex items-center gap-3 pt-1">
+                  {canUpdateSettings && (
+                    <SaveButton saving={notifSaving} saved={notifSaved} onClick={saveNotifications} />
+                  )}
+                  {whatsappNumber && (
+                    <button
+                      onClick={sendTestBriefing}
+                      disabled={testSending}
+                      className="h-10 px-5 rounded-full border border-line text-ink-soft text-[13.5px] font-semibold hover:bg-mist transition-colors disabled:opacity-50"
+                    >
+                      {testSending ? "Sending…" : "Send Test Briefing Now"}
+                    </button>
+                  )}
+                </div>
+
+                {/* Stub mode info card */}
+                <div className="rounded-xl bg-amber-soft border border-amber/20 p-4 flex items-start gap-3 mt-2">
+                  <Info size={16} className="text-amber shrink-0 mt-0.5" />
+                  <p className="text-[13px] text-ink-soft leading-relaxed">
+                    WhatsApp sending is currently in <strong>stub mode</strong>. The briefing will be
+                    logged to the server console instead of sent via WhatsApp. To enable real sending,
+                    add your Meta Cloud API credentials to the server environment variables.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Security ──────────────────────────────────────────────────── */}
+          {activeSection === "security" && (
+            <div className={sectionCardCls}>
+              <h2 className="serif text-[22px] text-ink mb-1">Change Password</h2>
+              <p className="text-[13px] text-ink-mute mb-5">Update your login password</p>
+
+              {isFirstLogin && (
+                <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber/20 bg-amber-soft p-4">
+                  <AlertTriangle size={16} className="text-amber shrink-0 mt-0.5" />
+                  <p className="text-[13px] text-ink-soft leading-relaxed">
+                    You are using a temporary password. Please set a permanent password now.
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-4 max-w-md">
+                <PasswordField
+                  label="Current Password"
+                  value={currentPassword}
+                  onChange={setCurrentPassword}
+                  show={showCurrent}
+                  onToggleShow={() => setShowCurrent((v) => !v)}
+                  placeholder="Enter your current password"
+                />
+                <div>
+                  <PasswordField
+                    label="New Password"
+                    value={newPassword}
+                    onChange={setNewPassword}
+                    show={showNew}
+                    onToggleShow={() => setShowNew((v) => !v)}
+                    placeholder="At least 8 characters"
+                  />
+                  {passwordStrength && (
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <div className="flex-1 h-1 rounded-full bg-line-soft overflow-hidden">
+                        <div className={cn("h-full rounded-full transition-all", STRENGTH_STYLES[passwordStrength].bar, STRENGTH_STYLES[passwordStrength].width)} />
+                      </div>
+                      <span className={cn("text-[11px] font-semibold capitalize", STRENGTH_STYLES[passwordStrength].text)}>
+                        {passwordStrength}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <PasswordField
+                  label="Confirm New Password"
+                  value={confirmPassword}
+                  onChange={setConfirmPassword}
+                  show={showConfirm}
+                  onToggleShow={() => setShowConfirm((v) => !v)}
+                  placeholder="Re-enter new password"
+                  error={passwordsMismatch ? "Passwords don't match" : null}
+                />
+              </div>
+
+              {passwordError && <p className="mt-4 text-[13px] text-clay">{passwordError}</p>}
+              {passwordSuccess && (
+                <p className="mt-4 text-[13px] font-semibold text-pine">✓ Password updated successfully</p>
+              )}
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={changePassword}
+                  disabled={!canSubmitPassword}
+                  className="inline-flex items-center gap-2 h-10 px-5 rounded-full text-[13.5px] font-semibold transition-all shadow-pop bg-ink text-white hover:bg-ink/90 disabled:opacity-50"
+                >
+                  {passwordSaving ? "Updating…" : "Update Password"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Danger Zone ───────────────────────────────────────────────── */}
+          {activeSection === "danger" && (
+            <div className={cn(sectionCardCls, "border-clay/40")}>
+              <h2 className="serif text-[22px] text-clay mb-1">Danger Zone</h2>
+              <p className="text-[13px] text-ink-mute mb-5">These actions are permanent and cannot be undone.</p>
+              <div className="space-y-4">
+                <div className="rounded-xl border border-line-soft bg-mist p-4 flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-[14px] font-semibold text-ink">Export All Data</div>
+                    <div className="text-[12.5px] text-ink-mute mt-0.5">Download all hotel data as CSV</div>
+                  </div>
+                  <button
+                    onClick={() => addToast("Export feature coming soon", "error")}
+                    className="shrink-0 h-9 px-4 rounded-full border border-clay/40 text-clay text-[13px] font-semibold hover:bg-clay-soft transition-colors"
+                  >
+                    Export
+                  </button>
+                </div>
+                <div className="rounded-xl border border-clay/30 bg-clay-soft/40 p-4 flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-[14px] font-semibold text-clay">Deactivate Hotel</div>
+                    <div className="text-[12.5px] text-ink-mute mt-0.5">Permanently deactivate this hotel account</div>
+                  </div>
+                  <button
+                    onClick={() => addToast("Deactivation feature coming soon", "error")}
+                    className="shrink-0 h-9 px-4 rounded-full bg-clay text-white text-[13px] font-semibold hover:bg-clay/90 transition-colors"
+                  >
+                    Deactivate
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+    </div>
+  );
+}
+
+// ── QR Menu Card ─────────────────────────────────────────────────────────────
+
+function QrMenuCard({ slug }: { slug: string }) {
+  const canvasRef  = useRef<HTMLCanvasElement>(null);
+  const menuUrl    = `${window.location.origin}/menu/${slug}`;
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (canvasRef.current) {
+      QRCode.toCanvas(canvasRef.current, menuUrl, {
+        width:  200,
+        margin: 2,
+        color: { dark: "#1A1F2E", light: "#FFFFFF" },
+      }).catch(console.error);
+    }
+  }, [menuUrl]);
+
+  function copyUrl() {
+    void navigator.clipboard.writeText(menuUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  function downloadQr() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const link = document.createElement("a");
+    link.download = `${slug}-qr-menu.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  }
+
+  return (
+    <div className="rounded-xl2 border border-line bg-card p-6 mb-5">
+      <div className="flex items-center gap-2 mb-4">
+        <QrCode className="w-5 h-5 text-coral" />
+        <h2 className="text-[18px] font-bold text-ink">QR Menu Code</h2>
+      </div>
+      <p className="text-sm text-dusk mb-5">
+        Print or display this QR code in guest rooms. Scanning it opens your in-room dining menu directly — no app required.
+      </p>
+      <div className="flex flex-col sm:flex-row items-center gap-6">
+        <canvas ref={canvasRef} className="rounded-xl border border-line" />
+        <div className="space-y-3 flex-1 min-w-0">
+          <div>
+            <p className="text-xs font-semibold text-dusk mb-1">Menu URL</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs bg-mist rounded-lg px-3 py-2 text-ink break-all">
+                {menuUrl}
+              </code>
+              <button
+                onClick={copyUrl}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-line text-sm text-dusk hover:text-ink hover:bg-mist flex-shrink-0"
+              >
+                {copied ? <Check className="w-4 h-4 text-pine-600" /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <button
+            onClick={downloadQr}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-ink text-white text-sm font-semibold hover:bg-ink/90"
+          >
+            <Download className="w-4 h-4" /> Download QR Code
+          </button>
+          <p className="text-xs text-dusk">
+            Download a high-resolution PNG to print on welcome cards, tent cards, or room info sheets.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

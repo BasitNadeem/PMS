@@ -19,13 +19,17 @@ declare global {
 /**
  * Attaches req.withTenant after authenticate() has set req.user.
  * Must be used after authenticate, not before.
+ *
+ * hotelId always comes from the signed JWT — never from client-supplied headers.
  */
-export function tenantMiddleware(req: Request, _res: Response, next: NextFunction) {
+export async function tenantMiddleware(req: Request, _res: Response, next: NextFunction) {
   if (!req.user) {
     next();
     return;
   }
+
   const { hotelId, userId } = req.user;
+
   req.withTenant = <T>(fn: (db: TenantTx) => Promise<T>) =>
     withTenant(hotelId, userId, fn);
   next();

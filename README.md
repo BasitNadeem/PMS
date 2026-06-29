@@ -206,24 +206,24 @@ The defaults in `.env.example` work out of the box for local development. You do
 ### Step 3 — Run the full setup
 
 ```bash
-pnpm setup
+pnpm fresh-setup
 ```
 
-This single command does four things in sequence:
+This waits for Postgres to actually be ready, then runs `pnpm setup`, which does five things **in this exact order**:
 1. Starts the PostgreSQL Docker container
 2. Runs all database migrations (creates all tables)
-3. Applies Row-Level Security policies
+3. Applies Row-Level Security policies (on top of the tables migrations just created)
 4. Generates the Prisma client (TypeScript types for the DB)
+5. Seeds the 7 system roles + a demo hotel/admin login
 
-### Step 4 — Seed the database
+If you don't want the Postgres-readiness wait, `pnpm setup` alone does the same five steps — just with a blind 3-second sleep instead of a health check, which can be too short on a slow first run.
 
-```bash
-pnpm db:seed
-```
+> ⚠️ **If step 2 (`db:migrate`) reports migration drift or prompts a Y/N question, press Ctrl+C — do NOT press N, and do NOT manually run `prisma migrate resolve --applied` for each migration to "get past it".** That marks migration history as applied **without running the SQL**, which is exactly how tables like `expenses`, `cash_accounts`, `ledger_entries`, and `whatsapp_briefing_logs` can end up silently missing while the app otherwise seems to work. Drift only happens from running commands out of order or retrying a half-finished setup — never on a truly empty database. If you hit it, wipe the volume and start clean:
+> ```bash
+> pnpm docker:reset && pnpm fresh-setup
+> ```
 
-This creates the 7 system roles (Owner, Manager, Front Desk, etc.) in the database. Without this, login will not work because users cannot be assigned a role.
-
-### Step 5 — Start the application
+### Step 4 — Start the application
 
 ```bash
 pnpm dev
@@ -671,7 +671,8 @@ pnpm lint
 | `pnpm db:studio` | Open Prisma Studio at http://localhost:5555 |
 | `pnpm db:seed` | Seed system roles into the database |
 | `pnpm apply:rls` | Re-apply RLS security policies to PostgreSQL |
-| `pnpm setup` | Full first-time setup (docker + migrate + rls + generate) |
+| `pnpm setup` | Full first-time setup (docker + migrate + rls + generate + seed), **in that order** |
+| `pnpm fresh-setup` | Same as `pnpm setup`, but waits for Postgres to be healthy first instead of a blind sleep — use this on a new machine |
 | `pnpm docker:up` | Start the PostgreSQL container |
 | `pnpm docker:down` | Stop the PostgreSQL container |
 | `pnpm docker:reset` | Wipe the database volume and restart fresh |
@@ -709,11 +710,18 @@ lsof -ti :4000 | xargs kill   # kills whatever is on port 4000
 lsof -ti :5173 | xargs kill   # kills whatever is on port 5173
 ```
 
+### "Migration drift detected" / a Y/N prompt during `db:migrate`
+**Do not press N, and do not manually run `prisma migrate resolve --applied` to skip past it.** That command marks a migration as done in Prisma's history table *without running its SQL* — the migration is recorded as applied, but the tables/columns it was supposed to create never get created. This is exactly how `expenses`, `cash_accounts`, `ledger_entries`, and `whatsapp_briefing_logs` can end up missing on a machine that otherwise looks fully set up.
+
+Drift happens when setup commands run out of order (e.g. `apply:rls` before `db:migrate` — RLS policies can only attach to tables that already exist) or when a half-finished setup is retried. It does not happen on a genuinely empty database. Fix it by wiping the volume and starting clean rather than resolving around it:
+```bash
+pnpm docker:reset && pnpm fresh-setup
+```
+
 ### Reset everything and start fresh
 ```bash
 pnpm docker:reset   # wipes DB volume, restarts container
-pnpm setup          # re-runs migrations + RLS + generate
-pnpm db:seed        # re-seeds system roles
+pnpm fresh-setup    # re-runs migrate → RLS → generate → seed, in the correct order
 ```
 
 ---

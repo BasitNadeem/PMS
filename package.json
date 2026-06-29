@@ -19,6 +19,7 @@
     "db:seed": "dotenv -e .env -- pnpm --filter @pms/db seed",
     "apply:rls": "tsx --env-file=.env scripts/apply-rls.ts",
     "setup": "pnpm docker:up && sleep 3 && pnpm db:migrate && pnpm apply:rls && pnpm db:generate && pnpm db:seed",
+    "fresh-setup": "bash scripts/fresh-setup.sh",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:reset": "docker compose down -v && docker compose up -d"

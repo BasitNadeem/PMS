@@ -67,7 +67,6 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/kitchen/display",   label: "Display Mode",      icon: Monitor,   permission: "pos:read",    roleOnly: "KITCHEN", newTab: true },
   { to: "/",             label: "Dashboard",    icon: LayoutDashboard, end: true, permission: "dashboard:read" },
   { to: "/reservations", label: "Reservations", icon: CalendarCheck, permission: "reservations:read" },
-  { to: "/groups",       label: "Groups",       icon: Users2, permission: "groups:read" },
   { to: "/rooms",        label: "Rooms",        icon: BedDouble, permission: "rooms:read" },
   { to: "/guests",       label: "Guests",       icon: Users, permission: "guests:read" },
   {

@@ -135,6 +135,7 @@ SELECT enable_hotel_rls('audit_logs');
 SELECT enable_hotel_rls('notifications');
 SELECT enable_hotel_rls('custom_field_definitions');
 SELECT enable_hotel_rls('push_subscriptions');
+SELECT enable_hotel_rls('front_desk_notes');
 
 
 -- ── Tables without a direct hotel_id (accessed via parent FK) ────────────────

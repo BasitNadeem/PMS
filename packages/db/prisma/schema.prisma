@@ -568,7 +568,7 @@ model Guest {
   conversations    Conversation[]
   blacklistEntries GuestBlacklist[]
 
-  searchVector     Unsupported("tsvector")?
+  searchVector     Unsupported("tsvector")? @map("search_vector")
 
   @@index([hotelId])
   @@index([hotelId, documentNumber])

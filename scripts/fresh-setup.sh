@@ -1,36 +1,32 @@
 #!/bin/bash
-# fresh-setup.sh — one-command first-time setup for a brand new machine.
+# fresh-setup.sh — one-command, fully unattended first-time setup for a
+# brand new machine. Safe to run zero or many times on a fresh DB volume.
 #
-# This is a thin wrapper around `pnpm setup`, which already runs the steps
-# in the CORRECT order:
-#   pnpm docker:up && pnpm db:migrate && pnpm apply:rls && pnpm db:generate && pnpm db:seed
+# Why this exists instead of just `pnpm setup`:
+#   `pnpm setup` runs `pnpm db:migrate`, which is `prisma migrate dev` —
+#   the INTERACTIVE dev workflow command. It diffs the live database
+#   against migration history via a shadow database and, on any mismatch,
+#   prompts "drift detected, reset? (y/N)". In an unattended script that
+#   prompt either hangs waiting for stdin or gets answered wrong, and
+#   pressing N + manually running `prisma migrate resolve --applied` for
+#   each migration marks history as "done" WITHOUT ever running the SQL —
+#   which is how tables like expenses/cash_accounts/ledger_entries end up
+#   silently missing while everything else looks fine.
 #
-# Why order matters: `db:migrate` creates the actual tables. `apply:rls`
-# only adds Row-Level Security policies and triggers ON TOP OF tables that
-# already exist — running it first (or before migrate has finished) fails,
-# or worse, leaves you tempted to "fix" a migrate prompt by hand, which is
-# exactly what causes tables to silently go missing (see warning below).
+#   `prisma migrate deploy` is the correct tool here: it only reads the
+#   migration history table, applies whatever isn't recorded yet, in
+#   order, and never prompts. It does not diff against live schema state
+#   at all, so it is immune to the drift class of problem entirely.
 #
-# What this wrapper adds on top of `pnpm setup`:
-#   - Waits for Postgres to actually be healthy before running anything,
-#     instead of a blind `sleep 3` (slow machines / first-ever image pull
-#     can take longer than 3 seconds).
-#   - Fails loudly with a clear, specific message instead of leaving you
-#     to puzzle over a Prisma drift prompt.
+# Order matters: migrations create the tables; `apply:rls` only adds
+# Row-Level Security policies and triggers ON TOP OF tables that already
+# exist. Running it first fails outright (the tables don't exist yet).
 #
 # ─────────────────────────────────────────────────────────────────────────
-# ⚠️  If `pnpm db:migrate` (inside this script) reports drift or prompts
-#     a Y/N question:
-#       1. Press Ctrl+C and stop. Do NOT press N.
-#       2. Do NOT manually run `prisma migrate resolve --applied` for each
-#          migration — that marks history as "done" WITHOUT running the
-#          SQL, which is how tables like expenses/cash_accounts end up
-#          missing while everything else looks fine.
-#       3. Instead, wipe the volume and start over on a clean slate:
-#            pnpm docker:reset && ./scripts/fresh-setup.sh
-#     Drift only happens when commands are run out of order or a previous
-#     half-finished setup attempt left the DB in a partial state — never
-#     on a genuinely fresh, empty database.
+# ⚠️  If this script still fails on `migrate deploy`, do NOT manually run
+#     `prisma migrate resolve --applied` to skip past it — that's what
+#     causes tables to go missing. Wipe the volume and retry clean:
+#       pnpm docker:reset && pnpm fresh-setup
 # ─────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -39,32 +35,61 @@ cd "$(dirname "$0")/.."
 echo "🏨  Hotel PMS — fresh machine setup"
 echo "────────────────────────────────────────────"
 
+echo "▶  Installing dependencies…"
+pnpm install
+
 echo "▶  Starting Postgres + Redis containers…"
 pnpm docker:up
 
-echo "▶  Waiting for Postgres to be healthy…"
-ATTEMPTS=0
-MAX_ATTEMPTS=30
-until [ "$(docker inspect -f '{{.State.Health.Status}}' pms_postgres 2>/dev/null || echo starting)" = "healthy" ]; do
-  ATTEMPTS=$((ATTEMPTS + 1))
-  if [ "$ATTEMPTS" -ge "$MAX_ATTEMPTS" ]; then
-    echo "❌  Postgres did not become healthy after ${MAX_ATTEMPTS} attempts."
-    echo "    Check: docker compose logs postgres"
-    exit 1
-  fi
-  sleep 1
-done
-echo "✔  Postgres is healthy."
+wait_for_healthy() {
+  local container="$1"
+  local max_attempts="$2"
+  local attempts=0
+  until [ "$(docker inspect -f '{{.State.Health.Status}}' "$container" 2>/dev/null || echo starting)" = "healthy" ]; do
+    attempts=$((attempts + 1))
+    if [ "$attempts" -ge "$max_attempts" ]; then
+      return 1
+    fi
+    sleep 1
+  done
+  return 0
+}
 
-echo "▶  Running setup (migrate → RLS → generate → seed)…"
-if ! pnpm setup; then
-  echo ""
-  echo "❌  Setup failed — most likely Prisma reported migration drift."
-  echo "    Do NOT manually resolve migrations as applied without running their SQL."
-  echo "    Wipe the volume and try again on a clean slate:"
-  echo "      pnpm docker:reset && ./scripts/fresh-setup.sh"
+echo "▶  Waiting for Postgres to be healthy…"
+if ! wait_for_healthy pms_postgres 60; then
+  echo "❌  Postgres did not become healthy after 60s. Check: docker compose logs postgres"
   exit 1
 fi
+echo "✔  Postgres is healthy."
+
+echo "▶  Waiting for Redis to be healthy…"
+if ! wait_for_healthy pms_redis 30; then
+  echo "⚠  Redis health check timed out — continuing anyway (only affects WhatsApp briefing queue)."
+else
+  echo "✔  Redis is healthy."
+fi
+
+echo "▶  Generating Prisma client…"
+pnpm db:generate
+
+echo "▶  Applying database migrations (non-interactive)…"
+if ! pnpm db:migrate:deploy; then
+  echo ""
+  echo "❌  Migration deploy failed."
+  echo "    Do NOT manually run 'prisma migrate resolve --applied' to skip past this."
+  echo "    Wipe the volume and try again on a clean slate:"
+  echo "      pnpm docker:reset && pnpm fresh-setup"
+  exit 1
+fi
+
+echo "▶  Applying Row-Level Security policies and triggers…"
+pnpm apply:rls
+
+echo "▶  Seeding system roles + demo hotel…"
+pnpm db:seed
+
+echo "▶  Verifying setup…"
+bash scripts/verify-db.sh || true
 
 echo ""
 echo "✅  Setup complete!"

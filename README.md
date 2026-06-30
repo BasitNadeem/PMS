@@ -209,19 +209,23 @@ The defaults in `.env.example` work out of the box for local development. You do
 pnpm fresh-setup
 ```
 
-This waits for Postgres to actually be ready, then runs `pnpm setup`, which does five things **in this exact order**:
-1. Starts the PostgreSQL Docker container
-2. Runs all database migrations (creates all tables)
-3. Applies Row-Level Security policies (on top of the tables migrations just created)
-4. Generates the Prisma client (TypeScript types for the DB)
-5. Seeds the 7 system roles + a demo hotel/admin login
+This is the one command to run on a new machine — fully unattended, no prompts. It runs, in order:
+1. `pnpm install` — installs dependencies
+2. Starts the PostgreSQL + Redis Docker containers, and **waits for both to report healthy** (not a blind sleep)
+3. Generates the Prisma client
+4. Applies database migrations with `prisma migrate deploy` — creates every table
+5. Applies Row-Level Security policies and triggers (on top of the tables migrations just created)
+6. Seeds the 7 system roles + a demo hotel/admin login
+7. Runs `pnpm verify-db` and prints a pass/fail report of every expected table + RLS status
 
-If you don't want the Postgres-readiness wait, `pnpm setup` alone does the same five steps — just with a blind 3-second sleep instead of a health check, which can be too short on a slow first run.
+> **Why `migrate deploy` and not `migrate dev`?** `migrate dev` is the *interactive* command meant for local schema-iteration — it diffs the live database against migration history and, on any mismatch, prompts "drift detected, reset? (y/N)". That prompt is exactly what causes problems in an unattended setup: pressing N and then manually running `prisma migrate resolve --applied` for each migration marks history as "done" **without ever running the SQL**, which silently leaves tables like `expenses`, `cash_accounts`, `ledger_entries`, and `whatsapp_briefing_logs` missing while everything else looks fine. `migrate deploy` only reads the migration history table and applies whatever isn't recorded yet — it never diffs live schema and never prompts, so it can't hit this problem. `pnpm db:migrate` (`migrate dev`) is still the right command for your normal day-to-day workflow when you're changing the schema yourself — see [Development Workflow](#13-development-workflow).
 
-> ⚠️ **If step 2 (`db:migrate`) reports migration drift or prompts a Y/N question, press Ctrl+C — do NOT press N, and do NOT manually run `prisma migrate resolve --applied` for each migration to "get past it".** That marks migration history as applied **without running the SQL**, which is exactly how tables like `expenses`, `cash_accounts`, `ledger_entries`, and `whatsapp_briefing_logs` can end up silently missing while the app otherwise seems to work. Drift only happens from running commands out of order or retrying a half-finished setup — never on a truly empty database. If you hit it, wipe the volume and start clean:
+> ⚠️ **If `pnpm fresh-setup` still fails on the migration step, do not manually run `prisma migrate resolve --applied` to skip past it.** Wipe the volume and start clean instead:
 > ```bash
 > pnpm docker:reset && pnpm fresh-setup
 > ```
+
+Run `pnpm verify-db` any time to check the current state without re-running setup.
 
 ### Step 4 — Start the application
 
@@ -665,14 +669,16 @@ pnpm lint
 | `pnpm build` | Production build for all apps |
 | `pnpm typecheck` | TypeScript type check across all packages |
 | `pnpm lint` | ESLint across all packages |
-| `pnpm db:migrate` | Create and apply a new migration |
+| `pnpm db:migrate` | Create and apply a new migration (interactive — for schema-change workflow) |
+| `pnpm db:migrate:deploy` | Apply pending migrations non-interactively, no drift prompts (used by `fresh-setup`) |
 | `pnpm db:generate` | Regenerate Prisma client after schema changes |
 | `pnpm db:push` | Push schema changes without creating a migration file (prototype only) |
 | `pnpm db:studio` | Open Prisma Studio at http://localhost:5555 |
 | `pnpm db:seed` | Seed system roles into the database |
 | `pnpm apply:rls` | Re-apply RLS security policies to PostgreSQL |
-| `pnpm setup` | Full first-time setup (docker + migrate + rls + generate + seed), **in that order** |
-| `pnpm fresh-setup` | Same as `pnpm setup`, but waits for Postgres to be healthy first instead of a blind sleep — use this on a new machine |
+| `pnpm setup` | First-time setup (docker + migrate + rls + generate + seed) using a blind 3s sleep instead of a health check |
+| `pnpm fresh-setup` | **Use this on a new machine.** Installs deps, waits for Postgres/Redis to be healthy, migrates with `deploy` (non-interactive), applies RLS, seeds, and verifies |
+| `pnpm verify-db` | Prints which tables exist, which have RLS enabled, and the migration history — run any time to check current state |
 | `pnpm docker:up` | Start the PostgreSQL container |
 | `pnpm docker:down` | Stop the PostgreSQL container |
 | `pnpm docker:reset` | Wipe the database volume and restart fresh |
@@ -713,10 +719,12 @@ lsof -ti :5173 | xargs kill   # kills whatever is on port 5173
 ### "Migration drift detected" / a Y/N prompt during `db:migrate`
 **Do not press N, and do not manually run `prisma migrate resolve --applied` to skip past it.** That command marks a migration as done in Prisma's history table *without running its SQL* — the migration is recorded as applied, but the tables/columns it was supposed to create never get created. This is exactly how `expenses`, `cash_accounts`, `ledger_entries`, and `whatsapp_briefing_logs` can end up missing on a machine that otherwise looks fully set up.
 
-Drift happens when setup commands run out of order (e.g. `apply:rls` before `db:migrate` — RLS policies can only attach to tables that already exist) or when a half-finished setup is retried. It does not happen on a genuinely empty database. Fix it by wiping the volume and starting clean rather than resolving around it:
+This prompt only comes from `pnpm db:migrate` (`migrate dev`), the interactive command for the schema-change workflow. `pnpm fresh-setup` uses `migrate deploy` instead, which never prompts — if you're hitting this, you likely ran `db:migrate` directly instead of `fresh-setup`, or commands ran out of order (e.g. `apply:rls` before migrations — RLS policies can only attach to tables that already exist). It does not happen on a genuinely empty database. Fix it by wiping the volume and starting clean rather than resolving around it:
 ```bash
 pnpm docker:reset && pnpm fresh-setup
 ```
+
+Not sure what state the database is actually in? Run `pnpm verify-db` for a table-by-table report instead of guessing.
 
 ### Reset everything and start fresh
 ```bash

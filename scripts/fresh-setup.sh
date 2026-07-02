@@ -87,38 +87,45 @@ pnpm db:generate \
   || error "Prisma generate failed"
 success "Prisma client generated"
 
-# ── STEP 7: Run migrations ─────────────────────────────
+# ── STEP 7: Clean up stuck migrations ─────────────────
+log "Cleaning up stuck migrations from previous attempts..."
+docker exec pms_postgres psql -U pms_user -d hotel_pms -c "
+DELETE FROM _prisma_migrations
+WHERE finished_at IS NULL
+AND rolled_back_at IS NULL
+AND started_at < NOW() - INTERVAL '5 minutes';
+" 2>/dev/null || true
+success "Migration history clean"
+
+# ── STEP 8: Run migrations ─────────────────────────────
 log "Applying database migrations..."
-pnpm db:migrate:deploy
-MIGRATE_EXIT=$?
+MIGRATE_EXIT=0
+pnpm db:migrate:deploy || MIGRATE_EXIT=$?
 
 if [ $MIGRATE_EXIT -ne 0 ]; then
-  error "Migration failed.
-  Common causes:
-  1. Ghost migration folder with no SQL file
-     Fix: ls packages/db/prisma/migrations/
-          rm -rf packages/db/prisma/migrations/[bad_folder]
-          pnpm fresh-setup
-  2. Corrupted migration history
-     Fix: pnpm docker:reset && pnpm fresh-setup
-  NEVER run: prisma migrate resolve --applied
-  NEVER press Y on reset prompt during migrate dev"
+  FAILED_MIG=$(docker exec pms_postgres psql -U pms_user -d hotel_pms -tAc \
+    "SELECT migration_name FROM _prisma_migrations
+     WHERE finished_at IS NULL AND rolled_back_at IS NULL
+     ORDER BY started_at DESC LIMIT 1;" 2>/dev/null || echo "unknown")
+  error "Migration failed: ${FAILED_MIG:-unknown}
+  Fix: pnpm docker:reset && pnpm fresh-setup
+  NEVER run: prisma migrate resolve --applied"
 fi
 success "All migrations applied"
 
-# ── STEP 8: Apply RLS + triggers ───────────────────────
+# ── STEP 9: Apply RLS + triggers ───────────────────────
 log "Applying RLS policies and triggers..."
 pnpm apply:rls \
   || error "apply:rls failed. Check rls_and_triggers.sql"
 success "RLS and triggers applied"
 
-# ── STEP 9: Seed database ──────────────────────────────
+# ── STEP 10: Seed database ─────────────────────────────
 log "Seeding database..."
 pnpm db:seed \
   || error "Seed failed. Check packages/db/src/seed.ts"
 success "Database seeded"
 
-# ── STEP 10: Verify ────────────────────────────────────
+# ── STEP 11: Verify ────────────────────────────────────
 log "Running verification..."
 
 EXPECTED_TABLES=(

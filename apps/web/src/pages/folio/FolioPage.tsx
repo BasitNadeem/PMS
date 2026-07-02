@@ -416,7 +416,7 @@ export default function FolioPage() {
                   <>
                     {isGroupSingleBill && (
                       <p className="text-[12px] text-ink-mute text-center">
-                        Single-bill group · all {groupData?.totalRooms ?? ""} rooms will be checked out together
+                        Single-bill group · all {groupData?.summary?.totalRooms ?? ""} rooms will be checked out together
                       </p>
                     )}
                     <button

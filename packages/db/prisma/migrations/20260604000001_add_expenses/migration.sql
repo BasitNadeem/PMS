@@ -1,4 +1,4 @@
-CREATE TABLE expenses (
+CREATE TABLE IF NOT EXISTS expenses (
   id             UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   hotel_id       UUID         NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
   date           DATE         NOT NULL,
@@ -14,6 +14,8 @@ CREATE TABLE expenses (
   updated_at     TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
-CREATE INDEX expenses_hotel_id_idx      ON expenses(hotel_id);
-CREATE INDEX expenses_hotel_id_date_idx ON expenses(hotel_id, date);
-CREATE INDEX expenses_hotel_id_cat_idx  ON expenses(hotel_id, category);
+CREATE INDEX IF NOT EXISTS expenses_hotel_id_idx      ON expenses(hotel_id);
+CREATE INDEX IF NOT EXISTS expenses_hotel_id_date_idx ON expenses(hotel_id, date);
+CREATE INDEX IF NOT EXISTS expenses_hotel_id_cat_idx  ON expenses(hotel_id, category);
+
+GRANT ALL ON expenses TO hotel_pms_app;

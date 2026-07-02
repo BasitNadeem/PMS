@@ -17,11 +17,18 @@ declare global {
   var __adminPrisma: PrismaClient | undefined;
 }
 
+const _adminUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+if (!_adminUrl) {
+  throw new Error(
+    "adminPrisma: neither DIRECT_URL nor DATABASE_URL is set — check your .env file"
+  );
+}
+
 export const adminPrisma =
   global.__adminPrisma ??
   new PrismaClient({
     datasources: {
-      db: { url: process.env.DIRECT_URL ?? process.env.DATABASE_URL },
+      db: { url: _adminUrl },
     },
     log:
       process.env.NODE_ENV === "development"

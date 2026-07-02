@@ -1,18 +1,20 @@
 -- ============================================================================
--- QR Menu & In-Room Dining — table migration
--- Hand this file to your DBA / run it once against the database.
--- All statements are CREATE TABLE IF NOT EXISTS / CREATE INDEX IF NOT EXISTS —
--- safe to re-run.
+-- QR Menu & In-Room Dining — canonical table definitions
+-- Run once against the database or let the Prisma migration do it.
+-- All statements are CREATE TABLE IF NOT EXISTS / CREATE INDEX IF NOT EXISTS /
+-- ALTER TABLE ADD COLUMN IF NOT EXISTS — safe to re-run on any state.
 --
 -- DESIGN NOTES
 --   • No enable_hotel_rls() calls — consistent with expenses and ledger_entries
---     (these tables are accessed exclusively via adminPrisma with explicit
---      hotel_id filtering in every query).
+--     (accessed exclusively via adminPrisma with explicit hotel_id filtering).
 --   • updated_at is maintained by the application layer (SET updated_at = now()
---     in every UPDATE query), not via a trigger — same pattern as expenses.
+--     in every UPDATE), not via a trigger — same pattern as expenses.
 --   • All monetary values in paisas (BIGINT).
 --   • Order number format: ORD-0001, ORD-0042, etc. — unique per hotel,
 --     generated atomically via pg_advisory_xact_lock inside a transaction.
+--   • payment_preference: 'charge_to_room' | 'pay_now' — drives folio auto-post.
+--   • requires_folio_review: set to true by QrOrderService.editOrder when items
+--     are changed after the order has already been posted to a folio.
 -- ============================================================================
 
 
@@ -65,31 +67,44 @@ CREATE INDEX IF NOT EXISTS idx_menu_items_featured
 
 
 -- ── 3. qr_orders ─────────────────────────────────────────────────────────────
--- Orders placed by guests via the QR menu. room_verified = true only when the
--- submitted room number was matched to an active CHECKED_IN reservation.
--- folio_id is set when the order's total is posted to the guest's room folio.
+-- Orders placed by guests via the QR menu.
+-- room_verified = true only when the submitted room number was matched to an
+-- active CHECKED_IN reservation.
+-- payment_preference drives the folio auto-post on delivery.
+-- folio_id is set once the order total is posted to the guest's room folio.
+-- requires_folio_review is set to true when an already-posted order is edited.
 
 CREATE TABLE IF NOT EXISTS qr_orders (
-  id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  hotel_id             UUID        NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
-  order_number         TEXT        NOT NULL,
-  guest_name           TEXT        NOT NULL,
-  guest_phone          TEXT        NOT NULL,
-  room_number          TEXT        NOT NULL,
-  room_verified        BOOLEAN     NOT NULL DEFAULT false,
-  reservation_id       UUID,
-  delivery_type        TEXT        NOT NULL
-                         CHECK (delivery_type IN ('room_delivery', 'pickup', 'dine_in')),
-  special_instructions TEXT,
-  status               TEXT        NOT NULL DEFAULT 'pending'
-                         CHECK (status IN ('pending','confirmed','preparing','ready','delivered','cancelled')),
-  total_amount         BIGINT      NOT NULL CHECK (total_amount >= 0),
-  folio_id             UUID,
-  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  id                    UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  hotel_id              UUID        NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
+  order_number          TEXT        NOT NULL,
+  guest_name            TEXT        NOT NULL,
+  guest_phone           TEXT        NOT NULL,
+  room_number           TEXT        NOT NULL,
+  room_verified         BOOLEAN     NOT NULL DEFAULT false,
+  reservation_id        UUID,
+  delivery_type         TEXT        NOT NULL
+                          CHECK (delivery_type IN ('room_delivery', 'pickup', 'dine_in')),
+  special_instructions  TEXT,
+  status                TEXT        NOT NULL DEFAULT 'pending'
+                          CHECK (status IN ('pending','confirmed','preparing','ready','delivered','cancelled')),
+  total_amount          BIGINT      NOT NULL CHECK (total_amount >= 0),
+  folio_id              UUID,
+  payment_preference    TEXT        NOT NULL DEFAULT 'charge_to_room'
+                          CHECK (payment_preference IN ('charge_to_room', 'pay_now')),
+  requires_folio_review BOOLEAN     NOT NULL DEFAULT false,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
 
   UNIQUE (hotel_id, order_number)
 );
+
+-- Safety net: ADD COLUMN IF NOT EXISTS for machines that had the table created
+-- before payment_preference and requires_folio_review were added.
+ALTER TABLE qr_orders
+  ADD COLUMN IF NOT EXISTS payment_preference    TEXT    NOT NULL DEFAULT 'charge_to_room'
+                             CHECK (payment_preference IN ('charge_to_room', 'pay_now')),
+  ADD COLUMN IF NOT EXISTS requires_folio_review BOOLEAN NOT NULL DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS idx_qr_orders_hotel_status
   ON qr_orders(hotel_id, status, created_at DESC);
@@ -108,16 +123,23 @@ CREATE INDEX IF NOT EXISTS idx_qr_orders_reservation
 -- menu_item_id is nullable in case the menu item is later deleted.
 
 CREATE TABLE IF NOT EXISTS qr_order_items (
-  id             UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id       UUID    NOT NULL REFERENCES qr_orders(id) ON DELETE CASCADE,
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id       UUID        NOT NULL REFERENCES qr_orders(id) ON DELETE CASCADE,
   menu_item_id   UUID,
-  item_name      TEXT    NOT NULL,
-  item_price     BIGINT  NOT NULL,
-  quantity       INTEGER NOT NULL CHECK (quantity > 0),
+  item_name      TEXT        NOT NULL,
+  item_price     BIGINT      NOT NULL,
+  quantity       INTEGER     NOT NULL CHECK (quantity > 0),
   special_note   TEXT,
-  subtotal       BIGINT  NOT NULL,
+  subtotal       BIGINT      NOT NULL,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_qr_order_items_order
   ON qr_order_items(order_id);
+
+
+-- ── Grants ────────────────────────────────────────────────────────────────────
+GRANT ALL ON menu_categories  TO hotel_pms_app;
+GRANT ALL ON menu_items        TO hotel_pms_app;
+GRANT ALL ON qr_orders         TO hotel_pms_app;
+GRANT ALL ON qr_order_items    TO hotel_pms_app;

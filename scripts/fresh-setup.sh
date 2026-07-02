@@ -1,106 +1,207 @@
 #!/bin/bash
-# fresh-setup.sh — one-command, fully unattended first-time setup for a
-# brand new machine. Safe to run zero or many times on a fresh DB volume.
-#
-# Why this exists instead of just `pnpm setup`:
-#   `pnpm setup` runs `pnpm db:migrate`, which is `prisma migrate dev` —
-#   the INTERACTIVE dev workflow command. It diffs the live database
-#   against migration history via a shadow database and, on any mismatch,
-#   prompts "drift detected, reset? (y/N)". In an unattended script that
-#   prompt either hangs waiting for stdin or gets answered wrong, and
-#   pressing N + manually running `prisma migrate resolve --applied` for
-#   each migration marks history as "done" WITHOUT ever running the SQL —
-#   which is how tables like expenses/cash_accounts/ledger_entries end up
-#   silently missing while everything else looks fine.
-#
-#   `prisma migrate deploy` is the correct tool here: it only reads the
-#   migration history table, applies whatever isn't recorded yet, in
-#   order, and never prompts. It does not diff against live schema state
-#   at all, so it is immune to the drift class of problem entirely.
-#
-# Order matters: migrations create the tables; `apply:rls` only adds
-# Row-Level Security policies and triggers ON TOP OF tables that already
-# exist. Running it first fails outright (the tables don't exist yet).
-#
-# ─────────────────────────────────────────────────────────────────────────
-# ⚠️  If this script still fails on `migrate deploy`, do NOT manually run
-#     `prisma migrate resolve --applied` to skip past it — that's what
-#     causes tables to go missing. Wipe the volume and retry clean:
-#       pnpm docker:reset && pnpm fresh-setup
-# ─────────────────────────────────────────────────────────────────────────
+set -e
 
-set -euo pipefail
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log()     { echo -e "${BLUE}▶${NC}  $1"; }
+success() { echo -e "${GREEN}✓${NC}  $1"; }
+warn()    { echo -e "${YELLOW}⚠${NC}  $1"; }
+error()   { echo -e "${RED}✗${NC}  $1"; exit 1; }
+
 cd "$(dirname "$0")/.."
 
-echo "🏨  Hotel PMS — fresh machine setup"
-echo "────────────────────────────────────────────"
+echo ""
+echo "🏨  Hotel PMS — Fresh Machine Setup"
+echo "════════════════════════════════════════"
+echo ""
 
-echo "▶  Installing dependencies…"
-pnpm install
+# ── STEP 1: Dependencies ───────────────────────────────
+log "Installing dependencies..."
+pnpm install || error "pnpm install failed. Check Node/pnpm version."
+success "Dependencies installed"
 
-echo "▶  Starting Postgres + Redis containers…"
-pnpm docker:up
+# ── STEP 2: Docker ─────────────────────────────────────
+log "Starting Docker containers..."
+docker compose up -d \
+  || error "Docker failed. Is Docker Desktop running?"
+success "Containers starting..."
 
-wait_for_healthy() {
-  local container="$1"
-  local max_attempts="$2"
-  local attempts=0
-  until [ "$(docker inspect -f '{{.State.Health.Status}}' "$container" 2>/dev/null || echo starting)" = "healthy" ]; do
-    attempts=$((attempts + 1))
-    if [ "$attempts" -ge "$max_attempts" ]; then
-      return 1
-    fi
-    sleep 1
-  done
-  return 0
-}
+# ── STEP 3: Wait for Postgres ──────────────────────────
+log "Waiting for Postgres to be healthy..."
+TIMEOUT=60; ELAPSED=0
+until docker inspect pms_postgres \
+  --format='{{.State.Health.Status}}' 2>/dev/null \
+  | grep -q "^healthy$"; do
+  if [ $ELAPSED -ge $TIMEOUT ]; then
+    error "Postgres not healthy after ${TIMEOUT}s.
+    Check: docker logs pms_postgres"
+  fi
+  printf "."
+  sleep 1; ELAPSED=$((ELAPSED + 1))
+done
+echo ""
+success "Postgres healthy (${ELAPSED}s)"
 
-echo "▶  Waiting for Postgres to be healthy…"
-if ! wait_for_healthy pms_postgres 60; then
-  echo "❌  Postgres did not become healthy after 60s. Check: docker compose logs postgres"
-  exit 1
+# ── STEP 4: Wait for Redis ─────────────────────────────
+log "Waiting for Redis to be healthy..."
+TIMEOUT=30; ELAPSED=0
+until docker inspect pms_redis \
+  --format='{{.State.Health.Status}}' 2>/dev/null \
+  | grep -q "^healthy$"; do
+  if [ $ELAPSED -ge $TIMEOUT ]; then
+    warn "Redis not healthy after ${TIMEOUT}s — continuing"
+    break
+  fi
+  printf "."; sleep 1; ELAPSED=$((ELAPSED + 1))
+done
+echo ""
+success "Redis ready"
+
+# ── STEP 5: Generate Prisma client ─────────────────────
+log "Generating Prisma client..."
+pnpm db:generate \
+  || error "Prisma generate failed"
+success "Prisma client generated"
+
+# ── STEP 6: Run migrations ─────────────────────────────
+log "Applying database migrations..."
+pnpm db:migrate:deploy
+MIGRATE_EXIT=$?
+
+if [ $MIGRATE_EXIT -ne 0 ]; then
+  error "Migration failed.
+  Common causes:
+  1. Ghost migration folder with no SQL file
+     Fix: ls packages/db/prisma/migrations/
+          rm -rf packages/db/prisma/migrations/[bad_folder]
+          pnpm fresh-setup
+  2. Corrupted migration history
+     Fix: pnpm docker:reset && pnpm fresh-setup
+  NEVER run: prisma migrate resolve --applied
+  NEVER press Y on reset prompt during migrate dev"
 fi
-echo "✔  Postgres is healthy."
+success "All migrations applied"
 
-echo "▶  Waiting for Redis to be healthy…"
-if ! wait_for_healthy pms_redis 30; then
-  echo "⚠  Redis health check timed out — continuing anyway (only affects WhatsApp briefing queue)."
+# ── STEP 7: Apply RLS + triggers ───────────────────────
+log "Applying RLS policies and triggers..."
+pnpm apply:rls \
+  || error "apply:rls failed. Check rls_and_triggers.sql"
+success "RLS and triggers applied"
+
+# ── STEP 8: Seed database ──────────────────────────────
+log "Seeding database..."
+pnpm db:seed \
+  || error "Seed failed. Check packages/db/src/seed.ts"
+success "Database seeded"
+
+# ── STEP 9: Verify ─────────────────────────────────────
+log "Running verification..."
+
+EXPECTED_TABLES=(
+  # Core Prisma tables
+  hotels users roles permissions role_permissions hotel_users
+  room_types rooms
+  guests guest_blacklist
+  reservations reservation_rooms
+  group_bookings group_members
+  folios folio_items folio_splits
+  payments invoices
+  pos_categories pos_items pos_orders pos_order_items
+  housekeeping_tasks
+  maintenance_tickets
+  inventory_items inventory_transactions
+  conversations messages
+  rate_plans rate_plan_items
+  channel_configs
+  staff shift_reports
+  tax_configs
+  audit_logs notifications
+  custom_field_definitions custom_field_values
+  # Raw-SQL tables
+  front_desk_notes
+  push_subscriptions
+  expenses
+  whatsapp_briefing_logs
+  cash_accounts ledger_entries
+  menu_categories menu_items
+  qr_orders qr_order_items
+)
+
+MISSING=0
+for table in "${EXPECTED_TABLES[@]}"; do
+  EXISTS=$(docker exec pms_postgres psql \
+    -U pms_user -d hotel_pms -t -c \
+    "SELECT COUNT(*) FROM pg_tables
+     WHERE schemaname='public'
+     AND tablename='$table';" | tr -d ' \n')
+  if [ "$EXISTS" = "0" ]; then
+    warn "MISSING TABLE: $table"
+    MISSING=$((MISSING + 1))
+  fi
+done
+
+if [ $MISSING -gt 0 ]; then
+  error "$MISSING tables are missing.
+  Run 'pnpm verify-db' for full report.
+  This means a migration file is incomplete.
+  Fix the migration SQL and run:
+  pnpm docker:reset && pnpm fresh-setup"
+fi
+success "All ${#EXPECTED_TABLES[@]} tables verified"
+
+# Verify RLS on core tables
+RLS_OFF=$(docker exec pms_postgres psql \
+  -U pms_user -d hotel_pms -t -c "
+  SELECT COUNT(*) FROM pg_class c
+  JOIN pg_tables t ON t.tablename = c.relname
+  WHERE t.schemaname = 'public'
+  AND c.relrowsecurity = false
+  AND t.tablename = ANY(ARRAY[
+    'hotels','reservations','rooms','guests',
+    'folios','payments','housekeeping_tasks',
+    'maintenance_tickets','notifications'
+  ]);" | tr -d ' \n')
+
+if [ "$RLS_OFF" -gt "0" ]; then
+  warn "RLS off on $RLS_OFF tables — re-running apply:rls"
+  pnpm apply:rls
 else
-  echo "✔  Redis is healthy."
+  success "RLS verified on all core tables"
 fi
 
-echo "▶  Generating Prisma client…"
-pnpm db:generate
-
-echo "▶  Applying database migrations (non-interactive)…"
-if ! pnpm db:migrate:deploy; then
-  echo ""
-  echo "❌  Migration deploy failed."
-  echo "    Do NOT manually run 'prisma migrate resolve --applied' to skip past this."
-  echo "    Wipe the volume and try again on a clean slate:"
-  echo "      pnpm docker:reset && pnpm fresh-setup"
-  exit 1
+# Verify app role can connect
+CONN=$(docker exec pms_postgres psql \
+  -U hotel_pms_app -d hotel_pms -c "SELECT 1;" \
+  2>/dev/null | grep -c "1 row" || echo "0")
+if [ "$CONN" != "1" ]; then
+  error "hotel_pms_app role cannot connect to DB.
+  Run: pnpm apply:rls (refreshes grants)"
 fi
+success "App role connection verified"
 
-echo "▶  Applying Row-Level Security policies and triggers…"
-pnpm apply:rls
-
-echo "▶  Seeding system roles + demo hotel…"
-pnpm db:seed
-
-echo "▶  Verifying setup…"
-bash scripts/verify-db.sh || true
-
+# ── DONE ───────────────────────────────────────────────
 echo ""
-echo "✅  Setup complete!"
-echo "────────────────────────────────────────────"
-echo "  Demo login credentials"
-echo "────────────────────────────────────────────"
-echo "  Hotel slug : demo-hotel"
-echo "  Email      : admin@demo-hotel.com"
-echo "  Password   : Admin1234!"
-echo "────────────────────────────────────────────"
+echo "════════════════════════════════════════"
+echo -e "${GREEN}✅  Setup complete!${NC}"
+echo "════════════════════════════════════════"
 echo ""
-echo "Run 'pnpm dev' to start the app:"
-echo "  Web  → http://localhost:5173"
-echo "  API  → http://localhost:4000/api/health"
+echo "  Credentials:"
+echo "  ┌──────────────────────────────────────┐"
+echo "  │  Hotel App (localhost:5173)           │"
+echo "  │  Slug    : demo-hotel                │"
+echo "  │  Email   : admin@demo-hotel.com      │"
+echo "  │  Password: Admin1234!                │"
+echo "  ├──────────────────────────────────────┤"
+echo "  │  Admin Panel (localhost:5174)         │"
+echo "  │  Email   : admin@yourpms.com         │"
+echo "  │  Password: AdminPass123!             │"
+echo "  └──────────────────────────────────────┘"
+echo ""
+echo "  Commands:"
+echo "  pnpm dev        → start all apps"
+echo "  pnpm verify-db  → check DB health"
+echo ""

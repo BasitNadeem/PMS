@@ -38,7 +38,7 @@ router.get("/:id", requirePermission("pos:read"), async (req, res) => {
   const item = await InventoryService.getItem(
     req.withTenant,
     req.user!.hotelId,
-    req.params.id,
+    req.params.id as string,
   );
   res.json({ data: item });
 });
@@ -61,7 +61,7 @@ router.patch("/:id", requirePermission("pos:manage"), async (req, res) => {
   const item = await InventoryService.updateItem(
     req.withTenant,
     req.user!.hotelId,
-    req.params.id,
+    req.params.id as string,
     body,
     req.user!.userId,
   );
@@ -73,7 +73,7 @@ router.delete("/:id", requirePermission("pos:manage"), async (req, res) => {
   await InventoryService.deactivateItem(
     req.withTenant,
     req.user!.hotelId,
-    req.params.id,
+    req.params.id as string,
     req.user!.userId,
   );
   res.status(204).send();
@@ -85,7 +85,7 @@ router.post("/:id/transactions", requirePermission("pos:manage"), async (req, re
   const item = await InventoryService.recordTransaction(
     req.withTenant,
     req.user!.hotelId,
-    req.params.id,
+    req.params.id as string,
     body,
     req.user!.userId,
   );

@@ -26,6 +26,8 @@ success "Dependencies installed"
 
 # ── STEP 2: Docker ─────────────────────────────────────
 log "Starting Docker containers..."
+# Remove any existing containers that might conflict
+docker rm -f pms_postgres pms_redis 2>/dev/null || true
 docker compose up -d \
   || error "Docker failed. Is Docker Desktop running?"
 success "Containers starting..."

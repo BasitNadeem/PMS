@@ -63,13 +63,31 @@ done
 echo ""
 success "Redis ready"
 
-# ── STEP 5: Generate Prisma client ─────────────────────
+# ── STEP 5: Create app DB role ─────────────────────────
+log "Creating database role..."
+docker exec pms_postgres psql -U pms_user -d hotel_pms -c "
+DO \$\$
+BEGIN
+  IF NOT EXISTS (
+    SELECT FROM pg_roles WHERE rolname = 'hotel_pms_app'
+  ) THEN
+    CREATE ROLE hotel_pms_app
+      WITH LOGIN PASSWORD 'pms_app_dev_pass';
+  END IF;
+END
+\$\$;
+GRANT CONNECT ON DATABASE hotel_pms TO hotel_pms_app;
+GRANT USAGE ON SCHEMA public TO hotel_pms_app;
+" || error "Failed to create database role"
+success "Database role ready"
+
+# ── STEP 6: Generate Prisma client ─────────────────────
 log "Generating Prisma client..."
 pnpm db:generate \
   || error "Prisma generate failed"
 success "Prisma client generated"
 
-# ── STEP 6: Run migrations ─────────────────────────────
+# ── STEP 7: Run migrations ─────────────────────────────
 log "Applying database migrations..."
 pnpm db:migrate:deploy
 MIGRATE_EXIT=$?
@@ -88,19 +106,19 @@ if [ $MIGRATE_EXIT -ne 0 ]; then
 fi
 success "All migrations applied"
 
-# ── STEP 7: Apply RLS + triggers ───────────────────────
+# ── STEP 8: Apply RLS + triggers ───────────────────────
 log "Applying RLS policies and triggers..."
 pnpm apply:rls \
   || error "apply:rls failed. Check rls_and_triggers.sql"
 success "RLS and triggers applied"
 
-# ── STEP 8: Seed database ──────────────────────────────
+# ── STEP 9: Seed database ──────────────────────────────
 log "Seeding database..."
 pnpm db:seed \
   || error "Seed failed. Check packages/db/src/seed.ts"
 success "Database seeded"
 
-# ── STEP 9: Verify ─────────────────────────────────────
+# ── STEP 10: Verify ────────────────────────────────────
 log "Running verification..."
 
 EXPECTED_TABLES=(

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Azure Sands Resort - Room Dining</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&amp;family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed-variant": "#7b2f00",
+                        "on-secondary-container": "#566755",
+                        "on-surface-variant": "#584238",
+                        "on-background": "#251913",
+                        "inverse-surface": "#3b2d27",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary": "#615c47",
+                        "primary": "#9e3e00",
+                        "tertiary-fixed-dim": "#cec6ad",
+                        "background": "#fff8f6",
+                        "on-tertiary-container": "#fffbff",
+                        "on-error-container": "#93000a",
+                        "surface-bright": "#fff8f6",
+                        "secondary": "#526351",
+                        "on-surface": "#251913",
+                        "surface-container": "#ffeae1",
+                        "on-tertiary-fixed-variant": "#4c4733",
+                        "on-error": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "primary-fixed-dim": "#ffb695",
+                        "on-primary-container": "#fffbff",
+                        "on-tertiary-fixed": "#1f1c0b",
+                        "tertiary-container": "#7b745e",
+                        "error": "#ba1a1a",
+                        "surface": "#fff8f6",
+                        "primary-container": "#c3510b",
+                        "surface-dim": "#edd5cb",
+                        "on-primary": "#ffffff",
+                        "surface-tint": "#a23f00",
+                        "tertiary-fixed": "#ebe2c8",
+                        "inverse-primary": "#ffb695",
+                        "on-primary-fixed": "#351000",
+                        "primary-fixed": "#ffdbcc",
+                        "inverse-on-surface": "#ffede6",
+                        "secondary-fixed-dim": "#b9ccb5",
+                        "on-secondary-fixed": "#101f11",
+                        "surface-container-low": "#fff1eb",
+                        "secondary-fixed": "#d5e8d1",
+                        "surface-container-high": "#fbe3d9",
+                        "surface-container-highest": "#f5ded4",
+                        "error-container": "#ffdad6",
+                        "secondary-container": "#d2e5ce",
+                        "outline": "#8b7267",
+                        "on-secondary-fixed-variant": "#3a4b3a",
+                        "outline-variant": "#dfc0b3",
+                        "surface-variant": "#f5ded4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "lg": "40px",
+                        "sm": "12px",
+                        "margin-mobile": "20px",
+                        "base": "8px",
+                        "xl": "64px",
+                        "margin-desktop": "120px",
+                        "md": "24px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Libre Caslon Text"],
+                        "headline-lg": ["Libre Caslon Text"],
+                        "label-lg": ["DM Sans"],
+                        "body-md": ["DM Sans"],
+                        "label-md": ["DM Sans"],
+                        "headline-sm": ["Libre Caslon Text"],
+                        "headline-md": ["Libre Caslon Text"],
+                        "body-sm": ["DM Sans"],
+                        "body-lg": ["DM Sans"],
+                        "headline-lg-mobile": ["Libre Caslon Text"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["40px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "1.3", "fontWeight": "400" }],
+                        "label-lg": ["14px", { "lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "label-md": ["12px", { "lineHeight": "1.2", "fontWeight": "500" }],
+                        "headline-sm": ["20px", { "lineHeight": "1.4", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "1.4", "fontWeight": "400" }],
+                        "body-sm": ["14px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "1.3", "fontWeight": "400" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .texture-overlay {
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            pointer-events: none;
+        }
+        .ambient-gradient {
+            background: linear-gradient(135deg, rgba(237, 213, 203, 0.8) 0%, rgba(255, 182, 149, 0.6) 50%, rgba(195, 81, 11, 0.4) 100%);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen relative overflow-hidden font-body-md antialiased flex flex-col items-center justify-center">
+<!-- Background Image -->
+<div class="absolute inset-0 z-0">
+<img alt="" class="w-full h-full object-cover opacity-80 mix-blend-multiply" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD48G-Pl_2ZHuaXgNVgN0lvbnvT24cx2tDDZOsgjZ3JZXM6vvVOCthD9kxiQtjIDO0I7VHM7JNkCxssN6AT1O-aNzJSthnIY4euxuyCixER7ds3OajmjVQHSgzzE8hxBrn6cjGFddnLTj8qIhoG9BMX3ZsWZJX7nP380wYAHznlyM54BZRpxSk3Lz0rn6joyg6HnaRm9yeztkKrYNla39zgKloL1s7QkbtX-lsw4Z6u3cHqHj8DWuQXLrfrvhT4xlFQJluavu69llcT"/>
+<div class="absolute inset-0 ambient-gradient"></div>
+<div class="absolute inset-0 texture-overlay"></div>
+</div>
+<!-- Main Content Container -->
+<main class="relative z-10 w-full max-w-lg px-margin-mobile flex flex-col items-center min-h-screen justify-between py-xl">
+<!-- Hero Section -->
+<header class="text-center w-full mt-lg">
+<span class="material-symbols-outlined text-primary-container text-5xl mb-sm block" style="font-variation-settings: 'FILL' 1;">
+                spa
+            </span>
+<h1 class="font-display-lg text-display-lg md:font-display-lg md:text-display-lg text-on-background tracking-tight">
+                Azure Sands Resort
+            </h1>
+<div class="flex items-center justify-center gap-xs mt-base text-primary-container">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">star</span>
+</div></header></main></body></html>

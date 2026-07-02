@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Checkout / Confirm Order</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&amp;family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary-fixed-variant": "#7b2f00",
+                    "on-secondary-container": "#566755",
+                    "on-surface-variant": "#584238",
+                    "on-background": "#251913",
+                    "inverse-surface": "#3b2d27",
+                    "surface-container-lowest": "#ffffff",
+                    "tertiary": "#615c47",
+                    "primary": "#9e3e00",
+                    "tertiary-fixed-dim": "#cec6ad",
+                    "background": "#fff8f6",
+                    "on-tertiary-container": "#fffbff",
+                    "on-error-container": "#93000a",
+                    "surface-bright": "#fff8f6",
+                    "secondary": "#526351",
+                    "on-surface": "#251913",
+                    "surface-container": "#ffeae1",
+                    "on-tertiary-fixed-variant": "#4c4733",
+                    "on-error": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "primary-fixed-dim": "#ffb695",
+                    "on-primary-container": "#fffbff",
+                    "on-tertiary-fixed": "#1f1c0b",
+                    "tertiary-container": "#7b745e",
+                    "error": "#ba1a1a",
+                    "surface": "#fff8f6",
+                    "primary-container": "#c3510b",
+                    "surface-dim": "#edd5cb",
+                    "on-primary": "#ffffff",
+                    "surface-tint": "#a23f00",
+                    "tertiary-fixed": "#ebe2c8",
+                    "inverse-primary": "#ffb695",
+                    "on-primary-fixed": "#351000",
+                    "primary-fixed": "#ffdbcc",
+                    "inverse-on-surface": "#ffede6",
+                    "secondary-fixed-dim": "#b9ccb5",
+                    "on-secondary-fixed": "#101f11",
+                    "surface-container-low": "#fff1eb",
+                    "secondary-fixed": "#d5e8d1",
+                    "surface-container-high": "#fbe3d9",
+                    "surface-container-highest": "#f5ded4",
+                    "error-container": "#ffdad6",
+                    "secondary-container": "#d2e5ce",
+                    "outline": "#8b7267",
+                    "on-secondary-fixed-variant": "#3a4b3a",
+                    "outline-variant": "#dfc0b3",
+                    "surface-variant": "#f5ded4"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "lg": "40px",
+                    "sm": "12px",
+                    "margin-mobile": "20px",
+                    "base": "8px",
+                    "xl": "64px",
+                    "margin-desktop": "120px",
+                    "md": "24px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "display-lg": ["Libre Caslon Text"],
+                    "headline-lg": ["Libre Caslon Text"],
+                    "label-lg": ["DM Sans"],
+                    "body-md": ["DM Sans"],
+                    "label-md": ["DM Sans"],
+                    "headline-sm": ["Libre Caslon Text"],
+                    "headline-md": ["Libre Caslon Text"],
+                    "body-sm": ["DM Sans"],
+                    "body-lg": ["DM Sans"],
+                    "headline-lg-mobile": ["Libre Caslon Text"]
+            },
+            "fontSize": {
+                    "display-lg": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "400"}],
+                    "headline-lg": ["32px", {"lineHeight": "1.3", "fontWeight": "400"}],
+                    "label-lg": ["14px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "label-md": ["12px", {"lineHeight": "1.2", "fontWeight": "500"}],
+                    "headline-sm": ["20px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                    "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "1.3", "fontWeight": "400"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body {
+            background-color: #fff8f6; /* surface */
+            background-image: url('data:image/svg+xml,%3Csvg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noise"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100" height="100" filter="url(%23noise)" opacity="0.05"/%3E%3C/svg%3E');
+        }
+        
+        .glass-panel {
+            background: rgba(255, 248, 246, 0.85); /* surface / 85% */
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+        
+        .golden-shadow {
+            box-shadow: 0 8px 32px -8px rgba(212, 93, 26, 0.15); /* Primary-ish glow */
+        }
+        
+        /* Input custom styling */
+        .ambient-input {
+            background-color: #E8DCC4; /* Darker sand/cream as per guidance */
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+            transition: all 0.3s ease;
+        }
+        .ambient-input:focus {
+            background-color: rgba(158, 62, 0, 0.05); /* Primary at 5% */
+            outline: none;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02), 0 0 0 2px rgba(158, 62, 0, 0.2);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="text-on-surface font-body-md min-h-screen flex flex-col antialiased max-w-[375px] mx-auto">
+<!-- TopAppBar -->
+<header class="bg-surface/90 backdrop-blur-xl shadow-sm docked full-width top-0 sticky z-50 flex justify-between items-center w-full px-margin-mobile py-sm">
+<button class="text-on-surface-variant hover:bg-primary/5 transition-colors p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-headline-sm text-headline-sm text-primary italic">Confirm order</h1>
+<div class="w-10"></div> <!-- Spacer to balance flex-between -->
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow pb-32"> <!-- pb-32 to account for fixed bottom CTA -->
+<div class="max-w-3xl mx-auto px-margin-mobile pt-lg pb-xl space-y-md">
+<!-- Order Summary Section -->
+<section class="glass-panel rounded-xl shadow-sm border border-outline-variant/30 relative overflow-hidden p-sm">
+<div class="absolute inset-0 bg-gradient-to-br from-surface-container-highest/20 to-transparent pointer-events-none"></div>
+<div class="flex justify-between items-end mb-sm relative z-10">
+<div>
+<h2 class="font-label-lg text-label-lg text-on-surface-variant uppercase tracking-widest mb-xs">Order Summary</h2>
+<p class="font-body-md text-body-md">1 item</p>
+</div>
+<a class="font-label-md text-label-md text-primary hover:text-primary-container transition-colors uppercase tracking-wider underline underline-offset-4 decoration-primary/30" href="#">Edit</a>
+</div>
+<hr class="border-t border-outline-variant/50 my-sm"/>
+<div class="flex justify-between items-center relative z-10">
+<span class="font-headline-sm text-headline-sm">Total</span>
+<span class="font-headline-md text-headline-md text-primary">PKR 780</span>
+</div>
+</section>
+<!-- Delivery Type Selection -->
+<section>
+<h2 class="font-label-lg text-label-lg text-on-surface-variant uppercase tracking-widest mb-md ml-xs">Delivery Method</h2>
+<div class="grid grid-cols-3 gap-sm">
+<!-- Active State -->
+<button class="flex flex-col items-center justify-center py-sm px-xs rounded-lg bg-secondary-container text-on-secondary-container border border-secondary/20 transition-all shadow-sm">
+<span class="material-symbols-outlined mb-xs" data-icon="room_service" style="font-variation-settings: 'FILL' 1;">room_service</span>
+<span class="font-label-md text-label-md text-center">Room Delivery</span>
+</button>
+<!-- Inactive State -->
+<button class="flex flex-col items-center justify-center py-sm px-xs rounded-lg glass-panel text-on-surface-variant border border-outline-variant/40 hover:bg-surface-container-high transition-all">
+<span class="material-symbols-outlined mb-xs" data-icon="shopping_bag">shopping_bag</span>
+<span class="font-label-md text-label-md text-center">Pick Up</span>
+</button>
+<!-- Inactive State -->
+<button class="flex flex-col items-center justify-center py-sm px-xs rounded-lg glass-panel text-on-surface-variant border border-outline-variant/40 hover:bg-surface-container-high transition-all">
+<span class="material-symbols-outlined mb-xs" data-icon="restaurant">restaurant</span>
+<span class="font-label-md text-label-md text-center">Dine In</span>
+</button>
+</div>
+</section>
+<!-- Guest Details Form -->
+<section class="space-y-md">
+<h2 class="font-label-lg text-label-lg text-on-surface-variant uppercase tracking-widest ml-xs mb-sm">Guest Details</h2>
+<div class="space-y-sm">
+<div class="relative">
+<label class="block font-label-md text-label-md text-on-surface-variant mb-xs ml-xs" for="room_number">Room Number <span class="text-error">*</span></label>
+<input class="ambient-input w-full rounded-lg border-0 py-sm px-md font-body-lg text-body-lg text-on-surface placeholder-on-surface-variant/50" id="room_number" placeholder="e.g. 402" type="text"/>
+</div>
+<div class="relative">
+<label class="block font-label-md text-label-md text-on-surface-variant mb-xs ml-xs" for="guest_name">Your Name <span class="text-error">*</span></label>
+<input class="ambient-input w-full rounded-lg border-0 py-sm px-md font-body-lg text-body-lg text-on-surface placeholder-on-surface-variant/50" id="guest_name" placeholder="Full name" type="text"/>
+</div>
+<div class="relative">
+<label class="block font-label-md text-label-md text-on-surface-variant mb-xs ml-xs" for="phone_number">Phone Number <span class="text-error">*</span></label>
+<input class="ambient-input w-full rounded-lg border-0 py-sm px-md font-body-lg text-body-lg text-on-surface placeholder-on-surface-variant/50" id="phone_number" placeholder="For delivery updates" type="tel"/>
+</div>
+</div>
+<div class="pt-sm">
+<label class="block font-label-md text-label-md text-on-surface-variant mb-xs ml-xs" for="special_instructions">Special Instructions</label>
+<textarea class="ambient-input w-full rounded-lg border-0 py-sm px-md font-body-md text-body-md text-on-surface placeholder-on-surface-variant/50 resize-none" id="special_instructions" placeholder="Allergies, preferences, or delivery instructions..." rows="3"></textarea>
+</div>
+</section>
+</div>
+</main>
+<!-- Fixed Bottom CTA -->
+<div class="fixed bottom-0 left-0 w-full bg-surface/90 backdrop-blur-2xl border-t border-outline-variant/20 px-margin-mobile py-md z-50 max-w-[375px]">
+<div class="max-w-3xl mx-auto">
+<button class="w-full min-h-[56px] bg-primary text-on-primary rounded-xl font-label-lg text-label-lg flex items-center justify-between px-lg golden-shadow hover:bg-surface-tint transition-all active:scale-[0.98]">
+<span>Place order</span>
+<div class="flex items-center gap-xs">
+<span class="opacity-80">·</span>
+<span>PKR 780</span>
+</div>
+</button>
+</div>
+</div>
+</body></html>

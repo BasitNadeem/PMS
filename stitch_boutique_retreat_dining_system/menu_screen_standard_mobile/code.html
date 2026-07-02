@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Room Dining - Azure Sands Resort</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&amp;family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "surface-container-high": "#fbe3d9",
+                "surface-container-lowest": "#ffffff",
+                "on-tertiary-fixed-variant": "#4c4733",
+                "on-secondary": "#ffffff",
+                "on-tertiary-container": "#fffbff",
+                "surface-tint": "#a23f00",
+                "on-primary-container": "#fffbff",
+                "tertiary-fixed-dim": "#cec6ad",
+                "on-secondary-fixed": "#101f11",
+                "on-primary-fixed": "#351000",
+                "on-secondary-fixed-variant": "#3a4b3a",
+                "inverse-surface": "#3b2d27",
+                "primary-container": "#c3510b",
+                "on-primary": "#ffffff",
+                "inverse-primary": "#ffb695",
+                "surface": "#fff8f6",
+                "secondary-container": "#d2e5ce",
+                "on-primary-fixed-variant": "#7b2f00",
+                "inverse-on-surface": "#ffede6",
+                "primary-fixed": "#ffdbcc",
+                "on-error-container": "#93000a",
+                "secondary-fixed": "#d5e8d1",
+                "tertiary": "#615c47",
+                "on-tertiary-fixed": "#1f1c0b",
+                "on-surface": "#251913",
+                "error-container": "#ffdad6",
+                "surface-container-low": "#fff1eb",
+                "error": "#ba1a1a",
+                "tertiary-fixed": "#ebe2c8",
+                "background": "#fff8f6",
+                "outline-variant": "#dfc0b3",
+                "on-surface-variant": "#584238",
+                "on-background": "#251913",
+                "primary": "#9e3e00",
+                "surface-dim": "#edd5cb",
+                "secondary-fixed-dim": "#b9ccb5",
+                "on-error": "#ffffff",
+                "secondary": "#526351",
+                "surface-container-highest": "#f5ded4",
+                "surface-container": "#ffeae1",
+                "surface-bright": "#fff8f6",
+                "on-tertiary": "#ffffff",
+                "surface-variant": "#f5ded4",
+                "primary-fixed-dim": "#ffb695",
+                "on-secondary-container": "#566755",
+                "tertiary-container": "#7b745e",
+                "outline": "#8b7267"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "sm": "12px",
+                "margin-desktop": "120px",
+                "xl": "64px",
+                "margin-mobile": "20px",
+                "lg": "40px",
+                "xs": "4px",
+                "base": "8px",
+                "md": "24px",
+                "gutter": "16px"
+        },
+        "fontFamily": {
+                "body-md": [
+                        "DM Sans"
+                ],
+                "body-lg": [
+                        "DM Sans"
+                ],
+                "label-md": [
+                        "DM Sans"
+                ],
+                "body-sm": [
+                        "DM Sans"
+                ],
+                "display-lg": [
+                        "Libre Caslon Text"
+                ],
+                "label-lg": [
+                        "DM Sans"
+                ],
+                "headline-lg-mobile": [
+                        "Libre Caslon Text"
+                ],
+                "headline-md": [
+                        "Libre Caslon Text"
+                ],
+                "headline-lg": [
+                        "Libre Caslon Text"
+                ],
+                "headline-sm": [
+                        "Libre Caslon Text"
+                ]
+        },
+        "fontSize": {
+                "body-md": [
+                        "16px",
+                        {
+                                "lineHeight": "1.6",
+                                "fontWeight": "400"
+                        }
+                ],
+                "body-lg": [
+                        "18px",
+                        {
+                                "lineHeight": "1.6",
+                                "fontWeight": "400"
+                        }
+                ],
+                "label-md": [
+                        "12px",
+                        {
+                                "lineHeight": "1.2",
+                                "fontWeight": "500"
+                        }
+                ],
+                "body-sm": [
+                        "14px",
+                        {
+                                "lineHeight": "1.5",
+                                "fontWeight": "400"
+                        }
+                ],
+                "display-lg": [
+                        "40px",
+                        {
+                                "lineHeight": "1.2",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "400"
+                        }
+                ],
+                "label-lg": [
+                        "14px",
+                        {
+                                "lineHeight": "1.2",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "headline-lg-mobile": [
+                        "28px",
+                        {
+                                "lineHeight": "1.3",
+                                "fontWeight": "400"
+                        }
+                ],
+                "headline-md": [
+                        "24px",
+                        {
+                                "lineHeight": "1.4",
+                                "fontWeight": "400"
+                        }
+                ],
+                "headline-lg": [
+                        "32px",
+                        {
+                                "lineHeight": "1.3",
+                                "fontWeight": "400"
+                        }
+                ],
+                "headline-sm": [
+                        "20px",
+                        {
+                                "lineHeight": "1.4",
+                                "fontWeight": "400"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<style>
+          .bg-linen {
+              background-image: url('data:image/svg+xml,%3Csvg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noise"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100" height="100" filter="url(%23noise)" opacity="0.05"/%3E%3C/svg%3E');
+          }
+          .glass-panel {
+              background-color: rgba(255, 248, 246, 0.85); /* surface color with opacity */
+              backdrop-filter: blur(24px);
+              -webkit-backdrop-filter: blur(24px);
+          }
+          .golden-shadow {
+              box-shadow: 0 10px 25px -5px rgba(212, 93, 26, 0.15), 0 8px 10px -6px rgba(212, 93, 26, 0.1);
+          }
+          .hide-scrollbar::-webkit-scrollbar {
+              display: none;
+          }
+          .hide-scrollbar {
+              -ms-overflow-style: none;
+              scrollbar-width: none;
+          }
+      </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background min-h-screen relative font-body-md bg-linen antialiased">
+<!-- Decorative Palm Motifs -->
+<div class="fixed top-0 left-0 w-64 h-64 opacity-10 pointer-events-none z-0 transform -translate-x-1/4 -translate-y-1/4" data-alt="A subtle, minimalist botanical palm leaf pattern overlaid on a warm background. The design is elegant, featuring delicate line art of tropical leaves in a very light beige or sage green. The style evokes a premium boutique resort aesthetic, soft, relaxing, and organic. It should blend seamlessly as a watermark or faint background texture." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuArv3kUYHMPMnx5XiKYTAoZ7E6aF3Dr1MXI43h-FGTVQKPSbDOH4ul5PabsYpxqWYChBDh9V3AivlMuwJApxWErPFyJrhJC5f_he1J4HrE5VjbKS9vLk26Fh3Uin-ch4hUAKdAVDBoZcK25VNZ7QtbQHLj_xiTYmx1DFDTaBpQNSL1lRclXkXwGEUz84AidHPfvjVUTBjECUV2lguZoOz8twQVA1HiZNEkbE37t4QU4v3dGOtRxU0IYuADZUDOUxUZgfUL-fsIhPuhF');"></div>
+<div class="fixed bottom-0 right-0 w-64 h-64 opacity-10 pointer-events-none z-0 transform translate-x-1/4 translate-y-1/4" data-alt="A delicate, high-end botanical illustration of tropical palm fronds. The artwork is subtle, almost like a faint watermark on textured linen paper. The colors are very light, warm earthy tones, specifically designed to be an unobtrusive background motif for a luxury resort interface. The mood is calm and breezy." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCiYAlCRYfl26K6VhHzn21pK6_hSX0zDgNzF1-mOGaWhOoDIQF8KS4rqC2DLo7sZOT0LP846Ld0d0ogyVXhbMPA4StlwXguUxla8CdMkZYs-EiKV3xP_6EkMdjAolhIjoiE6MqEmzJrg973_o9lB2S0bAuAhTirHkdzbjscyDdHch0rjn8koisbgwRJRYqPtrZ5pk7rTK0s8xNbt46YiLjYbUkynRYJul_Gylsnmuko8ucEPxViZ_PcTsvwvGHjYHfyS5ualvlqE8zS');"></div>
+<!-- TopAppBar -->
+<header class="bg-surface/90 dark:bg-surface-dim/90 backdrop-blur-xl docked full-width top-0 sticky bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-2xl shadow-sm dark:shadow-none flex justify-between items-center w-full px-margin-mobile py-2 z-50">
+<button aria-label="Go back" class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-primary/5 transition-colors rounded-full">
+<span class="material-symbols-outlined text-xl">arrow_back</span>
+</button>
+<h1 class="font-display-lg text-[20px] dark:text-[20px] text-primary dark:text-primary-fixed-dim italic">Azure Sands Resort</h1>
+<button aria-label="View cart" class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-primary/5 transition-colors rounded-full relative">
+<span class="material-symbols-outlined text-xl">shopping_bag</span>
+<span class="absolute top-1 right-1 bg-primary text-on-primary font-label-md text-[10px] w-4 h-4 flex items-center justify-center rounded-full shadow-sm">1</span>
+</button>
+</header>
+<main class="relative z-10 pb-xl">
+<!-- Category Navigation -->
+<div class="px-margin-mobile py-sm">
+<h2 class="font-headline-lg-mobile text-headline-sm md:font-headline-lg md:text-headline-lg text-on-background mb-1">Room Dining</h2>
+<p class="font-body-md text-body-sm md:text-body-md text-on-surface-variant mb-sm">Savor exquisite flavors from the comfort of your suite.</p>
+<div class="flex overflow-x-auto hide-scrollbar gap-sm pb-xs -mx-margin-mobile px-margin-mobile">
+<button class="flex-none px-4 py-1.5 rounded-full border border-outline-variant text-on-surface-variant font-label-md text-[13px] transition-colors hover:bg-surface-variant">Breakfast</button>
+<button class="flex-none px-4 py-1.5 rounded-full bg-secondary-container text-on-secondary-container font-label-md text-[13px] font-bold transition-transform active:scale-95">Main Course</button>
+<button class="flex-none px-4 py-1.5 rounded-full border border-outline-variant text-on-surface-variant font-label-md text-[13px] transition-colors hover:bg-surface-variant">Drinks</button>
+<button class="flex-none px-4 py-1.5 rounded-full border border-outline-variant text-on-surface-variant font-label-md text-[13px] transition-colors hover:bg-surface-variant">Dessert</button>
+</div>
+</div>
+<!-- Food Items List -->
+<div class="px-margin-mobile flex flex-col gap-sm mt-xs max-w-4xl mx-auto">
+<!-- Food Card 1: Biryani -->
+<article class="glass-panel rounded-xl overflow-hidden flex flex-row shadow-sm border border-surface-container-highest transition-transform hover:translate-y-[-2px] duration-300">
+<div class="w-[120px] md:w-2/5 shrink-0 relative">
+<img class="w-full h-full object-cover" data-alt="A top-down, high-quality culinary photograph of aromatic Biryani rice. The dish is presented in an elegant, rustic ceramic bowl resting on a textured linen placemat. The lighting is warm and natural, casting soft shadows, typical of a golden hour setting at a luxury resort. The basmati rice is perfectly cooked, garnished with subtle herbs, reflecting a premium dining experience." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAsC-WbUOUByJmQPhpoVLTq-l6Y115tyYy6UKXpKwg9S4_kjPcLvTR1HAfHhZa6-Je7Rn8osIcYABQXyYmDoSRZfMfwvF-Oi-ZgW0dvi8NucrOqrCp_XzoConKgA_V2CR58jgXl2MGztp_-QxFv_VAk0GKjV9-td0wbLCMFdVo8Ip5fYyyvPNLCWtvDJfbcoSG4MHlhIni9G5joEK5kTHIW2wpDDdT-juceGrl3icImC2WLVzSmmsEYDNYNQiC8-CGnTIbfxST8wIqI"/>
+</div>
+<div class="p-sm flex flex-col justify-between flex-1 min-w-0">
+<div>
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-headline-sm text-[16px] md:text-headline-sm text-on-background truncate pr-2">Biryani</h3>
+<span class="font-label-lg text-label-md md:text-label-lg text-primary whitespace-nowrap">PKR 780</span>
+</div>
+<p class="font-body-sm text-[12px] md:text-body-sm text-on-surface-variant line-clamp-2 mb-sm leading-tight">Aromatic basmati rice with tender spices, slow-cooked to perfection.</p>
+</div>
+<div class="flex justify-end mt-auto">
+<button class="bg-primary text-on-primary font-label-lg text-label-md h-8 md:h-12 px-4 md:px-xl rounded-full golden-shadow flex items-center justify-center gap-1 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-sm md:text-lg">add</span> Add
+                        </button>
+</div>
+</div>
+</article>
+<!-- Food Card 2: Placeholder for context -->
+<article class="glass-panel rounded-xl overflow-hidden flex flex-row shadow-sm border border-surface-container-highest transition-transform hover:translate-y-[-2px] duration-300">
+<div class="w-[120px] md:w-2/5 shrink-0 relative">
+<img class="w-full h-full object-cover" data-alt="A beautifully styled culinary photo of a grilled sea bass fillet. The fish is lightly charred and rests on a bed of vibrant green asparagus and a smooth puree. The plate is artisanal, set against a warm, light background with a hint of a linen napkin. The lighting is soft and diffused, emphasizing the freshness and premium quality of the dish in a resort setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-JKh2p_Cvy-9EgaUUx6RpqwW8-HbP_QzULxf1BtWOM8CkkUJaofXvGi3mN24118AlApskA4VOut_6SbYPQpgjrv53OkbzWM3yZLiozHcXcVbjdBm5LeTYWz48LXiSlSEeFZYrCwH7myOhksGLv1F2s-X_s9Dknpv6VT7FliWaVOTJ721CMxbyf8FfH5PKrwXgQC9lPfpw2WyfocFmdQlr3Jfyt4PlH3YJpLKiIhk9f5udJ0hO3O_v662hpBdmln6mpgtKJ3MVCFvY"/>
+</div>
+<div class="p-sm flex flex-col justify-between flex-1 min-w-0">
+<div>
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-headline-sm text-[16px] md:text-headline-sm text-on-background truncate pr-2">Grilled Sea Bass</h3>
+<span class="font-label-lg text-label-md md:text-label-lg text-primary whitespace-nowrap">PKR 1250</span>
+</div>
+<p class="font-body-sm text-[12px] md:text-body-sm text-on-surface-variant line-clamp-2 mb-sm leading-tight">Fresh catch of the day, served with charred asparagus and lemon butter sauce.</p>
+</div>
+<div class="flex justify-end mt-auto">
+<button class="bg-surface-container text-primary font-label-lg text-label-md h-8 md:h-12 px-4 md:px-xl rounded-full border border-primary/20 flex items-center justify-center gap-1 hover:bg-primary/5 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-sm md:text-lg">add</span> Add
+                        </button>
+</div>
+</div>
+</article>
+</div>
+</main>
+</body></html>

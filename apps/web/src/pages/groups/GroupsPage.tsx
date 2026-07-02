@@ -43,7 +43,7 @@ const PAYER_TYPE_META: Record<PayerType, { label: string; tone: string; icon: Re
   CORPORATE:   { label: "Corporate", tone: "dusk",  icon: Building2 },
   GOVERNMENT:  { label: "Govt",      tone: "ink",   icon: Landmark },
   NGO:         { label: "NGO",       tone: "pine",  icon: HeartHandshake },
-  INDIVIDUAL:  { label: "Individual",tone: "amber", icon: Users },
+  INDIVIDUAL:  { label: "Individual / Family", tone: "amber", icon: Users },
 };
 
 function PayerTypeBadge({ type }: { type: PayerType }) {
@@ -147,7 +147,7 @@ export default function GroupsPage() {
                 onClick={() => setActiveTab(tab.key)}
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full px-3 h-9 text-[13px] font-semibold transition-all",
-                  on ? "bg-ink text-white" : "bg-line-soft text-ink-mute hover:text-ink-soft",
+                  on ? "bg-ink text-white" : "bg-white border border-line text-ink-soft hover:border-coral/30 hover:text-ink",
                 )}
               >
                 {tab.label}
@@ -209,7 +209,7 @@ function GroupRow({ group, onOpen }: { group: Group; onOpen: () => void }) {
       <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={onOpen}
-          className="rounded-full h-8 px-3 text-[12px] font-semibold bg-line-soft text-ink-mute hover:text-ink-soft transition-all whitespace-nowrap"
+          className="rounded-full h-8 px-3 text-[12px] font-semibold bg-white border border-line text-ink-soft hover:border-coral/30 hover:text-ink transition-all whitespace-nowrap"
         >
           View
         </button>

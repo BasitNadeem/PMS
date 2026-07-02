@@ -167,7 +167,9 @@ export const CashBookService = {
     const resolvedAccountId = dto.accountId
       ?? (await CashBookService.getOrCreateAccount(hotelId, "CASH_DRAWER", actorId)).id;
 
-    const today     = new Date().toISOString().slice(0, 10);
+    // Use Intl to get current date in the hotel's timezone (PKT = Asia/Karachi, UTC+5).
+    // Plain toISOString() returns UTC which gives yesterday's date before 05:00 local time.
+    const today     = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date());
     const entryDate = dto.entryDate ?? today;
     const sourceId  = (dto as CreateEntryDto & { sourceId?: string }).sourceId ?? null;
 
@@ -248,7 +250,7 @@ export const CashBookService = {
   },
 
   async getBalances(hotelId: string, params: BalancesQuery) {
-    const asOf = params.asOf ?? new Date().toISOString().slice(0, 10);
+    const asOf = params.asOf ?? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date());
     try {
       const rows = await adminPrisma.$queryRaw<Array<{
         id:           string;
@@ -363,14 +365,12 @@ export const CashBookService = {
         accounts,
       };
     } catch (err) {
-      console.error("[CashBook] getLedger SQL error:", err);
-      // Return empty data rather than throwing, so account cards still load
-      return {
-        data:     [] as LedgerEntryRow[],
-        meta:     paginationMeta(0, params.page, params.limit),
-        summary:  { totalIncoming: 0, totalOutgoing: 0, netFlow: 0 },
-        accounts: [] as CashAccountRow[],
-      };
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[CashBook] getLedger SQL error:", msg);
+      // Surface as a proper API error rather than silently returning empty data —
+      // silent empty results made it impossible to tell whether the cashbook tables
+      // were missing vs genuinely empty.
+      throw new AppError(500, `Balance book query failed: ${msg}`);
     }
   },
 

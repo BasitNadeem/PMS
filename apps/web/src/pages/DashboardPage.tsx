@@ -5,6 +5,7 @@ import {
   PlaneLanding, PlaneTakeoff, Banknote, Wallet, Sparkles,
   Calendar, Sun, ArrowRight, LogIn, Plus, Check, X,
   ClipboardList, Package, AlertTriangle, Star,
+  Crown, Waves, Moon, BedDouble, Eye, CheckCircle2,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceDot, ResponsiveContainer } from "recharts";
 import { Card } from "@/components/ui/Card";
@@ -20,6 +21,7 @@ import {
   type RevenueTrendRange,
 } from "@/services/dashboard";
 import { notesService, type FrontDeskNote } from "@/services/notes";
+import { roomsService, type Room } from "@/services/rooms";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { getCurrentUserName } from "@/lib/jwt";
@@ -129,7 +131,7 @@ function RevenueTrendChart() {
           No revenue posted in this period
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={170}>
+        <ResponsiveContainer width="100%" height={230}>
           <AreaChart data={data} margin={{ top: 28, right: 20, left: 20, bottom: 4 }}>
             <defs>
               <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
@@ -490,17 +492,19 @@ function MoneyToCollectTile({ data }: { data: DashboardDeparturesToCollect | und
   );
 }
 
-// ── Live schedule — today's timeline, built only from real timestamps ──────────
-// Arrivals/departures already processed use their actual timestamp; ones still
-// pending use the hotel's configured check-in/out time (real, owner-set — not
-// a per-guest guess). Pending housekeeping tasks have no real time and are
-// excluded entirely rather than placed at a made-up point.
+// ── Live schedule — today's timeline ─────────────────────────────────────────
 
-const SCHEDULE_ICON: Record<string, React.ElementType> = {
-  checkin: PlaneLanding,
-  checkout: PlaneTakeoff,
-  housekeeping: Sparkles,
-};
+function scheduleIcon(e: DashboardScheduleEvent): React.ElementType {
+  if (e.type === "checkin")  return e.isVip ? Crown : PlaneLanding;
+  if (e.type === "checkout") return PlaneTakeoff;
+  // housekeeping — map taskType to icon
+  const t = e.taskType ?? "";
+  if (t === "TURNDOWN")      return Moon;
+  if (t === "DEEP_CLEAN")    return Waves;
+  if (t === "CHECKOUT_CLEAN") return BedDouble;
+  if (t === "INSPECTION")    return Eye;
+  return Sparkles;
+}
 
 function timeToPct(hhmm: string, startHour: number, endHour: number): number {
   const [h, m] = hhmm.split(":").map(Number);
@@ -519,9 +523,13 @@ function LiveScheduleHero({
   inHouse: number;
 }) {
   const START_HOUR = 8;
-  const END_HOUR = 20;
+  const END_HOUR = 22;
   const now = new Date();
   const nowPct = timeToPct(`${now.getHours()}:${now.getMinutes()}`, START_HOUR, END_HOUR);
+
+  // Summary counts derived from events
+  const doneCount    = events.filter((e) => e.isDone).length;
+  const pendingCount = events.length - doneCount;
 
   return (
     <div
@@ -529,42 +537,100 @@ function LiveScheduleHero({
       style={{ background: "linear-gradient(135deg, rgb(var(--color-accent-deep)), rgb(var(--color-accent)))" }}
     >
       <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10" />
-      <div className="relative flex flex-wrap items-center justify-between gap-4 mb-7">
+
+      {/* Header */}
+      <div className="relative flex flex-wrap items-start justify-between gap-4 mb-8">
         <div>
           <div className="text-[12px] font-bold uppercase tracking-[0.14em] text-white/70">Live schedule</div>
           <h3 className="serif text-[26px] leading-none mt-1">Today&apos;s timeline</h3>
         </div>
         <div className="flex items-center gap-5">
-          {[[arrivalsToday, "arrivals"], [departuresToday, "departures"], [inHouse, "in-house"]].map(([n, l]) => (
+          {([[arrivalsToday, "arrivals"], [departuresToday, "departures"], [inHouse, "in-house"]] as [number, string][]).map(([n, l]) => (
             <div key={l} className="text-center">
               <div className="serif text-[26px] leading-none tnum">{n}</div>
               <div className="text-[11px] text-white/65 font-semibold uppercase tracking-wide">{l}</div>
             </div>
           ))}
+          {events.length > 0 && (
+            <div className="text-center border-l border-white/20 pl-5">
+              <div className="flex items-center gap-2">
+                <div className="text-center">
+                  <div className="serif text-[26px] leading-none tnum">{doneCount}</div>
+                  <div className="text-[11px] text-white/65 font-semibold uppercase tracking-wide">done</div>
+                </div>
+                <div className="text-center">
+                  <div className="serif text-[26px] leading-none tnum">{pendingCount}</div>
+                  <div className="text-[11px] text-white/65 font-semibold uppercase tracking-wide">pending</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {events.length === 0 ? (
         <p className="relative text-[13px] text-white/70 py-4">No timed events yet today.</p>
       ) : (
-        <div className="relative h-16 mx-1">
-          <div className="absolute left-0 right-0 top-6 h-1 rounded-full bg-white/20" />
-          <div className="absolute top-6 h-1 rounded-full bg-white" style={{ left: 0, width: `${nowPct}%` }} />
-          <div className="absolute" style={{ left: `${nowPct}%`, top: 0, bottom: 20 }}>
+        <div className="relative h-20 mx-1">
+          {/* Track */}
+          <div className="absolute left-0 right-0 top-7 h-[3px] rounded-full bg-white/15" />
+          {/* Progress to NOW */}
+          <div className="absolute top-7 h-[3px] rounded-full bg-white/60" style={{ left: 0, width: `${nowPct}%` }} />
+          {/* NOW marker */}
+          <div className="absolute" style={{ left: `${nowPct}%`, top: 0, bottom: 24 }}>
             <div className="h-full w-0.5 bg-white" />
-            <span className="absolute -top-1 left-1.5 text-[10px] font-bold text-white whitespace-nowrap">NOW</span>
+            <span className="absolute -top-1 left-1.5 text-[10px] font-bold text-white/90 whitespace-nowrap">NOW</span>
           </div>
+
           {events.map((e) => {
-            const Icon = SCHEDULE_ICON[e.type] ?? Sparkles;
-            const pos = timeToPct(e.time, START_HOUR, END_HOUR);
+            const Icon = scheduleIcon(e);
+            const pos  = timeToPct(e.time, START_HOUR, END_HOUR);
+            const done = e.isDone;
+            const tooltipParts = [e.label, e.sublabel, e.time, e.isVip ? "VIP" : "", e.balanceDue ? `Balance: PKR ${(e.balanceDue / 100).toLocaleString()}` : ""].filter(Boolean);
+
             return (
-              <div key={e.id} className="absolute -translate-x-1/2" style={{ left: `${pos}%`, top: 12 }} title={`${e.label} · ${e.time}`}>
-                <div className="grid place-items-center h-9 w-9 rounded-full border-2 border-white/80 bg-white shadow" style={{ color: "rgb(var(--color-accent-deep))" }}>
-                  <Icon size={16} />
+              <div
+                key={e.id}
+                className="absolute -translate-x-1/2"
+                style={{ left: `${pos}%`, top: 8 }}
+                title={tooltipParts.join(" · ")}
+              >
+                {/* Icon bubble */}
+                <div className={cn(
+                  "relative grid place-items-center h-9 w-9 rounded-full border-2 shadow transition-all",
+                  done
+                    ? "border-white/40 bg-white/20"
+                    : e.isVip
+                      ? "border-amber-300 bg-white"
+                      : e.type === "housekeeping"
+                        ? "border-white/70 bg-white/90"
+                        : "border-white/90 bg-white",
+                )} style={{ color: done ? "rgba(255,255,255,0.6)" : "rgb(var(--color-accent-deep))" }}>
+                  <Icon size={15} />
+                  {/* Done checkmark overlay */}
+                  {done && (
+                    <span className="absolute -bottom-1 -right-1 grid place-items-center h-4 w-4 rounded-full bg-white/90 border border-white/40">
+                      <CheckCircle2 size={10} className="text-green-600" />
+                    </span>
+                  )}
+                  {/* Issue dot */}
+                  {e.hasIssue && !done && (
+                    <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-400 border border-white" />
+                  )}
                 </div>
-                <div className="absolute top-10 left-1/2 -translate-x-1/2 text-center whitespace-nowrap">
-                  <div className="text-[10.5px] font-bold tnum text-white">{e.time}</div>
-                  <div className="text-[10px] text-white/65">{e.sublabel}</div>
+
+                {/* Labels below bubble */}
+                <div className="absolute top-11 left-1/2 -translate-x-1/2 text-center whitespace-nowrap space-y-0.5">
+                  <div className={cn("text-[10.5px] font-bold tnum", done ? "text-white/50" : "text-white")}>{e.time}</div>
+                  <div className={cn("text-[10px] leading-tight max-w-[70px] truncate", done ? "text-white/35" : "text-white/70")}>{e.label}</div>
+                  <div className={cn("text-[9.5px]", done ? "text-white/30" : "text-white/55")}>{e.sublabel}</div>
+                  {/* Balance badge on departures */}
+                  {e.type === "checkout" && (e.balanceDue ?? 0) > 0 && (
+                    <div className="inline-flex items-center gap-0.5 rounded-full bg-amber-400/90 px-1.5 py-0.5 text-[8.5px] font-bold text-amber-900">
+                      <AlertTriangle size={7} />
+                      Due
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -581,12 +647,21 @@ function ArrivalsPanel({ reservations }: { reservations: DashboardRecentReservat
   const navigate = useNavigate();
   const [tab, setTab] = React.useState<"arrivals" | "inhouse">("arrivals");
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
   const arrivals = reservations.filter(
     (r) => r.checkInDate?.slice(0, 10) === today && r.status !== "CANCELLED",
   );
   const inHouse = reservations.filter((r) => r.status === "CHECKED_IN");
-  const list = tab === "arrivals" ? arrivals : inHouse;
+  const rawList = tab === "arrivals" ? arrivals : inHouse;
+
+  // Collapse group reservations: show one row per groupId
+  const groupRoomCounts: Record<string, number> = {};
+  rawList.forEach((r) => {
+    if (r.groupId) groupRoomCounts[r.groupId] = (groupRoomCounts[r.groupId] ?? 0) + 1;
+  });
+  const list = rawList.filter((r, _, arr) =>
+    !r.groupId || arr.findIndex((x) => x.groupId === r.groupId) === arr.indexOf(r),
+  );
 
   return (
     <div>
@@ -613,12 +688,14 @@ function ArrivalsPanel({ reservations }: { reservations: DashboardRecentReservat
           <div className="px-3 py-10 text-center text-sm text-ink-mute">Nothing scheduled.</div>
         ) : (
           list.slice(0, 6).map((r) => {
+            const isGroup = !!r.groupId;
+            const roomCount = isGroup ? (groupRoomCounts[r.groupId!] ?? 1) : 0;
             const statusLabel = STATUS_LABEL[r.status] ?? r.status;
             const guestName = r.guestName;
             return (
               <div
-                key={r.id}
-                onClick={() => navigate(`/reservations/${r.id}`)}
+                key={isGroup ? r.groupId : r.id}
+                onClick={() => isGroup ? navigate(`/groups/${r.groupId}`) : navigate(`/reservations/${r.id}`)}
                 className="group flex items-center gap-3.5 rounded-xl px-3 py-3 hover:bg-line-soft cursor-pointer transition-colors"
               >
                 <Avatar name={guestName} size={42} />
@@ -630,24 +707,23 @@ function ArrivalsPanel({ reservations }: { reservations: DashboardRecentReservat
                         <Star size={10} className="fill-amber" /> VIP
                       </span>
                     )}
-                    <span className="text-[12px] text-ink-faint tnum">{r.confirmationNumber}</span>
-                    {r.groupId && (
-                      <span
-                        onClick={(e) => { e.stopPropagation(); navigate(`/groups/${r.groupId}`); }}
-                        className="rounded-full bg-dusk-soft px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-dusk hover:bg-dusk/20 transition-colors"
-                      >
+                    {!isGroup && (
+                      <span className="text-[12px] text-ink-faint tnum">{r.confirmationNumber}</span>
+                    )}
+                    {isGroup && (
+                      <span className="rounded-full bg-dusk-soft px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-dusk">
                         GROUP
                       </span>
                     )}
                   </div>
                   <div className="text-[12.5px] text-ink-mute">
-                    {r.roomNumber ? `Room ${r.roomNumber}` : "—"}
+                    {isGroup ? `${roomCount} room${roomCount !== 1 ? "s" : ""}` : r.roomNumber ? `Room ${r.roomNumber}` : "—"}
                   </div>
                 </div>
                 <div className="hidden sm:flex flex-col items-end gap-1">
                   <StatusBadge status={statusLabel} size="sm" />
                 </div>
-                {r.status === "CONFIRMED" ? (
+                {!isGroup && r.status === "CONFIRMED" ? (
                   <div className="ml-1 flex items-center gap-1 rounded-full bg-pine-soft text-pine-deep px-2.5 h-8 text-[13px] font-semibold">
                     <LogIn size={14} /> Check in
                   </div>
@@ -660,6 +736,111 @@ function ArrivalsPanel({ reservations }: { reservations: DashboardRecentReservat
         )}
       </div>
     </div>
+  );
+}
+
+// ── Arrivals Readiness ────────────────────────────────────────────────────────
+
+function ArrivalsReadiness({ scheduleEvents }: { scheduleEvents: DashboardScheduleEvent[] }) {
+  const { data: roomsData } = useQuery({
+    queryKey: ["rooms"],
+    queryFn: () => roomsService.getRooms(),
+    staleTime: 30_000,
+  });
+
+  const roomsByNumber = React.useMemo(() => {
+    const map = new Map<string, Room>();
+    for (const r of roomsData?.data ?? []) map.set(r.number, r);
+    return map;
+  }, [roomsData]);
+
+  // Today's pending/confirmed arrivals only (not already checked-in)
+  const arrivals = scheduleEvents.filter((e) => e.type === "checkin");
+  if (arrivals.length === 0) return null;
+
+  const readyCount = arrivals.filter((e) => {
+    const roomNum = e.sublabel.replace(/^Room /, "");
+    return roomsByNumber.get(roomNum)?.status === "VACANT_CLEAN";
+  }).length;
+
+  const pct = arrivals.length > 0 ? (readyCount / arrivals.length) * 100 : 0;
+  const allReady = readyCount === arrivals.length;
+
+  return (
+    <Card pad={false} className="anim-fade-up" style={{ animationDelay: "280ms" }}>
+      <div className="px-5 pt-5 pb-4">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <h3 className="serif text-[20px] text-ink leading-tight">Arrivals readiness</h3>
+          <span className={cn(
+            "shrink-0 text-[13px] font-bold tabular-nums",
+            allReady ? "text-pine-deep" : "text-amber",
+          )}>
+            {readyCount}/{arrivals.length} ready
+          </span>
+        </div>
+        <p className="text-[12.5px] text-ink-mute mb-4">
+          Are rooms clean before guests reach the desk?
+        </p>
+
+        {/* Progress bar */}
+        <div className="h-2 rounded-full bg-line-soft overflow-hidden mb-5">
+          <div
+            className={cn("h-full rounded-full transition-all duration-500", allReady ? "bg-pine" : "bg-amber")}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+
+        {/* Guest rows */}
+        <div className="space-y-2">
+          {arrivals.map((e) => {
+            const roomNum    = e.sublabel.replace(/^Room /, "");
+            const roomStatus = roomsByNumber.get(roomNum)?.status;
+            const isReady    = roomStatus === "VACANT_CLEAN";
+            const isLoading  = !roomsData;
+
+            return (
+              <div key={e.id} className="flex items-center gap-3">
+                {/* Room pill */}
+                <div className="grid place-items-center h-9 w-14 rounded-xl bg-ink text-white text-[13px] font-bold shrink-0 tnum">
+                  {roomNum !== "—" ? roomNum : "—"}
+                </div>
+
+                {/* Guest name + VIP */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-[14px] font-semibold text-ink truncate">{e.label}</span>
+                    {e.isVip && <Crown size={13} className="text-amber shrink-0" />}
+                  </div>
+                </div>
+
+                {/* Expected time */}
+                <span className="text-[12.5px] text-ink-faint tnum shrink-0">{e.time}</span>
+
+                {/* Ready / In prep badge */}
+                {isLoading ? (
+                  <div className="h-6 w-16 rounded-full bg-line-soft animate-pulse" />
+                ) : roomNum === "—" ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-line-soft px-2.5 py-1 text-[11.5px] font-semibold text-ink-mute">
+                    No room
+                  </span>
+                ) : isReady ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-pine-soft px-2.5 py-1 text-[11.5px] font-semibold text-pine-deep">
+                    <span className="h-1.5 w-1.5 rounded-full bg-pine-deep" />
+                    Ready
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-soft px-2.5 py-1 text-[11.5px] font-semibold text-amber">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber" />
+                    In prep
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -843,7 +1024,7 @@ export default function DashboardPage() {
           of growing the row when their lists get long. */}
       <div className="flex flex-col xl:flex-row gap-5 xl:h-[440px]">
         <Card className="xl:w-[42%] anim-fade-up flex flex-col min-h-0" style={{ animationDelay: "120ms" }} pad={false}>
-          <div className="flex-1 min-h-0 flex flex-col justify-center">
+          <div className="flex-1 min-h-0 flex flex-col">
             <RevenueTrendChart />
           </div>
 
@@ -876,6 +1057,8 @@ export default function DashboardPage() {
         </Card>
 
         <div className="flex flex-col gap-5">
+          <ArrivalsReadiness scheduleEvents={dash?.schedule ?? []} />
+
           <Card className="anim-fade-up" style={{ animationDelay: "300ms" }} pad={false}>
             <div className="flex items-center justify-between px-5 pt-5 pb-3">
               <h3 className="serif text-[20px] text-ink">Housekeeping</h3>

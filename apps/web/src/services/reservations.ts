@@ -100,6 +100,7 @@ export interface ReservationSummary {
   totalAmount: number;
   specialRequests: string | null;
   groupId: string | null;
+  group: { groupRef: string; payerType: string; name: string } | null;
   createdAt: string;
   isVip: boolean;
   guest: ReservationGuest;

@@ -116,18 +116,18 @@ function TypeCard({ rt, canEdit, delay }: { rt: RoomType; canEdit: boolean; dela
       <Card className="anim-fade-up border-coral ring-2 ring-coral/10" style={{ animationDelay: delay + "ms" }}>
         <div className="space-y-3">
           <div>
-            <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Name</label>
+            <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
             <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               className="h-11 w-full rounded-xl bg-mist border border-line px-3.5 text-sm text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Max guests</label>
+              <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Max guests <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
               <input type="number" min={1} value={form.maxOccupancy} onChange={(e) => setForm((f) => ({ ...f, maxOccupancy: e.target.value }))}
                 className="h-11 w-full rounded-xl bg-mist border border-line px-3.5 text-sm text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all" />
             </div>
             <div>
-              <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Rate (PKR)</label>
+              <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Rate (PKR) <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
               <input type="number" min={0} value={form.defaultRate} onChange={(e) => setForm((f) => ({ ...f, defaultRate: e.target.value }))}
                 className="h-11 w-full rounded-xl bg-mist border border-line px-3.5 text-sm text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all" />
             </div>
@@ -303,7 +303,7 @@ export default function RoomsPage() {
                   onClick={() => setStatusFilter(s)}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full px-3 h-9 text-[13px] font-semibold transition-all",
-                    on ? "bg-ink text-white" : "bg-line-soft text-ink-mute hover:text-ink-soft",
+                    on ? "bg-ink text-white" : "bg-white border border-line text-ink-soft hover:border-coral/30 hover:text-ink",
                   )}
                 >
                   {t && <span className="h-1.5 w-1.5 rounded-full" style={{ background: on ? "#fff" : t.dot }} />}

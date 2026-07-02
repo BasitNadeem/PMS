@@ -131,11 +131,11 @@ export function AddItemModal({ onClose, onSuccess }: AddItemModalProps) {
       <div className="relative z-10 w-full max-w-lg rounded-2xl bg-paper border border-line shadow-2xl flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="flex items-center gap-3 px-6 pt-6 pb-4 border-b border-line shrink-0">
-          <span className="grid place-items-center h-10 w-10 rounded-xl bg-pine/10 text-pine">
+          <span className="grid place-items-center h-10 w-10 rounded-xl bg-coral-soft text-coral-deep">
             <Package size={20} />
           </span>
           <div>
-            <h2 className="text-[17px] font-bold text-ink">Add Inventory Item</h2>
+            <h2 className="serif text-[20px] text-ink leading-tight">Add Inventory Item</h2>
             <p className="text-[12px] text-ink-mute">New item with optional opening stock</p>
           </div>
           <button
@@ -153,7 +153,7 @@ export function AddItemModal({ onClose, onSuccess }: AddItemModalProps) {
           className="overflow-y-auto flex-1 px-6 py-4 space-y-4"
         >
           {error && (
-            <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-2.5 text-[13px] text-red-700">
+            <div className="bg-clay-soft border border-clay/20 text-clay text-[13px] rounded-xl px-4 py-3">
               {error}
             </div>
           )}
@@ -161,14 +161,14 @@ export function AddItemModal({ onClose, onSuccess }: AddItemModalProps) {
           {/* Name */}
           <div className="flex flex-col gap-1">
             <label className="text-[13px] font-semibold text-ink-mute">
-              Item Name <span className="text-clay">*</span>
+              Item Name <span className="text-coral text-[15px] font-bold leading-none">*</span>
             </label>
             <input
               type="text"
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
               placeholder="e.g. Basmati Rice"
-              className="w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine/40 transition-colors"
+              className="w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors"
               required
             />
           </div>
@@ -181,19 +181,19 @@ export function AddItemModal({ onClose, onSuccess }: AddItemModalProps) {
               value={form.sku}
               onChange={(e) => set("sku", e.target.value)}
               placeholder="Optional"
-              className="w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine/40 transition-colors"
+              className="w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors"
             />
           </div>
 
           {/* Category */}
           <div className="flex flex-col gap-1">
             <label className="text-[13px] font-semibold text-ink-mute">
-              Category <span className="text-clay">*</span>
+              Category <span className="text-coral text-[15px] font-bold leading-none">*</span>
             </label>
             <select
               value={form.categorySelect}
               onChange={(e) => set("categorySelect", e.target.value)}
-              className="w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine/40 transition-colors"
+              className="w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors"
               required={form.categorySelect !== "Other"}
             >
               <option value="">Select category…</option>
@@ -207,7 +207,7 @@ export function AddItemModal({ onClose, onSuccess }: AddItemModalProps) {
                 value={form.categoryCustom}
                 onChange={(e) => set("categoryCustom", e.target.value)}
                 placeholder="Enter category name"
-                className="mt-1.5 w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine/40 transition-colors"
+                className="mt-1.5 w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors"
                 required
               />
             )}
@@ -216,12 +216,12 @@ export function AddItemModal({ onClose, onSuccess }: AddItemModalProps) {
           {/* Unit */}
           <div className="flex flex-col gap-1">
             <label className="text-[13px] font-semibold text-ink-mute">
-              Unit <span className="text-clay">*</span>
+              Unit <span className="text-coral text-[15px] font-bold leading-none">*</span>
             </label>
             <select
               value={form.unitSelect}
               onChange={(e) => set("unitSelect", e.target.value)}
-              className="w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine/40 transition-colors"
+              className="w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors"
               required={form.unitSelect !== "Other"}
             >
               <option value="">Select unit…</option>
@@ -235,7 +235,7 @@ export function AddItemModal({ onClose, onSuccess }: AddItemModalProps) {
                 value={form.unitCustom}
                 onChange={(e) => set("unitCustom", e.target.value)}
                 placeholder="Enter unit name"
-                className="mt-1.5 w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine/40 transition-colors"
+                className="mt-1.5 w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors"
                 required
               />
             )}
@@ -252,7 +252,7 @@ export function AddItemModal({ onClose, onSuccess }: AddItemModalProps) {
                 value={form.parLevel}
                 onChange={(e) => set("parLevel", e.target.value)}
                 placeholder="0"
-                className="w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine/40 transition-colors"
+                className="w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors"
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -267,7 +267,7 @@ export function AddItemModal({ onClose, onSuccess }: AddItemModalProps) {
                   set("reorderLevel", e.target.value);
                 }}
                 placeholder="0"
-                className="w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine/40 transition-colors"
+                className="w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors"
               />
               {!reorderTouched && form.parLevel && (
                 <p className="text-[11px] text-ink-faint">Auto-set to 20% of par level</p>
@@ -285,7 +285,7 @@ export function AddItemModal({ onClose, onSuccess }: AddItemModalProps) {
               value={form.costPerUnit}
               onChange={(e) => set("costPerUnit", e.target.value)}
               placeholder="0.00"
-              className="w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine/40 transition-colors"
+              className="w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors"
             />
           </div>
 
@@ -297,7 +297,7 @@ export function AddItemModal({ onClose, onSuccess }: AddItemModalProps) {
               value={form.supplier}
               onChange={(e) => set("supplier", e.target.value)}
               placeholder="Optional"
-              className="w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine/40 transition-colors"
+              className="w-full rounded-xl border border-line bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors"
             />
           </div>
 
@@ -314,12 +314,12 @@ export function AddItemModal({ onClose, onSuccess }: AddItemModalProps) {
               className={cn(
                 "w-full rounded-xl border bg-mist px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 transition-colors",
                 parseFloat(form.openingStock) > 0
-                  ? "border-pine/40 focus:ring-pine/20"
-                  : "border-line focus:ring-pine/20 focus:border-pine/40",
+                  ? "border-coral/40 focus:ring-coral/20"
+                  : "border-line focus:ring-coral/20 focus:border-coral/40",
               )}
             />
             {parseFloat(form.openingStock) > 0 && (
-              <p className="text-[11px] text-pine">
+              <p className="text-[11px] text-pine-deep">
                 An Opening Stock transaction will be recorded automatically.
               </p>
             )}
@@ -331,7 +331,7 @@ export function AddItemModal({ onClose, onSuccess }: AddItemModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-line bg-mist px-5 py-2.5 text-[13.5px] font-semibold text-ink-mute hover:bg-line transition-colors"
+            className="h-10 px-5 rounded-full border border-line text-ink-soft text-[13.5px] font-semibold hover:bg-mist transition-colors"
           >
             Cancel
           </button>
@@ -339,7 +339,7 @@ export function AddItemModal({ onClose, onSuccess }: AddItemModalProps) {
             type="submit"
             form="add-item-form"
             disabled={submitting}
-            className="rounded-xl bg-pine px-5 py-2.5 text-[13.5px] font-semibold text-white hover:bg-pine/90 disabled:opacity-50 transition-colors"
+            className="h-10 px-5 rounded-full bg-ink text-white text-[13.5px] font-semibold hover:bg-ink/90 shadow-pop transition-colors disabled:opacity-50"
           >
             {submitting ? "Saving…" : "Save Item"}
           </button>

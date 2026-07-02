@@ -36,9 +36,12 @@ function firstOfMonth(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+function lastOfMonth(): string {
+  const d = new Date();
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
 }
+
 
 // ── Category bar chart ────────────────────────────────────────────────────────
 
@@ -102,10 +105,10 @@ export default function ExpensesPage() {
 
   // Filters
   const [startDate,   setStartDate]   = useState(firstOfMonth());
-  const [endDate,     setEndDate]     = useState(todayIso());
+  const [endDate,     setEndDate]     = useState(lastOfMonth());
   const [filterCat,   setFilterCat]   = useState("");
   const [appliedStart, setAppliedStart] = useState(firstOfMonth());
-  const [appliedEnd,   setAppliedEnd]   = useState(todayIso());
+  const [appliedEnd,   setAppliedEnd]   = useState(lastOfMonth());
   const [appliedCat,   setAppliedCat]   = useState("");
   const [page,        setPage]        = useState(1);
 
@@ -151,7 +154,7 @@ export default function ExpensesPage() {
 
   function resetFilters() {
     const s = firstOfMonth();
-    const e = todayIso();
+    const e = lastOfMonth();
     setStartDate(s); setEndDate(e); setFilterCat("");
     setAppliedStart(s); setAppliedEnd(e); setAppliedCat("");
     setPage(1);

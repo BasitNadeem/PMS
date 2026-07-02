@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, UtensilsCrossed, Star } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { posService, type PosCategory } from "@/services/pos";
+import { inventoryService } from "@/services/inventory";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 export interface AddItemModalProps {
@@ -24,6 +25,32 @@ export function AddItemModal({ category, onClose }: AddItemModalProps) {
   const [featured,  setFeatured]  = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Inventory link state
+  const [linkInventory,    setLinkInventory]    = useState(false);
+  const [inventoryItemId,  setInventoryItemId]  = useState<string>("");
+  const [inventoryQtyUsed, setInventoryQtyUsed] = useState<string>("");
+
+  // Fetch all inventory items for the dropdown (limit 200 — enough for a hotel menu)
+  const { data: inventoryData } = useQuery({
+    queryKey: ["inventory-all"],
+    queryFn:  () => inventoryService.getItems({ limit: 200 }),
+    staleTime: 60_000,
+  });
+  const inventoryItems = inventoryData?.data ?? [];
+
+  // Find the currently selected inventory item to show its unit
+  const selectedInvItem = inventoryItems.find((i) => i.id === inventoryItemId) ?? null;
+
+  function handleToggleLink() {
+    const next = !linkInventory;
+    setLinkInventory(next);
+    if (!next) {
+      // Clear fields when toggled off
+      setInventoryItemId("");
+      setInventoryQtyUsed("");
+    }
+  }
+
   const mutation = useMutation({
     mutationFn: () =>
       posService.createItem(category.id, {
@@ -34,6 +61,8 @@ export function AddItemModal({ category, onClose }: AddItemModalProps) {
         isAvailable: avail,
         isQrVisible: qrVisible,
         isFeatured:  featured,
+        inventoryItemId:  linkInventory && inventoryItemId ? inventoryItemId : null,
+        inventoryQtyUsed: linkInventory && inventoryItemId ? (parseFloat(inventoryQtyUsed) || null) : null,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pos-categories-admin"] });
@@ -50,6 +79,11 @@ export function AddItemModal({ category, onClose }: AddItemModalProps) {
     if (!name.trim())       { setError("Name is required"); return; }
     const p = parseFloat(price);
     if (isNaN(p) || p <= 0) { setError("Enter a valid price"); return; }
+    if (linkInventory && !inventoryItemId) { setError("Select an inventory item or turn off the link"); return; }
+    if (linkInventory && inventoryItemId) {
+      const qty = parseFloat(inventoryQtyUsed);
+      if (isNaN(qty) || qty <= 0) { setError("Enter a valid quantity per serving"); return; }
+    }
     setError(null);
     mutation.mutate();
   }
@@ -82,7 +116,7 @@ export function AddItemModal({ category, onClose }: AddItemModalProps) {
             </div>
           )}
           <div>
-            <label className={labelClass}>Name <span className="text-coral normal-case tracking-normal">*</span></label>
+            <label className={labelClass}>Name <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <input
               type="text"
               value={name}
@@ -102,7 +136,7 @@ export function AddItemModal({ category, onClose }: AddItemModalProps) {
             />
           </div>
           <div>
-            <label className={labelClass}>Price (PKR) <span className="text-coral normal-case tracking-normal">*</span></label>
+            <label className={labelClass}>Price (PKR) <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <input
               type="number"
               value={price}
@@ -169,6 +203,75 @@ export function AddItemModal({ category, onClose }: AddItemModalProps) {
               )} />
             </button>
           </div>
+
+          {/* ── Inventory link ──────────────────────────────────────────────── */}
+          <div className="border-t border-line pt-4 space-y-3">
+            {/* Toggle */}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleToggleLink}
+                className={cn(
+                  "w-11 h-6 rounded-full transition-colors duration-200 flex items-center flex-shrink-0",
+                  linkInventory ? "bg-pine" : "bg-line-soft",
+                )}
+              >
+                <span className={cn(
+                  "w-5 h-5 bg-white rounded-full shadow transition-transform duration-200",
+                  linkInventory ? "translate-x-5" : "translate-x-0.5",
+                )} />
+              </button>
+              <span className="text-[13.5px] font-medium text-ink-soft">Link to inventory item</span>
+            </div>
+
+            {linkInventory && (
+              <div className="space-y-3">
+                {/* Inventory item selector */}
+                <div>
+                  <label className={labelClass}>Inventory item</label>
+                  <select
+                    value={inventoryItemId}
+                    onChange={(e) => setInventoryItemId(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">Select inventory item…</option>
+                    {inventoryItems.map((inv) => (
+                      <option key={inv.id} value={inv.id}>
+                        {inv.name} ({inv.unit})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Qty per serving */}
+                <div>
+                  <label className={labelClass}>Qty used per serving</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={inventoryQtyUsed}
+                      onChange={(e) => setInventoryQtyUsed(e.target.value)}
+                      placeholder="e.g. 0.200"
+                      min="0"
+                      step="0.001"
+                      className={cn(inputClass, "flex-1")}
+                    />
+                    {selectedInvItem && (
+                      <span className="text-[13px] text-ink-mute shrink-0 font-medium">
+                        {selectedInvItem.unit}
+                      </span>
+                    )}
+                  </div>
+                  {selectedInvItem && inventoryQtyUsed && parseFloat(inventoryQtyUsed) > 0 && (
+                    <p className="text-[12px] text-ink-faint mt-1.5">
+                      {inventoryQtyUsed} {selectedInvItem.unit} of {selectedInvItem.name} deducted per serving
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          {/* ── end inventory link ────────────────────────────────────────── */}
 
           <div className="flex justify-end gap-2.5 pt-1">
             <button

@@ -36,7 +36,7 @@ export const createTicketSchema = z.object({
   priority:    z.enum(PRIORITY_VALUES).default("MEDIUM"),
   assignedToId: z.string().uuid().optional(),
   scheduledFor: z.string().datetime().optional(),
-  photoUrls:    z.array(z.string().url()).optional(),
+  photoUrls:    z.array(z.string().min(1)).optional(),
 });
 export type CreateTicketDto = z.infer<typeof createTicketSchema>;
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { X } from "lucide-react";
+import { X, BedDouble } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { roomsService, type Room, type RoomStatus, type UpdateRoomDto } from "../../services/rooms";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -13,6 +13,9 @@ const STATUS_OPTIONS: { value: RoomStatus; label: string }[] = [
   { value: "BLOCKED",           label: "Blocked" },
   { value: "OUT_OF_ORDER",      label: "Out of Order" },
 ];
+
+const inputCls = "h-11 w-full rounded-xl bg-mist border border-line px-3.5 text-sm text-ink placeholder:text-ink-faint outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all";
+const labelCls = "block text-[12.5px] font-semibold uppercase tracking-wide text-ink-mute mb-1.5";
 
 interface EditRoomModalProps {
   room: Room;
@@ -46,56 +49,76 @@ export function EditRoomModal({ room, onClose }: EditRoomModalProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const dto: UpdateRoomDto = {
+    mutation.mutate({
       ...form,
       notes: form.notes?.trim() || undefined,
       floor: form.floor ?? undefined,
-    };
-    mutation.mutate(dto);
+    });
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-gray-900">Edit Room {room.number}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X size={20} />
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4 anim-fade-in"
+      onMouseDown={onClose}
+    >
+      <div
+        className="bg-paper rounded-2xl shadow-xl w-full max-w-md anim-scale-in"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 px-6 pt-6 pb-5 border-b border-line">
+          <div className="grid place-items-center h-10 w-10 rounded-xl bg-mist shrink-0">
+            <BedDouble size={18} className="text-ink-soft" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="serif text-[20px] text-ink leading-tight">Edit Room</h2>
+            <p className="text-[12px] text-ink-mute mt-0.5">Room {room.number}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="grid place-items-center h-9 w-9 rounded-full hover:bg-mist text-ink-mute transition-colors -mr-1 -mt-1"
+          >
+            <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Room Number <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={form.number ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, number: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+        {/* Body */}
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          {mutation.isError && (
+            <div className="bg-clay-soft border border-clay/20 text-clay text-[13px] rounded-xl px-4 py-3">
+              Something went wrong. Please try again.
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Room number <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
+              <input
+                type="text"
+                value={form.number ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, number: e.target.value }))}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Floor</label>
+              <input
+                type="number"
+                min={0}
+                value={form.floor ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, floor: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                className={inputCls}
+                placeholder="—"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Floor</label>
-            <input
-              type="number"
-              min={0}
-              value={form.floor ?? ""}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, floor: e.target.value === "" ? undefined : Number(e.target.value) }))
-              }
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Room Type</label>
+            <label className={labelCls}>Room type</label>
             <select
               value={form.roomTypeId ?? ""}
               onChange={(e) => setForm((f) => ({ ...f, roomTypeId: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className={cn(inputCls, "cursor-pointer")}
             >
               {roomTypes.map((rt) => (
                 <option key={rt.id} value={rt.id}>{rt.name}</option>
@@ -104,11 +127,11 @@ export function EditRoomModal({ room, onClose }: EditRoomModalProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <label className={labelCls}>Status</label>
             <select
               value={form.status ?? "VACANT_CLEAN"}
               onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as RoomStatus }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className={cn(inputCls, "cursor-pointer")}
             >
               {STATUS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -117,31 +140,28 @@ export function EditRoomModal({ room, onClose }: EditRoomModalProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <label className={labelCls}>Notes <span className="normal-case tracking-normal text-ink-faint font-normal">(optional)</span></label>
             <textarea
               value={form.notes ?? ""}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
               rows={2}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              placeholder="Any notes about this room…"
+              className={cn(inputCls, "h-auto py-2.5 resize-none")}
             />
           </div>
 
-          {mutation.isError && (
-            <p className="text-sm text-red-600">Something went wrong. Please try again.</p>
-          )}
-
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-2.5 pt-1">
             <button
               type="button"
               onClick={onClose}
-              className="border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg px-4 py-2 text-sm transition-colors"
+              className="h-10 px-5 rounded-full border border-line text-ink-soft text-[13.5px] font-semibold hover:bg-mist transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={mutation.isPending}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60"
+              className="h-10 px-5 rounded-full bg-ink text-white text-[13.5px] font-semibold hover:bg-ink/90 shadow-pop transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {mutation.isPending ? "Saving…" : "Save Changes"}
             </button>

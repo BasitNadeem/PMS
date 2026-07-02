@@ -79,11 +79,16 @@ export interface DashboardDeparturesToCollect {
 export type DashboardScheduleEventType = "checkin" | "checkout" | "housekeeping";
 
 export interface DashboardScheduleEvent {
-  id:       string;
-  time:     string; // "HH:MM", 24-hour
-  type:     DashboardScheduleEventType;
-  label:    string;
-  sublabel: string;
+  id:          string;
+  time:        string; // "HH:MM", 24-hour
+  type:        DashboardScheduleEventType;
+  label:       string;
+  sublabel:    string;
+  isDone:      boolean;   // actual timestamp exists — event already occurred
+  isVip?:      boolean;
+  taskType?:   string;    // CHECKOUT_CLEAN | TURNDOWN | DEEP_CLEAN | INSPECTION | …
+  hasIssue?:   boolean;
+  balanceDue?: number;    // paise; > 0 means outstanding balance on departure
 }
 
 export interface DashboardData {

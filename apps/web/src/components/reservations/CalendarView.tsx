@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { X, Users2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -83,9 +84,24 @@ export function CalendarView({
     queryFn:  () => reservationsService.getCalendarReservations(year, month),
   });
 
-  const reservations = data ?? [];
-  const cells        = buildCells(year, month);
-  const resByDay     = groupByDay(reservations, year, month);
+  const navigate = useNavigate();
+
+  const raw = data ?? [];
+
+  // Count how many rooms each group has across all fetched reservations
+  const groupRoomCounts = raw.reduce<Record<string, number>>((acc, r) => {
+    if (r.groupId) acc[r.groupId] = (acc[r.groupId] ?? 0) + r.rooms.length;
+    return acc;
+  }, {});
+
+  // Collapse group reservations — keep only the first entry per groupId,
+  // identical to the list-view logic so groups appear as a single calendar pill.
+  const reservations = raw.filter((r, idx, arr) =>
+    !r.groupId || arr.findIndex((x) => x.groupId === r.groupId) === idx
+  );
+
+  const cells    = buildCells(year, month);
+  const resByDay = groupByDay(reservations, year, month);
   const isoDay       = (d: number) =>
     `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
@@ -236,23 +252,26 @@ export function CalendarView({
                   const statusLabel = STATUS_LABEL[r.status] ?? r.status;
                   const t           = toneOf(statusLabel);
                   const firstName   = r.guest.fullName.split(" ")[0];
-                  const room        = r.rooms[0]?.room.number ?? "?";
+                  const isGroup     = !!r.groupId;
+                  const roomCount   = isGroup ? (groupRoomCounts[r.groupId!] ?? 1) : 0;
+                  const roomLabel   = isGroup ? `${roomCount} rooms` : (r.rooms[0]?.room.number ?? "?");
                   return (
                     <button
                       key={r.id}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onReservationClick?.(r.id);
+                        if (isGroup) navigate(`/groups/${r.groupId}`);
+                        else onReservationClick?.(r.id);
                       }}
-                      title={r.groupId ? "Part of a group booking" : undefined}
+                      title={isGroup ? `Group · ${roomCount} rooms` : undefined}
                       className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:brightness-95 transition"
                       style={{ background: t.bg }}
                     >
                       <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: t.dot }} />
                       <span className="text-[11px] font-semibold truncate" style={{ color: t.fg }}>
-                        {firstName} · {room}
+                        {firstName} · {roomLabel}
                       </span>
-                      {r.groupId && <Users2 size={10} className="shrink-0" style={{ color: t.fg }} />}
+                      {isGroup && <Users2 size={10} className="shrink-0" style={{ color: t.fg }} />}
                     </button>
                   );
                 })}
@@ -306,30 +325,30 @@ export function CalendarView({
               {overflowReservations.map((r) => {
                 const statusLabel = STATUS_LABEL[r.status] ?? r.status;
                 const t           = toneOf(statusLabel);
-                const firstName   = r.guest.fullName.split(" ")[0];
-                const lastName    = r.guest.fullName.split(" ").slice(1).join(" ");
-                const room        = r.rooms[0]?.room.number ?? "?";
+                const fullName    = r.guest.fullName;
+                const isGroup     = !!r.groupId;
+                const roomCount   = isGroup ? (groupRoomCounts[r.groupId!] ?? 1) : 0;
+                const roomLabel   = isGroup ? `${roomCount} rooms` : (r.rooms[0]?.room.number ?? "?");
                 return (
                   <button
                     key={r.id}
                     onClick={() => {
-                      onReservationClick?.(r.id);
+                      if (isGroup) navigate(`/groups/${r.groupId}`);
+                      else onReservationClick?.(r.id);
                       setOverflowDay(null);
                     }}
                     className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left hover:bg-mist transition-colors"
                   >
-                    {/* Status pill */}
                     <span
                       className="flex items-center gap-1.5 flex-1 min-w-0 rounded-md px-2 py-1"
                       style={{ background: t.bg }}
                     >
                       <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: t.dot }} />
                       <span className="text-[12px] font-semibold truncate" style={{ color: t.fg }}>
-                        {firstName}{lastName ? ` ${lastName}` : ""} · {room}
+                        {fullName} · {roomLabel}
                       </span>
-                      {r.groupId && <Users2 size={11} className="shrink-0" style={{ color: t.fg }} />}
+                      {isGroup && <Users2 size={11} className="shrink-0" style={{ color: t.fg }} />}
                     </span>
-                    {/* Status label */}
                     <span className="text-[11px] text-ink-faint shrink-0">
                       {statusLabel}
                     </span>

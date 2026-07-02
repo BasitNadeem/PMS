@@ -7,6 +7,7 @@ import cors from "cors";
 import compression from "compression";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
+import path from "path";
 
 import { env } from "./lib/env";
 import { errorHandler } from "./middleware/error";
@@ -30,6 +31,7 @@ import expensesRouter from "./routes/expenses";
 import cashbookRouter from "./routes/cashbook";
 import groupsRouter from "./routes/groups";
 import maintenanceRouter from "./routes/maintenance";
+import uploadRouter from "./routes/upload";
 import adminRouter from "./routes/admin";
 import shiftsRouter from "./routes/shifts";
 import auditRouter from "./routes/audit";
@@ -45,8 +47,9 @@ import { scheduleBriefings } from "./jobs/briefingScheduler";
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors({ origin: [env.CORS_ORIGIN, env.ADMIN_CORS_ORIGIN] }));
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use(compression());
 app.use(express.json());
 app.use(morgan(env.NODE_ENV === "development" ? "dev" : "combined"));
@@ -77,6 +80,7 @@ app.use("/api/expenses",       expensesRouter);
 app.use("/api/cashbook",       cashbookRouter);
 app.use("/api/groups",         groupsRouter);
 app.use("/api/maintenance",    maintenanceRouter);
+app.use("/api/upload",        uploadRouter);
 app.use("/api/admin",          adminRouter);
 app.use("/api/shifts",         shiftsRouter);
 app.use("/api/audit",          auditRouter);

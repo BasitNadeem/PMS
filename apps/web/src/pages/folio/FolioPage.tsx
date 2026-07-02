@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Trash2, Check, Printer, LogOut, AlertTriangle } from "lucide-react";
 import { reservationsService } from "@/services/reservations";
+import { groupsService } from "@/services/groups";
 import { cn } from "@/lib/cn";
 import { folioService, type FolioLineItem, type FolioItemType, type PaymentMethod } from "@/services/folio";
 import { AddChargeModal } from "@/components/folio/AddChargeModal";
@@ -80,15 +81,70 @@ export default function FolioPage() {
     onError: () => addToast("Failed to remove charge", "error"),
   });
 
+  // ── Group context (must come before checkout mutations so they can reference it) ──
+
+  const groupId = folio?.reservation.groupId ?? null;
+
+  // Fetch group details to determine billingType (SINGLE vs SPLIT) and to know
+  // which sibling reservations are still checked in — used for auto-checkout logic.
+  const { data: groupData } = useQuery({
+    queryKey: ["group", groupId],
+    queryFn:  () => groupsService.getGroup(groupId!),
+    enabled:  !!groupId,
+    staleTime: 60_000,
+  });
+
+  const isGroupSingleBill = !!groupId && groupData?.billingType === "SINGLE";
+
+  // SPLIT group auto-checkout: if every OTHER reservation in this group is already
+  // CHECKED_OUT (or cancelled/no-show), this folio belongs to the last remaining room.
+  // Checking out here should silently close the whole group.
+  const isLastSplitRoom = !!groupId
+    && !isGroupSingleBill
+    && !!groupData?.reservations
+    && groupData.reservations
+        .filter((r) => r.id !== reservationId)
+        .every((r) => ["CHECKED_OUT", "CANCELLED", "NO_SHOW"].includes(r.status));
+
+  function invalidateAfterCheckout() {
+    qc.invalidateQueries({ queryKey: ["reservations"] });
+    qc.invalidateQueries({ queryKey: ["reservations-counts"] });
+    qc.invalidateQueries({ queryKey: ["rooms"] });
+    qc.invalidateQueries({ queryKey: ["dashboard"] });
+    qc.invalidateQueries({ queryKey: ["group", groupId] });
+  }
+
+  // Group checkout mutation — used both for SINGLE bill and auto-triggered for last SPLIT room.
+  const checkOutGroupMutation = useMutation({
+    mutationFn: () => groupsService.checkOutGroup(groupId!),
+    onSuccess: () => {
+      invalidateAfterCheckout();
+      addToast("Group checked out successfully");
+      navigate("/reservations");
+    },
+    onError: () => addToast("Failed to check out group", "error"),
+  });
+
+  // Individual room checkout — for SPLIT billing.
+  // If this is the last room, auto-triggers group checkout instead of leaving a manual step.
   const checkOutMutation = useMutation({
     mutationFn: () => reservationsService.updateReservationStatus(reservationId!, "CHECKED_OUT"),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["reservations"] });
-      qc.invalidateQueries({ queryKey: ["reservations-counts"] });
-      qc.invalidateQueries({ queryKey: ["rooms"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-      addToast("Guest checked out successfully");
-      navigate("/reservations");
+    onSuccess: async () => {
+      invalidateAfterCheckout();
+      if (isLastSplitRoom) {
+        // Auto-checkout the group — all rooms are now settled, no manual click needed.
+        try {
+          await groupsService.checkOutGroup(groupId!);
+          invalidateAfterCheckout();
+          addToast("All rooms settled — group checked out automatically");
+        } catch {
+          addToast("Room checked out. Please click 'Check Out Group' to finalise.", "error");
+        }
+        navigate(`/groups/${groupId}`);
+      } else {
+        addToast("Room checked out. Settle remaining rooms from the group page.");
+        navigate(groupId ? `/groups/${groupId}` : "/reservations");
+      }
     },
     onError: () => addToast("Failed to check out", "error"),
   });
@@ -162,14 +218,14 @@ export default function FolioPage() {
           {folio.isOpen && canCreateCharge && (
             <button
               onClick={() => setShowAddCharge(true)}
-              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-ink text-white text-[13px] font-semibold hover:bg-ink-soft transition-colors"
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-coral text-white text-[13.5px] font-semibold hover:bg-coral-dark transition-colors shadow-pop"
             >
               <Plus size={15} /> Add charge
             </button>
           )}
           <button
             onClick={() => window.print()}
-            className="grid place-items-center h-9 w-9 rounded-full border border-line text-ink-mute hover:bg-line-soft transition-colors"
+            className="grid place-items-center h-10 w-10 rounded-full border border-line text-ink-mute hover:bg-line-soft transition-colors"
           >
             <Printer size={16} />
           </button>
@@ -191,8 +247,16 @@ export default function FolioPage() {
           <Card>
             <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-ink-faint">Itemized charges</div>
             {folio.items.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-line py-8 text-center text-[13px] text-ink-mute">
-                No charges yet
+              <div className="rounded-xl border border-dashed border-line py-8 flex flex-col items-center gap-3">
+                <p className="text-[13px] text-ink-mute">No charges yet</p>
+                {folio.isOpen && canCreateCharge && (
+                  <button
+                    onClick={() => setShowAddCharge(true)}
+                    className="inline-flex items-center gap-2 h-9 px-4 rounded-full bg-coral text-white text-[13px] font-semibold hover:bg-coral-dark transition-colors shadow-pop"
+                  >
+                    <Plus size={14} /> Add first charge
+                  </button>
+                )}
               </div>
             ) : (
               <div className="rounded-xl2 border border-line bg-card overflow-hidden">
@@ -235,6 +299,18 @@ export default function FolioPage() {
                     </div>
                   );
                 })}
+                {/* Inline add row — sits at the bottom of the charges list for fast contextual access */}
+                {folio.isOpen && canCreateCharge && (
+                  <button
+                    onClick={() => setShowAddCharge(true)}
+                    className="w-full flex items-center gap-2 px-4 py-3 border-t border-dashed border-line text-[13px] font-semibold text-ink-faint hover:text-coral hover:bg-coral-soft/30 transition-colors group"
+                  >
+                    <span className="grid place-items-center h-6 w-6 rounded-lg border border-dashed border-line-soft group-hover:border-coral/30 group-hover:bg-coral-soft text-ink-faint group-hover:text-coral transition-colors">
+                      <Plus size={13} />
+                    </span>
+                    Add charge
+                  </button>
+                )}
               </div>
             )}
           </Card>
@@ -314,34 +390,46 @@ export default function FolioPage() {
                 </div>
               )}
 
-              {/* Check Out — only shown when guest is currently checked in */}
-              {canCheckOut && res.status === "CHECKED_IN" && (
-                folio.balanceDue > 0 ? (
+              {/* Check Out — smart about group vs individual billing */}
+              {canCheckOut && res.status === "CHECKED_IN" && (() => {
+                const mutation      = isGroupSingleBill ? checkOutGroupMutation : checkOutMutation;
+                const isPending     = mutation.isPending;
+                const label         = isGroupSingleBill ? "Check Out Group" : "Check Out";
+                const pendingLabel  = isGroupSingleBill ? "Checking out group…" : "Checking out…";
+
+                return folio.balanceDue > 0 ? (
                   <div className="space-y-2">
                     <div className="flex items-start gap-2 rounded-xl bg-amber-soft border border-amber/30 px-3 py-2.5 text-[12.5px] text-amber">
                       <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                       <span>Outstanding balance of {fmtPkr(folio.balanceDue)}. Settle before checking out.</span>
                     </div>
                     <button
-                      onClick={() => checkOutMutation.mutate()}
-                      disabled={checkOutMutation.isPending}
+                      onClick={() => mutation.mutate()}
+                      disabled={isPending}
                       className="w-full h-10 rounded-full border border-ink/20 text-ink-soft text-[13px] font-semibold hover:bg-line-soft transition-colors flex items-center justify-center gap-2 disabled:opacity-40"
                     >
                       <LogOut size={15} />
-                      {checkOutMutation.isPending ? "Checking out…" : "Check out anyway"}
+                      {isPending ? pendingLabel : `${label} anyway`}
                     </button>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => checkOutMutation.mutate()}
-                    disabled={checkOutMutation.isPending}
-                    className="w-full h-11 rounded-full bg-ink text-white font-semibold text-sm hover:bg-ink-soft transition-colors flex items-center justify-center gap-2 disabled:opacity-40"
-                  >
-                    <LogOut size={16} />
-                    {checkOutMutation.isPending ? "Checking out…" : "Check Out"}
-                  </button>
-                )
-              )}
+                  <>
+                    {isGroupSingleBill && (
+                      <p className="text-[12px] text-ink-mute text-center">
+                        Single-bill group · all {groupData?.totalRooms ?? ""} rooms will be checked out together
+                      </p>
+                    )}
+                    <button
+                      onClick={() => mutation.mutate()}
+                      disabled={isPending}
+                      className="w-full h-11 rounded-full bg-ink text-white font-semibold text-sm hover:bg-ink-soft transition-colors flex items-center justify-center gap-2 disabled:opacity-40"
+                    >
+                      <LogOut size={16} />
+                      {isPending ? pendingLabel : label}
+                    </button>
+                  </>
+                );
+              })()}
 
               <button
                 onClick={() => window.print()}

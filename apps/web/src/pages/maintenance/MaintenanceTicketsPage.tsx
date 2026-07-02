@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/cn";
+import { BASE_URL } from "@/lib/api";
 import {
   maintenanceService,
   type MaintenanceTicket,
@@ -178,6 +179,29 @@ function TicketCard({ ticket, onStatusChange, onResolve, canUpdate }: {
         </p>
       )}
 
+      {/* Photos */}
+      {ticket.photoUrls.length > 0 && (
+        <div className="mt-2.5 flex gap-1.5 flex-wrap">
+          {ticket.photoUrls.slice(0, 5).map((url, i) => (
+            <a
+              key={i}
+              href={`${BASE_URL}${url}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="h-12 w-12 rounded-lg overflow-hidden border border-line-soft block shrink-0"
+            >
+              <img src={`${BASE_URL}${url}`} alt="" className="h-full w-full object-cover" />
+            </a>
+          ))}
+          {ticket.photoUrls.length > 5 && (
+            <div className="h-12 w-12 rounded-lg bg-mist border border-line-soft flex items-center justify-center text-[11px] font-semibold text-ink-mute shrink-0">
+              +{ticket.photoUrls.length - 5}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Footer */}
       <div className="mt-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -304,7 +328,7 @@ export default function MaintenanceTicketsPage() {
               onClick={() => setActiveTab(tab.value)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 h-9 text-[13px] font-semibold transition-all",
-                on ? "bg-ink text-white" : "bg-line-soft text-ink-mute hover:text-ink-soft",
+                on ? "bg-ink text-white" : "bg-white border border-line text-ink-soft hover:border-coral/30 hover:text-ink",
               )}
             >
               {tab.label}

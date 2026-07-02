@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, Star } from "lucide-react";
+import { X, Star, Users } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { guestsService, type GuestDetail, type UpdateGuestDto, type DocumentType } from "../../services/guests";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -19,6 +19,10 @@ const GENDER_OPTIONS = [
   { value: "Other",             label: "Other" },
   { value: "Prefer not to say", label: "Prefer not to say" },
 ];
+
+const inputCls = "h-11 w-full rounded-xl bg-mist border border-line px-3.5 text-sm text-ink placeholder:text-ink-faint outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all";
+const labelCls = "block text-[12.5px] font-semibold uppercase tracking-wide text-ink-mute mb-1.5";
+const sectionCls = "text-[11px] font-bold uppercase tracking-[0.14em] text-ink-faint mb-3";
 
 interface EditGuestModalProps {
   guest: GuestDetail;
@@ -60,7 +64,7 @@ export function EditGuestModal({ guest, onClose, onSuccess }: EditGuestModalProp
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const dto: UpdateGuestDto = {
+    mutation.mutate({
       firstName:      form.firstName.trim() || undefined,
       lastName:       form.lastName.trim() || undefined,
       email:          form.email.trim() || undefined,
@@ -73,155 +77,174 @@ export function EditGuestModal({ guest, onClose, onSuccess }: EditGuestModalProp
       address:        form.address.trim() || undefined,
       internalNotes:  form.internalNotes.trim() || undefined,
       vipLevel:       form.isVip ? 1 : 0,
-    };
-    mutation.mutate(dto);
+    });
   }
 
-  const inputClass = cn(
-    "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-  );
-
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">Edit Guest</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X size={20} />
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4 anim-fade-in"
+      onMouseDown={onClose}
+    >
+      <div
+        className="bg-paper rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col anim-scale-in"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 px-6 pt-6 pb-5 border-b border-line flex-shrink-0">
+          <div className="grid place-items-center h-10 w-10 rounded-xl bg-mist shrink-0">
+            <Users size={18} className="text-ink-soft" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="serif text-[20px] text-ink leading-tight">Edit Guest</h2>
+            <p className="text-[12px] text-ink-mute mt-0.5 truncate">{guest.firstName} {guest.lastName}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="grid place-items-center h-9 w-9 rounded-full hover:bg-mist text-ink-mute transition-colors -mr-1 -mt-1"
+          >
+            <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="overflow-y-auto flex-1">
-          <div className="px-6 py-5 space-y-5">
-            <button
-              type="button"
-              onClick={() => set("isVip", !form.isVip)}
-              className={cn(
-                "flex items-center justify-between w-full rounded-xl border px-3.5 py-2.5 transition-colors",
-                form.isVip ? "border-amber-400 bg-amber-50" : "border-gray-200 bg-white hover:border-gray-300",
-              )}
-            >
-              <span className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <Star size={15} className={form.isVip ? "text-amber-500 fill-amber-500" : "text-gray-400"} />
-                Mark this guest as VIP
-              </span>
-              <span className={cn(
-                "w-11 h-6 rounded-full transition-colors duration-200 flex items-center flex-shrink-0",
-                form.isVip ? "bg-amber-500" : "bg-gray-300",
-              )}>
-                <span className={cn(
-                  "w-5 h-5 bg-white rounded-full shadow transition-transform duration-200",
-                  form.isVip ? "translate-x-5" : "translate-x-0.5",
-                )} />
-              </span>
-            </button>
+        {/* Scrollable body */}
+        <form id="edit-guest-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto scroll-area px-6 py-5 space-y-5">
 
-            <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                Personal Information
-              </p>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                    <input type="text" value={form.firstName}
-                      onChange={(e) => set("firstName", e.target.value)} className={inputClass} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                    <input type="text" value={form.lastName}
-                      onChange={(e) => set("lastName", e.target.value)} className={inputClass} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-                    <input type="date" value={form.dateOfBirth}
-                      onChange={(e) => set("dateOfBirth", e.target.value)} className={inputClass} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
-                    <input type="text" value={form.nationality}
-                      onChange={(e) => set("nationality", e.target.value)} className={inputClass} />
-                  </div>
+          {/* VIP toggle */}
+          <button
+            type="button"
+            onClick={() => set("isVip", !form.isVip)}
+            className={cn(
+              "flex items-center justify-between w-full rounded-xl border px-3.5 py-2.5 transition-colors",
+              form.isVip ? "border-amber/40 bg-amber-soft" : "border-line bg-mist hover:border-line-soft",
+            )}
+          >
+            <span className="flex items-center gap-2 text-[13.5px] font-semibold text-ink-soft">
+              <Star size={15} className={form.isVip ? "text-amber fill-amber" : "text-ink-faint"} />
+              Mark this guest as VIP
+            </span>
+            <span className={cn(
+              "w-11 h-6 rounded-full transition-colors duration-200 flex items-center flex-shrink-0",
+              form.isVip ? "bg-amber" : "bg-line-soft",
+            )}>
+              <span className={cn(
+                "w-5 h-5 bg-white rounded-full shadow transition-transform duration-200",
+                form.isVip ? "translate-x-5" : "translate-x-0.5",
+              )} />
+            </span>
+          </button>
+
+          {/* Personal Information */}
+          <div>
+            <p className={sectionCls}>Personal Information</p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>First name</label>
+                  <input type="text" value={form.firstName}
+                    onChange={(e) => set("firstName", e.target.value)} className={inputCls} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-                  <select value={form.gender} onChange={(e) => set("gender", e.target.value)} className={inputClass}>
-                    <option value="">Select…</option>
-                    {GENDER_OPTIONS.map((o) => (
+                  <label className={labelCls}>Last name</label>
+                  <input type="text" value={form.lastName}
+                    onChange={(e) => set("lastName", e.target.value)} className={inputCls} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Date of birth</label>
+                  <input type="date" value={form.dateOfBirth}
+                    onChange={(e) => set("dateOfBirth", e.target.value)} className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Nationality</label>
+                  <input type="text" value={form.nationality} placeholder="Pakistani"
+                    onChange={(e) => set("nationality", e.target.value)} className={inputCls} />
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>Gender</label>
+                <select value={form.gender} onChange={(e) => set("gender", e.target.value)}
+                  className={cn(inputCls, "cursor-pointer")}>
+                  <option value="">Select…</option>
+                  {GENDER_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Contact & Identity */}
+          <div>
+            <p className={sectionCls}>Contact &amp; Identity</p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Email</label>
+                  <input type="email" value={form.email} placeholder="name@email.com"
+                    onChange={(e) => set("email", e.target.value)} className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Phone <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
+                  <input type="tel" value={form.phone} placeholder="+92 3…"
+                    onChange={(e) => set("phone", e.target.value)} className={inputCls} />
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>Address</label>
+                <textarea value={form.address} onChange={(e) => set("address", e.target.value)}
+                  rows={2} placeholder="Street, City"
+                  className={cn(inputCls, "h-auto py-2.5 resize-none")} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>ID type</label>
+                  <select value={form.documentType}
+                    onChange={(e) => set("documentType", e.target.value as DocumentType)}
+                    className={cn(inputCls, "cursor-pointer")}>
+                    {DOC_TYPES.map((o) => (
                       <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label className={labelCls}>ID number</label>
+                  <input type="text" value={form.documentNumber} placeholder="35202-•••••••-7"
+                    onChange={(e) => set("documentNumber", e.target.value)} className={inputCls} />
+                </div>
               </div>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                Contact &amp; Identity
-              </p>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input type="email" value={form.email}
-                      onChange={(e) => set("email", e.target.value)} className={inputClass} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                    <input type="tel" value={form.phone}
-                      onChange={(e) => set("phone", e.target.value)} className={inputClass} />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                  <textarea value={form.address} onChange={(e) => set("address", e.target.value)}
-                    rows={2} className={cn(inputClass, "resize-none")} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">ID Type</label>
-                    <select value={form.documentType}
-                      onChange={(e) => set("documentType", e.target.value as DocumentType)}
-                      className={inputClass}>
-                      {DOC_TYPES.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">ID Number</label>
-                    <input type="text" value={form.documentNumber}
-                      onChange={(e) => set("documentNumber", e.target.value)} className={inputClass} />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                  <textarea value={form.internalNotes}
-                    onChange={(e) => set("internalNotes", e.target.value)}
-                    rows={2} placeholder="Internal notes (not visible to guest)"
-                    className={cn(inputClass, "resize-none")} />
-                </div>
+              <div>
+                <label className={labelCls}>Internal notes <span className="normal-case tracking-normal text-ink-faint font-normal">(not visible to guest)</span></label>
+                <textarea value={form.internalNotes}
+                  onChange={(e) => set("internalNotes", e.target.value)}
+                  rows={2} placeholder="Staff-only notes…"
+                  className={cn(inputCls, "h-auto py-2.5 resize-none")} />
               </div>
             </div>
           </div>
 
           {mutation.isError && (
-            <p className="px-6 pb-2 text-sm text-red-600">Something went wrong. Please try again.</p>
+            <div className="bg-clay-soft border border-clay/20 text-clay text-[13px] rounded-xl px-4 py-3">
+              Something went wrong. Please try again.
+            </div>
           )}
-
-          <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
-            <button type="button" onClick={onClose}
-              className="border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg px-4 py-2 text-sm transition-colors">
-              Cancel
-            </button>
-            <button type="submit" disabled={mutation.isPending}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60">
-              {mutation.isPending ? "Saving…" : "Save Changes"}
-            </button>
-          </div>
         </form>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2.5 px-6 py-4 border-t border-line flex-shrink-0">
+          <button type="button" onClick={onClose}
+            className="h-10 px-5 rounded-full border border-line text-ink-soft text-[13.5px] font-semibold hover:bg-mist transition-colors">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="edit-guest-form"
+            disabled={mutation.isPending}
+            className="h-10 px-5 rounded-full bg-ink text-white text-[13.5px] font-semibold hover:bg-ink/90 shadow-pop transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {mutation.isPending ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
       </div>
     </div>
   );

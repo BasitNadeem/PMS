@@ -67,7 +67,7 @@ function StatBox({ icon: Icon, label, value, onChange }: {
 
 function SubmitTab() {
   const qc = useQueryClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
   const [form, setForm] = useState<SubmitForm>({
     shiftDate: today, shiftType: "MORNING",
     openingBalance: "", cashCollected: "", cashExpenses: "",
@@ -305,8 +305,8 @@ function ReportsTab() {
   const today = new Date();
   const weekAgo = new Date(today.getTime() - 6 * 86_400_000);
   const [filters, setFilters] = useState<ListShiftsParams>({
-    startDate: weekAgo.toISOString().slice(0, 10),
-    endDate:   today.toISOString().slice(0, 10),
+    startDate: (() => { const d = weekAgo; return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })(),
+    endDate:   (() => { const d = today;  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })(),
     page: 1,
     limit: 20,
   });

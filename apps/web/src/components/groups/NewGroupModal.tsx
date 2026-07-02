@@ -28,9 +28,9 @@ function nightsBetween(from: string, to: string): number {
   return Math.max(0, Math.ceil((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000));
 }
 function addOneDay(isoDate: string): string {
-  const d = new Date(isoDate);
+  const d = new Date(isoDate + "T12:00:00"); // noon UTC avoids DST/midnight edge cases
   d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 const inputCls = "h-11 w-full rounded-xl bg-white border border-line px-3.5 text-sm text-ink placeholder:text-ink-faint outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all";
@@ -42,7 +42,7 @@ const PAYER_TYPE_OPTIONS: { value: PayerType; label: string }[] = [
   { value: "CORPORATE",   label: "Corporate" },
   { value: "GOVERNMENT",  label: "Government" },
   { value: "NGO",         label: "NGO" },
-  { value: "INDIVIDUAL",  label: "Individual" },
+  { value: "INDIVIDUAL",  label: "Individual / Family" },
 ];
 
 const PAYMENT_TERMS_OPTIONS: { value: PaymentTerms; label: string }[] = [
@@ -131,11 +131,14 @@ interface WizardState {
 export interface NewGroupModalProps {
   onClose: () => void;
   onSuccess: (groupId: string) => void;
+  initialPayerType?: PayerType;
+  initialCheckIn?: string;
+  initialCheckOut?: string;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function NewGroupModal({ onClose, onSuccess }: NewGroupModalProps) {
+export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialCheckIn, initialCheckOut }: NewGroupModalProps) {
   useEscapeKey(onClose);
   const qc = useQueryClient();
   const [step, setStep] = useState(0);
@@ -143,8 +146,8 @@ export function NewGroupModal({ onClose, onSuccess }: NewGroupModalProps) {
   const [duplicateGuestWarning, setDuplicateGuestWarning] = useState("");
 
   const [form, setForm] = useState<WizardState>({
-    name: "", payerType: "TOUR_AGENCY", payerName: "", payerContact: "",
-    checkIn: "", checkOut: "",
+    name: "", payerType: initialPayerType ?? "TOUR_AGENCY", payerName: "", payerContact: "",
+    checkIn: initialCheckIn ?? "", checkOut: initialCheckOut ?? "",
     billingType: "SINGLE", paymentTerms: "CASH", advancePercent: "", advancePaid: "0", notes: "",
     rooms: [],
     useNewGuest: true,
@@ -284,7 +287,7 @@ export function NewGroupModal({ onClose, onSuccess }: NewGroupModalProps) {
   const nights      = nightsBetween(form.checkIn, form.checkOut);
   const totalRooms  = form.rooms.reduce((sum, r) => sum + r.quantity, 0);
   const estTotal    = form.rooms.reduce((sum, r) => sum + r.ratePerNight * r.quantity * nights, 0);
-  const today       = new Date().toISOString().slice(0, 10);
+  const today       = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
   const showAdvance = form.paymentTerms === "ADVANCE_50" || form.paymentTerms === "ADVANCE_100" || form.paymentTerms === "ADVANCE_CUSTOM";
   const showAdvancePercent = form.paymentTerms === "ADVANCE_CUSTOM";
 
@@ -446,7 +449,7 @@ export function NewGroupModal({ onClose, onSuccess }: NewGroupModalProps) {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Group / Tour name</label>
+                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Group / Tour name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                   <input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Sunrise Tours — Hunza Trip" className={inputCls} />
                 </div>
                 <div>
@@ -459,7 +462,7 @@ export function NewGroupModal({ onClose, onSuccess }: NewGroupModalProps) {
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Payer name</label>
+                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Payer name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                   <input type="text" value={form.payerName} onChange={(e) => set("payerName", e.target.value)} placeholder="Company / agency name" className={inputCls} />
                 </div>
                 <div className="col-span-2">
@@ -470,7 +473,7 @@ export function NewGroupModal({ onClose, onSuccess }: NewGroupModalProps) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Check-in</label>
+                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Check-in <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                   <input
                     type="date" min={today} value={form.checkIn}
                     onChange={(e) => { set("checkIn", e.target.value); if (form.checkOut && form.checkOut <= e.target.value) set("checkOut", ""); }}
@@ -478,7 +481,7 @@ export function NewGroupModal({ onClose, onSuccess }: NewGroupModalProps) {
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Check-out</label>
+                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Check-out <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                   <input
                     type="date" min={form.checkIn ? addOneDay(form.checkIn) : today} value={form.checkOut}
                     onChange={(e) => set("checkOut", e.target.value)}
@@ -720,15 +723,15 @@ export function NewGroupModal({ onClose, onSuccess }: NewGroupModalProps) {
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">First name</label>
+                      <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">First name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                       <input type="text" value={form.newFirstName} onChange={(e) => set("newFirstName", e.target.value)} placeholder="Ahmed" className={inputCls} />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Last name</label>
+                      <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Last name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                       <input type="text" value={form.newLastName} onChange={(e) => set("newLastName", e.target.value)} placeholder="Raza" className={inputCls} />
                     </div>
                     <div className="col-span-2">
-                      <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Phone</label>
+                      <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Phone <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                       <input type="tel" value={form.newPhone} onChange={(e) => set("newPhone", e.target.value)} placeholder="+92 3..." className={inputCls} />
                     </div>
                     <div>

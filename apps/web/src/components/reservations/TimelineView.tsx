@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { X, Users2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -63,6 +64,7 @@ function getArrivalsOnDay(
 }
 
 export function TimelineView({ year, month, onMonthChange: _onMonthChange, onReservationClick }: TimelineViewProps) {
+  const navigate    = useNavigate();
   const today       = new Date();
   const isThisMonth = today.getFullYear() === year && today.getMonth() + 1 === month;
   const todayDay    = today.getDate();
@@ -187,8 +189,8 @@ export function TimelineView({ year, month, onMonthChange: _onMonthChange, onRes
                         return (
                           <button
                             key={r.id}
-                            onClick={() => onReservationClick?.(r.id)}
-                            title={`${r.guest.fullName} · ${r.confirmationNumber}${r.groupId ? " · Group booking" : ""}`}
+                            onClick={() => r.groupId ? navigate(`/groups/${r.groupId}`) : onReservationClick?.(r.id)}
+                            title={`${r.guest.fullName} · ${r.confirmationNumber}${r.groupId ? " · Group booking (click to view group)" : ""}`}
                             className="absolute top-1/2 -translate-y-1/2 flex items-center gap-1.5 rounded-lg px-2 h-7 hover:brightness-95 hover:shadow-pop transition anim-fade-in"
                             style={{ left: geo.left, width: geo.width, background: t.bg, border: `1px solid ${t.dot}33` }}
                           >
@@ -257,7 +259,7 @@ export function TimelineView({ year, month, onMonthChange: _onMonthChange, onRes
                   return (
                     <button
                       key={r.id}
-                      onClick={() => { onReservationClick?.(r.id); setSelectedDay(null); }}
+                      onClick={() => { r.groupId ? navigate(`/groups/${r.groupId}`) : onReservationClick?.(r.id); setSelectedDay(null); }}
                       className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left hover:bg-mist transition-colors"
                     >
                       {/* Room badge */}

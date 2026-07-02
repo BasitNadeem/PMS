@@ -76,7 +76,7 @@ export function ResetPasswordModal({ staffUser, onClose, onSuccess }: ResetPassw
 
           <div>
             <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">
-              New password <span className="text-coral">*</span>
+              New password <span className="text-coral text-[15px] font-bold leading-none">*</span>
             </label>
             <div className="relative">
               <input

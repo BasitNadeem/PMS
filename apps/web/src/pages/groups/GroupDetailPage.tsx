@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Building2, Landmark, HeartHandshake, Briefcase, Users,
-  CheckCircle2, X, Search, Plus, MapPin, ExternalLink,
+  CheckCircle2, X, Search, Plus, MapPin, ExternalLink, Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getErrorMessage } from "@/lib/api";
@@ -65,7 +65,7 @@ const PAYER_TYPE_META: Record<PayerType, { label: string; tone: string; icon: Re
   CORPORATE:   { label: "Corporate",   tone: "dusk",  icon: Building2 },
   GOVERNMENT:  { label: "Govt",        tone: "ink",   icon: Landmark },
   NGO:         { label: "NGO",         tone: "pine",  icon: HeartHandshake },
-  INDIVIDUAL:  { label: "Individual",  tone: "amber", icon: Users },
+  INDIVIDUAL:  { label: "Individual / Family", tone: "amber", icon: Users },
 };
 
 function PayerTypeBadge({ type }: { type: PayerType }) {
@@ -283,10 +283,10 @@ export default function GroupDetailPage() {
   return (
     <div className="anim-fade-in">
       <button
-        onClick={() => navigate("/groups")}
+        onClick={() => navigate("/reservations")}
         className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-ink-mute hover:text-ink transition-colors"
       >
-        <ArrowLeft size={15} /> Back to Groups
+        <ArrowLeft size={15} /> Back to Reservations
       </button>
 
       {/* Header */}
@@ -332,6 +332,17 @@ export default function GroupDetailPage() {
               </div>
             </div>
 
+            {/* SPLIT billing prompt — surfaces remaining unsettled rooms so staff don't have
+                to hunt for the next folio after checking out the first room */}
+            {group.billingType === "SPLIT" && group.reservations.some(r => r.status === "CHECKED_IN" && r.folio && r.folio.balanceDue > 0) && (
+              <div className="mx-5 my-3 rounded-xl border border-amber/30 bg-amber-soft px-4 py-3 flex items-start gap-2.5">
+                <Receipt size={15} className="text-amber shrink-0 mt-0.5" />
+                <p className="text-[12.5px] text-ink-soft leading-snug">
+                  <strong>Split billing</strong> — settle each room's folio individually using the <em>Settle folio</em> button next to each checked-in room.
+                </p>
+              </div>
+            )}
+
             <div className="hidden md:grid grid-cols-[1.4fr_1.4fr_1fr_auto] gap-3 px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-ink-faint border-b border-line-soft">
               <span>Room</span><span>Guest</span><span>Status</span><span />
             </div>
@@ -364,7 +375,18 @@ export default function GroupDetailPage() {
                   </div>
                   <div className="text-[13.5px] text-ink-soft truncate">{r.guest?.fullName ?? "—"}</div>
                   <div><StatusBadge status={RES_STATUS_LABEL[r.status] ?? r.status} size="sm" /></div>
-                  <div className="flex items-center justify-end">
+                  <div className="flex items-center justify-end gap-2">
+                    {/* For SPLIT billing: surface the folio link directly on the room row so
+                        staff don't have to navigate through the reservation detail to settle */}
+                    {group.billingType === "SPLIT" && r.status === "CHECKED_IN" && r.folio && (
+                      <Link
+                        to={`/financials/folio/${r.id}`}
+                        className="inline-flex items-center gap-1 rounded-full h-8 px-3 text-[12px] font-semibold bg-coral text-white hover:bg-coral-dark transition-all whitespace-nowrap shadow-sm"
+                      >
+                        <Receipt size={12} />
+                        {r.folio.balanceDue > 0 ? "Settle folio" : "Check out"}
+                      </Link>
+                    )}
                     <Link
                       to={`/reservations/${r.id}`}
                       className="inline-flex items-center gap-1 rounded-full h-8 px-3 text-[12px] font-semibold bg-line-soft text-ink-mute hover:text-ink-soft transition-all whitespace-nowrap"

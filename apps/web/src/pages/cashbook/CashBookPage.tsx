@@ -24,7 +24,12 @@ function formatPKR(paisas: number) {
   return `PKR ${Math.floor(Math.abs(paisas) / 100).toLocaleString("en-PK")}`;
 }
 
-function todayIso() { return new Date().toISOString().slice(0, 10); }
+// Always uses local (browser) date parts — never toISOString() which returns UTC.
+// Pakistan is UTC+5, so before 5 AM local time toISOString() still returns yesterday.
+function localIso(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function todayIso() { return localIso(); }
 
 function firstOfMonth() {
   const d = new Date();
@@ -45,23 +50,18 @@ function getDateRange(preset: Exclude<DatePreset, "custom">): { startDate: strin
     case "this_week": {
       const day  = today.getDay();
       const diff = day === 0 ? -6 : 1 - day;
-      const mon  = new Date(y, m, d + diff);
-      return { startDate: mon.toISOString().slice(0, 10), endDate: todayIso() };
+      return { startDate: localIso(new Date(y, m, d + diff)), endDate: todayIso() };
     }
     case "this_month":
       return { startDate: `${y}-${String(m + 1).padStart(2, "0")}-01`, endDate: todayIso() };
     case "last_month": {
-      const start = new Date(y, m - 1, 1);
-      const end   = new Date(y, m, 0);
       return {
-        startDate: start.toISOString().slice(0, 10),
-        endDate:   end.toISOString().slice(0, 10),
+        startDate: localIso(new Date(y, m - 1, 1)),
+        endDate:   localIso(new Date(y, m, 0)),
       };
     }
-    case "last_3_months": {
-      const start = new Date(y, m - 3, 1);
-      return { startDate: start.toISOString().slice(0, 10), endDate: todayIso() };
-    }
+    case "last_3_months":
+      return { startDate: localIso(new Date(y, m - 3, 1)), endDate: todayIso() };
   }
 }
 

@@ -81,7 +81,7 @@ export function AssignTaskModal({ onClose }: AssignTaskModalProps) {
           )}
 
           <div>
-            <label className={labelCls}>Room <span className="text-coral normal-case tracking-normal">*</span></label>
+            <label className={labelCls}>Room <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <select value={roomId} onChange={(e) => setRoomId(e.target.value)} className={cn(inputCls, "cursor-pointer")}>
               <option value="">Select room…</option>
               {roomsData?.data.map((room) => (
@@ -91,7 +91,7 @@ export function AssignTaskModal({ onClose }: AssignTaskModalProps) {
           </div>
 
           <div>
-            <label className={labelCls}>Task Type <span className="text-coral normal-case tracking-normal">*</span></label>
+            <label className={labelCls}>Task Type <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <select value={taskType} onChange={(e) => setTaskType(e.target.value as HousekeepingTaskType)} className={cn(inputCls, "cursor-pointer")}>
               {TASK_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>

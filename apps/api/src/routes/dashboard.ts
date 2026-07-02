@@ -170,7 +170,7 @@ router.get("/", async (req, res) => {
           checkInDate: { gte: todayStart, lte: todayEnd },
           status: { in: ["CHECKED_IN", "CONFIRMED"] },
         },
-        take: 10,
+        take: 15,
         orderBy: { checkInDate: "asc" },
         include: {
           guest: { select: { fullName: true } },
@@ -183,11 +183,12 @@ router.get("/", async (req, res) => {
           checkOutDate: { gte: todayStart, lte: todayEnd },
           status: { in: ["CHECKED_IN", "CHECKED_OUT"] },
         },
-        take: 10,
+        take: 15,
         orderBy: { checkOutDate: "asc" },
         include: {
           guest: { select: { fullName: true } },
           rooms: { take: 1, include: { room: { select: { number: true } } } },
+          folio: { select: { balanceDue: true } },
         },
       }),
       // Live schedule — housekeeping tasks with a genuine timestamp (started or completed).
@@ -197,7 +198,7 @@ router.get("/", async (req, res) => {
           scheduledDate: { gte: todayStart, lt: todayEnd },
           status: { in: [HousekeepingTaskStatus.IN_PROGRESS, HousekeepingTaskStatus.COMPLETED] },
         },
-        take: 10,
+        take: 15,
         include: { room: { select: { number: true } } },
       }),
     ]);
@@ -214,10 +215,16 @@ router.get("/", async (req, res) => {
     const defaultCheckOutTime = typeof hotelSettings.checkOutTime === "string" ? hotelSettings.checkOutTime : "12:00";
 
     function hhmm(d: Date): string {
-      return d.toISOString().slice(11, 16);
+      return new Intl.DateTimeFormat("en-GB", {
+        hour: "2-digit", minute: "2-digit", hour12: false,
+        timeZone: "Asia/Karachi",
+      }).format(d);
     }
 
-    const scheduleEvents: { id: string; time: string; type: string; label: string; sublabel: string }[] = [];
+    const scheduleEvents: {
+      id: string; time: string; type: string; label: string; sublabel: string;
+      isDone: boolean; isVip?: boolean; taskType?: string; hasIssue?: boolean; balanceDue?: number;
+    }[] = [];
 
     for (const r of scheduleArrivalsRaw) {
       const roomNum = r.rooms[0]?.room.number ?? "—";
@@ -225,18 +232,22 @@ router.get("/", async (req, res) => {
         id:       `arr-${r.id}`,
         time:     r.actualCheckIn ? hhmm(r.actualCheckIn) : defaultCheckInTime,
         type:     "checkin",
-        label:    `Check-in · ${r.guest.fullName}`,
+        label:    r.guest.fullName,
         sublabel: `Room ${roomNum}`,
+        isDone:   !!r.actualCheckIn,
+        isVip:    r.isVip,
       });
     }
     for (const r of scheduleDeparturesRaw) {
       const roomNum = r.rooms[0]?.room.number ?? "—";
       scheduleEvents.push({
-        id:       `dep-${r.id}`,
-        time:     r.actualCheckOut ? hhmm(r.actualCheckOut) : defaultCheckOutTime,
-        type:     "checkout",
-        label:    `Check-out · ${r.guest.fullName}`,
-        sublabel: `Room ${roomNum}`,
+        id:         `dep-${r.id}`,
+        time:       r.actualCheckOut ? hhmm(r.actualCheckOut) : defaultCheckOutTime,
+        type:       "checkout",
+        label:      r.guest.fullName,
+        sublabel:   `Room ${roomNum}`,
+        isDone:     !!r.actualCheckOut,
+        balanceDue: r.folio?.balanceDue ?? 0,
       });
     }
     for (const t of scheduleHousekeepingRaw) {
@@ -246,8 +257,11 @@ router.get("/", async (req, res) => {
         id:       `hk-${t.id}`,
         time:     hhmm(at),
         type:     "housekeeping",
-        label:    t.completedAt ? "Cleaning completed" : "Cleaning in progress",
-        sublabel: `Room ${t.room.number}`,
+        label:    `Room ${t.room.number}`,
+        sublabel: t.taskType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        isDone:   !!t.completedAt,
+        taskType: t.taskType,
+        hasIssue: t.hasIssue,
       });
     }
     scheduleEvents.sort((a, b) => a.time.localeCompare(b.time));

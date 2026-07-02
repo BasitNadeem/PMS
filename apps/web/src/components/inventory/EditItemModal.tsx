@@ -125,7 +125,7 @@ export function EditItemModal({ item, onClose, onSuccess }: EditItemModalProps) 
           )}
 
           <div className="flex flex-col gap-1">
-            <label className="text-[13px] font-semibold text-ink-mute">Item Name <span className="text-clay">*</span></label>
+            <label className="text-[13px] font-semibold text-ink-mute">Item Name <span className="text-clay text-[15px] font-bold leading-none">*</span></label>
             <input
               type="text"
               value={name}
@@ -147,7 +147,7 @@ export function EditItemModal({ item, onClose, onSuccess }: EditItemModalProps) 
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[13px] font-semibold text-ink-mute">Category <span className="text-clay">*</span></label>
+            <label className="text-[13px] font-semibold text-ink-mute">Category <span className="text-clay text-[15px] font-bold leading-none">*</span></label>
             <select
               value={categorySelect}
               onChange={(e) => setCategorySelect(e.target.value)}
@@ -168,7 +168,7 @@ export function EditItemModal({ item, onClose, onSuccess }: EditItemModalProps) 
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[13px] font-semibold text-ink-mute">Unit <span className="text-clay">*</span></label>
+            <label className="text-[13px] font-semibold text-ink-mute">Unit <span className="text-clay text-[15px] font-bold leading-none">*</span></label>
             <select
               value={unitSelect}
               onChange={(e) => setUnitSelect(e.target.value)}

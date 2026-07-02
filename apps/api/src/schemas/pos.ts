@@ -30,15 +30,17 @@ export type UpdateCategoryDto = z.infer<typeof updateCategorySchema>;
 // ── Items ─────────────────────────────────────────────────────────────────────
 
 export const createItemSchema = z.object({
-  name:        z.string().trim().min(1, "Name is required"),
-  description: z.string().trim().optional(),
-  price:       z.number().int().positive("Price must be positive (in paisas)"),
-  categoryId:  z.string().uuid(),
-  isAvailable: z.boolean().default(true),
-  sortOrder:   z.number().int().min(0).default(0),
-  photoUrl:    z.string().url("Must be a valid URL").nullable().optional(),
-  isQrVisible: z.boolean().default(true),
-  isFeatured:  z.boolean().default(false),
+  name:             z.string().trim().min(1, "Name is required"),
+  description:      z.string().trim().optional(),
+  price:            z.number().int().positive("Price must be positive (in paisas)"),
+  categoryId:       z.string().uuid(),
+  isAvailable:      z.boolean().default(true),
+  sortOrder:        z.number().int().min(0).default(0),
+  inventoryItemId:  z.string().uuid().nullable().optional(),
+  inventoryQtyUsed: z.coerce.number().min(0).nullable().optional(),
+  photoUrl:         z.string().url("Must be a valid URL").nullable().optional(),
+  isQrVisible:      z.boolean().default(true),
+  isFeatured:       z.boolean().default(false),
 });
 export type CreateItemDto = z.infer<typeof createItemSchema>;
 

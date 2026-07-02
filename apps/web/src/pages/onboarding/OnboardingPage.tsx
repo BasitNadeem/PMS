@@ -13,6 +13,7 @@ import { settingsService, type UpdateSettingsDto, type ThemeKey } from "@/servic
 import { roomsService, type RoomType, type RoomTypeName, type RoomStatus } from "@/services/rooms";
 import { usersService, type Role } from "@/services/users";
 import { applyTheme } from "@/lib/theme";
+import { pkrInWords } from "@/lib/numberToWords";
 import { ThemePicker } from "@/components/settings/ThemePicker";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -332,7 +333,7 @@ function StepHotelProfile({ onBack, onNext }: { onBack: () => void; onNext: () =
 
       <div className="space-y-4">
         <div>
-          <label className={labelCls}>Hotel name <span className="text-coral">*</span></label>
+          <label className={labelCls}>Hotel name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
           <input
             className={inputCls} value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
@@ -352,7 +353,7 @@ function StepHotelProfile({ onBack, onNext }: { onBack: () => void; onNext: () =
             </select>
           </div>
           <div>
-            <label className={labelCls}>City <span className="text-coral">*</span></label>
+            <label className={labelCls}>City <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
             <input
               className={inputCls} value={form.city}
               onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
@@ -440,7 +441,7 @@ function StepRooms({ onBack, onNext }: { onBack: () => void; onNext: () => void 
         name: roomTypeForm.name,
         typeName: roomTypeForm.bedType,
         maxOccupancy: parseInt(roomTypeForm.maxOccupancy, 10),
-        defaultRate: parseInt(roomTypeForm.baseRate, 10),
+        defaultRate: Math.round(parseFloat(roomTypeForm.baseRate) * 100),
       });
       setCreatedRoomType(roomType);
       await refetch();
@@ -511,6 +512,11 @@ function StepRooms({ onBack, onNext }: { onBack: () => void; onNext: () => void 
                 onChange={(e) => setRoomTypeForm((f) => ({ ...f, baseRate: e.target.value }))}
                 placeholder="8000"
               />
+              {roomTypeForm.baseRate && Number(roomTypeForm.baseRate) > 0 && (
+                <p className="mt-1 text-[12.5px] text-ink-mute italic">
+                  {pkrInWords(Number(roomTypeForm.baseRate))}
+                </p>
+              )}
             </div>
             <div>
               <label className={labelCls}>Max occupancy</label>
@@ -681,21 +687,21 @@ function StepTeam({ onBack, onNext }: { onBack: () => void; onNext: () => void }
 
       <div className="space-y-4">
         <div>
-          <label className={labelCls}>Full name <span className="text-coral">*</span></label>
+          <label className={labelCls}>Full name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
           <input
             className={inputCls} value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
           />
         </div>
         <div>
-          <label className={labelCls}>Email <span className="text-coral">*</span></label>
+          <label className={labelCls}>Email <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
           <input
             type="email" className={inputCls} value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
           />
         </div>
         <div>
-          <label className={labelCls}>Role <span className="text-coral">*</span></label>
+          <label className={labelCls}>Role <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
           <select
             className={cn(inputCls, "cursor-pointer")}
             value={form.roleId}

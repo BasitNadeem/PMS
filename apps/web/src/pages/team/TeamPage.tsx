@@ -242,7 +242,7 @@ export default function TeamPage() {
                 "h-8 px-3.5 rounded-full text-[13px] font-semibold transition-all",
                 roleFilter === "ALL"
                   ? "bg-ink text-white shadow-pop"
-                  : "bg-line-soft text-ink-mute hover:bg-line",
+                  : "bg-white border border-line text-ink-soft hover:border-coral/30 hover:text-ink",
               )}
             >
               All
@@ -261,7 +261,7 @@ export default function TeamPage() {
                     "h-8 px-3.5 rounded-full text-[13px] font-semibold transition-all inline-flex items-center gap-1.5",
                     isActive
                       ? "bg-ink text-white shadow-pop"
-                      : "bg-line-soft text-ink-mute hover:bg-line",
+                      : "bg-white border border-line text-ink-soft hover:border-coral/30 hover:text-ink",
                   )}
                 >
                   <span

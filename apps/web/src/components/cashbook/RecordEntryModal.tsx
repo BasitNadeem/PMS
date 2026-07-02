@@ -17,7 +17,10 @@ const PAYMENT_METHOD_OPTIONS = [
   { value: "OTHER",         label: "Other" },
 ];
 
-function todayIso() { return new Date().toISOString().slice(0, 10); }
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 export interface RecordEntryModalProps {
   onClose:   () => void;
@@ -111,7 +114,7 @@ export function RecordEntryModal({ onClose, onSuccess }: RecordEntryModalProps) 
           {/* Amount */}
           <div>
             <label className={labelCls}>
-              Amount (PKR) <span className="text-coral normal-case tracking-normal">*</span>
+              Amount (PKR) <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span>
             </label>
             <input type="number" min="1" step="1" value={amountInput}
               onChange={(e) => setAmountInput(e.target.value)}
@@ -127,7 +130,7 @@ export function RecordEntryModal({ onClose, onSuccess }: RecordEntryModalProps) 
           {/* Description */}
           <div>
             <label className={labelCls}>
-              Description <span className="text-coral normal-case tracking-normal">*</span>
+              Description <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span>
             </label>
             <input type="text" value={description} onChange={(e) => setDescription(e.target.value)}
               placeholder={entryType === "INCOMING"

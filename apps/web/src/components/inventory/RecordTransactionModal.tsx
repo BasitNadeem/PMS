@@ -143,7 +143,7 @@ export function RecordTransactionModal({
           {/* Quantity */}
           <div className="flex flex-col gap-1">
             <label className="text-[13px] font-semibold text-ink-mute">
-              Quantity ({unit}) <span className="text-clay">*</span>
+              Quantity ({unit}) <span className="text-clay text-[15px] font-bold leading-none">*</span>
             </label>
             <input
               type="number"

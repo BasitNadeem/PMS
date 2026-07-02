@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, BedDouble, Users, Users2, CalendarCheck,
   Landmark, Sparkles, ShoppingCart, FileBarChart, LogOut,
-  ChevronsUpDown, Pin, PinOff, TrendingUp, Menu, X, Settings,
+  ChevronsUpDown, PanelLeftClose, PanelLeftOpen, TrendingUp, Menu, X, Settings,
   Receipt, TrendingDown, BookOpen, Wrench, ClipboardList, ChefHat, Monitor, Package,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -137,6 +138,35 @@ function OccupancyMini() {
   );
 }
 
+function SidebarTooltip({ label, children }: { label: string; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  return (
+    <div
+      ref={ref}
+      className="inline-flex"
+      onMouseEnter={() => {
+        if (ref.current) {
+          const r = ref.current.getBoundingClientRect();
+          setPos({ top: r.top + r.height / 2, left: r.right + 8 });
+        }
+      }}
+      onMouseLeave={() => setPos(null)}
+    >
+      {children}
+      {pos && createPortal(
+        <div
+          className="fixed z-[300] -translate-y-1/2 whitespace-nowrap rounded-lg bg-ink px-2.5 py-1.5 text-[12px] font-semibold text-white pointer-events-none shadow-lg"
+          style={{ top: pos.top, left: pos.left }}
+        >
+          {label}
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
 function SidebarContent({
   onNavigate,
   collapsed = false,
@@ -168,6 +198,24 @@ function SidebarContent({
   const userName = getCurrentUserName();
   const userRole = getCurrentUserRole();
 
+  const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
+  const [submenuPos, setSubmenuPos] = useState({ top: 0, left: 0 });
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const openSubmenuFor = useCallback((to: string, rect: DOMRect) => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    setSubmenuPos({ top: rect.top, left: rect.right + 8 });
+    setActiveSubmenu(to);
+  }, []);
+
+  const scheduleClose = useCallback(() => {
+    hideTimer.current = setTimeout(() => setActiveSubmenu(null), 150);
+  }, []);
+
+  const cancelClose = useCallback(() => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+  }, []);
+
   const navItems = NAV_ITEMS
     .filter((item) => {
       if (item.roleOnly && item.roleOnly !== userRole) return false;
@@ -186,13 +234,14 @@ function SidebarContent({
         <>
           {onTogglePin && (
             <div className="flex justify-center pt-3 pb-1">
-              <button
-                onClick={onTogglePin}
-                className="grid place-items-center h-7 w-7 rounded-lg text-ink-faint hover:bg-line-soft hover:text-ink-mute transition-colors"
-                title={pinned ? "Collapse sidebar" : "Pin sidebar open"}
-              >
-                {pinned ? <Pin size={15} /> : <PinOff size={15} />}
-              </button>
+              <SidebarTooltip label="Expand sidebar">
+                <button
+                  onClick={onTogglePin}
+                  className="grid place-items-center h-8 w-8 rounded-lg text-ink-mute hover:bg-line-soft hover:text-ink transition-colors"
+                >
+                  <PanelLeftOpen size={19} />
+                </button>
+              </SidebarTooltip>
             </div>
           )}
           <div className="flex justify-center pb-2">
@@ -229,13 +278,14 @@ function SidebarContent({
             )}
           </div>
           {onTogglePin && (
-            <button
-              onClick={onTogglePin}
-              className="shrink-0 grid place-items-center h-7 w-7 rounded-lg text-ink-faint hover:bg-line-soft hover:text-ink-mute transition-colors"
-              title={pinned ? "Collapse sidebar" : "Pin sidebar open"}
-            >
-              {pinned ? <Pin size={15} /> : <PinOff size={15} />}
-            </button>
+            <SidebarTooltip label="Collapse sidebar">
+              <button
+                onClick={onTogglePin}
+                className="grid place-items-center h-8 w-8 rounded-lg text-ink-mute hover:bg-line-soft hover:text-ink transition-colors"
+              >
+                <PanelLeftClose size={19} />
+              </button>
+            </SidebarTooltip>
           )}
         </div>
       )}
@@ -256,7 +306,11 @@ function SidebarContent({
               : false;
 
             return (
-              <div key={item.to}>
+              <div
+                key={item.to}
+                onMouseEnter={collapsed && hasChildren ? (e) => openSubmenuFor(item.to, e.currentTarget.getBoundingClientRect()) : undefined}
+                onMouseLeave={collapsed && hasChildren ? scheduleClose : undefined}
+              >
                 {item.newTab ? (
                   <button
                     onClick={() => { window.open(item.to, "_blank"); onNavigate?.(); }}
@@ -347,12 +401,56 @@ function SidebarContent({
         </div>
       </nav>
 
+      {/* Collapsed sidebar hover submenu — rendered in a portal to escape overflow:hidden */}
+      {collapsed && (() => {
+        const activeItem = activeSubmenu ? navItems.find((i) => i.to === activeSubmenu) : null;
+        if (!activeItem?.children?.length) return null;
+        return createPortal(
+          <div
+            style={{ top: submenuPos.top, left: submenuPos.left }}
+            className="fixed z-[200] bg-white rounded-xl shadow-float py-1.5 min-w-[180px] border border-line"
+            onMouseEnter={cancelClose}
+            onMouseLeave={scheduleClose}
+          >
+            <div className="px-3 pb-1 pt-0.5 text-[11px] font-bold uppercase tracking-[0.12em] text-ink-faint">
+              {activeItem.label}
+            </div>
+            {activeItem.children.map((sub) => {
+              const subActive = sub.to === "/financials"
+                ? !pathname.startsWith("/financials/expenses") && !pathname.startsWith("/financials/cashbook")
+                : pathname.startsWith(sub.to);
+              return (
+                <button
+                  key={sub.to}
+                  onClick={() => { navigate(sub.to); setActiveSubmenu(null); onNavigate?.(); }}
+                  className={cn(
+                    "flex items-center gap-2.5 w-full px-3 py-2 text-[13px] font-semibold text-left transition-colors",
+                    subActive
+                      ? "text-coral bg-coral/8"
+                      : "text-ink-soft hover:bg-line-soft",
+                  )}
+                >
+                  <sub.icon
+                    size={15}
+                    strokeWidth={subActive ? 2.2 : 1.8}
+                    className={subActive ? "text-coral" : "text-ink-faint"}
+                  />
+                  {sub.label}
+                </button>
+              );
+            })}
+          </div>,
+          document.body,
+        );
+      })()}
+
       {/* Occupancy mini widget */}
       {!collapsed && (
         <div className="px-3 pb-2">
           <OccupancyMini />
         </div>
       )}
+
 
       {/* User footer */}
       <div className="border-t border-line p-3">
@@ -467,7 +565,6 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("sidebarCollapsed") === "true",
   );
-  const [hovering, setHovering] = useState(false);
   const { data: hotel } = useQuery<Hotel>({
     queryKey: ["hotel"],
     queryFn: () => api.get("/api/hotels/me").then((r) => r.data.data),
@@ -482,22 +579,17 @@ export function AppLayout({ children }: AppLayoutProps) {
     applyTheme(hotel?.settings?.themeKey);
   }, [hotel?.settings?.themeKey]);
 
-  const showFull = !collapsed || hovering;
-
   return (
     <div className="flex min-h-screen bg-paper">
-      {/* Desktop sidebar — width animates in-flow (no floating overlay), so a
-          hover-preview can never overlap page content. */}
+      {/* Desktop sidebar */}
       <aside
         className="hidden lg:flex flex-col bg-mist border-r border-line shrink-0 h-screen sticky top-0 overflow-hidden transition-[width] duration-200 ease-out"
-        style={{ width: showFull ? SIDEBAR_FULL : SIDEBAR_RAIL }}
-        onMouseEnter={() => collapsed && setHovering(true)}
-        onMouseLeave={() => collapsed && setHovering(false)}
+        style={{ width: collapsed ? SIDEBAR_RAIL : SIDEBAR_FULL }}
       >
         <SidebarContent
-          collapsed={!showFull}
+          collapsed={collapsed}
           pinned={!collapsed}
-          onTogglePin={() => { setCollapsed((c) => !c); setHovering(false); }}
+          onTogglePin={() => setCollapsed((c) => !c)}
         />
       </aside>
 
@@ -536,16 +628,15 @@ export function AppLayout({ children }: AppLayoutProps) {
           </div>
         </div>
 
-        {/* Desktop search — icon-only, expands on click. A slim in-flow strip
-            (not a floating overlay) so it can never overlap page content. */}
-        <div className="hidden lg:flex sticky top-0 z-30 items-center justify-end bg-paper px-7 h-10">
+        {/* Desktop search — shares the same row as the page top padding, saving vertical space */}
+        <div className="hidden lg:flex sticky top-0 z-30 items-center justify-end bg-paper/95 backdrop-blur-sm px-7 h-8 border-b border-line/40">
           <GlobalSearchBar />
         </div>
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto scroll-area">
           <TempPasswordBanner />
-          <div className="mx-auto max-w-[1480px] px-5 sm:px-7 lg:px-8 py-7 lg:py-8">
+          <div className="px-5 sm:px-7 lg:px-8 py-5 lg:py-6">
             {children}
           </div>
         </main>

@@ -22,9 +22,10 @@ function formatLongDate(dateStr: string): string {
 }
 
 function offsetDate(dateStr: string, days: number): string {
-  const d = new Date(dateStr);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
+  // Use noon local time to safely add/subtract days without DST edge cases.
+  const d = new Date(dateStr + "T12:00:00");
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -233,7 +234,7 @@ function ExpensesTable({ rows, total }: { rows: ExpenseCategory[]; total: number
 
 export default function DailyReportPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const date = searchParams.get("date") ?? new Date().toISOString().slice(0, 10);
+  const date = searchParams.get("date") ?? (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
 
   const { data: report, isLoading } = useQuery({
     queryKey: ["report-daily", date],

@@ -533,7 +533,7 @@ export default function SettingsPage() {
                 "flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold text-left transition-colors",
                 activeSection === key
                   ? "bg-coral-soft text-coral"
-                  : "text-ink-mute hover:bg-mist hover:text-ink-soft",
+                  : "text-ink-soft hover:bg-mist hover:text-ink",
               )}
             >
               <Icon size={17} />
@@ -543,7 +543,7 @@ export default function SettingsPage() {
           {canReadSettings && (
             <button
               onClick={() => navigate("/settings/audit")}
-              className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold text-left text-ink-mute hover:bg-mist hover:text-ink-soft transition-colors"
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold text-left text-ink-soft hover:bg-mist hover:text-ink transition-colors"
             >
               <History size={17} />
               Audit Log
@@ -561,7 +561,7 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className={labelCls}>Hotel name <span className="text-coral">*</span></label>
+                    <label className={labelCls}>Hotel name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                     <input
                       className={inputCls} value={profile.name}
                       onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))}
@@ -649,7 +649,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className={labelCls}>City</label>
+                    <label className={labelCls}>City <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
                     <input
                       className={inputCls} value={profile.city}
                       onChange={(e) => setProfile((p) => ({ ...p, city: e.target.value }))}
@@ -713,14 +713,14 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className={labelCls}>Check-in time</label>
+                    <label className={labelCls}>Check-in time <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
                     <input
                       type="time" className={inputCls} value={ops.checkInTime}
                       onChange={(e) => setOps((o) => ({ ...o, checkInTime: e.target.value }))}
                     />
                   </div>
                   <div>
-                    <label className={labelCls}>Check-out time</label>
+                    <label className={labelCls}>Check-out time <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
                     <input
                       type="time" className={inputCls} value={ops.checkOutTime}
                       onChange={(e) => setOps((o) => ({ ...o, checkOutTime: e.target.value }))}

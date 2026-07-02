@@ -85,6 +85,7 @@ export const ReservationService = {
                 roomType: { select: { name: true, typeName: true } },
               },
             },
+            group: { select: { groupRef: true, payerType: true, name: true } },
           },
           orderBy: buildReservationOrderBy(query.sortBy, query.sortDir),
           skip,
@@ -98,11 +99,25 @@ export const ReservationService = {
   },
 
   async counts(withTenant: WithTenantFn) {
+    // Fetch all reservations but only the status + groupId fields so we can
+    // deduplicate group bookings — a group of N rooms should count as 1, not N.
     const rows = await withTenant((db) =>
-      db.reservation.groupBy({ by: ["status"], _count: { id: true } })
+      db.reservation.findMany({ select: { status: true, groupId: true } })
     );
+
+    const seenGroups = new Set<string>();
     const result: Partial<Record<ReservationStatus, number>> = {};
-    for (const row of rows) result[row.status] = row._count.id;
+
+    for (const row of rows) {
+      if (row.groupId) {
+        // Only count the first reservation seen for each group+status pair
+        const key = `${row.groupId}|${row.status}`;
+        if (seenGroups.has(key)) continue;
+        seenGroups.add(key);
+      }
+      result[row.status] = (result[row.status] ?? 0) + 1;
+    }
+
     return result;
   },
 

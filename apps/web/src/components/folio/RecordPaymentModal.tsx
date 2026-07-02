@@ -102,7 +102,7 @@ export function RecordPaymentModal({ reservationId, balanceDue, onClose }: Recor
 
           {/* Amount */}
           <div>
-            <label className={labelCls}>Amount (PKR) <span className="text-coral normal-case tracking-normal">*</span></label>
+            <label className={labelCls}>Amount (PKR) <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <input
               type="number" min="0" step="0.01"
               value={amount} onChange={(e) => setAmount(e.target.value)}

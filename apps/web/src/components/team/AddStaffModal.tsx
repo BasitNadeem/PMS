@@ -133,7 +133,7 @@ export function AddStaffModal({ onClose, onSuccess }: AddStaffModalProps) {
           {/* Full name */}
           <div>
             <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">
-              Full name <span className="text-coral">*</span>
+              Full name <span className="text-coral text-[15px] font-bold leading-none">*</span>
             </label>
             <input
               type="text" value={name}
@@ -147,7 +147,7 @@ export function AddStaffModal({ onClose, onSuccess }: AddStaffModalProps) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">
-                Email <span className="text-coral">*</span>
+                Email <span className="text-coral text-[15px] font-bold leading-none">*</span>
               </label>
               <input
                 type="email" value={email}
@@ -170,7 +170,7 @@ export function AddStaffModal({ onClose, onSuccess }: AddStaffModalProps) {
           {/* Password */}
           <div>
             <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">
-              Password <span className="text-coral">*</span>
+              Password <span className="text-coral text-[15px] font-bold leading-none">*</span>
             </label>
             <div className="relative">
               <input
@@ -194,7 +194,7 @@ export function AddStaffModal({ onClose, onSuccess }: AddStaffModalProps) {
           {/* Role grid */}
           <div>
             <label className="mb-2 block text-[13px] font-semibold text-ink-soft">
-              Role <span className="text-coral">*</span>
+              Role <span className="text-coral text-[15px] font-bold leading-none">*</span>
             </label>
             <div className="grid grid-cols-2 gap-2">
               {ROLE_CARDS.map(({ name: roleName, label, icon: Icon, color }) => {

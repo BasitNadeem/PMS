@@ -14,7 +14,10 @@ const DEFAULT_WIDTH = 480;
 const MIN_WIDTH     = 360;
 const MAX_WIDTH     = 820;
 
-function todayIso() { return new Date().toISOString().slice(0, 10); }
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 function formatPKR(paisas: number) {
   const sign = paisas < 0 ? "−" : "";

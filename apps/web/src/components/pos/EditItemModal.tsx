@@ -127,7 +127,7 @@ export function EditItemModal({ item, onClose }: EditItemModalProps) {
             </div>
           )}
           <div>
-            <label className={labelClass}>Name</label>
+            <label className={labelClass}>Name <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
           </div>
           <div>
@@ -135,7 +135,7 @@ export function EditItemModal({ item, onClose }: EditItemModalProps) {
             <input type="text" value={desc} onChange={(e) => setDesc(e.target.value)} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Price (PKR)</label>
+            <label className={labelClass}>Price (PKR) <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} min="0" step="1" className={inputClass} />
           </div>
 

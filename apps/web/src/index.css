@@ -94,38 +94,76 @@
   --color-scrollbar-track-color: #C7C9E4;
 }
 
-/* ── QR guest menu — "Resort" theme ───────────────────────────────────────────
+/* ── QR guest menu — "Linen & Terra" theme ────────────────────────────────────
    Deliberately independent of the admin app's data-theme system above: this
    is the customer-facing ordering surface, reached straight from a table/
-   room QR code, not the staff dashboard — it gets its own vivid, vacation-
-   resort palette (sunset mango + lagoon teal + sand) rather than inheriting
-   whichever brand color the hotel picked for its back-office. */
+   room QR code, not the staff dashboard. Palette + type pairing mirror the
+   "Linen & Terra" boutique-resort design system (terracotta + sage + warm
+   linen, Libre Caslon Text headlines / DM Sans body) — see
+   stitch_boutique_retreat_dining_system/linen_terra/DESIGN.md. */
 .qr-theme {
-  --qr-bg: 253 244 228;
-  --qr-bg-deep: 246 223 185;
-  --qr-card: 255 252 247;
-  --qr-line: 237 213 180;
-  --qr-line-soft: 245 231 209;
+  --qr-bg: 255 248 246;
+  --qr-bg-deep: 237 213 203;
+  --qr-card: 255 241 235;
+  --qr-line: 223 192 179;
+  --qr-line-soft: 255 234 225;
 
-  --qr-ink: 41 26 18;
-  --qr-ink-soft: 93 68 52;
-  --qr-ink-mute: 145 119 99;
-  --qr-ink-faint: 186 163 142;
+  --qr-ink: 37 25 19;
+  --qr-ink-soft: 88 66 56;
+  --qr-ink-mute: 139 114 103;
+  --qr-ink-faint: 184 157 140;
 
-  --qr-accent: 237 103 22;
-  --qr-accent-deep: 189 75 11;
-  --qr-accent-soft: 252 226 202;
+  --qr-accent: 212 93 26;
+  --qr-accent-deep: 158 62 0;
+  --qr-accent-soft: 255 219 204;
 
-  --qr-teal: 12 90 87;
-  --qr-teal-deep: 8 64 62;
-  --qr-teal-soft: 217 237 232;
+  --qr-teal: 82 99 81;
+  --qr-teal-deep: 58 75 58;
+  --qr-teal-soft: 210 229 206;
 
-  --qr-gold: 213 152 36;
-  --qr-gold-soft: 250 233 195;
+  --qr-gold: 123 116 94;
+  --qr-gold-soft: 235 226 200;
 
-  --qr-hero-1: 12 90 87;
-  --qr-hero-2: 184 88 38;
-  --qr-hero-3: 230 158 41;
+  --qr-hero-1: 237 213 203;
+  --qr-hero-2: 255 182 149;
+  --qr-hero-3: 195 81 11;
+
+  font-family: "DM Sans", system-ui, sans-serif;
+}
+
+.qr-theme .serif {
+  font-family: "Libre Caslon Text", Georgia, serif;
+}
+
+/* Replace the browser's default blue focus ring with a theme-consistent one,
+   only on keyboard focus — mouse/tap clicks stay ring-free, matching the
+   mockup (which has no visible focus rings on any button/pill). */
+.qr-theme button:focus {
+  outline: none;
+}
+.qr-theme button:focus-visible {
+  outline: 2px solid rgb(var(--qr-accent) / 0.5);
+  outline-offset: 2px;
+}
+
+/* Glassmorphic surface — translucent linen card with heavy blur, per
+   "Surface Layer" in the Linen & Terra elevation spec. */
+.qr-glass {
+  background: rgb(var(--qr-card) / 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* "Golden Shadow" — diffused terracotta-tinted glow used on primary CTAs
+   instead of a neutral drop shadow, so buttons read as sunlit rather than flat. */
+.qr-golden-shadow {
+  box-shadow: 0 10px 25px -5px rgb(var(--qr-accent) / 0.25), 0 8px 10px -6px rgb(var(--qr-accent) / 0.15);
+}
+
+/* Faint linen/paper grain, used behind the resort photo and on flat
+   backgrounds so nothing reads as a sterile flat color. */
+.qr-texture {
+  background-image: url('data:image/svg+xml,%3Csvg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="n"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100" height="100" filter="url(%23n)" opacity="0.05"/%3E%3C/svg%3E');
 }
 
 /* ── Base ──────────────────────────────────────────────────────────────────── */

@@ -286,7 +286,7 @@ export default function HousekeepingPage() {
               onClick={() => setActiveTab(tab.value)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 h-9 text-[13px] font-semibold transition-all",
-                on ? "bg-ink text-white" : "bg-line-soft text-ink-mute hover:text-ink-soft",
+                on ? "bg-ink text-white" : "bg-white border border-line text-ink-soft hover:border-coral/30 hover:text-ink",
               )}
             >
               {tab.label}

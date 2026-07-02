@@ -66,7 +66,7 @@ export function AddCategoryModal({ onClose }: AddCategoryModalProps) {
             </div>
           )}
           <div>
-            <label className={labelClass}>Name <span className="text-coral normal-case tracking-normal">*</span></label>
+            <label className={labelClass}>Name <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <input
               type="text"
               value={name}

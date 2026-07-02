@@ -60,7 +60,7 @@ export function ResolveTicketModal({ ticket, onClose }: ResolveTicketModalProps)
           )}
 
           <div>
-            <label className={labelCls}>Resolution Notes <span className="text-coral normal-case tracking-normal">*</span></label>
+            <label className={labelCls}>Resolution Notes <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <textarea
               rows={4}
               autoFocus

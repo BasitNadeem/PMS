@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { X, CheckCircle, AlertTriangle } from "lucide-react";
+import { X, CheckCircle2, AlertTriangle, LogOut } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { folioService, type FolioLineItem, type FolioItemType, type PaymentMethod } from "../../services/folio";
 import { reservationsService, type ReservationDetail } from "../../services/reservations";
@@ -35,19 +35,19 @@ const ITEM_LABELS: Partial<Record<FolioItemType, string>> = {
 function formatPkr(paise: number): string {
   return `PKR ${(paise / 100).toLocaleString("en-PK")}`;
 }
-
 function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat("en-PK", {
-    day: "2-digit", month: "short", year: "numeric",
-  }).format(new Date(iso));
+  return new Intl.DateTimeFormat("en-PK", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(iso));
 }
+
+const inputCls = "w-full rounded-xl border border-line bg-mist px-3.5 py-2.5 text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors";
+const labelCls = "block text-[12.5px] font-semibold uppercase tracking-wide text-ink-mute mb-1.5";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export interface CheckOutModalProps {
   reservation: ReservationDetail;
-  onClose: () => void;
-  onSuccess: (message: string) => void;
+  onClose:     () => void;
+  onSuccess:   (message: string) => void;
 }
 
 export function CheckOutModal({ reservation, onClose, onSuccess }: CheckOutModalProps) {
@@ -66,16 +66,11 @@ export function CheckOutModal({ reservation, onClose, onSuccess }: CheckOutModal
     queryFn:  () => folioService.getFolio(reservation.id),
   });
 
-  // Derive live balance from folio query; fall back to reservation.folio summary while loading
   const balanceDue = folio?.balanceDue ?? reservation.folio?.balanceDue ?? 0;
 
-  // Pre-fill amount once on first render (use summary value; updates when folio loads)
-  const [amount,         setAmount]         = useState(() =>
-    String((reservation.folio?.balanceDue ?? 0) / 100),
-  );
+  const [amount,         setAmount]         = useState(() => String((reservation.folio?.balanceDue ?? 0) / 100));
   const amountSyncedRef = useRef(false);
 
-  // Sync amount field when folio loads for the first time (if user hasn't edited it)
   if (!amountSyncedRef.current && folio && folio.balanceDue !== (reservation.folio?.balanceDue ?? 0)) {
     setAmount(String(folio.balanceDue / 100));
     amountSyncedRef.current = true;
@@ -107,10 +102,7 @@ export function CheckOutModal({ reservation, onClose, onSuccess }: CheckOutModal
   async function handleCollectAndCheckOut() {
     setError(null);
     const amountNum = parseFloat(amount);
-    if (!amount || isNaN(amountNum) || amountNum <= 0) {
-      setError("Enter a valid payment amount");
-      return;
-    }
+    if (!amount || isNaN(amountNum) || amountNum <= 0) { setError("Enter a valid payment amount"); return; }
     setIsProcessing(true);
     try {
       await folioService.addPayment(reservation.id, {
@@ -139,143 +131,146 @@ export function CheckOutModal({ reservation, onClose, onSuccess }: CheckOutModal
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4 anim-fade-in"
+      onMouseDown={onClose}
+    >
+      <div
+        className="bg-paper rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col anim-scale-in"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 sticky top-0 bg-white z-10">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">
-              Check Out — {reservation.guest.fullName}
-            </h2>
-            <p className="text-xs font-mono text-gray-400 mt-0.5">{reservation.confirmationNumber}</p>
+        <div className="flex items-center gap-3 px-6 pt-6 pb-5 border-b border-line flex-shrink-0">
+          <div className="grid place-items-center h-10 w-10 rounded-xl bg-coral-soft shrink-0">
+            <LogOut size={18} className="text-coral" />
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+          <div className="flex-1 min-w-0">
+            <h2 className="serif text-[20px] text-ink leading-tight">Check Out</h2>
+            <p className="text-[13px] text-ink-mute mt-0.5 truncate">
+              {reservation.guest.fullName}
+              <span className="ml-2 font-mono text-[11px] text-ink-faint">{reservation.confirmationNumber}</span>
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="grid place-items-center h-9 w-9 rounded-full hover:bg-mist text-ink-mute transition-colors -mr-1 -mt-1"
+          >
             <X size={18} />
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-5">
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto scroll-area px-6 py-5 space-y-5">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+            <div className="bg-clay-soft border border-clay/20 text-clay text-[13px] rounded-xl px-4 py-3">
               {error}
             </div>
           )}
 
-          {/* Settlement summary card */}
-          <div className="bg-gray-50 rounded-xl border border-gray-200 p-5 space-y-4">
-            {/* Stay info */}
-            <div className="grid grid-cols-3 gap-3 text-sm border-b border-gray-200 pb-4">
+          {/* Settlement summary */}
+          <div className="rounded-xl border border-line bg-mist overflow-hidden">
+            {/* Stay header */}
+            <div className="grid grid-cols-3 gap-3 px-5 py-4 border-b border-line-soft">
               <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">Room</p>
-                <p className="font-medium text-gray-800">{room?.room.number ?? "—"}</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-1">Room</p>
+                <p className="text-[14px] font-semibold text-ink">{room?.room.number ?? "—"}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">Stay</p>
-                <p className="font-medium text-gray-800">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-1">Stay</p>
+                <p className="text-[13px] font-medium text-ink-soft tnum">
                   {formatDate(reservation.checkInDate)} → {formatDate(reservation.checkOutDate)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">Nights</p>
-                <p className="font-medium text-gray-800">{nights}</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-1">Nights</p>
+                <p className="text-[14px] font-semibold text-ink">{nights}</p>
               </div>
             </div>
 
             {/* Charge items */}
-            {folioLoading ? (
-              <div className="space-y-2 animate-pulse">
-                <div className="h-3 bg-gray-200 rounded w-full" />
-                <div className="h-3 bg-gray-200 rounded w-3/4" />
-              </div>
-            ) : folio && folio.items.length > 0 ? (
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-                  Charges
-                </p>
-                <div className="space-y-1.5">
-                  {folio.items.map((item: FolioLineItem) => (
-                    <div key={item.id} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600 truncate max-w-[60%]">
-                        {ITEM_LABELS[item.type] ?? item.type.replace(/_/g, " ")} — {item.description}
-                      </span>
-                      <span className={cn(
-                        "font-medium flex-shrink-0",
-                        item.type === "DISCOUNT" ? "text-green-600" : "text-gray-800",
-                      )}>
-                        {item.type === "DISCOUNT" ? "-" : ""}{formatPkr(item.amount)}
-                      </span>
-                    </div>
-                  ))}
+            <div className="px-5 py-4 space-y-3">
+              {folioLoading ? (
+                <div className="space-y-2 animate-pulse">
+                  <div className="h-3 bg-line-soft rounded w-full" />
+                  <div className="h-3 bg-line-soft rounded w-3/4" />
                 </div>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-400 italic">No charges recorded</p>
-            )}
+              ) : folio && folio.items.length > 0 ? (
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-2">Charges</p>
+                  <div className="space-y-1.5">
+                    {folio.items.map((item: FolioLineItem) => (
+                      <div key={item.id} className="flex items-center justify-between gap-2">
+                        <span className="text-[13px] text-ink-soft truncate">
+                          {ITEM_LABELS[item.type] ?? item.type.replace(/_/g, " ")} — {item.description}
+                        </span>
+                        <span className={cn(
+                          "text-[13px] font-semibold flex-shrink-0 tnum",
+                          item.type === "DISCOUNT" ? "text-pine-deep" : "text-ink",
+                        )}>
+                          {item.type === "DISCOUNT" ? "−" : ""}{formatPkr(item.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-[13px] text-ink-faint italic">No charges recorded</p>
+              )}
 
-            {/* Totals */}
-            <div className="border-t border-gray-200 pt-3 space-y-1.5 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Total Charges</span>
-                <span className="font-medium text-gray-800">
-                  {formatPkr(folio?.chargesTotal ?? 0)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Payments Received</span>
-                <span className="text-gray-800">{formatPkr(folio?.paymentsTotal ?? 0)}</span>
-              </div>
-              <div className="border-t border-gray-200 my-1" />
-              <div className="flex justify-between font-semibold">
-                <span className="text-gray-700">Balance Due</span>
-                <span className={balanceDue > 0 ? "text-red-600" : "text-green-600"}>
-                  {formatPkr(balanceDue)}
-                </span>
+              {/* Totals */}
+              <div className="border-t border-line-soft pt-3 space-y-1.5">
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="text-ink-mute">Total Charges</span>
+                  <span className="font-semibold text-ink tnum">{formatPkr(folio?.chargesTotal ?? 0)}</span>
+                </div>
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="text-ink-mute">Payments Received</span>
+                  <span className="text-ink tnum">{formatPkr(folio?.paymentsTotal ?? 0)}</span>
+                </div>
+                <div className="pt-2 border-t border-line-soft flex items-center justify-between">
+                  <span className="text-[14px] font-bold text-ink">Balance Due</span>
+                  <span className={cn(
+                    "serif text-[22px] tnum",
+                    balanceDue > 0 ? "text-clay" : "text-pine-deep",
+                  )}>
+                    {formatPkr(balanceDue)}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* STATE A — Balance > 0 */}
+          {/* STATE A — Balance outstanding */}
           {balanceDue > 0 ? (
             <div className="space-y-4">
-              {/* Inline payment form */}
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Amount (PKR)
-                  </label>
+                  <label className={labelCls}>Amount (PKR) <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
                   <input
-                    type="number"
-                    min="0"
-                    step="0.01"
+                    type="number" min="0" step="0.01"
                     value={amount}
                     onChange={(e) => { setAmount(e.target.value); amountSyncedRef.current = true; }}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className={inputCls}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Payment Method
-                  </label>
+                  <label className={labelCls}>Payment Method</label>
                   <select
                     value={method}
                     onChange={(e) => setMethod(e.target.value as PaymentMethod)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                    className={cn(inputCls, "cursor-pointer")}
                   >
-                    {PAYMENT_METHODS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
+                    {PAYMENT_METHODS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Reference (optional)
-                  </label>
+                  <label className={labelCls}>Reference <span className="normal-case tracking-normal text-ink-faint font-normal">(optional)</span></label>
                   <input
                     type="text"
                     value={transactionRef}
                     onChange={(e) => setTransactionRef(e.target.value)}
                     placeholder="Transaction ID or receipt number"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className={inputCls}
                   />
                 </div>
               </div>
@@ -285,8 +280,8 @@ export function CheckOutModal({ reservation, onClose, onSuccess }: CheckOutModal
                   onClick={handleCollectAndCheckOut}
                   disabled={isProcessing}
                   className={cn(
-                    "w-full bg-indigo-600 text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
-                    isProcessing ? "opacity-60 cursor-not-allowed" : "hover:bg-indigo-700",
+                    "w-full h-12 rounded-full bg-coral text-white font-semibold text-[14px] transition-colors shadow-pop",
+                    isProcessing ? "opacity-50 cursor-not-allowed" : "hover:bg-coral-dark",
                   )}
                 >
                   {isProcessing ? "Processing…" : "Collect & Check Out"}
@@ -295,26 +290,26 @@ export function CheckOutModal({ reservation, onClose, onSuccess }: CheckOutModal
                   onClick={handleCheckOutWithoutPayment}
                   disabled={isProcessing}
                   className={cn(
-                    "w-full border border-gray-300 text-gray-600 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
-                    isProcessing ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-50",
+                    "w-full h-11 rounded-full border border-line text-ink-soft font-semibold text-[13.5px] transition-colors",
+                    isProcessing ? "opacity-40 cursor-not-allowed" : "hover:bg-line-soft hover:text-ink",
                   )}
                 >
                   Check Out Without Payment
                 </button>
-                <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2.5">
-                  <AlertTriangle size={13} className="flex-shrink-0" />
-                  <span>
+                <div className="flex items-center gap-2.5 rounded-xl bg-amber-soft border border-amber/25 px-4 py-3">
+                  <AlertTriangle size={14} className="text-amber shrink-0" />
+                  <span className="text-[12.5px] font-semibold text-amber">
                     Folio will remain open with {formatPkr(balanceDue)} outstanding
                   </span>
                 </div>
               </div>
             </div>
           ) : (
-            /* STATE B — Balance = 0 */
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-5 py-4">
-                <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
-                <p className="text-sm font-medium text-green-700">
+            /* STATE B — Fully settled */
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 rounded-xl bg-pine-soft border border-pine/20 px-4 py-3.5">
+                <CheckCircle2 size={18} className="text-pine-deep shrink-0" />
+                <p className="text-[13.5px] font-semibold text-pine-deep">
                   Account settled — no outstanding balance
                 </p>
               </div>
@@ -322,8 +317,8 @@ export function CheckOutModal({ reservation, onClose, onSuccess }: CheckOutModal
                 onClick={handleCheckOutWithoutPayment}
                 disabled={isProcessing}
                 className={cn(
-                  "w-full bg-indigo-600 text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
-                  isProcessing ? "opacity-60 cursor-not-allowed" : "hover:bg-indigo-700",
+                  "w-full h-12 rounded-full bg-ink text-white font-semibold text-[14px] transition-colors shadow-pop",
+                  isProcessing ? "opacity-50 cursor-not-allowed" : "hover:bg-ink/90",
                 )}
               >
                 {isProcessing ? "Processing…" : "Confirm Check Out"}

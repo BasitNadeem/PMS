@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Receipt, TrendingUp, Banknote, AlertCircle, LogOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Receipt, TrendingUp, Banknote, AlertCircle, LogOut, ChevronsUpDown, ChevronUp, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { folioService, type BillingFolio } from "@/services/folio";
 import { Card } from "@/components/ui/Card";
@@ -42,25 +42,32 @@ function SummaryCard({ icon: Icon, tone, label, value, sub, delay = 0 }: {
 function FolioRow({ folio }: { folio: BillingFolio }) {
   const navigate = useNavigate();
   const totalCharged = folio.chargesTotal + folio.taxTotal - folio.discountsTotal;
-  const room = folio.reservation.rooms[0]?.room.number ?? "—";
-  const statusLabel = folio.isOpen ? "Open" : "Settled";
-  const t = toneOf(statusLabel);
+  const room         = folio.reservation.rooms[0]?.room.number ?? "—";
+  const statusLabel  = folio.isOpen ? "Open" : "Settled";
+  const isGroup      = !!folio.reservation.groupId;
 
   return (
     <div
       onClick={() => navigate(`/financials/folio/${folio.reservation.id}`)}
-      className="group grid grid-cols-2 md:grid-cols-[1.8fr_0.8fr_1fr_1fr_1fr_1fr_auto] gap-3 px-5 py-3.5 items-center hover:bg-mist cursor-pointer transition-colors border-b border-line-soft last:border-0"
+      className={cn(
+        "group grid grid-cols-2 md:grid-cols-[1.8fr_0.8fr_1fr_1fr_0.9fr_1.4fr_auto] gap-3 px-5 py-3.5 items-center cursor-pointer transition-all border-b border-line-soft last:border-0",
+        // Group folios: purple inset stripe + dusk-tinted hover (same language as reservations page)
+        isGroup
+          ? "shadow-[inset_3px_0_0_#5B4B82] hover:bg-[#EDE9F4]"
+          : "hover:bg-line-soft",
+      )}
     >
+      {/* Guest */}
       <div className="flex items-center gap-3 min-w-0 col-span-2 md:col-span-1">
         <Avatar name={folio.reservation.guest.fullName} size={40} />
         <div className="min-w-0">
           <div className="text-[14.5px] font-semibold text-ink truncate">{folio.reservation.guest.fullName}</div>
           <div className="flex items-center gap-1.5 text-[12px] text-ink-faint tnum">
             <span>{folio.reservation.confirmationNumber || "—"}</span>
-            {folio.reservation.groupId && (
+            {isGroup && (
               <span
                 onClick={(e) => { e.stopPropagation(); navigate(`/groups/${folio.reservation.groupId}`); }}
-                className="rounded-full bg-dusk-soft px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-dusk hover:bg-dusk/20 transition-colors"
+                className="rounded-full bg-dusk px-2 py-0.5 text-[10px] font-bold tracking-wide text-white hover:bg-dusk/80 transition-colors"
               >
                 GROUP
               </span>
@@ -68,22 +75,31 @@ function FolioRow({ folio }: { folio: BillingFolio }) {
           </div>
         </div>
       </div>
+
+      {/* Room */}
       <div className="hidden md:block text-[13px] font-semibold text-ink">Room {room}</div>
+
+      {/* Dates */}
       <div className="hidden md:block text-[13px] text-ink-soft tnum">{formatDate(folio.reservation.checkInDate)}</div>
       <div className="hidden md:block text-[13px] text-ink-soft tnum">{formatDate(folio.reservation.checkOutDate)}</div>
-      <div className="hidden md:block text-right">
+
+      {/* Charged / Paid */}
+      <div className="hidden md:block">
         <div className="serif text-[17px] text-ink tnum">{formatPkr(totalCharged)}</div>
         <div className="text-[11px] text-ink-mute">Paid: {formatPkr(folio.paymentsTotal)}</div>
       </div>
+
+      {/* Balance + status */}
       <div className="flex items-center gap-2 justify-end">
-        <span
-          className="hidden md:inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold"
-          style={{ background: t.bg, color: t.fg }}
-        >
-          {folio.balanceDue > 0 ? (
-            <span className="font-bold text-clay">{formatPkr(folio.balanceDue)} due</span>
-          ) : "Settled"}
-        </span>
+        {folio.balanceDue > 0 ? (
+          <span className="hidden md:inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold bg-clay-soft text-clay">
+            {formatPkr(folio.balanceDue)} due
+          </span>
+        ) : (
+          <span className="hidden md:inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold bg-pine-soft text-pine-deep">
+            Settled
+          </span>
+        )}
         <StatusBadge status={statusLabel} size="sm" />
         <ChevronRight size={18} className="text-ink-faint group-hover:text-ink-mute hidden md:block" />
       </div>
@@ -135,77 +151,80 @@ export default function BillingPage() {
         <SummaryCard icon={LogOut}     tone="amber"  label="Checked-out unpaid"  value={String(summary?.checkedOutUnpaid ?? 0)} sub="Departed with balance" delay={180} />
       </div>
 
-      {/* Filters + sort bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        {/* Status filter pills */}
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-mist border border-line">
-          {(["open", "settled", "all"] as const).map((s) => {
-            const active = statusFilter === s;
-            const activeClass =
-              s === "open"    ? "bg-amber/15 text-amber border-amber/30" :
-              s === "settled" ? "bg-pine/15 text-pine border-pine/30" :
-                                "bg-card text-ink border-line shadow-sm";
-            return (
-              <button
-                key={s}
-                onClick={() => {
-                  setStatusFilter(s);
-                  setPage(1);
-                  if (s === "open")    { setSortBy("checkOut"); setSortDir("asc"); }
-                  if (s === "settled") { setSortBy("checkOut"); setSortDir("desc"); }
-                }}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-lg px-3.5 h-8 text-[13px] font-semibold transition-all border",
-                  active ? activeClass : "text-ink-mute border-transparent hover:text-ink hover:bg-line-soft",
-                )}
-              >
-                <span className={cn(
-                  "h-1.5 w-1.5 rounded-full shrink-0 transition-colors",
-                  active
-                    ? s === "open" ? "bg-amber" : s === "settled" ? "bg-pine" : "bg-ink"
-                    : "bg-ink-faint",
-                )} />
-                {s === "open" ? "Open" : s === "settled" ? "Settled" : "All"}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Sort dropdown */}
-        {(() => {
-          const current = `${sortBy}:${sortDir}`;
-          const opts = [
-            { value: "checkOut:asc",   label: "Check-out ↑" },
-            { value: "checkOut:desc",  label: "Check-out ↓" },
-            { value: "balance:desc",   label: "Balance (high first)" },
-            { value: "balance:asc",    label: "Balance (low first)" },
-            { value: "guestName:asc",  label: "Guest A–Z" },
-            { value: "guestName:desc", label: "Guest Z–A" },
-          ];
-          const sorted = [...opts].sort((a) => (a.value === current ? -1 : 0));
+      {/* Status filter pills */}
+      <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-mist border border-line mb-3">
+        {(["open", "settled", "all"] as const).map((s) => {
+          const active = statusFilter === s;
+          const activeClass =
+            s === "open"    ? "bg-amber/15 text-amber border-amber/30" :
+            s === "settled" ? "bg-pine/15 text-pine border-pine/30" :
+                              "bg-card text-ink border-line shadow-sm";
           return (
-            <select
-              value={current}
-              onChange={(e) => {
-                const [s, d] = e.target.value.split(":");
-                setSortBy(s as typeof sortBy);
-                setSortDir(d as "asc" | "desc");
+            <button
+              key={s}
+              onClick={() => {
+                setStatusFilter(s);
                 setPage(1);
+                if (s === "open")    { setSortBy("checkOut"); setSortDir("asc"); }
+                if (s === "settled") { setSortBy("checkOut"); setSortDir("desc"); }
               }}
-              className="rounded-xl border border-line bg-mist px-3 py-2 text-[13px] text-ink focus:outline-none"
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg px-3.5 h-8 text-[13px] font-semibold transition-all border",
+                active ? activeClass : "text-ink-mute border-transparent hover:text-ink hover:bg-line-soft",
+              )}
             >
-              {sorted.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+              <span className={cn(
+                "h-1.5 w-1.5 rounded-full shrink-0 transition-colors",
+                active
+                  ? s === "open" ? "bg-amber" : s === "settled" ? "bg-pine" : "bg-ink"
+                  : "bg-ink-faint",
+              )} />
+              {s === "open" ? "Open" : s === "settled" ? "Settled" : "All"}
+            </button>
           );
-        })()}
+        })}
       </div>
 
       {/* Folios list */}
       <Card pad={false} className="anim-fade-up overflow-hidden">
-        {/* Column headers */}
-        <div className="hidden md:grid grid-cols-[1.8fr_0.8fr_1fr_1fr_1fr_1fr_auto] gap-3 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-ink-faint border-b border-line-soft">
-          <span>Guest</span><span>Room</span><span>Check-in</span><span>Check-out</span><span>Total</span><span>Balance</span><span />
-        </div>
+        {/* Column headers — sortable columns are clickable */}
+        {(() => {
+          function SortHeader({ col, label }: { col: typeof sortBy; label: string }) {
+            const active = sortBy === col;
+            const Icon = active ? (sortDir === "asc" ? ChevronUp : ChevronDown) : ChevronsUpDown;
+            return (
+              <button
+                onClick={() => {
+                  if (active) {
+                    setSortDir((d) => d === "asc" ? "desc" : "asc");
+                  } else {
+                    setSortBy(col);
+                    setSortDir("asc");
+                  }
+                  setPage(1);
+                }}
+                className={cn(
+                  "flex items-center gap-1 group transition-colors",
+                  active ? "text-ink" : "text-ink-faint hover:text-ink-mute",
+                )}
+              >
+                {label}
+                <Icon size={12} className={cn("transition-colors", active ? "text-coral" : "text-ink-faint group-hover:text-ink-mute")} />
+              </button>
+            );
+          }
+          return (
+            <div className="hidden md:grid grid-cols-[1.8fr_0.8fr_1fr_1fr_0.9fr_1.4fr_auto] gap-3 px-5 py-3 text-[11px] font-bold uppercase tracking-wider border-b border-line-soft">
+              <SortHeader col="guestName" label="Guest" />
+              <span className="text-ink-faint">Room</span>
+              <span className="text-ink-faint">Check-in</span>
+              <SortHeader col="checkOut" label="Check-out" />
+              <span className="text-ink-faint">Total</span>
+              <SortHeader col="balance" label="Balance" />
+              <span />
+            </div>
+          );
+        })()}
 
         {isLoading ? (
           Array.from({ length: 5 }).map((_, i) => (

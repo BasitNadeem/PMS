@@ -103,12 +103,12 @@ export function AddGuestModal({ onClose, onSuccess }: AddGuestModalProps) {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className={labelCls}>First Name <span className="text-coral normal-case tracking-normal">*</span></label>
+                    <label className={labelCls}>First Name <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
                     <input type="text" value={form.firstName} onChange={(e) => set("firstName", e.target.value)} className={ic("firstName")} />
                     {errors.firstName && <p className="text-[12px] text-clay mt-1">{errors.firstName}</p>}
                   </div>
                   <div>
-                    <label className={labelCls}>Last Name <span className="text-coral normal-case tracking-normal">*</span></label>
+                    <label className={labelCls}>Last Name <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
                     <input type="text" value={form.lastName} onChange={(e) => set("lastName", e.target.value)} className={ic("lastName")} />
                     {errors.lastName && <p className="text-[12px] text-clay mt-1">{errors.lastName}</p>}
                   </div>
@@ -143,7 +143,7 @@ export function AddGuestModal({ onClose, onSuccess }: AddGuestModalProps) {
                     <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="optional" className={ic("email")} />
                   </div>
                   <div>
-                    <label className={labelCls}>Phone <span className="text-coral normal-case tracking-normal">*</span></label>
+                    <label className={labelCls}>Phone <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
                     <input type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)} className={ic("phone")} />
                     {errors.phone && <p className="text-[12px] text-clay mt-1">{errors.phone}</p>}
                   </div>
@@ -160,7 +160,7 @@ export function AddGuestModal({ onClose, onSuccess }: AddGuestModalProps) {
                     </select>
                   </div>
                   <div>
-                    <label className={labelCls}>ID Number <span className="text-coral normal-case tracking-normal">*</span></label>
+                    <label className={labelCls}>ID Number <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
                     <input type="text" value={form.documentNumber} onChange={(e) => set("documentNumber", e.target.value)} className={ic("documentNumber")} />
                     {errors.documentNumber && <p className="text-[12px] text-clay mt-1">{errors.documentNumber}</p>}
                   </div>

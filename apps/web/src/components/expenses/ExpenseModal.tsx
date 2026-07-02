@@ -31,7 +31,8 @@ interface ExpenseModalProps {
 }
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function ExpenseModal({ mode, expense, onClose, onSuccess }: ExpenseModalProps) {
@@ -118,11 +119,11 @@ export function ExpenseModal({ mode, expense, onClose, onSuccess }: ExpenseModal
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>Date</label>
+              <label className={labelCls}>Date <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>Category</label>
+              <label className={labelCls}>Category <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
               <select value={category} onChange={(e) => setCategory(e.target.value as ExpenseCategory)} className={selectCls}>
                 {EXPENSE_CATEGORIES.map((c) => (
                   <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
@@ -132,7 +133,7 @@ export function ExpenseModal({ mode, expense, onClose, onSuccess }: ExpenseModal
           </div>
 
           <div>
-            <label className={labelCls}>Description <span className="text-coral normal-case tracking-normal">*</span></label>
+            <label className={labelCls}>Description <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <input
               type="text" value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -142,7 +143,7 @@ export function ExpenseModal({ mode, expense, onClose, onSuccess }: ExpenseModal
           </div>
 
           <div>
-            <label className={labelCls}>Paid To <span className="text-coral normal-case tracking-normal">*</span></label>
+            <label className={labelCls}>Paid To <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <input
               type="text" value={paidTo}
               onChange={(e) => setPaidTo(e.target.value)}
@@ -152,7 +153,7 @@ export function ExpenseModal({ mode, expense, onClose, onSuccess }: ExpenseModal
           </div>
 
           <div>
-            <label className={labelCls}>Amount (PKR) <span className="text-coral normal-case tracking-normal">*</span></label>
+            <label className={labelCls}>Amount (PKR) <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <input
               type="number" value={amountInput} min="1" step="1"
               onChange={(e) => setAmountInput(e.target.value)}

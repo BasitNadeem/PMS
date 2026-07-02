@@ -93,6 +93,8 @@ export interface CreateItemDto {
   categoryId: string;
   isAvailable?: boolean;
   sortOrder?: number;
+  inventoryItemId?: string | null;
+  inventoryQtyUsed?: number | null;
   photoUrl?: string | null;
   isQrVisible?: boolean;
   isFeatured?: boolean;

@@ -126,16 +126,18 @@ export const PosMenuService = {
 
       const item = await db.posItem.create({
         data: {
-          hotelId:     actor.hotelId,
+          hotelId:          actor.hotelId,
           categoryId,
-          name:        dto.name,
-          description: dto.description,
-          price:       dto.price,
-          isAvailable: dto.isAvailable,
-          sortOrder:   dto.sortOrder,
-          photoUrl:    dto.photoUrl ?? null,
-          isQrVisible: dto.isQrVisible,
-          isFeatured:  dto.isFeatured,
+          name:             dto.name,
+          description:      dto.description,
+          price:            dto.price,
+          isAvailable:      dto.isAvailable,
+          sortOrder:        dto.sortOrder,
+          inventoryItemId:  dto.inventoryItemId ?? null,
+          inventoryQtyUsed: dto.inventoryQtyUsed ?? null,
+          photoUrl:         dto.photoUrl ?? null,
+          isQrVisible:      dto.isQrVisible,
+          isFeatured:       dto.isFeatured,
         },
       });
       await db.auditLog.create({

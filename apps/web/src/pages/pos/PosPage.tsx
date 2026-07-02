@@ -155,96 +155,132 @@ export default function PosPage() {
         <h1 className="serif text-[34px] leading-[1.05] text-ink">Point of Sale</h1>
       </div>
 
-      {/* Tab nav */}
-      <div className="border-b border-line px-5 sm:px-7 lg:px-9 flex items-center gap-0.5 flex-shrink-0">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={cn(
-              "px-5 py-3.5 text-[13.5px] font-semibold transition-colors border-b-2 -mb-px",
-              tab === t.key
-                ? "border-coral text-coral"
-                : "border-transparent text-ink-mute hover:text-ink-soft",
-            )}
-          >
-            {t.label}
-            {t.key === "terminal" && cartItemCount > 0 && (
-              <span className="ml-2 inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-coral text-white text-[11px] font-bold leading-none">
-                {cartItemCount}
-              </span>
-            )}
-          </button>
-        ))}
+      {/* Tab nav — segmented control so it reads as a mode switcher, not a filter strip */}
+      <div className="px-5 sm:px-7 lg:px-9 py-3 border-b border-line flex-shrink-0">
+        <div className="inline-flex items-center bg-mist border border-line rounded-xl p-1 gap-0.5">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                "relative px-5 py-2 rounded-lg text-[13px] font-semibold transition-all",
+                tab === t.key
+                  ? "bg-white text-ink shadow-sm"
+                  : "text-ink-mute hover:text-ink-soft",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── TERMINAL TAB ─────────────────────────────────────────────────────── */}
       {tab === "terminal" && (
         <div className="flex overflow-hidden" style={{ height: "calc(100vh - 200px)", minHeight: 520 }}>
-          {/* Left: menu */}
-          <div className="flex flex-col overflow-hidden" style={{ flex: "0 0 64%" }}>
-            {/* Category filter pills */}
-            <div className="border-b border-line-soft px-5 py-3 flex gap-2 overflow-x-auto flex-shrink-0 scroll-area">
-              <button
-                onClick={() => setActiveCatId(null)}
-                className={cn(
-                  "flex-shrink-0 h-8 px-4 rounded-full text-[13px] font-semibold transition-colors",
-                  activeCatId === null
-                    ? "bg-ink text-white"
-                    : "bg-mist text-ink-soft hover:bg-line-soft",
-                )}
-              >
-                All
-              </button>
-              {terminalCats.map((cat) => (
+
+          {/* ── Left: category pills + item grid ── */}
+          <div className="flex flex-col overflow-hidden bg-paper" style={{ flex: "0 0 64%" }}>
+
+            {/* Category pill strip — same responsive padding as the tab nav and page header */}
+            <div className="px-5 sm:px-7 lg:px-9 pt-4 pb-3 flex-shrink-0">
+              <div className="flex gap-2 overflow-x-auto scrollbar-none">
                 <button
-                  key={cat.id}
-                  onClick={() => setActiveCatId(cat.id)}
+                  onClick={() => setActiveCatId(null)}
                   className={cn(
-                    "flex-shrink-0 h-8 px-4 rounded-full text-[13px] font-semibold transition-colors",
-                    activeCatId === cat.id
-                      ? "bg-ink text-white"
-                      : "bg-mist text-ink-soft hover:bg-line-soft",
+                    "flex-shrink-0 h-10 px-5 rounded-full text-[13px] font-semibold transition-all",
+                    activeCatId === null
+                      ? "bg-coral text-white shadow-pop"
+                      : "bg-white border border-line text-ink-soft shadow-sm hover:border-coral/50 hover:text-ink hover:shadow-md",
                   )}
                 >
-                  {cat.name}
+                  All
                 </button>
-              ))}
+                {terminalCats.map((cat) => {
+                  const active = activeCatId === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setActiveCatId(cat.id)}
+                      className={cn(
+                        "flex-shrink-0 h-10 px-5 rounded-full text-[13px] font-semibold transition-all",
+                        active
+                          ? "bg-coral text-white shadow-pop"
+                          : "bg-white border border-line text-ink-soft shadow-sm hover:border-coral/50 hover:text-ink hover:shadow-md",
+                      )}
+                    >
+                      {cat.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-3 border-b border-line-soft" />
             </div>
 
-            {/* Item grid */}
-            <div className="flex-1 overflow-y-auto scroll-area p-5">
+            {/* Item grid — left padding matches tab nav; right/top/bottom use smaller value */}
+            <div className="flex-1 overflow-y-auto scroll-area px-5 sm:px-7 lg:px-9 py-4">
               {filteredItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-ink-faint">
-                  <UtensilsCrossed size={32} className="mb-3 text-line" />
+                <div className="flex flex-col items-center justify-center h-full text-ink-faint gap-3">
+                  <div className="grid place-items-center h-14 w-14 rounded-2xl bg-line-soft text-ink-faint">
+                    <UtensilsCrossed size={26} />
+                  </div>
                   <p className="text-[14px] font-medium text-ink-mute">No items in this category</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                   {filteredItems.map((item) => {
-                    const cartItem = cart.find((c) => c.posItemId === item.id);
-                    const qty      = cartItem?.quantity ?? 0;
+                    const qty = cart.find((c) => c.posItemId === item.id)?.quantity ?? 0;
+                    const active = qty > 0;
                     return (
                       <button
                         key={item.id}
                         onClick={() => addToCart(item)}
                         className={cn(
-                          "relative text-left rounded-xl2 border p-4 transition-all min-h-[100px]",
-                          qty > 0
-                            ? "border-coral bg-[#FDF1EC] shadow-pop"
-                            : "border-line bg-card hover:border-coral/30 hover:shadow-sm",
+                          "relative text-left rounded-2xl p-4 transition-all min-h-[130px] flex flex-col gap-1 active:scale-[0.97]",
+                          active
+                            ? "bg-coral text-white shadow-float ring-0"
+                            : "bg-card border border-line hover:border-coral/40 hover:shadow-md",
                         )}
                       >
-                        {qty > 0 && (
-                          <span className="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-coral text-white text-[11px] font-bold flex items-center justify-center shadow-pop">
+                        {/* Qty badge */}
+                        {active && (
+                          <span className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/25 text-white text-[12px] font-bold flex items-center justify-center">
                             {qty}
                           </span>
                         )}
-                        <p className="font-semibold text-[13.5px] text-ink leading-snug pr-7">{item.name}</p>
+
+                        {/* Name */}
+                        <p className={cn(
+                          "font-bold text-[14.5px] leading-snug flex-1",
+                          active ? "text-white pr-8" : "text-ink",
+                        )}>
+                          {item.name}
+                        </p>
+
+                        {/* Description */}
                         {item.description && (
-                          <p className="text-[12px] text-ink-mute mt-0.5 truncate">{item.description}</p>
+                          <p className={cn(
+                            "text-[12px] line-clamp-1",
+                            active ? "text-white/70" : "text-ink-faint",
+                          )}>
+                            {item.description}
+                          </p>
                         )}
-                        <p className="text-[13px] font-semibold text-ink-soft mt-2.5 tnum">{formatPKR(item.price)}</p>
+
+                        {/* Footer: price + add indicator */}
+                        <div className="mt-2 flex items-center justify-between">
+                          <span className={cn(
+                            "font-bold text-[16px] tnum",
+                            active ? "text-white" : "text-coral",
+                          )}>
+                            {formatPKR(item.price)}
+                          </span>
+                          {!active && (
+                            <span className="grid place-items-center w-7 h-7 rounded-full bg-coral-soft text-coral">
+                              <Plus size={14} />
+                            </span>
+                          )}
+                        </div>
                       </button>
                     );
                   })}
@@ -253,76 +289,108 @@ export default function PosPage() {
             </div>
           </div>
 
-          {/* Right: cart */}
-          <div className="bg-card border-l border-line shadow-[-1px_0_0_0_rgba(33,30,26,0.04)] flex flex-col flex-shrink-0 overflow-hidden" style={{ flex: "0 0 36%" }}>
+          {/* ── Right: order panel ── */}
+          <div className="flex flex-col flex-shrink-0 overflow-hidden bg-card border-l border-line" style={{ flex: "0 0 36%" }}>
+
+            {/* Cart header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-line flex-shrink-0">
-              <h2 className="text-[15px] font-semibold text-ink">Current Order</h2>
+              <div className="flex items-center gap-2.5">
+                <div className="grid place-items-center w-9 h-9 rounded-xl bg-coral-soft flex-shrink-0">
+                  <Receipt size={16} className="text-coral" />
+                </div>
+                <div>
+                  <h2 className="text-[14.5px] font-bold text-ink leading-tight">Current Order</h2>
+                  <p className="text-[11px] text-ink-faint">
+                    {cartItemCount > 0 ? `${cartItemCount} item${cartItemCount !== 1 ? "s" : ""}` : "Empty"}
+                  </p>
+                </div>
+              </div>
               {cart.length > 0 && (
-                <button onClick={clearCart} className="text-[12px] text-clay font-semibold hover:text-clay-deep transition-colors">
+                <button
+                  onClick={clearCart}
+                  className="text-[12px] text-clay font-semibold hover:text-clay-deep px-3 py-1 rounded-full hover:bg-clay-soft/40 transition-colors"
+                >
                   Clear
                 </button>
               )}
             </div>
 
             {/* Cart items */}
-            <div className="flex-1 overflow-y-auto scroll-area px-4 py-3 space-y-2">
+            <div className="flex-1 overflow-y-auto scroll-area px-5 py-2">
               {cart.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-ink-faint py-10">
-                  <Receipt size={32} className="mb-3 text-line" />
-                  <p className="text-[13.5px] text-ink-mute text-center">No items added yet —<br />tap from the menu</p>
+                <div className="flex flex-col items-center justify-center h-full gap-3 py-10">
+                  <div className="grid place-items-center w-16 h-16 rounded-2xl bg-mist text-ink-faint">
+                    <Receipt size={28} />
+                  </div>
+                  <p className="text-[13.5px] text-ink-mute text-center font-medium">
+                    No items yet
+                  </p>
+                  <p className="text-[12px] text-ink-faint text-center">
+                    Select items from the menu
+                  </p>
                 </div>
               ) : (
-                cart.map((item) => (
-                  <div key={item.posItemId} className="bg-mist rounded-xl px-3.5 py-2.5 flex items-center gap-3">
-                    <span className="flex-1 text-[13.5px] font-medium text-ink truncate">{item.name}</span>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <button
-                        onClick={() => setQty(item.posItemId, item.quantity - 1)}
-                        className="w-7 h-7 rounded-full border border-line bg-card flex items-center justify-center text-ink-mute hover:bg-line-soft transition-colors"
-                      >
-                        <Minus size={11} />
-                      </button>
-                      <span className="w-6 text-center text-[13px] font-bold text-ink">{item.quantity}</span>
-                      <button
-                        onClick={() => setQty(item.posItemId, item.quantity + 1)}
-                        className="w-7 h-7 rounded-full border border-line bg-card flex items-center justify-center text-ink-mute hover:bg-line-soft transition-colors"
-                      >
-                        <Plus size={11} />
-                      </button>
+                <div className="divide-y divide-line-soft">
+                  {cart.map((item) => (
+                    <div key={item.posItemId} className="flex items-center gap-3 py-3.5">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13.5px] font-semibold text-ink truncate">{item.name}</p>
+                        <p className="text-[12px] text-ink-faint tnum">{formatPKR(item.price)} each</p>
+                      </div>
+                      {/* Qty stepper */}
+                      <div className="flex items-center gap-1 flex-shrink-0 bg-mist rounded-full px-1 py-1">
+                        <button
+                          onClick={() => setQty(item.posItemId, item.quantity - 1)}
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-ink-mute hover:bg-white hover:text-ink transition-colors"
+                        >
+                          <Minus size={10} />
+                        </button>
+                        <span className="w-6 text-center text-[13px] font-bold text-ink">{item.quantity}</span>
+                        <button
+                          onClick={() => setQty(item.posItemId, item.quantity + 1)}
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-ink-mute hover:bg-white hover:text-ink transition-colors"
+                        >
+                          <Plus size={10} />
+                        </button>
+                      </div>
+                      <span className="text-[13.5px] font-bold text-ink tnum w-20 text-right flex-shrink-0">
+                        {formatPKR(item.price * item.quantity)}
+                      </span>
                     </div>
-                    <span className="text-[13px] font-semibold text-ink w-20 text-right flex-shrink-0 tnum">
-                      {formatPKR(item.price * item.quantity)}
-                    </span>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
 
-            {/* Total + actions */}
+            {/* Total + charge buttons */}
             {cart.length > 0 && (
-              <div className="px-4 pb-5 flex-shrink-0 space-y-3 border-t border-line pt-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] text-ink-mute">{cartItemCount} item{cartItemCount !== 1 ? "s" : ""}</span>
+              <div className="flex-shrink-0 border-t border-line px-5 pt-4 pb-5">
+                {/* Total row */}
+                <div className="flex items-end justify-between mb-5">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-ink-faint">Order Total</p>
+                    <p className="text-[12px] text-ink-mute mt-0.5">{cartItemCount} item{cartItemCount !== 1 ? "s" : ""}</p>
+                  </div>
+                  <span className="serif text-[32px] text-ink tnum leading-none">{formatPKR(cartTotal)}</span>
                 </div>
-                <div className="flex justify-between items-center pt-1 border-t border-line-soft">
-                  <span className="text-[15px] font-semibold text-ink-soft">Total</span>
-                  <span className="serif text-[22px] text-ink tnum">{formatPKR(cartTotal)}</span>
-                </div>
+
+                {/* Charge buttons */}
                 {canCreate && (
-                  <button
-                    onClick={() => setShowPostRoom(true)}
-                    className="w-full h-11 bg-ink hover:bg-ink/90 text-white rounded-xl text-[13.5px] font-semibold transition-colors shadow-pop"
-                  >
-                    Post to Room
-                  </button>
-                )}
-                {canCreate && (
-                  <button
-                    onClick={() => setShowDirect(true)}
-                    className="w-full h-11 border border-line text-ink-soft rounded-xl text-[13.5px] font-semibold hover:bg-mist transition-colors"
-                  >
-                    Direct Payment
-                  </button>
+                  <div className="space-y-2.5">
+                    <button
+                      onClick={() => setShowPostRoom(true)}
+                      className="w-full h-12 bg-coral hover:bg-coral-dark text-white rounded-2xl font-bold text-[14px] transition-all shadow-pop flex items-center justify-center gap-2 active:scale-[0.98]"
+                    >
+                      <Receipt size={18} />
+                      Post to Room
+                    </button>
+                    <button
+                      onClick={() => setShowDirect(true)}
+                      className="w-full h-12 border-2 border-line text-ink-soft rounded-2xl font-semibold text-[14px] hover:border-ink/30 hover:bg-mist hover:text-ink transition-all"
+                    >
+                      Direct Payment
+                    </button>
+                  </div>
                 )}
               </div>
             )}

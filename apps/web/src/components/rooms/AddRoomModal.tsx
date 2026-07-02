@@ -60,7 +60,7 @@ export function AddRoomModal({ onClose }: AddRoomModalProps) {
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           <div>
-            <label className={labelCls}>Room Number <span className="text-coral normal-case tracking-normal">*</span></label>
+            <label className={labelCls}>Room Number <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <input type="text" value={form.number} onChange={(e) => setForm((f) => ({ ...f, number: e.target.value }))}
               placeholder="e.g. 101"
               className={cn(inputCls, errors.number && "border-clay/50")} />
@@ -75,7 +75,7 @@ export function AddRoomModal({ onClose }: AddRoomModalProps) {
           </div>
 
           <div>
-            <label className={labelCls}>Room Type <span className="text-coral normal-case tracking-normal">*</span></label>
+            <label className={labelCls}>Room Type <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <select value={form.roomTypeId} onChange={(e) => setForm((f) => ({ ...f, roomTypeId: e.target.value }))}
               className={cn(inputCls, "cursor-pointer", errors.roomTypeId && "border-clay/50")}>
               <option value="">Select room type…</option>

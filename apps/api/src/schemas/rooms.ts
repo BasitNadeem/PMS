@@ -51,7 +51,7 @@ export const checkAvailabilitySchema = z.object({
   roomId:                z.string().uuid().optional(),
   roomTypeId:            z.string().uuid().optional(),
   excludeReservationId:  z.string().uuid().optional(),
-}).refine((d) => !!d.roomId !== !!d.roomTypeId, {
-  message: "Provide either roomId or roomTypeId, not both",
+}).refine((d) => !(d.roomId && d.roomTypeId), {
+  message: "Provide roomId or roomTypeId, not both — omit both to check all rooms",
 });
 export type CheckAvailabilityQuery = z.infer<typeof checkAvailabilitySchema>;

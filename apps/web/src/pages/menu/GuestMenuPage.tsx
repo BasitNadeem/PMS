@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Star, Loader2, UtensilsCrossed, CheckCircle2, Palmtree, Search, ArrowLeft, Clock, Sparkles,
+  Star, Loader2, UtensilsCrossed, CheckCircle2, Leaf, Search, ArrowLeft, Clock, Sparkles,
   Coffee, Soup, Sandwich, GlassWater, Cookie, Salad, IceCreamCone, Plus,
+  Receipt, ChefHat, BellRing, PartyPopper, XCircle,
 } from "lucide-react";
 import { qrMenuService, type MenuCategory, type MenuItem } from "../../services/qrMenu";
 import { CartBar, type CartItem } from "../../components/menu/CartBar";
@@ -91,7 +92,7 @@ export default function GuestMenuPage() {
         <AmbientBackdrop />
         <div
           className="anim-scale-in grid place-items-center w-24 h-24 rounded-full mb-6 relative"
-          style={{ background: "linear-gradient(135deg, rgb(var(--qr-teal)), rgb(var(--qr-teal-deep)))", boxShadow: "0 16px 40px -8px rgb(var(--qr-teal) / 0.5)" }}
+          style={{ background: "rgb(var(--qr-teal))", boxShadow: "0 16px 40px -8px rgb(var(--qr-teal) / 0.45)" }}
         >
           <CheckCircle2 className="w-11 h-11 text-white" strokeWidth={2} />
           <Sparkles className="w-5 h-5 absolute -top-1 -right-1 text-[rgb(var(--qr-gold))]" />
@@ -103,8 +104,8 @@ export default function GuestMenuPage() {
         <div className="w-full max-w-xs space-y-2.5 anim-fade-up" style={{ animationDelay: "150ms" }}>
           <button
             onClick={() => { setView("track"); setOrderNumber(null); }}
-            className="w-full text-white rounded-2xl py-4 font-bold text-[15px] active:scale-[0.97] transition-transform"
-            style={{ background: "linear-gradient(135deg, rgb(var(--qr-teal)), rgb(var(--qr-teal-deep)))", boxShadow: "0 10px 30px -6px rgb(var(--qr-teal) / 0.45)" }}
+            className="w-full text-white rounded-full py-4 font-bold text-[15px] active:scale-[0.97] transition-transform"
+            style={{ background: "rgb(var(--qr-teal))", boxShadow: "0 10px 30px -6px rgb(var(--qr-teal) / 0.4)" }}
           >
             Track my order
           </button>
@@ -168,43 +169,46 @@ export default function GuestMenuPage() {
     <div className="qr-theme min-h-screen relative pb-32" style={{ background: "rgb(var(--qr-bg))" }}>
       <AmbientBackdrop />
 
-      {/* Header */}
-      <div className="z-20 px-5 pt-7 pb-4 sticky top-0" style={{ background: "rgb(var(--qr-bg) / 1)", backdropFilter: "blur(10px)" }}>
-        <div className="absolute inset-0 -z-10" style={{ background: "rgb(var(--qr-bg))", opacity: 0.92 }} />
-        <div className="flex items-center justify-between mb-0.5">
-          <h1 className="serif text-[23px] text-[rgb(var(--qr-ink))] leading-tight">{hotelName}</h1>
-          <button
-            onClick={() => setView("track")}
-            className="flex items-center gap-1.5 text-[12px] font-bold px-3 py-1.5 rounded-full shrink-0 transition-colors"
-            style={{ background: "rgb(var(--qr-teal-soft))", color: "rgb(var(--qr-teal))" }}
-          >
-            <Search className="w-3.5 h-3.5" />
-            Track order
-          </button>
-        </div>
-        <p className="text-[13px] text-[rgb(var(--qr-ink-faint))]">In-room dining, just for you</p>
+      {/* Top bar — slim, sticky: back · hotel name · track order. Mirrors the
+          mockup's TopAppBar; everything below it scrolls normally. */}
+      <div className="z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 px-3 py-3 sticky top-0 qr-glass" style={{ borderBottom: "1px solid rgb(var(--qr-line-soft))" }}>
+        <button
+          onClick={() => setView("landing")}
+          className="grid place-items-center h-9 w-9 rounded-full transition-colors"
+          style={{ color: "rgb(var(--qr-ink-mute))" }}
+        >
+          <ArrowLeft className="w-[18px] h-[18px]" />
+        </button>
+        <h1 className="serif italic text-[19px] leading-tight text-center truncate" style={{ color: "rgb(var(--qr-accent))" }}>{hotelName}</h1>
+        <button
+          onClick={() => setView("track")}
+          className="grid place-items-center h-9 w-9 rounded-full transition-colors"
+          style={{ color: "rgb(var(--qr-ink-mute))" }}
+          aria-label="Track order"
+        >
+          <Search className="w-[18px] h-[18px]" />
+        </button>
+      </div>
 
-        {/* Category tabs — icon chips, not plain text pills */}
+      {/* Headline + category tabs — normal flow, not sticky */}
+      <div className="px-5 pt-5 pb-1">
+        <h2 className="serif text-[26px] leading-tight" style={{ color: "rgb(var(--qr-ink))" }}>Room Dining</h2>
+        <p className="text-[13px] mt-1" style={{ color: "rgb(var(--qr-ink-mute))" }}>Savor exquisite flavors from the comfort of your suite.</p>
+
+        {/* Category tabs — plain pills, soft sage fill for the active one */}
         {visibleCategories.length > 1 && (
-          <div className="flex gap-2.5 mt-4 overflow-x-auto scrollbar-none pb-1 -mx-5 px-5">
+          <div className="flex gap-2 mt-4 overflow-x-auto scrollbar-none pb-1 -mx-5 px-5">
             {visibleCategories.map((cat) => {
-              const Icon = categoryIcon(cat.name);
               const active = cat.id === displayCategory;
               return (
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className="flex-shrink-0 flex items-center gap-2 pl-2.5 pr-4 py-2 rounded-full text-[13px] font-bold transition-all"
+                  className="flex-shrink-0 px-4 py-2 rounded-full text-[13px] font-bold transition-all"
                   style={active
-                    ? { background: "linear-gradient(135deg, rgb(var(--qr-accent)), rgb(var(--qr-accent-deep)))", color: "#fff", boxShadow: "0 8px 20px -6px rgb(var(--qr-accent) / 0.55)" }
-                    : { background: "rgb(var(--qr-card))", color: "rgb(var(--qr-ink-soft))", border: "1px solid rgb(var(--qr-line))" }}
+                    ? { background: "rgb(var(--qr-teal-soft))", color: "rgb(var(--qr-teal))" }
+                    : { background: "transparent", color: "rgb(var(--qr-ink-mute))", border: "1px solid rgb(var(--qr-line))" }}
                 >
-                  <span
-                    className="grid place-items-center h-6 w-6 rounded-full shrink-0"
-                    style={active ? { background: "rgb(255 255 255 / 0.22)" } : { background: "rgb(var(--qr-teal-soft))", color: "rgb(var(--qr-teal))" }}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                  </span>
                   {cat.name}
                 </button>
               );
@@ -214,7 +218,7 @@ export default function GuestMenuPage() {
       </div>
 
       {/* Items */}
-      <div className="relative z-10 px-4 pt-5 space-y-3.5">
+      <div className="relative z-10 px-4 pt-4 space-y-3.5">
         {currentCat && (
           <>
             {currentCat.description && (
@@ -225,52 +229,55 @@ export default function GuestMenuPage() {
               return (
                 <div
                   key={item.id}
-                  className="anim-fade-up rounded-[1.75rem] overflow-hidden flex relative"
+                  className="qr-glass anim-fade-up rounded-[1.5rem] overflow-hidden flex relative"
                   style={{
                     animationDelay: `${Math.min(idx, 6) * 35}ms`,
-                    background: "rgb(var(--qr-card))",
-                    boxShadow: "0 10px 28px -10px rgb(41 26 18 / 0.14)",
+                    boxShadow: "0 10px 28px -10px rgb(41 26 18 / 0.12)",
                     border: "1px solid rgb(var(--qr-line-soft))",
                   }}
                 >
-                  {item.isFeatured && (
-                    <div
-                      className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold"
-                      style={{ background: "rgb(var(--qr-gold-soft))", color: "rgb(var(--qr-gold))" }}
-                    >
-                      <Star className="w-2.5 h-2.5 fill-current" /> Chef's pick
-                    </div>
-                  )}
-                  {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.name}
-                      className="w-28 h-32 object-cover flex-shrink-0"
-                    />
-                  ) : (
-                    <div
-                      className="w-20 h-32 flex-shrink-0 grid place-items-center"
-                      style={{ background: "rgb(var(--qr-teal-soft))" }}
-                    >
-                      {(() => { const Icon = categoryIcon(currentCat.name); return <Icon className="w-7 h-7" style={{ color: "rgb(var(--qr-teal))" }} />; })()}
-                    </div>
-                  )}
+                  <div className="relative shrink-0">
+                    {item.isFeatured && (
+                      <div
+                        className="absolute top-1.5 left-1.5 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9.5px] font-bold whitespace-nowrap"
+                        style={{ background: "rgb(var(--qr-gold-soft))", color: "rgb(var(--qr-gold))" }}
+                      >
+                        <Star className="w-2.5 h-2.5 fill-current" /> Chef's pick
+                      </div>
+                    )}
+                    {item.imageUrl ? (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        className="w-28 h-32 object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="w-24 h-32 grid place-items-center"
+                        style={{ background: "rgb(var(--qr-bg-deep))" }}
+                      >
+                        {(() => { const Icon = categoryIcon(currentCat.name); return <Icon className="w-6 h-6" style={{ color: "rgb(var(--qr-ink-faint))" }} />; })()}
+                      </div>
+                    )}
+                  </div>
                   <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
-                    <div className={item.isFeatured ? "pr-20" : ""}>
-                      <p className="font-bold text-[rgb(var(--qr-ink))] text-[14.5px] leading-tight">{item.name}</p>
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="serif text-[16px] leading-tight" style={{ color: "rgb(var(--qr-ink))" }}>{item.name}</p>
+                        <span className="text-[13.5px] font-bold tnum shrink-0" style={{ color: "rgb(var(--qr-accent))" }}>
+                          PKR {Math.floor(item.price / 100).toLocaleString("en-PK")}
+                        </span>
+                      </div>
                       {item.description && (
-                        <p className="text-[12.5px] text-[rgb(var(--qr-ink-faint))] mt-0.5 line-clamp-2">{item.description}</p>
+                        <p className="text-[12.5px] mt-1 line-clamp-2 leading-snug" style={{ color: "rgb(var(--qr-ink-mute))" }}>{item.description}</p>
                       )}
                     </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-[14.5px] font-bold tnum" style={{ color: "rgb(var(--qr-ink))" }}>
-                        PKR {Math.floor(item.price / 100).toLocaleString("en-PK")}
-                      </span>
+                    <div className="flex items-center justify-end mt-2">
                       {qty === 0 ? (
                         <button
                           onClick={() => addToCart(item)}
-                          className="flex items-center gap-1 text-white rounded-xl pl-3 pr-3.5 py-1.5 text-[13px] font-bold active:scale-95 transition-transform"
-                          style={{ background: "linear-gradient(135deg, rgb(var(--qr-accent)), rgb(var(--qr-accent-deep)))", boxShadow: "0 6px 16px -4px rgb(var(--qr-accent) / 0.5)" }}
+                          className="qr-golden-shadow flex items-center gap-1 text-white rounded-full pl-3 pr-3.5 py-1.5 text-[13px] font-bold active:scale-95 transition-transform"
+                          style={{ background: "rgb(var(--qr-accent))" }}
                         >
                           <Plus className="w-3.5 h-3.5" /> Add
                         </button>
@@ -339,63 +346,63 @@ function LandingView({
   onTrack:    () => void;
 }) {
   return (
-    <div className="qr-theme min-h-screen flex flex-col relative overflow-hidden" style={{ background: "rgb(var(--qr-bg))" }}>
-      {/* Hero gradient — sunset-over-lagoon, the "vacation poster" moment */}
-      <div
-        className="relative px-6 pt-16 pb-24 overflow-hidden"
-        style={{ background: "linear-gradient(155deg, rgb(var(--qr-hero-1)) 0%, rgb(var(--qr-hero-2)) 55%, rgb(var(--qr-hero-3)) 100%)" }}
-      >
-        <div className="absolute top-10 right-8 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute -bottom-10 left-0 w-44 h-44 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute top-20 left-10 w-3 h-3 rounded-full bg-white/40" />
-        <div className="absolute top-32 right-20 w-2 h-2 rounded-full bg-white/50" />
-
-        <div className="relative anim-fade-up text-center">
-          <div className="mx-auto mb-6 grid place-items-center w-16 h-16 rounded-[22px] bg-white/15 backdrop-blur-sm border border-white/25">
-            <Palmtree className="w-7 h-7 text-white" strokeWidth={1.7} />
-          </div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/70 mb-2">In-Room Dining</p>
-          <h1 className="serif text-[32px] text-white leading-tight">
-            {isLoading ? "Loading…" : hotelName || hotelSlug}
-          </h1>
-        </div>
+    <div className="qr-theme min-h-screen relative isolate overflow-hidden flex flex-col" style={{ background: "rgb(var(--qr-bg-deep))" }}>
+      {/* Full-bleed golden-hour resort photo, softened with a linen-tinted gradient + grain.
+          `isolate` on the root gives this -z-10 layer its own stacking context so it can't
+          escape behind the page's body background instead of staying within this view. */}
+      <div className="absolute inset-0 -z-10">
+        <img src="/qr-menu/landing-hero.jpg" alt="" className="w-full h-full object-cover opacity-80 mix-blend-multiply" />
+        {/* Normal (non-multiply) translucent veil — this is what actually lightens/washes
+            out the photo into the hazy "golden hour" look, per the Linen & Terra spec. */}
+        <div
+          className="absolute inset-0"
+          style={{ background: "linear-gradient(135deg, rgb(var(--qr-hero-1) / 0.8) 0%, rgb(var(--qr-hero-2) / 0.6) 50%, rgb(var(--qr-hero-3) / 0.4) 100%)" }}
+        />
+        <div className="absolute inset-0 qr-texture" />
       </div>
 
-      {/* Floating sheet — overlaps the hero for that premium "card lift" feel */}
-      <div className="flex-1 px-6 -mt-14 relative z-10">
-        <div
-          className="rounded-[2rem] p-6 anim-fade-up"
-          style={{ animationDelay: "100ms", background: "rgb(var(--qr-card))", boxShadow: "0 24px 48px -16px rgb(41 26 18 / 0.25)" }}
-        >
-          <div className="flex items-center gap-1 mb-3 justify-center">
-            {[...Array(5)].map((_, i) => <Star key={i} className="w-3.5 h-3.5 fill-current" style={{ color: "rgb(var(--qr-gold))" }} />)}
-          </div>
-          <p className="text-[14px] text-[rgb(var(--qr-ink-mute))] text-center mb-7">
-            Fresh, comforting dishes — ordered from your room, delivered with a smile.
-          </p>
+      <div className="relative z-10 flex-1 flex flex-col justify-between px-6 py-14">
+        {/* Hero — wordmark over the photo */}
+        <div className="anim-fade-up text-center mt-12">
+          <Leaf className="w-7 h-7 mx-auto mb-4" style={{ color: "rgb(var(--qr-accent))" }} strokeWidth={1.6} />
+          <h1 className="serif text-[40px] leading-[1.15]" style={{ color: "rgb(var(--qr-ink))" }}>
+            {isLoading ? "Loading…" : hotelName || hotelSlug}
+          </h1>
+          <Star className="w-3.5 h-3.5 mx-auto mt-3" style={{ color: "rgb(var(--qr-accent))" }} />
+        </div>
 
-          <div className="space-y-2.5">
+        {/* Soothing welcome line + actions */}
+        <div className="anim-fade-up" style={{ animationDelay: "100ms" }}>
+          <p
+            className="text-center text-[15px] leading-relaxed mb-7 px-3 font-medium"
+            style={{ color: "rgb(var(--qr-card))", textShadow: "0 1px 8px rgb(41 26 18 / 0.55), 0 1px 3px rgb(41 26 18 / 0.4)" }}
+          >
+            Settle in, breathe easy — a warm plate is just a tap away.
+          </p>
+          <div className="space-y-2.5 max-w-xs mx-auto">
             <button
               onClick={onOrder}
               disabled={isLoading}
-              className="w-full text-white rounded-2xl py-4 font-bold text-[15px] active:scale-[0.97] transition-transform disabled:opacity-50"
-              style={{ background: "linear-gradient(135deg, rgb(var(--qr-accent)), rgb(var(--qr-accent-deep)))", boxShadow: "0 14px 32px -8px rgb(var(--qr-accent) / 0.5)" }}
+              className="qr-golden-shadow w-full text-white rounded-full py-4 font-bold text-[15px] active:scale-[0.97] transition-transform disabled:opacity-50"
+              style={{ background: "rgb(var(--qr-accent))" }}
             >
               View menu &amp; order
             </button>
             <button
               onClick={onTrack}
-              className="w-full rounded-2xl py-4 font-bold text-[15px] active:scale-[0.97] transition-transform"
-              style={{ background: "rgb(var(--qr-teal-soft))", color: "rgb(var(--qr-teal))" }}
+              className="qr-glass w-full rounded-full py-4 font-bold text-[15px] active:scale-[0.97] transition-transform"
+              style={{ color: "rgb(var(--qr-accent-deep))", border: "1px solid rgb(var(--qr-line))" }}
             >
               Track my order
             </button>
           </div>
+          <p
+            className="text-center text-[12px] mt-6 font-medium"
+            style={{ color: "rgb(var(--qr-card) / 0.85)", textShadow: "0 1px 6px rgb(41 26 18 / 0.5)" }}
+          >
+            Available around the clock, just for guests
+          </p>
         </div>
-
-        <p className="text-center text-[12px] text-[rgb(var(--qr-ink-faint))] mt-6 pb-8">
-          Available around the clock, just for guests
-        </p>
       </div>
     </div>
   );
@@ -414,12 +421,12 @@ const STEP_LABELS: Record<OrderStatus, string> = {
   delivered: "Delivered",
 };
 
-const STEP_ICONS: Record<OrderStatus, string> = {
-  pending:   "🧾",
-  confirmed: "✅",
-  preparing: "👨‍🍳",
-  ready:     "🛎️",
-  delivered: "🎉",
+const STEP_ICONS: Record<OrderStatus, typeof Receipt> = {
+  pending:   Receipt,
+  confirmed: CheckCircle2,
+  preparing: ChefHat,
+  ready:     BellRing,
+  delivered: PartyPopper,
 };
 
 const DELIVERY_LABELS: Record<string, string> = {
@@ -472,7 +479,7 @@ function TrackOrderView({
     <div className="qr-theme min-h-screen flex flex-col relative" style={{ background: "rgb(var(--qr-bg))" }}>
       <AmbientBackdrop />
       {/* Header */}
-      <div className="z-10 px-5 pt-7 pb-4 sticky top-0" style={{ background: "rgb(var(--qr-bg))", opacity: 0.96 }}>
+      <div className="qr-glass z-10 px-5 pt-7 pb-4 sticky top-0" style={{ borderBottom: "1px solid rgb(var(--qr-line-soft))" }}>
         <div className="flex items-center gap-3 mb-1">
           <button
             onClick={onBack}
@@ -481,7 +488,7 @@ function TrackOrderView({
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="serif text-[20px] text-[rgb(var(--qr-ink))]">Track order</h1>
+          <h1 className="serif italic text-[20px]" style={{ color: "rgb(var(--qr-accent))" }}>Track order</h1>
           {isFetching && queried && (
             <Loader2 className="w-4 h-4 animate-spin text-[rgb(var(--qr-ink-faint))] ml-auto" />
           )}
@@ -490,19 +497,19 @@ function TrackOrderView({
       </div>
 
       <div className="relative z-10 flex-1 px-4 py-6 space-y-6">
-        {/* Search form */}
+        {/* Search form — input "pressed" into the linen surface */}
         <form onSubmit={handleSearch} className="flex gap-2">
           <input
             className="flex-1 rounded-xl px-4 py-3 text-sm font-mono font-semibold uppercase tracking-wider focus:outline-none transition-colors placeholder:font-sans placeholder:normal-case placeholder:tracking-normal placeholder:font-normal"
-            style={{ background: "rgb(var(--qr-card))", border: "1px solid rgb(var(--qr-line))", color: "rgb(var(--qr-ink))" }}
+            style={{ background: "rgb(var(--qr-bg-deep))", border: "none", color: "rgb(var(--qr-ink))", boxShadow: "inset 0 1px 3px rgb(41 26 18 / 0.08)" }}
             placeholder="e.g. 0019 or ORD-0019"
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
           <button
             type="submit"
-            className="text-white rounded-xl px-5 py-3 font-bold text-sm active:scale-95 transition-transform flex-shrink-0"
-            style={{ background: "linear-gradient(135deg, rgb(var(--qr-accent)), rgb(var(--qr-accent-deep)))" }}
+            className="qr-golden-shadow text-white rounded-xl px-5 py-3 font-bold text-sm active:scale-95 transition-transform flex-shrink-0"
+            style={{ background: "rgb(var(--qr-accent))" }}
           >
             Track
           </button>
@@ -521,7 +528,7 @@ function TrackOrderView({
         {order && (
           <div className="space-y-5 anim-fade-up">
             {/* Order summary card */}
-            <div className="rounded-[1.75rem] p-5" style={{ background: "rgb(var(--qr-card))", boxShadow: "0 10px 28px -10px rgb(41 26 18 / 0.14)", border: "1px solid rgb(var(--qr-line-soft))" }}>
+            <div className="qr-glass rounded-[1.5rem] p-5" style={{ boxShadow: "0 10px 28px -10px rgb(41 26 18 / 0.12)", border: "1px solid rgb(var(--qr-line-soft))" }}>
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wide mb-0.5" style={{ color: "rgb(var(--qr-ink-faint))" }}>Order number</p>
@@ -554,13 +561,13 @@ function TrackOrderView({
 
             {/* Progress tracker */}
             {isCancelled ? (
-              <div className="rounded-[1.75rem] p-5 text-center" style={{ background: "rgb(var(--qr-accent-soft))" }}>
-                <p className="text-2xl mb-2">❌</p>
+              <div className="qr-glass rounded-[1.5rem] p-5 text-center" style={{ border: "1px solid rgb(var(--qr-line-soft))" }}>
+                <XCircle className="w-8 h-8 mx-auto mb-2" style={{ color: "rgb(var(--qr-accent))" }} />
                 <p className="font-bold" style={{ color: "rgb(var(--qr-accent))" }}>Order cancelled</p>
                 <p className="text-sm mt-1" style={{ color: "rgb(var(--qr-ink-soft))" }}>This order was cancelled. Please contact the front desk.</p>
               </div>
             ) : (
-              <div className="rounded-[1.75rem] p-5" style={{ background: "rgb(var(--qr-card))", boxShadow: "0 10px 28px -10px rgb(41 26 18 / 0.14)", border: "1px solid rgb(var(--qr-line-soft))" }}>
+              <div className="qr-glass rounded-[1.5rem] p-5" style={{ boxShadow: "0 10px 28px -10px rgb(41 26 18 / 0.12)", border: "1px solid rgb(var(--qr-line-soft))" }}>
                 <div className="flex items-center gap-1.5 mb-5">
                   <Clock className="w-3.5 h-3.5" style={{ color: "rgb(var(--qr-ink-faint))" }} />
                   <p className="text-[12px]" style={{ color: "rgb(var(--qr-ink-faint))" }}>Updates every 8 seconds</p>
@@ -570,12 +577,13 @@ function TrackOrderView({
                     const done    = i < stepIndex;
                     const current = i === stepIndex;
                     const future  = i > stepIndex;
+                    const Icon    = STEP_ICONS[step];
                     return (
                       <div key={step} className="flex gap-4">
                         {/* Line + dot column */}
                         <div className="flex flex-col items-center">
                           <div
-                            className="w-9 h-9 rounded-full flex items-center justify-center text-lg flex-shrink-0 border-2 transition-all duration-500"
+                            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 border-2 transition-all duration-500"
                             style={
                               done    ? { background: "rgb(var(--qr-teal))", borderColor: "rgb(var(--qr-teal))" }
                               : current ? { background: "rgb(var(--qr-accent))", borderColor: "rgb(var(--qr-accent))", boxShadow: "0 0 0 4px rgb(var(--qr-accent-soft))" }
@@ -585,7 +593,7 @@ function TrackOrderView({
                             {done ? (
                               <CheckCircle2 className="w-5 h-5 text-white" />
                             ) : (
-                              <span className={future ? "opacity-30" : ""}>{STEP_ICONS[step]}</span>
+                              <Icon className="w-4 h-4" style={{ color: current ? "#fff" : "rgb(var(--qr-ink-faint))", opacity: future ? 0.5 : 1 }} />
                             )}
                           </div>
                           {i < STATUS_STEPS.length - 1 && (

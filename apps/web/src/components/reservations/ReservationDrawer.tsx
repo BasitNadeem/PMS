@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   X, Copy, Phone, Mail, BadgeCheck, MapPin,
-  LogIn, Check, Receipt, BedDouble, Users, Star,
+  LogIn, Check, Receipt, BedDouble, Users, Star, ArrowRight, Plus,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import {
   reservationsService,
@@ -13,6 +14,7 @@ import { Drawer } from "@/components/ui/Drawer";
 import { Avatar } from "@/components/ui/Avatar";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { usePermissions } from "@/hooks/usePermissions";
+import { AddChargeModal } from "@/components/folio/AddChargeModal";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -66,8 +68,10 @@ export interface ReservationDrawerProps {
 
 export function ReservationDrawer({ reservationId, onClose, onStatusChange }: ReservationDrawerProps) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { has } = usePermissions();
   const canUpdate = has("reservations:update");
+  const [showAddCharge, setShowAddCharge] = useState(false);
 
   const { data: reservation, isLoading } = useQuery({
     queryKey: ["reservation", reservationId],
@@ -172,6 +176,16 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
 
             {/* Scrollable body */}
             <div className="flex-1 overflow-y-auto scroll-area p-6 space-y-5">
+              {/* Group notice — prevents partial checkout confusion */}
+              {reservation.groupId && (
+                <div className="rounded-xl border border-dusk/20 bg-dusk-soft px-4 py-3 flex items-start gap-2.5">
+                  <BadgeCheck size={15} className="text-dusk shrink-0 mt-0.5" />
+                  <p className="text-[12.5px] text-dusk-deep leading-snug">
+                    This is part of a <strong>group booking</strong>. Confirm and check-in through the group page to keep all rooms in sync. For checkout, open the folio to settle the bill — the checkout button there will handle all rooms automatically.
+                  </p>
+                </div>
+              )}
+
               {/* Status + source */}
               <div className="flex items-center gap-2 flex-wrap">
                 <StatusBadge status={STATUS_LABEL[reservation.status] ?? reservation.status} />
@@ -283,48 +297,101 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
                 </Link>
               )}
               <div className="flex-1" />
-              {canUpdate && (reservation.status === "ENQUIRY" || reservation.status === "CONFIRMED") && (
-                <button
-                  onClick={() => statusMutation.mutate("CANCELLED")}
-                  disabled={statusMutation.isPending}
-                  className="h-10 px-4 rounded-full border border-clay/30 text-clay text-sm font-semibold hover:bg-clay-soft transition-colors disabled:opacity-40"
-                >
-                  Cancel
-                </button>
-              )}
-              {canUpdate && reservation.status === "ENQUIRY" && (
-                <button
-                  onClick={() => statusMutation.mutate("CONFIRMED")}
-                  disabled={statusMutation.isPending}
-                  className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-slate text-white text-sm font-semibold hover:brightness-95 transition-all shadow-pop disabled:opacity-40"
-                >
-                  <Check size={16} /> Confirm
-                </button>
-              )}
-              {canUpdate && reservation.status === "CONFIRMED" && (
-                <button
-                  onClick={() => statusMutation.mutate("CHECKED_IN")}
-                  disabled={statusMutation.isPending}
-                  className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-pine text-white text-sm font-semibold hover:bg-pine-deep transition-all shadow-pop disabled:opacity-40"
-                >
-                  <LogIn size={16} />
-                  {statusMutation.isPending ? "Checking in…" : "Check in"}
-                </button>
-              )}
-              {reservation.status === "CHECKED_IN" && reservation.folio && (
-                <Link
-                  to={`/financials/folio/${reservation.id}`}
-                  onClick={onClose}
-                  className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-coral text-white text-sm font-semibold hover:bg-coral-dark transition-all shadow-pop"
-                >
-                  <Receipt size={16} />
-                  Settle &amp; Check Out
-                </Link>
+              {reservation.groupId ? (
+                <>
+                  {/* CHECKED_IN: add charge directly, or open folio for settlement */}
+                  {reservation.status === "CHECKED_IN" && reservation.folio && (
+                    <>
+                      {canUpdate && (
+                        <button
+                          onClick={() => setShowAddCharge(true)}
+                          className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full border border-line text-ink-soft text-sm font-semibold hover:bg-line-soft hover:text-ink transition-colors"
+                        >
+                          <Plus size={15} /> Add Charge
+                        </button>
+                      )}
+                      <Link
+                        to={`/financials/folio/${reservation.id}`}
+                        onClick={onClose}
+                        className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-coral text-white text-sm font-semibold hover:bg-coral-dark transition-all shadow-pop"
+                      >
+                        <Receipt size={16} /> Settle &amp; Check Out
+                      </Link>
+                    </>
+                  )}
+                  {/* ENQUIRY / CONFIRMED: must go through group page to sync all rooms */}
+                  {(reservation.status === "ENQUIRY" || reservation.status === "CONFIRMED") && (
+                    <button
+                      onClick={() => { navigate(`/groups/${reservation.groupId}`); onClose(); }}
+                      className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-ink text-white text-sm font-semibold hover:bg-ink/90 transition-all shadow-pop"
+                    >
+                      Manage Group <ArrowRight size={15} />
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  {canUpdate && (reservation.status === "ENQUIRY" || reservation.status === "CONFIRMED") && (
+                    <button
+                      onClick={() => statusMutation.mutate("CANCELLED")}
+                      disabled={statusMutation.isPending}
+                      className="h-10 px-4 rounded-full border border-clay/30 text-clay text-sm font-semibold hover:bg-clay-soft transition-colors disabled:opacity-40"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  {canUpdate && reservation.status === "ENQUIRY" && (
+                    <button
+                      onClick={() => statusMutation.mutate("CONFIRMED")}
+                      disabled={statusMutation.isPending}
+                      className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-slate text-white text-sm font-semibold hover:brightness-95 transition-all shadow-pop disabled:opacity-40"
+                    >
+                      <Check size={16} /> Confirm
+                    </button>
+                  )}
+                  {canUpdate && reservation.status === "CONFIRMED" && (
+                    <button
+                      onClick={() => statusMutation.mutate("CHECKED_IN")}
+                      disabled={statusMutation.isPending}
+                      className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-pine text-white text-sm font-semibold hover:bg-pine-deep transition-all shadow-pop disabled:opacity-40"
+                    >
+                      <LogIn size={16} />
+                      {statusMutation.isPending ? "Checking in…" : "Check in"}
+                    </button>
+                  )}
+                  {reservation.status === "CHECKED_IN" && reservation.folio && (
+                    <>
+                      {canUpdate && (
+                        <button
+                          onClick={() => setShowAddCharge(true)}
+                          className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full border border-line text-ink-soft text-sm font-semibold hover:bg-line-soft hover:text-ink transition-colors"
+                        >
+                          <Plus size={15} /> Add Charge
+                        </button>
+                      )}
+                      <Link
+                        to={`/financials/folio/${reservation.id}`}
+                        onClick={onClose}
+                        className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-coral text-white text-sm font-semibold hover:bg-coral-dark transition-all shadow-pop"
+                      >
+                        <Receipt size={16} />
+                        Settle &amp; Check Out
+                      </Link>
+                    </>
+                  )}
+                </>
               )}
             </div>
           </>
         )}
       </Drawer>
+
+      {showAddCharge && reservation && (
+        <AddChargeModal
+          reservationId={reservation.id}
+          onClose={() => setShowAddCharge(false)}
+        />
+      )}
     </>
   );
 }

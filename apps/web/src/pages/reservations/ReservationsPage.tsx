@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, CalendarX, ChevronLeft, ChevronRight, List, CalendarDays, GanttChartSquare, ChevronRight as ArrowRight, Star } from "lucide-react";
+import { Plus, CalendarX, ChevronLeft, ChevronRight, List, CalendarDays, GanttChartSquare, ChevronRight as ArrowRight, ExternalLink, Star } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   reservationsService,
@@ -9,6 +9,8 @@ import {
   type ReservationStatus,
 } from "@/services/reservations";
 import { NewReservationModal } from "@/components/reservations/NewReservationModal";
+import { NewReservationTypeModal, type NewReservationType } from "@/components/reservations/NewReservationTypeModal";
+import { NewGroupModal } from "@/components/groups/NewGroupModal";
 import { ReservationDrawer } from "@/components/reservations/ReservationDrawer";
 import { CalendarView } from "@/components/reservations/CalendarView";
 import { TimelineView } from "@/components/reservations/TimelineView";
@@ -46,6 +48,16 @@ const STATUS_LABEL: Record<string, string> = {
   CHECKED_OUT: "Checked Out", CANCELLED: "Cancelled", NO_SHOW: "No Show",
 };
 
+// Booking source → compact display label for the Type column
+// Group payer type → compact badge label
+const PAYER_LABEL: Record<string, { label: string; bg: string; text: string }> = {
+  TOUR_AGENCY: { label: "Tour",      bg: "bg-slate-soft",  text: "text-slate" },
+  CORPORATE:   { label: "Corporate", bg: "bg-dusk-soft",   text: "text-dusk" },
+  GOVERNMENT:  { label: "Govt",      bg: "bg-ink/8",       text: "text-ink-soft" },
+  NGO:         { label: "NGO",       bg: "bg-pine-soft",   text: "text-pine-deep" },
+  INDIVIDUAL:  { label: "Individual",bg: "bg-amber-soft",  text: "text-amber" },
+};
+
 type ViewMode = "list" | "calendar" | "timeline";
 
 const VIEW_OPTIONS: { value: ViewMode; label: string; icon: React.ElementType }[] = [
@@ -74,14 +86,20 @@ function ReservationRow({ r, groupRoomCount, onOpen }: {
   const navigate    = useNavigate();
   const statusLabel = STATUS_LABEL[r.status] ?? r.status;
   const nights      = nightsBetween(r.checkInDate, r.checkOutDate);
-  const isGroup     = !!r.groupId && (groupRoomCount ?? 1) > 1;
+  // A reservation is a group booking as long as it has a groupId — regardless of
+  // how many sibling rooms are currently visible in the active filter. Without this,
+  // checking out one room of a SPLIT group drops the count to 1 and the remaining
+  // room incorrectly loses its GROUP badge and group name.
+  const isGroup         = !!r.groupId;
+  const hasMultipleRooms = isGroup && (groupRoomCount ?? 1) > 1;
 
-  // For groups: "3 rooms · Mixed" summary. For individuals: room number · type.
-  const roomStr = isGroup
+  const roomStr = hasMultipleRooms
     ? `${groupRoomCount} rooms`
     : r.rooms.length > 0
       ? `${r.rooms[0].room.number} · ${r.rooms[0].roomType.name}`
       : "—";
+
+  const payerMeta = isGroup && r.group?.payerType ? PAYER_LABEL[r.group.payerType] : null;
 
   const showCheckIn = !isGroup && r.status === "CONFIRMED";
   const showConfirm = !isGroup && r.status === "ENQUIRY";
@@ -94,34 +112,71 @@ function ReservationRow({ r, groupRoomCount, onOpen }: {
   return (
     <div
       onClick={handleClick}
-      className="group grid grid-cols-2 md:grid-cols-[1.6fr_1fr_1.4fr_0.8fr_1fr_auto] gap-3 px-5 py-3.5 items-center hover:bg-mist cursor-pointer transition-colors border-b border-line-soft last:border-0"
+      className={cn(
+        "group grid grid-cols-2 md:grid-cols-[1.4fr_1.2fr_0.9fr_1.2fr_0.45fr_1fr_100px] gap-3 px-5 py-3.5 items-center cursor-pointer transition-all border-b border-line-soft last:border-0",
+        // Group rows: inset box-shadow left stripe + a more vibrant dusk hover tint
+        // so the different-destination click is viscerally obvious before the click lands.
+        isGroup
+          ? "shadow-[inset_3px_0_0_#5B4B82] hover:bg-[#EDE9F4]"
+          : "hover:bg-line-soft",
+      )}
     >
+      {/* GUEST */}
       <div className="flex items-center gap-3 min-w-0 col-span-2 md:col-span-1">
-        <Avatar name={r.guest.fullName} size={40} />
+        <Avatar name={r.guest.fullName} size={38} />
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <div className="text-[14.5px] font-semibold text-ink truncate">{r.guest.fullName}</div>
-            {r.isVip && <Star size={13} className="text-amber fill-amber shrink-0" />}
+            <div className="text-[14px] font-semibold text-ink truncate">{r.guest.fullName}</div>
+            {r.isVip && <Star size={12} className="text-amber fill-amber shrink-0" />}
           </div>
           <div className="flex items-center gap-1.5 text-[12px] text-ink-faint tnum">
-            <span>{isGroup ? `GRP-${r.groupId!.slice(0, 8).toUpperCase()}` : (r.confirmationNumber || "—")}</span>
+            <span>{isGroup ? (r.group?.groupRef ?? `GRP-${r.groupId!.slice(0, 8).toUpperCase()}`) : (r.confirmationNumber || "—")}</span>
             {isGroup && (
-              <span className="rounded-full bg-dusk-soft px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-dusk">
+              <span className="rounded-full bg-dusk px-2 py-0.5 text-[10px] font-bold tracking-wide text-white">
                 GROUP
               </span>
             )}
           </div>
         </div>
       </div>
-      <div className="min-w-0 hidden md:block">
-        <div className={cn("text-[14px] font-semibold truncate", isGroup ? "text-dusk" : "text-ink")}>{roomStr}</div>
+
+      {/* BOOKING — group name + payer badge for groups; "Single" for individuals */}
+      <div className="hidden md:flex flex-col justify-center gap-1 min-w-0">
+        {isGroup ? (
+          <>
+            <div className="text-[13px] font-semibold text-ink truncate">{r.group?.name ?? "—"}</div>
+            {payerMeta ? (
+              <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold w-fit", payerMeta.bg, payerMeta.text)}>
+                {payerMeta.label}
+              </span>
+            ) : null}
+          </>
+        ) : (
+          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold bg-line-soft text-ink-soft w-fit">
+            Single
+          </span>
+        )}
       </div>
+
+      {/* ROOM */}
+      <div className="hidden md:block min-w-0">
+        <div className={cn("text-[13.5px] font-semibold truncate", isGroup ? "text-dusk" : "text-ink")}>{roomStr}</div>
+        {!isGroup && r.rooms[0]?.roomType && (
+          <div className="text-[11.5px] text-ink-faint truncate">{r.rooms[0].roomType.name}</div>
+        )}
+      </div>
+
+      {/* DATES */}
       <div className="text-[13px] text-ink-soft tnum hidden md:block">
         <span>{fmtDate(r.checkInDate)}</span>
         <span className="mx-1.5 text-ink-faint">→</span>
         <span>{fmtDate(r.checkOutDate)}</span>
       </div>
-      <div className="text-[14px] font-semibold text-ink tnum hidden md:block">{nights}n</div>
+
+      {/* NIGHTS */}
+      <div className="text-[13.5px] font-semibold text-ink tnum hidden md:block">{nights}n</div>
+
+      {/* STATUS */}
       <div className="flex items-center gap-2">
         <StatusBadge status={statusLabel} size="sm" />
         {showCheckIn && (
@@ -135,8 +190,19 @@ function ReservationRow({ r, groupRoomCount, onOpen }: {
           </span>
         )}
       </div>
-      <div className="flex items-center justify-end">
-        <ArrowRight size={18} className="text-ink-faint group-hover:text-ink-mute hidden md:block" />
+
+      {/* Navigation hint — ↗ for group (full page), › for single (drawer) */}
+      <div className="flex items-center justify-end gap-1">
+        {isGroup ? (
+          <>
+            <span className="text-[11px] font-semibold text-dusk/60 group-hover:text-dusk hidden md:block transition-colors">
+              Group page
+            </span>
+            <ExternalLink size={13} className="text-dusk/50 group-hover:text-dusk hidden md:block transition-colors" />
+          </>
+        ) : (
+          <ArrowRight size={18} className="text-ink-faint group-hover:text-ink-mute hidden md:block" />
+        )}
       </div>
     </div>
   );
@@ -146,8 +212,10 @@ function ReservationRow({ r, groupRoomCount, onOpen }: {
 
 export default function ReservationsPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { has } = usePermissions();
   const canCreate = has("reservations:create");
+  const canCreateGroups = has("groups:create");
   const [searchParams, setSearchParams] = useSearchParams();
   const [view, setView]             = useState<ViewMode>(() =>
     searchParams.get("view") === "calendar" ? "calendar" : "list"
@@ -158,7 +226,9 @@ export default function ReservationsPage() {
   const [page, setPage]             = useState(1);
   const [sortBy, setSortBy]         = useState<"checkIn" | "checkOut" | "created" | "status">("checkIn");
   const [sortDir, setSortDir]       = useState<"asc" | "desc">("desc");
-  const [showNew, setShowNew]           = useState(() => searchParams.get("new") === "1");
+  const [showChooser, setShowChooser]   = useState(() => searchParams.get("new") === "1");
+  const [showNew, setShowNew]           = useState(false);
+  const [showNewGroup, setShowNewGroup] = useState(false);
   const [newCheckIn,  setNewCheckIn]    = useState<string | undefined>(undefined);
   const [newCheckOut, setNewCheckOut]   = useState<string | undefined>(undefined);
   const [selectionStart, setSelectionStart] = useState<Date | null>(null);
@@ -222,12 +292,19 @@ export default function ReservationsPage() {
     setHoverDate(null);
   }
 
+  function handleTypeSelected(type: NewReservationType) {
+    setShowChooser(false);
+    if (type === "SINGLE") setShowNew(true);
+    else setShowNewGroup(true);
+  }
+
   function handleRangeSelected(checkIn: Date, checkOut: Date) {
     clearSelection();
     if (!canCreate) return;
     setNewCheckIn(toLocalIsoDate(checkIn));
     setNewCheckOut(toLocalIsoDate(checkOut));
-    setShowNew(true);
+    // Open the type chooser so calendar drag also asks single vs group
+    setShowChooser(true);
   }
 
   function handleMonthChange(year: number, month: number) {
@@ -246,7 +323,7 @@ export default function ReservationsPage() {
           <div className="mb-1.5 text-[12px] font-bold uppercase tracking-[0.14em] text-coral">Front Office</div>
           <h1 className="serif text-[34px] leading-[1.05] text-ink">Reservations</h1>
           <p className="mt-1.5 text-[15px] text-ink-mute">
-            {meta ? `${meta.total.toLocaleString()} booking${meta.total !== 1 ? "s" : ""}` : "—"}
+            {meta ? `${reservations.length.toLocaleString()} booking${reservations.length !== 1 ? "s" : ""}` : "—"}
             {counts?.ENQUIRY ? ` · ${counts.ENQUIRY} pending` : ""}
           </p>
         </div>
@@ -258,7 +335,7 @@ export default function ReservationsPage() {
           />
           {canCreate && (
             <button
-              onClick={() => { setNewCheckIn(undefined); setNewCheckOut(undefined); setShowNew(true); }}
+              onClick={() => { setNewCheckIn(undefined); setNewCheckOut(undefined); setShowChooser(true); }}
               className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-ink text-white text-sm font-semibold hover:bg-ink-soft transition-colors shadow-pop whitespace-nowrap"
             >
               <Plus size={17} /> New
@@ -341,21 +418,38 @@ export default function ReservationsPage() {
                   : tab.status ? (counts?.[tab.status] ?? 0) : undefined;
                 const on = activeTab === tab.key;
                 const tone = tab.status ? toneOf(STATUS_LABEL[tab.status] ?? tab.status) : null;
+                // Each status gets its own semantic colour when active — immediately readable without labels
+                const activeStyle: React.CSSProperties =
+                  tab.key === "ENQUIRY"     ? { background: "#b97c1e", color: "#fff" }
+                  : tab.key === "CONFIRMED" ? { background: "#2c455c", color: "#fff" }
+                  : tab.key === "CHECKED_IN"? { background: "#2F7256", color: "#fff" }
+                  : tab.key === "CHECKED_OUT"? { background: "#584238", color: "#fff" }
+                  : tab.key === "CANCELLED" ? { background: "#aa4432", color: "#fff" }
+                  : { background: "#211e1a", color: "#fff" };
                 return (
                   <button
                     key={tab.key}
                     onClick={() => { setActiveTab(tab.key); setPage(1); }}
                     className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full px-3 h-9 text-[13px] font-semibold transition-all",
-                      on ? "bg-ink text-white" : "bg-line-soft text-ink-mute hover:text-ink-soft",
+                      "inline-flex items-center gap-2 rounded-full px-3.5 h-9 text-[13px] font-semibold transition-all",
+                      on ? "shadow-sm" : "bg-white border border-line text-ink-soft hover:border-ink/20 hover:text-ink",
                     )}
+                    style={on ? activeStyle : undefined}
                   >
                     {tab.status && tone && (
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: on ? "#fff" : tone.dot }} />
+                      <span
+                        className="h-2 w-2 rounded-full flex-shrink-0"
+                        style={{ background: on ? "rgba(255,255,255,0.5)" : tone.dot }}
+                      />
                     )}
                     {tab.label}
                     {count !== undefined && count > 0 && (
-                      <span className={cn("tnum text-[11px]", on ? "text-white/60" : "text-ink-faint")}>{count}</span>
+                      <span className={cn(
+                        "tnum text-[11px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1",
+                        on ? "bg-white/20 text-white" : "bg-line-soft text-ink-mute",
+                      )}>
+                        {count}
+                      </span>
                     )}
                   </button>
                 );
@@ -399,8 +493,8 @@ export default function ReservationsPage() {
           </div>
 
           {/* Column header */}
-          <div className="hidden md:grid grid-cols-[1.6fr_1fr_1.4fr_0.8fr_1fr_auto] gap-3 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-ink-faint border-b border-line-soft">
-            <span>Guest</span><span>Room</span><span>Stay</span><span>Nights</span><span>Status</span><span />
+          <div className="hidden md:grid grid-cols-[1.4fr_1.2fr_0.9fr_1.2fr_0.45fr_1fr_100px] gap-3 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-ink-faint border-b border-line-soft">
+            <span>Guest</span><span>Booking / Group</span><span>Room</span><span>Dates</span><span>Nights</span><span>Status</span><span />
           </div>
 
           {/* Rows */}
@@ -491,22 +585,41 @@ export default function ReservationsPage() {
         </Card>
       )}
 
+      {showChooser && (
+        <NewReservationTypeModal
+          onClose={() => { setShowChooser(false); clearSelection(); setNewCheckIn(undefined); setNewCheckOut(undefined); }}
+          onSelect={handleTypeSelected}
+          canCreateGroup={canCreateGroups}
+        />
+      )}
+
       {showNew && (
         <NewReservationModal
           initialCheckInDate={newCheckIn}
           initialCheckOutDate={newCheckOut}
-          onClose={() => {
-            setShowNew(false);
-            setNewCheckIn(undefined);
-            setNewCheckOut(undefined);
-            clearSelection();
-          }}
+          onClose={() => { setShowNew(false); setNewCheckIn(undefined); setNewCheckOut(undefined); clearSelection(); }}
           onSuccess={() => {
             setShowNew(false);
             setNewCheckIn(undefined);
             setNewCheckOut(undefined);
             clearSelection();
             qc.invalidateQueries({ queryKey: ["reservations"] });
+          }}
+        />
+      )}
+
+      {showNewGroup && (
+        <NewGroupModal
+          initialCheckIn={newCheckIn}
+          initialCheckOut={newCheckOut}
+          onClose={() => { setShowNewGroup(false); setNewCheckIn(undefined); setNewCheckOut(undefined); clearSelection(); }}
+          onSuccess={(id) => {
+            setShowNewGroup(false);
+            setNewCheckIn(undefined);
+            setNewCheckOut(undefined);
+            clearSelection();
+            qc.invalidateQueries({ queryKey: ["reservations"] });
+            navigate(`/groups/${id}`);
           }}
         />
       )}

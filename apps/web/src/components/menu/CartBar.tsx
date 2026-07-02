@@ -23,18 +23,15 @@ export function CartBar({ items, onClick }: CartBarProps) {
     <div className="qr-theme fixed bottom-0 left-0 right-0 z-40 p-4 safe-area-inset-bottom anim-fade-up">
       <button
         onClick={onClick}
-        className="w-full flex items-center justify-between text-white rounded-2xl pl-2 pr-3 py-2.5 active:scale-[0.97] transition-transform"
-        style={{
-          background: "linear-gradient(135deg, rgb(var(--qr-teal)), rgb(var(--qr-teal-deep)))",
-          boxShadow: "0 16px 36px -10px rgb(8 64 62 / 0.55)",
-        }}
+        className="qr-golden-shadow w-full flex items-center justify-between text-white rounded-full pl-2 pr-3 py-2.5 active:scale-[0.97] transition-transform"
+        style={{ background: "rgb(var(--qr-accent))" }}
       >
         <span className="flex items-center gap-3 font-semibold text-[14.5px]">
           <span className="grid place-items-center h-10 w-10 rounded-full bg-white/15 relative">
             <ShoppingCart className="w-[18px] h-[18px]" />
             <span
-              className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold grid place-items-center text-white"
-              style={{ background: "rgb(var(--qr-accent))" }}
+              className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold grid place-items-center"
+              style={{ background: "#fff", color: "rgb(var(--qr-accent))" }}
             >
               {count}
             </span>

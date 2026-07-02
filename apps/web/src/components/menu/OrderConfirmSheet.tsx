@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, X, Loader2, CheckCircle2, Search, BedDouble, Wallet } from "lucide-react";
+import { ArrowLeft, X, Loader2, CheckCircle2, Search, BedDouble, ShoppingBag, UtensilsCrossed, Wallet } from "lucide-react";
 import type { CartItem } from "./CartBar";
 import { qrMenuService } from "../../services/qrMenu";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -28,10 +28,17 @@ const DELIVERY_LABELS: Record<DeliveryType, string> = {
   dine_in:       "Dine In",
 };
 
+const DELIVERY_ICONS: Record<DeliveryType, typeof BedDouble> = {
+  room_delivery: BedDouble,
+  pickup:        ShoppingBag,
+  dine_in:       UtensilsCrossed,
+};
+
+// "Pressed into the linen" — darker sand fill, no border, soft inset shadow.
 const inputCls = "w-full rounded-xl px-3.5 py-2.5 text-[14px] focus:outline-none transition-colors";
-const inputStyle = { background: "rgb(var(--qr-bg))", border: "1px solid rgb(var(--qr-line))", color: "rgb(var(--qr-ink))" };
-const sectionLabelCls = "text-[11px] font-bold uppercase tracking-wide mb-2 block";
-const cardStyle = { background: "rgb(var(--qr-card))", border: "1px solid rgb(var(--qr-line-soft))", boxShadow: "0 10px 28px -10px rgb(41 26 18 / 0.12)" };
+const inputStyle = { background: "rgb(var(--qr-bg-deep))", border: "none", color: "rgb(var(--qr-ink))", boxShadow: "inset 0 1px 3px rgb(41 26 18 / 0.08)" };
+const sectionLabelCls = "text-[11px] font-bold uppercase tracking-widest mb-2 block";
+const cardStyle = { border: "1px solid rgb(var(--qr-line-soft))", boxShadow: "0 10px 28px -10px rgb(41 26 18 / 0.12)" };
 
 export function OrderConfirmSheet({
   hotelSlug,
@@ -164,7 +171,7 @@ export function OrderConfirmSheet({
   return (
     <div className="qr-theme fixed inset-0 z-50 flex flex-col" style={{ background: "rgb(var(--qr-bg))" }}>
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-3.5" style={{ background: "rgb(var(--qr-card))", borderBottom: "1px solid rgb(var(--qr-line))" }}>
+      <div className="qr-glass flex items-center gap-2 px-3 py-3.5" style={{ borderBottom: "1px solid rgb(var(--qr-line-soft))" }}>
         <button
           onClick={onClose}
           className="grid place-items-center h-9 w-9 rounded-full transition-colors shrink-0"
@@ -172,27 +179,27 @@ export function OrderConfirmSheet({
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="serif text-[18px]" style={{ color: "rgb(var(--qr-ink))" }}>Confirm order</h2>
+        <h2 className="serif italic text-[19px]" style={{ color: "rgb(var(--qr-accent))" }}>Confirm order</h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {/* Cart summary — compact receipt, expandable for line-by-line edits */}
-        <div style={{ background: "rgb(var(--qr-card))", borderBottom: "1px solid rgb(var(--qr-line))" }}>
+      <div className="flex-1 overflow-y-auto px-4 pt-4">
+        {/* Order summary card */}
+        <div className="qr-glass rounded-[1.5rem] p-4" style={cardStyle}>
           <button
             onClick={() => setCartExpanded((v) => !v)}
-            className="w-full flex items-center justify-between px-4 py-3.5"
+            className="w-full flex items-end justify-between"
           >
-            <span className="text-[13.5px] font-semibold" style={{ color: "rgb(var(--qr-ink-soft))" }}>
-              {itemCount} {itemCount === 1 ? "item" : "items"}
-              <span className="font-semibold ml-1.5" style={{ color: "rgb(var(--qr-accent))" }}>{cartExpanded ? "Hide" : "Edit"}</span>
+            <span className="text-left">
+              <span className="block text-[11px] font-bold uppercase tracking-widest" style={{ color: "rgb(var(--qr-ink-faint))" }}>Order summary</span>
+              <span className="block text-[14px] mt-1" style={{ color: "rgb(var(--qr-ink-soft))" }}>{itemCount} {itemCount === 1 ? "item" : "items"}</span>
             </span>
-            <span className="font-bold text-[15px] tnum" style={{ color: "rgb(var(--qr-ink))" }}>
-              PKR {Math.floor(total / 100).toLocaleString("en-PK")}
+            <span className="text-[12px] font-bold uppercase tracking-wide underline" style={{ color: "rgb(var(--qr-accent))" }}>
+              {cartExpanded ? "Hide" : "Edit"}
             </span>
           </button>
 
           {cartExpanded && (
-            <div className="px-4 pb-4 space-y-2.5 anim-fade-in">
+            <div className="mt-4 space-y-2.5 anim-fade-in">
               {items.map((item) => (
                 <div key={item.menuItemId} className="flex items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
@@ -225,30 +232,43 @@ export function OrderConfirmSheet({
               ))}
             </div>
           )}
+
+          <div className="h-px my-3.5" style={{ background: "rgb(var(--qr-line-soft))" }} />
+          <div className="flex items-center justify-between">
+            <span className="serif text-[18px]" style={{ color: "rgb(var(--qr-ink))" }}>Total</span>
+            <span className="serif text-[22px] tnum" style={{ color: "rgb(var(--qr-accent))" }}>
+              PKR {Math.floor(total / 100).toLocaleString("en-PK")}
+            </span>
+          </div>
         </div>
 
-        <form id="order-form" onSubmit={handleSubmit} className="px-4 py-4 space-y-3.5">
+        <form id="order-form" onSubmit={handleSubmit} className="py-4 space-y-3.5">
           {/* ── Delivery card ── */}
-          <div className="rounded-[1.5rem] p-4 space-y-4" style={cardStyle}>
+          <div className="qr-glass rounded-[1.5rem] p-4 space-y-4" style={cardStyle}>
             <p className="text-[12px] font-semibold" style={{ color: "rgb(var(--qr-ink-faint))" }}>{hotelName}</p>
 
-            {/* Delivery type */}
+            {/* Delivery type — icon grid, matches the confirm-order mockup */}
             <div>
-              <label className={sectionLabelCls} style={{ color: "rgb(var(--qr-ink-faint))" }}>Delivery type</label>
+              <label className={sectionLabelCls} style={{ color: "rgb(var(--qr-ink-faint))" }}>Delivery method</label>
               <div className="grid grid-cols-3 gap-2">
-                {(["room_delivery", "pickup", "dine_in"] as DeliveryType[]).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setDeliveryType(t)}
-                    className="py-2.5 px-2 rounded-xl text-[12.5px] font-semibold transition-colors"
-                    style={deliveryType === t
-                      ? { background: "linear-gradient(135deg, rgb(var(--qr-accent)), rgb(var(--qr-accent-deep)))", color: "#fff" }
-                      : { background: "rgb(var(--qr-bg))", color: "rgb(var(--qr-ink-soft))", border: "1px solid rgb(var(--qr-line))" }}
-                  >
-                    {DELIVERY_LABELS[t]}
-                  </button>
-                ))}
+                {(["room_delivery", "pickup", "dine_in"] as DeliveryType[]).map((t) => {
+                  const Icon = DELIVERY_ICONS[t];
+                  const active = deliveryType === t;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setDeliveryType(t)}
+                      className="flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-xl text-[12px] font-semibold transition-colors"
+                      style={active
+                        ? { background: "rgb(var(--qr-teal-soft))", color: "rgb(var(--qr-teal))" }
+                        : { background: "rgb(var(--qr-card) / 0.6)", color: "rgb(var(--qr-ink-soft))", border: "1px solid rgb(var(--qr-line))" }}
+                    >
+                      <Icon className="w-[18px] h-[18px]" />
+                      {DELIVERY_LABELS[t]}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -321,8 +341,8 @@ export function OrderConfirmSheet({
                     onClick={() => setPaymentPreference("charge_to_room")}
                     className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-[13px] font-semibold transition-colors"
                     style={paymentPreference === "charge_to_room"
-                      ? { background: "linear-gradient(135deg, rgb(var(--qr-accent)), rgb(var(--qr-accent-deep)))", color: "#fff" }
-                      : { background: "rgb(var(--qr-bg))", color: "rgb(var(--qr-ink-soft))", border: "1px solid rgb(var(--qr-line))" }}
+                      ? { background: "rgb(var(--qr-accent))", color: "#fff" }
+                      : { background: "rgb(var(--qr-card) / 0.6)", color: "rgb(var(--qr-ink-soft))", border: "1px solid rgb(var(--qr-line))" }}
                   >
                     <BedDouble className="w-4 h-4 flex-shrink-0" />
                     Pay at checkout
@@ -332,8 +352,8 @@ export function OrderConfirmSheet({
                     onClick={() => setPaymentPreference("pay_now")}
                     className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-[13px] font-semibold transition-colors"
                     style={paymentPreference === "pay_now"
-                      ? { background: "linear-gradient(135deg, rgb(var(--qr-accent)), rgb(var(--qr-accent-deep)))", color: "#fff" }
-                      : { background: "rgb(var(--qr-bg))", color: "rgb(var(--qr-ink-soft))", border: "1px solid rgb(var(--qr-line))" }}
+                      ? { background: "rgb(var(--qr-accent))", color: "#fff" }
+                      : { background: "rgb(var(--qr-card) / 0.6)", color: "rgb(var(--qr-ink-soft))", border: "1px solid rgb(var(--qr-line))" }}
                   >
                     <Wallet className="w-4 h-4 flex-shrink-0" />
                     Pay on spot
@@ -349,7 +369,7 @@ export function OrderConfirmSheet({
           </div>
 
           {/* ── Contact card ── */}
-          <div className="rounded-[1.5rem] p-4 space-y-3.5" style={cardStyle}>
+          <div className="qr-glass rounded-[1.5rem] p-4 space-y-3.5" style={cardStyle}>
             <label className={sectionLabelCls} style={{ color: "rgb(var(--qr-ink-faint))", marginBottom: 0 }}>Your details</label>
             <div className="grid grid-cols-2 gap-3">
               <input
@@ -387,13 +407,13 @@ export function OrderConfirmSheet({
       </div>
 
       {/* Submit */}
-      <div className="px-4 py-4 safe-area-inset-bottom" style={{ background: "rgb(var(--qr-card))", borderTop: "1px solid rgb(var(--qr-line))" }}>
+      <div className="qr-glass px-4 py-4 safe-area-inset-bottom" style={{ borderTop: "1px solid rgb(var(--qr-line-soft))" }}>
         <button
           form="order-form"
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 text-white rounded-2xl px-5 py-4 font-bold text-[15px] disabled:opacity-60 active:scale-[0.97] transition-transform"
-          style={{ background: "linear-gradient(135deg, rgb(var(--qr-accent)), rgb(var(--qr-accent-deep)))", boxShadow: "0 16px 36px -10px rgb(var(--qr-accent) / 0.55)" }}
+          className="qr-golden-shadow w-full flex items-center justify-center gap-2 text-white rounded-full px-5 py-4 font-bold text-[15px] disabled:opacity-60 active:scale-[0.97] transition-transform"
+          style={{ background: "rgb(var(--qr-accent))" }}
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
           {confirmedRoom && paymentPreference === "charge_to_room"

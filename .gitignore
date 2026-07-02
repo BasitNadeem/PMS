@@ -20,3 +20,6 @@ Thumbs.db
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Uploaded files (local dev only — use Cloudinary in production)
+apps/api/uploads/

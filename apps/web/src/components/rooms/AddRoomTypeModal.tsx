@@ -71,7 +71,7 @@ export function AddRoomTypeModal({ onClose }: AddRoomTypeModalProps) {
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           <div>
-            <label className={labelCls}>Name <span className="text-coral normal-case tracking-normal">*</span></label>
+            <label className={labelCls}>Name <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <input type="text" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder="e.g. Deluxe Double"
               className={cn(inputCls, errors.name && "border-clay/50")} />
@@ -94,14 +94,14 @@ export function AddRoomTypeModal({ onClose }: AddRoomTypeModalProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>Max Occupancy <span className="text-coral normal-case tracking-normal">*</span></label>
+              <label className={labelCls}>Max Occupancy <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
               <input type="number" min={1} value={form.maxOccupancy}
                 onChange={(e) => setForm((f) => ({ ...f, maxOccupancy: e.target.value }))}
                 placeholder="2" className={cn(inputCls, errors.maxOccupancy && "border-clay/50")} />
               {errors.maxOccupancy && <p className="text-[12px] text-clay mt-1">{errors.maxOccupancy}</p>}
             </div>
             <div>
-              <label className={labelCls}>Base Rate (PKR) <span className="text-coral normal-case tracking-normal">*</span></label>
+              <label className={labelCls}>Base Rate (PKR) <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
               <input type="number" min={1} value={form.defaultRate}
                 onChange={(e) => setForm((f) => ({ ...f, defaultRate: e.target.value }))}
                 placeholder="5000" className={cn(inputCls, errors.defaultRate && "border-clay/50")} />

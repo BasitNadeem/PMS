@@ -43,6 +43,7 @@ const SOURCES: { value: BookingSource; label: string }[] = [
   { value: "WALK_IN",        label: "Walk-in" },
   { value: "PHONE",          label: "Phone" },
   { value: "WHATSAPP",       label: "WhatsApp" },
+  { value: "TRAVEL_AGENT",   label: "Travel Agent" },
   { value: "BOOKING_COM",    label: "Booking.com" },
   { value: "AGODA",          label: "Agoda" },
   { value: "EXPEDIA",        label: "Expedia" },
@@ -167,6 +168,7 @@ export interface NewReservationModalProps {
   onSuccess: (message: string) => void;
   initialCheckInDate?: string;
   initialCheckOutDate?: string;
+  initialSource?: BookingSource;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -177,7 +179,7 @@ function addOneDay(isoDate: string): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, initialCheckOutDate }: NewReservationModalProps) {
+export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, initialCheckOutDate, initialSource }: NewReservationModalProps) {
   useEscapeKey(onClose);
   const qc = useQueryClient();
   const [step, setStep] = useState(0);
@@ -191,7 +193,7 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
     guestId: "", guestName: "", guestCity: "", guestStays: 0, guestBlacklisted: false,
     useNewGuest: true,
     newFirstName: "", newLastName: "", newPhone: "", newDocType: "CNIC", newDocNumber: "",
-    adults: 2, children: 0, source: "WALK_IN", specialRequests: "",
+    adults: 2, children: 0, source: initialSource ?? "WALK_IN", specialRequests: "",
     advancePayment: "", advancePaymentMethod: "CASH",
     isVip: false,
   });
@@ -201,12 +203,15 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
     setStepError("");
   }
 
-  // Available rooms (vacant clean)
+  // All bookable rooms — excludes OUT_OF_ORDER and BLOCKED (permanent unavailability),
+  // but includes OCCUPIED rooms that may be free for the requested future dates.
   const { data: roomsData } = useQuery({
-    queryKey: ["rooms", "VACANT_CLEAN"],
-    queryFn: () => roomsService.getRooms("VACANT_CLEAN"),
+    queryKey: ["rooms", "all"],
+    queryFn: () => roomsService.getRooms(),
   });
-  const allVacantRooms: Room[] = roomsData?.data ?? [];
+  const allRooms: Room[] = (roomsData?.data ?? []).filter(
+    (r) => r.status !== "OUT_OF_ORDER" && r.status !== "BLOCKED",
+  );
 
   // Room types for filter
   const { data: roomTypesData } = useQuery({
@@ -215,12 +220,30 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
   });
   const roomTypes = roomTypesData?.data ?? [];
 
-  // Filter rooms
-  const vacantRooms = form.roomTypeFilter
-    ? allVacantRooms.filter((r) => r.roomTypeId === form.roomTypeFilter)
-    : allVacantRooms;
+  // Bulk date-range availability — fires when both dates are set, checks ALL rooms
+  // at once. This is what actually determines which rooms can be offered for the
+  // requested stay — not the room's current physical status.
+  const datesReady = !!form.checkIn && !!form.checkOut && form.checkOut > form.checkIn;
+  const { data: bulkAvailability } = useQuery({
+    queryKey: ["rooms-bulk-availability", form.checkIn, form.checkOut],
+    queryFn:  () => roomsService.checkAvailability({
+      checkInDate: form.checkIn, checkOutDate: form.checkOut,
+    }),
+    enabled:   datesReady,
+    staleTime: 30_000,
+  });
+  const availableRoomIds = new Set(bulkAvailability?.availableRoomIds ?? []);
 
-  const selectedRoom = allVacantRooms.find((r) => r.id === form.roomId) ?? null;
+  // Apply room type filter, then availability filter based on the selected dates.
+  const byType = form.roomTypeFilter
+    ? allRooms.filter((r) => r.roomTypeId === form.roomTypeFilter)
+    : allRooms;
+
+  const vacantRooms = datesReady
+    ? byType.filter((r) => availableRoomIds.has(r.id))
+    : [];
+
+  const selectedRoom = allRooms.find((r) => r.id === form.roomId) ?? null;
 
   // Proactive conflict check — fires the moment a room + both dates are picked,
   // so the user finds out immediately instead of after filling the whole form.
@@ -290,7 +313,8 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
   const subtotal     = ratePerNight * nights;
   const tax          = Math.round(subtotal * 0.05);
   const totalAmount  = subtotal + tax;
-  const today        = new Date().toISOString().slice(0, 10);
+  const maxOccupancy = selectedRoom?.roomType.maxOccupancy ?? 10;
+  const today        = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
   const isPending    = createGuestMutation.isPending || createReservationMutation.isPending;
 
   // ── Validation ──────────────────────────────────────────────────────────────
@@ -305,6 +329,9 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
     return "";
   }
   function validateStep1(): string {
+    if (form.adults + form.children > maxOccupancy) {
+      return `Total guests (${form.adults + form.children}) exceeds this room's capacity of ${maxOccupancy}`;
+    }
     if (form.useNewGuest) {
       if (!form.newFirstName.trim()) return "First name is required";
       if (!form.newLastName.trim())  return "Last name is required";
@@ -429,7 +456,7 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
               {/* Date row */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Check-in</label>
+                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Check-in <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                   <input
                     type="date" min={today} value={form.checkIn}
                     onChange={(e) => { set("checkIn", e.target.value); if (form.checkOut && form.checkOut <= e.target.value) set("checkOut", ""); }}
@@ -437,7 +464,7 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Check-out</label>
+                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Check-out <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                   <input
                     type="date" min={form.checkIn || today} value={form.checkOut}
                     onChange={(e) => set("checkOut", e.target.value)}
@@ -450,9 +477,11 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[13px] text-ink-mute">
                   {nights > 0 && (
-                    <><span className="font-bold text-ink tnum">{nights}</span> night{nights !== 1 ? "s" : ""} · </>
+                    <><span className="font-bold text-ink tnum">{nights}</span> night{nights !== 1 ? "s" : ""}{datesReady ? " · " : ""}</>
                   )}
-                  <span className="font-bold text-ink tnum">{vacantRooms.length}</span> room{vacantRooms.length !== 1 ? "s" : ""} available
+                  {datesReady && (
+                    <><span className="font-bold text-ink tnum">{vacantRooms.length}</span> room{vacantRooms.length !== 1 ? "s" : ""} available</>
+                  )}
                 </p>
                 {/* Room type filter */}
                 <div className="relative">
@@ -471,9 +500,13 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
               </div>
 
               {/* Room cards grid */}
-              {vacantRooms.length === 0 ? (
+              {!datesReady ? (
                 <div className="rounded-xl border border-dashed border-line py-8 text-center text-[13px] text-ink-mute">
-                  No vacant rooms available
+                  Select check-in and check-out dates to see available rooms
+                </div>
+              ) : vacantRooms.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-line py-8 text-center text-[13px] text-ink-mute">
+                  No rooms available for these dates
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 max-h-[44vh] overflow-y-auto scroll-area pr-0.5">
@@ -483,7 +516,15 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                     return (
                       <button
                         key={r.id}
-                        onClick={() => set("roomId", r.id)}
+                        onClick={() => {
+                          const cap = r.roomType.maxOccupancy;
+                          setForm((f) => {
+                            const adults   = Math.max(1, Math.min(f.adults, cap));
+                            const children = Math.max(0, Math.min(f.children, cap - adults));
+                            return { ...f, roomId: r.id, adults, children };
+                          });
+                          setStepError("");
+                        }}
                         className={cn(
                           "text-left rounded-[1.25rem] border p-4 transition-all",
                           conflicted
@@ -627,20 +668,25 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                     </div>
                   )}
 
-                  {/* Adults/Children steppers */}
-                  <div className="flex items-center gap-4">
-                    <NumStepper
-                      label="Adults" value={form.adults}
-                      onInc={() => set("adults", Math.min(10, form.adults + 1))}
-                      onDec={() => set("adults", Math.max(1, form.adults - 1))}
-                      min={1} max={10}
-                    />
-                    <NumStepper
-                      label="Children" value={form.children}
-                      onInc={() => set("children", Math.min(10, form.children + 1))}
-                      onDec={() => set("children", Math.max(0, form.children - 1))}
-                      min={0} max={10}
-                    />
+                  {/* Adults/Children — total capped at room's maxOccupancy */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-4">
+                      <NumStepper
+                        label="Adults" value={form.adults}
+                        onInc={() => set("adults", Math.min(maxOccupancy - form.children, form.adults + 1))}
+                        onDec={() => set("adults", Math.max(1, form.adults - 1))}
+                        min={1} max={maxOccupancy - form.children}
+                      />
+                      <NumStepper
+                        label="Children" value={form.children}
+                        onInc={() => set("children", Math.min(maxOccupancy - form.adults, form.children + 1))}
+                        onDec={() => set("children", Math.max(0, form.children - 1))}
+                        min={0} max={maxOccupancy - form.adults}
+                      />
+                    </div>
+                    <p className="text-[12px] text-ink-faint">
+                      Max {maxOccupancy} guest{maxOccupancy !== 1 ? "s" : ""} · {form.adults + form.children} of {maxOccupancy} used
+                    </p>
                   </div>
 
                   <VipToggleRow checked={form.isVip} onToggle={() => set("isVip", !form.isVip)} />
@@ -650,19 +696,19 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                   {/* New guest form */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">First name</label>
+                      <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">First name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                       <input type="text" value={form.newFirstName} onChange={(e) => set("newFirstName", e.target.value)} placeholder="Ahmed" className={inputCls} />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Last name</label>
+                      <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Last name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                       <input type="text" value={form.newLastName} onChange={(e) => set("newLastName", e.target.value)} placeholder="Raza" className={inputCls} />
                     </div>
                     <div className="col-span-2">
-                      <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Phone</label>
+                      <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Phone <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                       <input type="tel" value={form.newPhone} onChange={(e) => set("newPhone", e.target.value)} placeholder="+92 3..." className={inputCls} />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">ID type</label>
+                      <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">ID type <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                       <div className="relative">
                         <select value={form.newDocType} onChange={(e) => set("newDocType", e.target.value)} className={cn(inputCls, "appearance-none pr-9 cursor-pointer")}>
                           <option value="CNIC">CNIC</option>
@@ -676,7 +722,7 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                     </div>
                     <div>
                       <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">
-                        ID number <span className="text-clay">*</span>
+                        ID number <span className="text-clay text-[15px] font-bold leading-none">*</span>
                       </label>
                       <input type="text" value={form.newDocNumber} onChange={(e) => set("newDocNumber", e.target.value)} placeholder="35202-•••••••-7" className={inputCls} />
                     </div>
@@ -695,10 +741,15 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                     </div>
                   )}
 
-                  {/* Adults/Children */}
-                  <div className="flex items-center gap-4">
-                    <NumStepper label="Adults"   value={form.adults}   onInc={() => set("adults",   Math.min(10, form.adults + 1))}   onDec={() => set("adults",   Math.max(1, form.adults - 1))}   min={1} />
-                    <NumStepper label="Children" value={form.children} onInc={() => set("children", Math.min(10, form.children + 1))} onDec={() => set("children", Math.max(0, form.children - 1))} min={0} />
+                  {/* Adults/Children — total capped at room's maxOccupancy */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-4">
+                      <NumStepper label="Adults"   value={form.adults}   onInc={() => set("adults",   Math.min(maxOccupancy - form.children, form.adults + 1))}   onDec={() => set("adults",   Math.max(1, form.adults - 1))}   min={1} max={maxOccupancy - form.children} />
+                      <NumStepper label="Children" value={form.children} onInc={() => set("children", Math.min(maxOccupancy - form.adults, form.children + 1))} onDec={() => set("children", Math.max(0, form.children - 1))} min={0} max={maxOccupancy - form.adults} />
+                    </div>
+                    <p className="text-[12px] text-ink-faint">
+                      Max {maxOccupancy} guest{maxOccupancy !== 1 ? "s" : ""} · {form.adults + form.children} of {maxOccupancy} used
+                    </p>
                   </div>
 
                   <VipToggleRow checked={form.isVip} onToggle={() => set("isVip", !form.isVip)} />

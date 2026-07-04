@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
@@ -17,6 +17,54 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { getCurrentUserName, getCurrentUserRole, formatRoleLabel, getInitials } from "@/lib/jwt";
 import { applyTheme } from "@/lib/theme";
+
+function useOnlineStatus() {
+  return useSyncExternalStore(
+    (cb) => {
+      window.addEventListener("online", cb);
+      window.addEventListener("offline", cb);
+      return () => {
+        window.removeEventListener("online", cb);
+        window.removeEventListener("offline", cb);
+      };
+    },
+    () => navigator.onLine,
+    () => true,
+  );
+}
+
+function OfflineBanner() {
+  const isOnline = useOnlineStatus();
+  const [wasOffline, setWasOffline] = useState(false);
+  const [showReconnected, setShowReconnected] = useState(false);
+
+  useEffect(() => {
+    if (!isOnline) {
+      setWasOffline(true);
+      setShowReconnected(false);
+    } else if (wasOffline) {
+      setShowReconnected(true);
+      const t = setTimeout(() => setShowReconnected(false), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [isOnline, wasOffline]);
+
+  if (isOnline && !showReconnected) return null;
+
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-center gap-2 px-4 py-2 text-[13px] font-semibold transition-colors",
+        isOnline
+          ? "bg-emerald-50 text-emerald-700 border-b border-emerald-100"
+          : "bg-amber-50 text-amber-800 border-b border-amber-200",
+      )}
+    >
+      <span className={cn("h-2 w-2 rounded-full shrink-0", isOnline ? "bg-emerald-500" : "bg-amber-500")} />
+      {isOnline ? "Back online — data is syncing" : "You're offline — showing cached data"}
+    </div>
+  );
+}
 
 interface Hotel {
   id: string;
@@ -191,6 +239,7 @@ function SidebarContent({
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("userName");
+    localStorage.removeItem("pms-query-cache");
     applyTheme(undefined);
     navigate("/login");
   }
@@ -635,6 +684,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto scroll-area">
+          <OfflineBanner />
           <TempPasswordBanner />
           <div className="px-5 sm:px-7 lg:px-8 py-5 lg:py-6">
             {children}

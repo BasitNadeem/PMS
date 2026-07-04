@@ -1,8 +1,8 @@
 import axios from "axios";
 
-export const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+export const BASE_URL = import.meta.env.VITE_API_URL || "";
 
-export const api = axios.create({ baseURL: BASE_URL });
+export const api = axios.create({ baseURL: BASE_URL, timeout: 12_000 });
 
 // Backend error envelope is always { error: string, details?: unknown } —
 // extract the real message instead of showing a generic "something went

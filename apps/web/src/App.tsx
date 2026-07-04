@@ -35,6 +35,7 @@ import KitchenDashboardPage from "./pages/kitchen/KitchenDashboardPage";
 import { KitchenLayout } from "./components/layout/KitchenLayout";
 import QrOrdersPage from "./pages/qr-orders/QrOrdersPage";
 import InventoryPage from "./pages/inventory/InventoryPage";
+import MobileScanPage from "./pages/MobileScanPage";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem("accessToken");
@@ -86,6 +87,8 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         {/* Fully public — no auth, no AppLayout */}
         <Route path="/menu/:hotelSlug" element={<GuestMenuPage />} />
+        {/* Mobile camera scan — token in URL is the credential, no login required */}
+        <Route path="/scan/:token" element={<MobileScanPage />} />
         {/* Kitchen dashboard — auth required, uses main AppLayout */}
         <Route
           path="/kitchen/dashboard"

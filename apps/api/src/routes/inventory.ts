@@ -1,4 +1,5 @@
-import { Router } from "express";
+import { Router, json } from "express";
+import jwt from "jsonwebtoken";
 import { authenticate } from "../middleware/auth";
 import { tenantMiddleware } from "../middleware/tenant";
 import { requirePermission } from "../middleware/permission";
@@ -8,7 +9,12 @@ import {
   updateInventoryItemSchema,
   createTransactionSchema,
 } from "../schemas/inventory";
+import { scanInventorySchema } from "../schemas/inventoryScan";
 import { InventoryService } from "../services/InventoryService";
+import { InventoryScanService } from "../services/InventoryScanService";
+import { ScanSessionService } from "../services/ScanSessionService";
+import { env } from "../lib/env";
+import type { JwtPayload } from "../middleware/auth";
 
 const router = Router();
 
@@ -77,6 +83,64 @@ router.delete("/:id", requirePermission("pos:manage"), async (req, res) => {
     req.user!.userId,
   );
   res.status(204).send();
+});
+
+// POST /api/inventory/scan — desktop direct upload (base64 image, authenticated)
+router.post(
+  "/scan",
+  requirePermission("pos:manage"),
+  json({ limit: "5mb" }),
+  async (req, res) => {
+    const dto    = scanInventorySchema.parse(req.body);
+    const result = await InventoryScanService.scan(req.withTenant, req.user!.hotelId, dto);
+    res.json({ data: result });
+  },
+);
+
+// POST /api/inventory/scan-sessions — desktop creates QR session
+router.post("/scan-sessions", requirePermission("pos:manage"), async (req, res) => {
+  const { token } = await ScanSessionService.create(req.user!.hotelId);
+  res.status(201).json({ data: { token } });
+});
+
+// GET /api/inventory/scan-sessions/:token/events — desktop SSE stream
+// EventSource cannot set headers, so JWT is accepted via ?auth= query param.
+router.get("/scan-sessions/:token/events", async (req, res) => {
+  const rawJwt = (
+    req.headers.authorization?.replace("Bearer ", "") ??
+    (req.query.auth as string | undefined)
+  );
+  if (!rawJwt) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  let payload: JwtPayload;
+  try {
+    payload = jwt.verify(rawJwt, env.JWT_SECRET) as JwtPayload;
+  } catch {
+    res.status(401).json({ error: "Invalid token" });
+    return;
+  }
+
+  const token   = req.params.token as string;
+  const session = await ScanSessionService.get(token);
+  if (!session)                            { res.status(404).json({ error: "Session not found or expired" }); return; }
+  if (session.hotelId !== payload.hotelId) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  // Already completed before desktop connected (fast mobile)
+  if (session.status === "done") {
+    res.json({ data: session.result });
+    return;
+  }
+
+  res.setHeader("Content-Type",  "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection",    "keep-alive");
+  res.flushHeaders();
+  res.write("event: connected\ndata: {}\n\n");
+
+  ScanSessionService.registerSSE(token, res);
+
+  const heartbeat = setInterval(() => res.write("event: ping\ndata: {}\n\n"), 30_000);
+  res.on("close", () => clearInterval(heartbeat));
 });
 
 // POST /api/inventory/:id/transactions

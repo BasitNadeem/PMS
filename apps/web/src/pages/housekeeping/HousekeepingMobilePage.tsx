@@ -95,12 +95,20 @@ const PRIORITY_TONE: Record<HousekeepingPriority, { border: string; bg: string; 
   LOW:    { border: "#938C81", bg: "#F1ECE4", fg: "#4A453E", label: "LOW" },
 };
 
-const FILTERS: { key: "all" | HousekeepingStatus; label: string }[] = [
+type FilterKey = "active" | "all" | HousekeepingStatus;
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: "active",      label: "Active" },
   { key: "all",         label: "All" },
   { key: "PENDING",     label: "Pending" },
   { key: "IN_PROGRESS", label: "In Progress" },
   { key: "COMPLETED",   label: "Done" },
 ];
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 
@@ -398,8 +406,9 @@ export default function HousekeepingMobilePage() {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"mine" | "all">("mine");
-  const [filter, setFilter] = useState<"all" | HousekeepingStatus>("all");
+  const [filter, setFilter] = useState<FilterKey>("active");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [refreshing, setRefreshing] = useState(false);
@@ -425,6 +434,15 @@ export default function HousekeepingMobilePage() {
       window.removeEventListener("online", goOnline);
       window.removeEventListener("offline", goOffline);
     };
+  }, []);
+
+  useEffect(() => {
+    function handler(e: Event) {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    }
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   useEffect(() => {
@@ -485,13 +503,18 @@ export default function HousekeepingMobilePage() {
   });
 
   const counts = useMemo(() => ({
+    active:      tasks.filter((t) => t.status === "PENDING" || t.status === "IN_PROGRESS").length,
     all:         tasks.length,
     PENDING:     tasks.filter((t) => t.status === "PENDING").length,
     IN_PROGRESS: tasks.filter((t) => t.status === "IN_PROGRESS").length,
     COMPLETED:   tasks.filter((t) => t.status === "COMPLETED").length,
   }), [tasks]);
 
-  const filtered = filter === "all" ? tasks : tasks.filter((t) => t.status === filter);
+  const filtered = filter === "all"
+    ? tasks
+    : filter === "active"
+    ? tasks.filter((t) => t.status === "PENDING" || t.status === "IN_PROGRESS")
+    : tasks.filter((t) => t.status === filter);
 
   const NEXT_STATUS: Record<HousekeepingStatus, HousekeepingStatus> = {
     PENDING:     "IN_PROGRESS",
@@ -602,6 +625,33 @@ export default function HousekeepingMobilePage() {
         </div>
       )}
 
+      {/* Install banner (Android Chrome only — fires beforeinstallprompt) */}
+      {installPrompt && (
+        <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 border-b border-line bg-white">
+          <div className="text-[13px] text-ink-soft leading-snug">
+            <span className="font-semibold text-ink">Add to Home Screen</span> for quick access — works offline too.
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setInstallPrompt(null)}
+              className="text-[12px] text-ink-faint px-2 py-1"
+            >
+              Later
+            </button>
+            <button
+              onClick={async () => {
+                await installPrompt.prompt();
+                const { outcome } = await installPrompt.userChoice;
+                if (outcome === "accepted") setInstallPrompt(null);
+              }}
+              className="h-8 px-3 rounded-lg bg-ink text-white text-[12.5px] font-semibold"
+            >
+              Install
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <div
         ref={scrollRef}
@@ -640,7 +690,7 @@ export default function HousekeepingMobilePage() {
                     : "bg-white text-ink-mute border-line",
                 )}
               >
-                {f.label} ({counts[f.key === "all" ? "all" : f.key]})
+                {f.label} ({counts[f.key]})
               </button>
             ))}
           </div>
@@ -654,9 +704,9 @@ export default function HousekeepingMobilePage() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-14">
-              <div className="text-[34px]">{filter === "PENDING" ? "✅" : "🎉"}</div>
+              <div className="text-[34px]">{filter === "PENDING" || filter === "active" ? "✅" : "🎉"}</div>
               <div className="mt-2 text-[14.5px] font-semibold text-ink-soft">
-                {filter === "PENDING" ? "All caught up! No pending tasks." : "Great work today!"}
+                {filter === "active" ? "All caught up! No active tasks." : filter === "PENDING" ? "No pending tasks." : "Great work today!"}
               </div>
             </div>
           ) : (

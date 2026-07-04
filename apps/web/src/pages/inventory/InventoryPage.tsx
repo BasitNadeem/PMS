@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Package, AlertTriangle, Search, Plus, LayoutGrid, List, X,
-  ChevronLeft, ChevronRight, TrendingDown,
+  ChevronLeft, ChevronRight, TrendingDown, ScanLine,
 } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Card } from "@/components/ui/Card";
@@ -14,6 +14,7 @@ import {
 import { AddItemModal } from "../../components/inventory/AddItemModal";
 import { ItemDetailDrawer } from "../../components/inventory/ItemDetailDrawer";
 import { RecordTransactionModal } from "../../components/inventory/RecordTransactionModal";
+import { ScanStockModal } from "../../components/inventory/ScanStockModal";
 import type { CreateTransactionDto } from "../../services/inventory";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -112,6 +113,7 @@ export default function InventoryPage() {
   const [view,            setView]           = useState<ViewMode>("table");
   const [page,            setPage]           = useState(1);
   const [showAdd,         setShowAdd]        = useState(false);
+  const [showScan,        setShowScan]       = useState(false);
   const [selectedId,      setSelectedId]     = useState<string | null>(null);
   const [quickTxnItem,    setQuickTxnItem]   = useState<InventoryItem | null>(null);
 
@@ -170,12 +172,20 @@ export default function InventoryPage() {
               : "—"}
           </p>
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-coral text-white text-sm font-semibold hover:bg-coral-dark transition-colors shadow-pop"
-        >
-          <Plus size={15} /> Add Item
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowScan(true)}
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-full border border-coral/30 bg-coral/5 text-coral text-sm font-semibold hover:bg-coral/10 transition-colors"
+          >
+            <ScanLine size={15} /> Scan Stock
+          </button>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-coral text-white text-sm font-semibold hover:bg-coral-dark transition-colors shadow-pop"
+          >
+            <Plus size={15} /> Add Item
+          </button>
+        </div>
       </div>
 
       {/* Summary stat cards */}
@@ -370,6 +380,13 @@ export default function InventoryPage() {
       {selectedId && <ItemDetailDrawer itemId={selectedId} onClose={() => setSelectedId(null)} />}
 
       {showAdd && <AddItemModal onClose={() => setShowAdd(false)} onSuccess={handleAddItem} />}
+
+      {showScan && (
+        <ScanStockModal
+          onClose={() => setShowScan(false)}
+          onComplete={() => { invalidate(); }}
+        />
+      )}
 
       {quickTxnItem && (
         <RecordTransactionModal

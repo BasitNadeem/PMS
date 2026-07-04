@@ -9,6 +9,7 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico"],
+      devOptions: { enabled: true },
       // sw-push.js (push/notificationclick handling) is registered separately
       // from this Workbox-generated service worker.
       manifest: {
@@ -28,13 +29,25 @@ export default defineConfig({
       },
       workbox: {
         runtimeCaching: [
+          // Housekeeping: longer cache + faster fallback (field staff go offline often)
           {
-            urlPattern: /^https?.*\/api\/housekeeping/,
+            urlPattern: /\/api\/housekeeping/,
             handler: "NetworkFirst",
             options: {
-              cacheName: "housekeeping-api",
+              cacheName: "hk-api",
               networkTimeoutSeconds: 5,
               expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          // All other read API routes: fall back to cache after 8s on slow connection
+          {
+            urlPattern: /\/api\/(reservations|rooms|guests|dashboard|hotels|maintenance|reports|groups|folio|billing|notifications|inventory|pos|qr-orders|shifts|settings|users)/,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "pms-api",
+              networkTimeoutSeconds: 8,
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 4 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },

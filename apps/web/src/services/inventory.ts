@@ -136,4 +136,34 @@ export const inventoryService = {
     const res = await api.post(`/api/inventory/${itemId}/transactions`, data);
     return res.data.data;
   },
+
+  scan: async (imageBase64: string, mimeType: string): Promise<ScanResult> => {
+    const res = await api.post("/api/inventory/scan", { imageBase64, mimeType });
+    return res.data.data;
+  },
+
+  createScanSession: async (): Promise<{ token: string }> => {
+    const res = await api.post("/api/inventory/scan-sessions");
+    return res.data.data;
+  },
 };
+
+export interface ScanMatch {
+  item: {
+    id:           string;
+    name:         string;
+    category:     string;
+    unit:         string;
+    currentStock: number;
+    sku:          string | null;
+  };
+  matchedText:  string;
+  confidence:   number;
+  suggestedQty: number | null;
+}
+
+export interface ScanResult {
+  imageUrl:      string;
+  detectedTexts: string[];
+  matches:       ScanMatch[];
+}

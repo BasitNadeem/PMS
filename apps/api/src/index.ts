@@ -39,6 +39,7 @@ import qrPublicRouter from "./routes/qrPublic";
 import qrOrdersRouter from "./routes/qrOrders";
 import kitchenRouter from "./routes/kitchen";
 import inventoryRouter from "./routes/inventory";
+import mobileScanRouter from "./routes/mobileScan";
 import searchRouter from "./routes/search";
 import realtimeRouter from "./routes/realtime";
 import pushRouter from "./routes/push";
@@ -48,7 +49,9 @@ import { scheduleBriefings } from "./jobs/briefingScheduler";
 const app = express();
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
-app.use(cors({ origin: [env.CORS_ORIGIN, env.ADMIN_CORS_ORIGIN] }));
+app.use(cors({
+  origin: env.NODE_ENV === "development" ? true : [env.CORS_ORIGIN, env.ADMIN_CORS_ORIGIN],
+}));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use(compression());
 app.use(express.json());
@@ -88,6 +91,7 @@ app.use("/api/qr-public",      qrPublicRouter);
 app.use("/api/qr-orders",      qrOrdersRouter);
 app.use("/api/kitchen",        kitchenRouter);
 app.use("/api/inventory",      inventoryRouter);
+app.use("/api/m",              mobileScanRouter);
 app.use("/api/search",         searchRouter);
 app.use("/api/realtime",       realtimeRouter);
 app.use("/api/push",           pushRouter);
@@ -105,7 +109,7 @@ process.on("SIGTERM", async () => {
   process.exit(0);
 });
 
-app.listen(env.PORT, () => {
+app.listen(env.PORT, "0.0.0.0", () => {
   console.log(`🚀  API ready at http://localhost:${env.PORT}`);
   console.log(`    DB role: ${process.env.DATABASE_URL?.match(/\/\/([^:]+)/)?.[1] ?? "?"}`);
 });

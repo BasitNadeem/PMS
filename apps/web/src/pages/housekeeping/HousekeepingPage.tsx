@@ -19,6 +19,7 @@ import { CreateTicketModal } from "@/components/maintenance/CreateTicketModal";
 import { Card } from "@/components/ui/Card";
 import { toneOf } from "@/components/ui/StatusBadge";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getErrorMessage } from "@/lib/api";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,12 @@ const ALL_STATUSES: { value: HousekeepingStatus; label: string }[] = [
   { value: "COMPLETED", label: "Done" },
 ];
 
+const VALID_NEXT_STATUS: Record<HousekeepingStatus, HousekeepingStatus> = {
+  PENDING:     "IN_PROGRESS",
+  IN_PROGRESS: "COMPLETED",
+  COMPLETED:   "PENDING",
+};
+
 // ── Summary card ──────────────────────────────────────────────────────────────
 
 function SumCard({ icon: Icon, toneName, n, label, delay = 0 }: {
@@ -93,6 +100,7 @@ function TaskCard({ task, onStatusChange, onReportIssue, canUpdate, canReportIss
   const statusLabel  = task.status === "PENDING" ? "Pending" : task.status === "IN_PROGRESS" ? "In Progress" : "Done";
   const statusTone   = toneOf(statusLabel);
   const nextStatus: HousekeepingStatus | null = task.status === "PENDING" ? "IN_PROGRESS" : task.status === "IN_PROGRESS" ? "COMPLETED" : null;
+  const validNext = VALID_NEXT_STATUS[task.status];
 
   return (
     <div className="rounded-xl2 border border-line bg-card p-3.5 shadow-pop lift hover:shadow-card relative">
@@ -120,7 +128,7 @@ function TaskCard({ task, onStatusChange, onReportIssue, canUpdate, canReportIss
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-8 z-20 w-44 rounded-xl border border-line bg-card shadow-float p-1.5 anim-scale-in">
-                  {canUpdate && ALL_STATUSES.map((s) => {
+                  {canUpdate && ALL_STATUSES.filter((s) => s.value === task.status || s.value === validNext).map((s) => {
                     const t = toneOf(s.label);
                     return (
                       <button
@@ -213,6 +221,7 @@ export default function HousekeepingPage() {
   const [activeTab, setActiveTab]       = useState<TabStatus>("ALL");
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [issueRoom, setIssueRoom] = useState<{ id: string; number: string } | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   const { data: summaryData } = useQuery({
     queryKey: ["housekeeping-summary"],
@@ -232,6 +241,11 @@ export default function HousekeepingPage() {
       qc.invalidateQueries({ queryKey: ["housekeeping"] });
       qc.invalidateQueries({ queryKey: ["housekeeping-summary"] });
       qc.invalidateQueries({ queryKey: ["rooms"] });
+    },
+    onError: (err) => {
+      const msg = getErrorMessage(err, "Failed to update task status");
+      setStatusError(msg);
+      setTimeout(() => setStatusError(null), 3500);
     },
   });
 
@@ -275,6 +289,16 @@ export default function HousekeepingPage() {
         <SumCard icon={CheckCircle2}  toneName="pine"  n={summary?.completedToday ?? 0} label="Done today"  delay={100} />
         <SumCard icon={Flame}         toneName="clay"  n={highPriority}                 label="High priority" delay={150} />
       </div>
+
+      {/* Status update error */}
+      {statusError && (
+        <div
+          className="mb-5 rounded-xl px-4 py-3 text-[13.5px] font-medium flex items-center gap-2"
+          style={{ background: "#F8E7E1", color: "#8d3322", border: "1px solid rgba(187,74,51,0.2)" }}
+        >
+          ⚠ {statusError}
+        </div>
+      )}
 
       {/* Status filter */}
       <div className="flex flex-wrap items-center gap-1.5 mb-5">

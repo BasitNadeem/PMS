@@ -18,6 +18,12 @@ const envSchema = z.object({
   VAPID_PUBLIC_KEY:        z.string(),
   VAPID_PRIVATE_KEY:       z.string(),
   VAPID_EMAIL:             z.string(),
+  // ── Image storage (Cloudinary — swap to S3 vars when migrating) ─────────────
+  CLOUDINARY_CLOUD_NAME:   z.string().optional(),
+  CLOUDINARY_API_KEY:      z.string().optional(),
+  CLOUDINARY_API_SECRET:   z.string().optional(),
+  // ── Vision API (Google Vision — swap to ANTHROPIC_API_KEY when migrating) ───
+  GOOGLE_VISION_API_KEY:   z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

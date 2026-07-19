@@ -11,12 +11,27 @@ Multi-tenant hotel property management system — reservations, billing, houseke
 ```bash
 git clone <repo-url>
 cd PMS
-cp .env.example .env       # defaults work for local dev — no edits needed
+cp .env.example .env
+```
+
+`.env.example` defaults to production-safe settings (`NODE_ENV=production`, CORS locked
+down). For local dev, edit two lines in your new `.env`:
+
+```bash
+NODE_ENV=development
+ALLOW_DEV_CORS_BYPASS=true
+```
+
+Then:
+
+```bash
 pnpm fresh-setup           # installs deps, starts Docker, migrates, seeds, verifies
 pnpm dev                   # starts all apps
 ```
 
-That's it. `pnpm fresh-setup` is fully unattended — no prompts, no manual steps.
+`pnpm fresh-setup` itself is fully unattended — no prompts, no manual steps — but the two
+`.env` edits above are a one-time manual step, by design: local dev should never be the
+silent default.
 
 ---
 

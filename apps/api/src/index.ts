@@ -51,9 +51,30 @@ import { scheduleBriefings } from "./jobs/briefingScheduler";
 
 const app = express();
 
+// Nginx sits in front of the API as a reverse proxy — trust exactly that one hop so
+// X-Forwarded-For is read correctly (req.ip, rate limiting) without trusting arbitrary
+// client-supplied headers. "1" trusts only the first proxy hop, not a wide-open chain.
+app.set("trust proxy", 1);
+
+// Every hotel gets its own subdomain (e.g. demo-hotel.innflo.co), so a single fixed
+// CORS_ORIGIN can't cover them all. Match the apex domain or any direct subdomain of
+// PRODUCTION_DOMAIN instead of hardcoding "innflo.co" here.
+const productionOriginPattern = new RegExp(
+  `^https://([a-z0-9-]+\\.)?${env.PRODUCTION_DOMAIN.replace(/\./g, "\\.")}$`
+);
+
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors({
-  origin: env.NODE_ENV === "development" ? true : [env.CORS_ORIGIN, env.ADMIN_CORS_ORIGIN],
+  origin(origin, callback) {
+    // Gated on its own explicit flag, not NODE_ENV — an ambient string that could be
+    // missing or wrong in a given deployment must never be able to silently disable CORS.
+    if (env.ALLOW_DEV_CORS_BYPASS) return callback(null, true);
+    // No Origin header — server-to-server or non-browser request; nothing to check against.
+    if (!origin) return callback(null, true);
+    if (origin === env.ADMIN_CORS_ORIGIN) return callback(null, true);
+    if (productionOriginPattern.test(origin)) return callback(null, true);
+    callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
 }));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use(compression());

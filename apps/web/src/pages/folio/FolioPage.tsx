@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 import { folioService, type FolioLineItem, type FolioItemType, type PaymentMethod } from "@/services/folio";
 import { AddChargeModal } from "@/components/folio/AddChargeModal";
 import { RecordPaymentModal } from "@/components/folio/RecordPaymentModal";
+import { ReceiptView } from "@/components/pos/ReceiptView";
 import { ToastContainer } from "@/components/ui/ToastContainer";
 import { useToast } from "@/hooks/useToast";
 import { Card } from "@/components/ui/Card";
@@ -66,8 +67,9 @@ export default function FolioPage() {
   const canVoidCharge = has("billing:delete");
   const canCheckOut = has("reservations:update");
   const { toasts, addToast, removeToast } = useToast();
-  const [showAddCharge, setShowAddCharge] = useState(false);
+  const [showAddCharge,    setShowAddCharge]    = useState(false);
   const [showRecordPayment, setShowRecordPayment] = useState(false);
+  const [showFbReceipt,    setShowFbReceipt]    = useState(false);
 
   const { data: folio, isLoading } = useQuery({
     queryKey: ["folio", reservationId],
@@ -223,9 +225,18 @@ export default function FolioPage() {
               <Plus size={15} /> Add charge
             </button>
           )}
+          {folio.items.some((i) => i.type === "FOOD_BEVERAGE") && (
+            <button
+              onClick={() => setShowFbReceipt(true)}
+              className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full border border-line text-ink-soft text-[13px] font-semibold hover:bg-line-soft transition-colors"
+            >
+              <Printer size={15} /> F&amp;B Receipt
+            </button>
+          )}
           <button
             onClick={() => window.print()}
             className="grid place-items-center h-10 w-10 rounded-full border border-line text-ink-mute hover:bg-line-soft transition-colors"
+            title="Print folio"
           >
             <Printer size={16} />
           </button>
@@ -422,7 +433,7 @@ export default function FolioPage() {
                     <button
                       onClick={() => mutation.mutate()}
                       disabled={isPending}
-                      className="w-full h-11 rounded-full bg-ink text-white font-semibold text-sm hover:bg-ink-soft transition-colors flex items-center justify-center gap-2 disabled:opacity-40"
+                      className="w-full h-11 rounded-full bg-coral text-white font-semibold text-sm hover:bg-coral-dark transition-colors flex items-center justify-center gap-2 disabled:opacity-40"
                     >
                       <LogOut size={16} />
                       {isPending ? pendingLabel : label}
@@ -453,6 +464,30 @@ export default function FolioPage() {
         </div>
       </div>
 
+      {showFbReceipt && folio && (() => {
+        const fbItems = folio.items.filter((i) => i.type === "FOOD_BEVERAGE");
+        const fbTotal = fbItems.reduce((s, i) => s + i.amount, 0);
+        return (
+          <ReceiptView
+            guestName={folio.reservation.guest.fullName}
+            roomNumber={folio.reservation.rooms[0]?.room.number}
+            orderNumber={folio.folioNumber}
+            dateTime={new Date().toISOString()}
+            items={fbItems.map((i) => ({
+              name:      i.description,
+              quantity:  i.quantity,
+              unitPrice: i.unitAmount,
+              lineTotal: i.amount,
+            }))}
+            subtotal={fbTotal}
+            taxAmount={0}
+            discountAmount={0}
+            total={fbTotal}
+            paymentStatus={{ type: "CHARGED_TO_ROOM", roomNumber: folio.reservation.rooms[0]?.room.number ?? "—" }}
+            onClose={() => setShowFbReceipt(false)}
+          />
+        );
+      })()}
       {showAddCharge && (
         <AddChargeModal reservationId={reservationId!} onClose={() => setShowAddCharge(false)} />
       )}

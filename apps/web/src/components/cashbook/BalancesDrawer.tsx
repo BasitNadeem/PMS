@@ -9,6 +9,7 @@ import {
 import { cn } from "@/lib/cn";
 import { cashbookService } from "@/services/cashbook";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 const DEFAULT_WIDTH = 480;
 const MIN_WIDTH     = 360;
@@ -158,12 +159,11 @@ export function BalancesDrawer({ onClose }: BalancesDrawerProps) {
             <CalendarDays size={12} /> As of date
           </label>
           <div className="flex items-center gap-2">
-            <input
-              type="date"
+            <DatePicker
               value={asOf}
               max={todayIso()}
-              onChange={(e) => setAsOf(e.target.value)}
-              className="flex-1 h-9 rounded-xl border border-line bg-mist px-3 text-[13px] text-ink focus:outline-none focus:ring-2 focus:ring-coral/20 transition-colors"
+              onChange={setAsOf}
+              className="flex-1 h-9"
             />
             {!isToday && (
               <button

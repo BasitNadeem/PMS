@@ -62,7 +62,10 @@ export const qrMenuService = {
     deliveryType:        string;
     specialInstructions: string | null;
     createdAt:           string;
-    items:               { name: string; quantity: number }[];
+    totalAmount:         number;
+    paymentPreference:   string;
+    roomNumber:          string;
+    items:               { name: string; quantity: number; price: number; lineTotal: number }[];
   }> => {
     const res = await api.get(`/api/qr-public/${hotelSlug}/track`, { params: { orderNumber } });
     return res.data.data;

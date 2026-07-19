@@ -29,26 +29,28 @@ export const listTicketsSchema = z.object({
 export type ListTicketsQuery = z.infer<typeof listTicketsSchema>;
 
 export const createTicketSchema = z.object({
-  roomId:      z.string().uuid().optional(),
-  title:       z.string().trim().min(1, "Title is required"),
-  description: z.string().trim().optional(),
-  category:    z.enum(CATEGORY_VALUES),
-  priority:    z.enum(PRIORITY_VALUES).default("MEDIUM"),
-  assignedToId: z.string().uuid().optional(),
-  scheduledFor: z.string().datetime().optional(),
-  photoUrls:    z.array(z.string().min(1)).optional(),
+  roomId:          z.string().uuid().optional(),
+  title:           z.string().trim().min(1, "Title is required"),
+  description:     z.string().trim().optional(),
+  category:        z.enum(CATEGORY_VALUES),
+  priority:        z.enum(PRIORITY_VALUES).default("MEDIUM"),
+  assignedToId:    z.string().uuid().optional(),
+  scheduledFor:    z.string().datetime().optional(),
+  scheduledEndDate: z.string().date().optional(),
+  photoUrls:       z.array(z.string().min(1)).optional(),
 });
 export type CreateTicketDto = z.infer<typeof createTicketSchema>;
 
 export const updateTicketSchema = z.object({
-  assignedToId:  z.string().uuid().nullable().optional(),
-  priority:      z.enum(PRIORITY_VALUES).optional(),
-  category:      z.enum(CATEGORY_VALUES).optional(),
-  title:         z.string().trim().min(1).optional(),
-  description:   z.string().trim().nullable().optional(),
-  scheduledFor:  z.string().datetime().nullable().optional(),
-  estimatedCost: z.number().int().nonnegative().nullable().optional(),
-  actualCost:    z.number().int().nonnegative().nullable().optional(),
+  assignedToId:    z.string().uuid().nullable().optional(),
+  priority:        z.enum(PRIORITY_VALUES).optional(),
+  category:        z.enum(CATEGORY_VALUES).optional(),
+  title:           z.string().trim().min(1).optional(),
+  description:     z.string().trim().nullable().optional(),
+  scheduledFor:    z.string().datetime().nullable().optional(),
+  scheduledEndDate: z.string().date().nullable().optional(),
+  estimatedCost:   z.number().int().nonnegative().nullable().optional(),
+  actualCost:      z.number().int().nonnegative().nullable().optional(),
 });
 export type UpdateTicketDto = z.infer<typeof updateTicketSchema>;
 

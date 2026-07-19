@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { phoneSchema } from "../lib/validation";
 
 // ── Public guest endpoints ────────────────────────────────────────────────────
 
@@ -9,7 +10,7 @@ export type VerifyRoomQuery = z.infer<typeof verifyRoomQuerySchema>;
 
 export const placeOrderSchema = z.object({
   guestName:           z.string().trim().min(1, "Guest name is required"),
-  guestPhone:          z.string().trim().min(7, "Phone number is required"),
+  guestPhone:          phoneSchema,
   roomNumber:          z.string().trim().min(1, "Room number is required"),
   deliveryType:        z.enum(["room_delivery", "pickup", "dine_in"]),
   paymentPreference:   z.enum(["charge_to_room", "pay_now"]).default("charge_to_room"),

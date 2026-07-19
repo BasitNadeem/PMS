@@ -4,7 +4,7 @@ import { authenticate } from "../middleware/auth";
 import { env } from "../lib/env";
 import { subscribePushSchema, unsubscribePushSchema } from "../schemas/push";
 
-const router = Router();
+const router: Router = Router();
 
 // GET /api/push/vapid-public-key — no auth, the public key is safe to expose
 router.get("/vapid-public-key", (_req, res) => {

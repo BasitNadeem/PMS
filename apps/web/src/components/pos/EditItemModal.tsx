@@ -138,7 +138,6 @@ export function EditItemModal({ item, onClose }: EditItemModalProps) {
             <label className={labelClass}>Price (PKR) <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} min="0" step="1" className={inputClass} />
           </div>
-
           {/* Available toggle */}
           <div className="flex items-center gap-3 pt-1">
             <button

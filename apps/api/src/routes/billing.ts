@@ -5,7 +5,7 @@ import { requirePermission } from "../middleware/permission";
 import { billingListSchema } from "../schemas/folio";
 import { FolioService } from "../services/FolioService";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticate, tenantMiddleware);
 

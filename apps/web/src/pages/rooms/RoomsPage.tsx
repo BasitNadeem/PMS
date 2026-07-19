@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, BedDouble, DoorOpen, Wrench, OctagonX, Sparkles } from "lucide-react";
+import { Plus, Pencil, BedDouble, DoorOpen, Wrench, OctagonX, Sparkles, ImagePlus, Loader2, X, Tag } from "lucide-react";
+import { uploadService } from "@/services/upload";
 import { cn } from "@/lib/cn";
 import { roomsService, type Room, type RoomType, type RoomStatus } from "@/services/rooms";
 import { maintenanceService } from "@/services/maintenance";
@@ -96,6 +97,8 @@ function RoomCard({ room, onEdit, canEdit, delay, hasOpenIssue }: { room: Room; 
 
 // ── Room Types ────────────────────────────────────────────────────────────────
 
+const AMENITY_PRESETS = ["WiFi", "AC", "TV", "Minibar", "Balcony", "Attached Bathroom", "Room Service", "Heater"];
+
 function TypeCard({ rt, canEdit, delay }: { rt: RoomType; canEdit: boolean; delay: number }) {
   const [editing, setEditing] = useState(false);
   const qc = useQueryClient();
@@ -105,8 +108,34 @@ function TypeCard({ rt, canEdit, delay }: { rt: RoomType; canEdit: boolean; dela
     defaultRate:  String(rt.defaultRate / 100),
     maxOccupancy: String(rt.maxOccupancy),
   });
+  const [photoUrls, setPhotoUrls]       = useState<string[]>(rt.photoUrls ?? []);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [amenities, setAmenities] = useState<string[]>(rt.amenities ?? []);
+  const [amenityInput, setAmenityInput] = useState("");
+
+  function addAmenity(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed || amenities.includes(trimmed)) return;
+    setAmenities((prev) => [...prev, trimmed]);
+  }
+  function removeAmenity(a: string) { setAmenities((prev) => prev.filter((x) => x !== a)); }
+
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    const remaining = 8 - photoUrls.length;
+    const toUpload  = files.slice(0, remaining);
+    setPhotoUploading(true);
+    try {
+      const urls = await Promise.all(toUpload.map((f) => uploadService.uploadPhoto(f)));
+      setPhotoUrls((prev) => [...prev, ...urls]);
+    } catch { /* non-fatal */ }
+    finally { setPhotoUploading(false); e.target.value = ""; }
+  }
+
   const mutation = useMutation({
-    mutationFn: (dto: { name: string; description?: string; defaultRate: number; maxOccupancy: number }) =>
+    mutationFn: (dto: { name: string; description?: string; defaultRate: number; maxOccupancy: number; photoUrls: string[]; amenities: string[] }) =>
       roomsService.updateRoomType(rt.id, dto),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["room-types"] }); setEditing(false); },
   });
@@ -120,6 +149,12 @@ function TypeCard({ rt, canEdit, delay }: { rt: RoomType; canEdit: boolean; dela
             <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               className="h-11 w-full rounded-xl bg-mist border border-line px-3.5 text-sm text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all" />
           </div>
+          <div>
+            <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Description</label>
+            <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              rows={2} placeholder="Optional description…"
+              className="w-full rounded-xl bg-mist border border-line px-3.5 py-2.5 text-sm text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all resize-none" />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Max guests <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
@@ -132,10 +167,102 @@ function TypeCard({ rt, canEdit, delay }: { rt: RoomType; canEdit: boolean; dela
                 className="h-11 w-full rounded-xl bg-mist border border-line px-3.5 text-sm text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all" />
             </div>
           </div>
+          {/* Amenities */}
+          <div>
+            <label className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-ink-soft"><Tag size={13} /> Amenities</label>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {AMENITY_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  disabled={amenities.includes(preset)}
+                  onClick={() => addAmenity(preset)}
+                  className={cn(
+                    "rounded-full px-2.5 py-0.5 text-[12px] font-medium border transition-colors",
+                    amenities.includes(preset)
+                      ? "bg-coral/10 border-coral/20 text-coral cursor-default"
+                      : "bg-mist border-line text-ink-mute hover:border-coral/30 hover:text-ink"
+                  )}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+            {amenities.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {amenities.map((a) => (
+                  <span key={a} className="inline-flex items-center gap-1 rounded-full bg-ink text-white text-[12px] px-2.5 py-0.5 font-medium">
+                    {a}
+                    <button type="button" onClick={() => removeAmenity(a)} className="hover:opacity-70">
+                      <X size={9} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={amenityInput}
+                onChange={(e) => setAmenityInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addAmenity(amenityInput); setAmenityInput(""); } }}
+                placeholder="Custom amenity…"
+                className="flex-1 h-9 rounded-xl bg-mist border border-line px-3 text-sm text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => { addAmenity(amenityInput); setAmenityInput(""); }}
+                className="h-9 px-3 rounded-xl border border-line text-ink-mute hover:text-coral hover:border-coral/30 text-[13px] font-semibold transition-colors"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
+          {/* Photos */}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Photos <span className="text-ink-faint font-normal normal-case">(up to 8)</span></label>
+            {photoUrls.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {photoUrls.map((url, i) => (
+                  <div key={i} className="relative h-16 w-16 rounded-lg overflow-hidden border border-line">
+                    <img src={url} alt="" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setPhotoUrls((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="absolute top-0.5 right-0.5 grid place-items-center h-5 w-5 rounded-full bg-ink/70 text-white hover:bg-clay"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {photoUrls.length < 8 && (
+              <>
+                <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
+                <button
+                  type="button"
+                  disabled={photoUploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2 h-9 px-4 rounded-xl border border-dashed border-line text-ink-mute text-[13px] hover:border-coral/40 hover:text-coral transition-colors disabled:opacity-40"
+                >
+                  {photoUploading ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
+                  {photoUploading ? "Uploading…" : "Add Photo"}
+                </button>
+              </>
+            )}
+          </div>
+
+          {mutation.isError && (
+            <p className="text-[13px] text-clay bg-clay-soft border border-clay/20 rounded-xl px-4 py-2.5">
+              Something went wrong. Please try again.
+            </p>
+          )}
           <div className="flex justify-end gap-2 pt-1">
             <button onClick={() => setEditing(false)} className="h-9 px-4 rounded-full text-[13px] font-semibold text-ink-mute hover:bg-line-soft transition-colors">Cancel</button>
             <button
-              onClick={() => mutation.mutate({ name: form.name.trim(), description: form.description.trim() || undefined, defaultRate: Math.round(Number(form.defaultRate) * 100), maxOccupancy: Number(form.maxOccupancy) })}
+              onClick={() => mutation.mutate({ name: form.name.trim(), description: form.description.trim() || undefined, defaultRate: Math.round(Number(form.defaultRate) * 100), maxOccupancy: Number(form.maxOccupancy), photoUrls, amenities })}
               disabled={mutation.isPending}
               className="h-9 px-4 rounded-full bg-coral text-white text-[13px] font-semibold hover:bg-coral-dark disabled:opacity-40 transition-colors"
             >
@@ -170,6 +297,16 @@ function TypeCard({ rt, canEdit, delay }: { rt: RoomType; canEdit: boolean; dela
       </div>
       {rt.description && (
         <p className="mt-3 text-[13.5px] text-ink-mute leading-relaxed line-clamp-2">{rt.description}</p>
+      )}
+      {rt.amenities.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {rt.amenities.slice(0, 5).map((a) => (
+            <span key={a} className="text-[11.5px] bg-mist border border-line-soft rounded-full px-2.5 py-0.5 text-ink-mute font-medium">{a}</span>
+          ))}
+          {rt.amenities.length > 5 && (
+            <span className="text-[11.5px] text-ink-faint">+{rt.amenities.length - 5} more</span>
+          )}
+        </div>
       )}
       <div className="mt-4 flex items-center justify-between border-t border-line-soft pt-4">
         <div className="text-[11px] font-bold uppercase text-ink-faint">Base rate from</div>
@@ -254,7 +391,7 @@ export default function RoomsPage() {
           {canCreate && (
             <button
               onClick={() => tab === "rooms" ? setShowAddRoom(true) : setShowAddType(true)}
-              className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-ink text-white text-sm font-semibold hover:bg-ink-soft transition-colors shadow-pop whitespace-nowrap"
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-coral text-white text-sm font-semibold hover:bg-coral-dark transition-colors shadow-pop whitespace-nowrap"
             >
               <Plus size={17} />
               {tab === "rooms" ? "Add room" : "Add type"}

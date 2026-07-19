@@ -6,12 +6,11 @@ import { roomsService, type Room, type RoomStatus, type UpdateRoomDto } from "..
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 const STATUS_OPTIONS: { value: RoomStatus; label: string }[] = [
-  { value: "VACANT_CLEAN",      label: "Available (Clean)" },
-  { value: "VACANT_DIRTY",      label: "Available (Dirty)" },
-  { value: "OCCUPIED",          label: "Occupied" },
-  { value: "UNDER_MAINTENANCE", label: "Maintenance" },
-  { value: "BLOCKED",           label: "Blocked" },
-  { value: "OUT_OF_ORDER",      label: "Out of Order" },
+  { value: "VACANT_CLEAN",  label: "Available (Clean)" },
+  { value: "VACANT_DIRTY",  label: "Available (Dirty)" },
+  { value: "OCCUPIED",      label: "Occupied" },
+  { value: "BLOCKED",       label: "Blocked" },
+  { value: "OUT_OF_ORDER",  label: "Out of Order" },
 ];
 
 const inputCls = "h-11 w-full rounded-xl bg-mist border border-line px-3.5 text-sm text-ink placeholder:text-ink-faint outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all";

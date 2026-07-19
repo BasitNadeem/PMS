@@ -11,10 +11,15 @@ import {
   assignRoomSchema,
 } from "../schemas/groups";
 import { GroupService } from "../services/GroupService";
+import { checkFeatureAccess } from "../lib/subscription";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticate, tenantMiddleware);
+router.use(async (req, _res, next) => {
+  await checkFeatureAccess(req.user!.hotelId, "groupBookings");
+  next();
+});
 
 // GET /api/groups/summary — counts by status. MUST be declared before /:id.
 router.get("/summary", requirePermission("RESERVATION_READ"), async (req, res) => {

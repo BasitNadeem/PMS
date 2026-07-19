@@ -14,10 +14,15 @@ import { PosMenuService } from "../services/PosMenuService";
 import { PosService } from "../services/PosService";
 import { createLedgerEntryFromPosOrder } from "../services/CashBookService";
 import { deductInventoryForOrder } from "../services/InventoryService";
+import { checkFeatureAccess } from "../lib/subscription";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticate, tenantMiddleware);
+router.use(async (req, _res, next) => {
+  await checkFeatureAccess(req.user!.hotelId, "posModule");
+  next();
+});
 
 // ── Categories ────────────────────────────────────────────────────────────────
 

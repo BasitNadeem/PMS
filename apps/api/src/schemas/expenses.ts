@@ -19,6 +19,7 @@ export const createExpenseSchema = z.object({
   paidTo:        z.string().trim().min(1),
   receiptRef:    z.string().trim().optional(),
   notes:         z.string().trim().optional(),
+  attachmentUrl: z.string().nullable().optional(),
 });
 export type CreateExpenseDto = z.infer<typeof createExpenseSchema>;
 

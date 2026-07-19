@@ -41,6 +41,7 @@ export const createItemSchema = z.object({
   photoUrl:         z.string().url("Must be a valid URL").nullable().optional(),
   isQrVisible:      z.boolean().default(true),
   isFeatured:       z.boolean().default(false),
+  taxRate:          z.coerce.number().min(0).max(1).default(0),
 });
 export type CreateItemDto = z.infer<typeof createItemSchema>;
 
@@ -55,6 +56,7 @@ export const updateItemSchema = z.object({
   photoUrl:          z.string().url("Must be a valid URL").nullable().optional(),
   isQrVisible:       z.boolean().optional(),
   isFeatured:        z.boolean().optional(),
+  taxRate:           z.coerce.number().min(0).max(1).optional(),
 });
 export type UpdateItemDto = z.infer<typeof updateItemSchema>;
 

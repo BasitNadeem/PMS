@@ -8,6 +8,7 @@ export interface PosItem {
   name: string;
   description: string | null;
   price: number;
+  taxRate: number;
   isAvailable: boolean;
   categoryId: string;
   sortOrder: number;
@@ -45,6 +46,8 @@ export interface PosOrder {
   reservationId: string | null;
   roomNumber: string | null;
   subtotal: number;
+  taxAmount: number;
+  discountAmount: number;
   total: number;
   notes: string | null;
   status: OrderStatus;
@@ -90,6 +93,7 @@ export interface CreateItemDto {
   name: string;
   description?: string;
   price: number;
+  taxRate?: number;
   categoryId: string;
   isAvailable?: boolean;
   sortOrder?: number;
@@ -104,6 +108,7 @@ export interface UpdateItemDto {
   name?: string;
   description?: string | null;
   price?: number;
+  taxRate?: number;
   isAvailable?: boolean;
   sortOrder?: number;
   inventoryItemId?: string | null;

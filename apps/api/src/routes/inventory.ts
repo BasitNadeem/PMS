@@ -15,10 +15,15 @@ import { InventoryScanService } from "../services/InventoryScanService";
 import { ScanSessionService } from "../services/ScanSessionService";
 import { env } from "../lib/env";
 import type { JwtPayload } from "../middleware/auth";
+import { checkFeatureAccess } from "../lib/subscription";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticate, tenantMiddleware);
+router.use(async (req, _res, next) => {
+  await checkFeatureAccess(req.user!.hotelId, "inventoryManagement");
+  next();
+});
 
 // GET /api/inventory/summary — BEFORE /:id
 router.get("/summary", requirePermission("pos:read"), async (req, res) => {

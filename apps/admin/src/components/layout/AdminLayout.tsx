@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Building2, LogOut } from "lucide-react";
+import { Building2, LogOut, CreditCard } from "lucide-react";
 import { clearToken, decodeToken } from "@/lib/auth";
 
 export interface AdminLayoutProps {
@@ -19,16 +19,23 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     <div className="flex min-h-screen bg-gray-50">
       <aside className="fixed inset-y-0 left-0 flex w-60 flex-col bg-gray-900 text-gray-300">
         <div className="px-5 py-6">
-          <span className="text-lg font-bold text-white">⬡ PMS Admin</span>
+          <span className="text-lg font-bold text-white">&#x2B21; PMS Admin</span>
         </div>
 
-        <nav className="flex-1 px-3">
+        <nav className="flex-1 px-3 space-y-1">
           <Link
             to="/hotels"
             className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white"
           >
             <Building2 size={18} />
             Hotels
+          </Link>
+          <Link
+            to="/plans"
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white"
+          >
+            <CreditCard size={18} />
+            Plans
           </Link>
         </nav>
 

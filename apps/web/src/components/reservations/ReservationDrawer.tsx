@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   X, Copy, Phone, Mail, BadgeCheck, MapPin,
-  LogIn, Check, Receipt, BedDouble, Users, Star, ArrowRight, Plus,
+  LogIn, Check, Receipt, BedDouble, Users, Star, ArrowRight, Plus, Tag,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/cn";
+import { api } from "@/lib/api";
 import {
   reservationsService,
   type ReservationStatus,
@@ -77,6 +78,19 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
     queryKey: ["reservation", reservationId],
     queryFn: () => reservationsService.getReservation(reservationId!),
     enabled: !!reservationId,
+  });
+
+  const room0 = reservation?.rooms[0];
+  const { data: suggestData } = useQuery({
+    queryKey: ["rate-suggest", room0?.roomTypeId, reservation?.checkInDate?.slice(0, 10), reservation?.checkOutDate?.slice(0, 10)],
+    queryFn: async () => {
+      const res = await api.get("/api/rate-plans/suggest", {
+        params: { roomTypeId: room0!.roomTypeId, checkIn: reservation!.checkInDate.slice(0, 10), checkOut: reservation!.checkOutDate.slice(0, 10) },
+      });
+      return res.data.data as { suggestedRate: number; matchedPlan: { id: string; name: string } | null };
+    },
+    enabled: !!room0 && !!reservation?.checkInDate && !!reservation?.checkOutDate,
+    staleTime: 60_000,
   });
 
   const statusMutation = useMutation({
@@ -242,6 +256,15 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
               <div>
                 <SectionLabel>Guest</SectionLabel>
                 <div className="rounded-xl2 border border-line bg-card divide-y divide-line-soft">
+                  {reservation.bookingContactName && (
+                    <div className="px-3 py-2.5 flex items-start gap-2.5">
+                      <Tag size={14} className="text-emerald shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-[13px] font-semibold text-ink">{reservation.bookingContactName}</div>
+                        <div className="text-[11px] text-ink-faint">Booking contact · profile: {reservation.guest.fullName}</div>
+                      </div>
+                    </div>
+                  )}
                   {reservation.guest.phone && <ContactRow icon={Phone} value={reservation.guest.phone} />}
                   {reservation.guest.email && <ContactRow icon={Mail} value={reservation.guest.email} />}
                   {reservation.guest.documentNumber && (
@@ -256,7 +279,15 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
               {/* Rate summary */}
               {reservation.rooms[0] && (
                 <div>
-                  <SectionLabel>Rate summary</SectionLabel>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">Rate summary</span>
+                    {suggestData?.matchedPlan && (
+                      <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-pine bg-pine/20 border border-pine/40 px-2.5 py-1 rounded-lg">
+                        <Tag size={11} strokeWidth={2.5} />
+                        {suggestData.matchedPlan.name}
+                      </span>
+                    )}
+                  </div>
                   <div className="rounded-xl2 border border-line bg-card p-4 space-y-2.5">
                     {(() => {
                       const nights = nightsBetween(reservation.checkInDate, reservation.checkOutDate);

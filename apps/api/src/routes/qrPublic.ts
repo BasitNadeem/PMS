@@ -12,7 +12,7 @@ import { verifyRoomQuerySchema, placeOrderSchema } from "../schemas/qrMenu";
 import { QrMenuService } from "../services/QrMenuService";
 import { QrOrderService } from "../services/QrOrderService";
 
-const router = Router();
+const router: Router = Router();
 
 // ── Shared: resolve hotel from slug ───────────────────────────────────────────
 

@@ -4,6 +4,7 @@ import type { TenantTx } from "@pms/db";
 import type { JwtPayload } from "../middleware/auth";
 import { AppError } from "../utils/AppError";
 import type { CreateUserDto, UpdateUserDto, ResetPasswordDto } from "../schemas/users";
+import { checkUserLimit } from "../lib/subscription";
 
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
 
@@ -41,6 +42,10 @@ export const UserService = {
   },
 
   async createUser(withTenant: WithTenantFn, actor: JwtPayload, dto: CreateUserDto) {
+    // Enforce user limit from subscription plan
+    const userCount = await adminPrisma.hotelUser.count({ where: { hotelId: actor.hotelId } });
+    await checkUserLimit(actor.hotelId, userCount);
+
     // Resolve role from global roles table (system roles have hotelId = null)
     const role = await adminPrisma.role.findFirst({ where: { id: dto.roleId } });
     if (!role) throw new AppError(400, "Invalid role");

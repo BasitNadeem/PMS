@@ -97,11 +97,22 @@ export const PosService = {
         throw new AppError(400, "One or more items are unavailable or not found");
       }
 
+      // Fetch hotel settings to get global POS tax rate
+      const hotel = await db.hotel.findUnique({
+        where:  { id: actor.hotelId },
+        select: { settings: true },
+      });
+      const hotelSettings = (hotel?.settings ?? {}) as Record<string, unknown>;
+      const posTaxRatePct = typeof hotelSettings.posTaxRate === "number" ? hotelSettings.posTaxRate : 0;
+      const posTaxRate    = posTaxRatePct / 100;
+
       // Calculate totals
       const subtotal = dto.items.reduce((sum, orderItem) => {
         const item = posItems.find((p) => p.id === orderItem.posItemId)!;
         return sum + item.price * orderItem.quantity;
       }, 0);
+
+      const taxAmount = Math.round(subtotal * posTaxRate);
 
       const orderNumber = `POS-${Date.now()}-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`;
 
@@ -116,7 +127,8 @@ export const PosService = {
           orderNumber,
           reservationId: dto.reservationId ?? null,
           subtotal,
-          total:         subtotal,
+          taxAmount,
+          total:         subtotal + taxAmount,
           tableNumber:   initialTableNumber,
           notes:         dto.notes ?? null,
           items: {
@@ -194,7 +206,7 @@ export const PosService = {
           entity:   "posOrder",
           entityId: order.id,
           after:    JSON.parse(
-            JSON.stringify({ orderNumber, settlementType: dto.settlementType, total: subtotal }),
+            JSON.stringify({ orderNumber, settlementType: dto.settlementType, total: subtotal + taxAmount }),
           ),
         },
       });

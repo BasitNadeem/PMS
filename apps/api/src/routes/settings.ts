@@ -9,8 +9,10 @@ import { collectBriefingData } from "../jobs/collectBriefingData";
 import { formatBriefingMessage } from "../jobs/formatBriefingMessage";
 import { sendWhatsappMessage } from "../jobs/sendWhatsappMessage";
 import { scheduleHotelBriefing } from "../jobs/briefingScheduler";
+import { getEffectiveLimits, checkFeatureAccess } from "../lib/subscription";
+import { adminPrisma } from "@pms/db";
 
-const router = Router();
+const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
 
 // No requirePermission — permissions table is seeded empty.
@@ -36,6 +38,7 @@ router.patch("/", async (req, res) => {
 // Re-registers the nightly BullMQ repeatable job for this hotel.
 // Called after the owner saves their WhatsApp number.
 router.post("/schedule-briefing", async (req, res) => {
+  await checkFeatureAccess(req.user!.hotelId, "whatsappBriefing");
   if (req.user!.role !== "OWNER") {
     throw new AppError(403, "Only owners can schedule briefings");
   }
@@ -47,6 +50,7 @@ router.post("/schedule-briefing", async (req, res) => {
 // POST /api/settings/test-briefing
 // Fires a briefing immediately (bypasses the queue — runs inline).
 router.post("/test-briefing", async (req, res) => {
+  await checkFeatureAccess(req.user!.hotelId, "whatsappBriefing");
   if (req.user!.role !== "OWNER") {
     throw new AppError(403, "Only owners can send test briefings");
   }
@@ -93,6 +97,163 @@ router.patch("/permissions/:roleId", async (req, res) => {
   const dto = updateRolePermissionsSchema.parse(req.body);
   const result = await PermissionsService.updateRolePermissions(req.params.roleId as string, dto);
   res.json(result);
+});
+
+// GET /api/settings/plan — current plan + usage (read-only, any authenticated user)
+router.get("/plan", async (req, res) => {
+  const [limits, roomCount, userCount] = await Promise.all([
+    getEffectiveLimits(req.user!.hotelId),
+    req.withTenant((db) => db.room.count()),
+    adminPrisma.hotelUser.count({ where: { hotelId: req.user!.hotelId } }),
+  ]);
+
+  const hotel = await adminPrisma.hotel.findUnique({
+    where: { id: req.user!.hotelId },
+    select: {
+      isTrialAccount: true,
+      trialEndsAt: true,
+      subscriptionPlan: { select: { name: true, priceMonthly: true, slug: true } },
+    },
+  });
+
+  res.json({
+    data: {
+      planName: hotel?.subscriptionPlan?.name ?? "No Plan",
+      planSlug: hotel?.subscriptionPlan?.slug ?? null,
+      priceMonthly: hotel?.subscriptionPlan?.priceMonthly ?? 0,
+      isTrialAccount: hotel?.isTrialAccount ?? false,
+      trialEndsAt: hotel?.trialEndsAt ?? null,
+      maxRooms: limits.maxRooms,
+      maxUsers: limits.maxUsers,
+      currentRooms: roomCount,
+      currentUsers: userCount,
+      features: limits.features,
+    },
+  });
+});
+
+// GET /api/settings/export — full data snapshot (OWNER only)
+router.get("/export", async (req, res) => {
+  if (req.user!.role !== "OWNER") {
+    throw new AppError(403, "Only the hotel owner can export data");
+  }
+
+  const hotelId = req.user!.hotelId;
+
+  const [hotelSettings, guests, reservations, rooms] = await Promise.all([
+    SettingsService.getSettings(req.withTenant, hotelId),
+    req.withTenant((db) =>
+      db.guest.findMany({
+        select: {
+          fullName: true, phone: true, email: true,
+          documentNumber: true, nationality: true,
+          totalStays: true, isBlacklisted: true, createdAt: true,
+        },
+        orderBy: { fullName: "asc" },
+      }),
+    ),
+    req.withTenant((db) =>
+      db.reservation.findMany({
+        select: {
+          confirmationNumber: true, status: true,
+          checkInDate: true, checkOutDate: true,
+          adults: true, children: true, source: true, createdAt: true,
+          guest: { select: { fullName: true, phone: true } },
+          rooms: {
+            select: {
+              ratePerNight: true,
+              room: { select: { number: true } },
+              roomType: { select: { name: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    ),
+    req.withTenant((db) =>
+      db.room.findMany({
+        select: {
+          number: true, floor: true, status: true, isActive: true,
+          roomType: { select: { name: true, defaultRate: true } },
+        },
+        orderBy: { number: "asc" },
+      }),
+    ),
+  ]);
+
+  type ExpenseRow = {
+    date: string; category: string; description: string; amount: number;
+    payment_method: string | null; paid_to: string | null;
+    receipt_ref: string | null; notes: string | null;
+  };
+  type LedgerRow = {
+    entry_type: string; amount: number; account_name: string | null;
+    source_type: string | null; description: string | null;
+    payment_method: string | null; created_at: string;
+  };
+
+  const [expenses, ledger] = await Promise.all([
+    adminPrisma.$queryRaw<ExpenseRow[]>`
+      SELECT date::text, category, description, amount,
+             payment_method, paid_to, receipt_ref, notes
+      FROM expenses
+      WHERE hotel_id = ${hotelId}::uuid
+      ORDER BY date DESC
+    `,
+    adminPrisma.$queryRaw<LedgerRow[]>`
+      SELECT le.entry_type, le.amount, ca.name AS account_name,
+             le.source_type, le.description, le.payment_method,
+             le.created_at::text
+      FROM ledger_entries le
+      LEFT JOIN cash_accounts ca ON ca.id = le.account_id
+      WHERE le.hotel_id = ${hotelId}::uuid
+      ORDER BY le.created_at DESC
+      LIMIT 5000
+    `,
+  ]);
+
+  res.json({
+    data: {
+      hotelName: hotelSettings.name,
+      exportedAt: new Date().toISOString(),
+      guests,
+      reservations: reservations.map((r) => ({
+        ...r,
+        checkInDate: r.checkInDate.toISOString(),
+        checkOutDate: r.checkOutDate.toISOString(),
+        createdAt: r.createdAt.toISOString(),
+      })),
+      rooms,
+      expenses,
+      ledger,
+    },
+  });
+});
+
+// POST /api/settings/deactivate — set hotel isActive = false (OWNER only)
+router.post("/deactivate", async (req, res) => {
+  if (req.user!.role !== "OWNER") {
+    throw new AppError(403, "Only the hotel owner can deactivate the hotel");
+  }
+
+  await adminPrisma.hotel.update({
+    where: { id: req.user!.hotelId },
+    data: { isActive: false },
+  });
+
+  await req.withTenant((db) =>
+    db.auditLog.create({
+      data: {
+        hotelId: req.user!.hotelId,
+        userId: req.user!.userId,
+        action: "HOTEL_DEACTIVATE",
+        entity: "hotel",
+        entityId: req.user!.hotelId,
+      },
+    }),
+  );
+
+  res.json({ data: { success: true } });
 });
 
 export default router;

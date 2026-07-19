@@ -1,19 +1,15 @@
 import { adminPrisma } from "@pms/db";
 import type { BriefingData } from "./formatBriefingMessage";
+import { getPKTDayRange, getCurrentPKTDate } from "../lib/timezone";
 
 export async function collectBriefingData(hotelId: string): Promise<BriefingData> {
-  const now = new Date();
+  const todayStr = getCurrentPKTDate();
+  const [todayY, todayM, todayD] = todayStr.split("-").map(Number);
+  const tomorrowDate = new Date(Date.UTC(todayY, todayM - 1, todayD + 1));
+  const tomorrowStr = `${tomorrowDate.getUTCFullYear()}-${String(tomorrowDate.getUTCMonth() + 1).padStart(2, "0")}-${String(tomorrowDate.getUTCDate()).padStart(2, "0")}`;
 
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(now);
-  todayEnd.setHours(23, 59, 59, 999);
-
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
-  const dayAfter = new Date(tomorrow);
-  dayAfter.setDate(dayAfter.getDate() + 1);
+  const { start: todayStart, end: todayEnd } = getPKTDayRange(todayStr);
+  const { start: tomorrow, end: dayAfter } = getPKTDayRange(tomorrowStr);
 
   const [
     hotel,
@@ -119,7 +115,7 @@ export async function collectBriefingData(hotelId: string): Promise<BriefingData
   const occupied    = occupiedRooms ?? 0;
   const oRate       = totalRooms_ > 0 ? Math.round((occupied / totalRooms_) * 100) : 0;
 
-  const dateStr = now.toLocaleDateString("en-PK", {
+  const dateStr = new Date().toLocaleDateString("en-PK", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
 

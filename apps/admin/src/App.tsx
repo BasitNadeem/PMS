@@ -5,6 +5,7 @@ import LoginPage from "@/pages/LoginPage";
 import HotelsPage from "@/pages/HotelsPage";
 import CreateHotelPage from "@/pages/CreateHotelPage";
 import HotelDetailPage from "@/pages/HotelDetailPage";
+import PlansPage from "@/pages/PlansPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!isLoggedIn()) return <Navigate to="/login" replace />;
@@ -40,6 +41,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <HotelDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/plans"
+          element={
+            <ProtectedRoute>
+              <PlansPage />
             </ProtectedRoute>
           }
         />

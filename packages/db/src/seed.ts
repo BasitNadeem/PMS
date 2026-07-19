@@ -140,10 +140,42 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
 const MODULE_KEYS = [
   "dashboard", "rooms", "guests", "reservations", "groups",
   "billing", "expenses", "cashbook", "housekeeping", "maintenance", "pos",
-  "team", "reports", "settings", "notifications",
+  "rates", "team", "reports", "settings", "notifications",
 ] as const;
 
 const ACTION_KEYS = ["read", "create", "update", "delete", "manage"] as const;
+
+// housekeeping/maintenance/pos each already have a RESOURCE_ACTION permission
+// above (HOUSEKEEPING_READ, POS_CREATE, ...) that gates the API route. Their
+// module:action combos here are a genuinely separate, real permission that
+// gates app menu/button visibility instead (see apps/web's usePermissions()
+// and AppLayout's nav-item `permission` field) — not a duplicate to remove.
+// But left under the same module name they render as if they were the exact
+// same toggle repeated twice in the Settings permissions UI, which is the bug
+// this fixes: same key (so usePermissions().has(key) keeps working exactly as
+// before), different module/displayName so they group separately instead.
+const DUAL_PURPOSE_MODULE = "app_access";
+const DUAL_PURPOSE_DISPLAY_NAMES: Partial<Record<string, string>> = {
+  "housekeeping:read":   "Show Housekeeping in Menu",
+  "housekeeping:create": "Show 'Add Task' Button (Housekeeping)",
+  "housekeeping:update": "Show Status Controls (Housekeeping)",
+  "maintenance:read":    "Show Maintenance in Menu",
+  "maintenance:create":  "Show 'Report Issue' Button (Maintenance)",
+  "maintenance:update":  "Show Status Controls (Maintenance)",
+  "pos:read":            "Show POS in Menu",
+  "pos:create":          "Show 'New Order' Button (POS)",
+  "pos:update":          "Show Order Controls (POS)",
+};
+
+// (module, action) combos that were generated here historically but are
+// checked nowhere — neither by any requirePermission() call in apps/api nor
+// any usePermissions().has() call in apps/web. Confirmed by exhaustive grep
+// before removing; excluded so re-seeding can't bring them back.
+const MODULE_ACTION_EXCLUSIONS = new Set<string>([
+  "housekeeping:delete", "housekeeping:manage",
+  "maintenance:delete", "maintenance:manage",
+  "pos:delete",
+]);
 
 function titleCase(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -151,12 +183,17 @@ function titleCase(s: string): string {
 
 const MODULE_PERMISSIONS: { key: string; module: string; action: string; displayName: string }[] =
   MODULE_KEYS.flatMap((module) =>
-    ACTION_KEYS.map((action) => ({
-      key:         `${module}:${action}`,
-      module,
-      action,
-      displayName: `${titleCase(action)} ${titleCase(module)}`,
-    }))
+    ACTION_KEYS
+      .filter((action) => !MODULE_ACTION_EXCLUSIONS.has(`${module}:${action}`))
+      .map((action) => {
+        const key = `${module}:${action}`;
+        return {
+          key,
+          module: DUAL_PURPOSE_DISPLAY_NAMES[key] ? DUAL_PURPOSE_MODULE : module,
+          action,
+          displayName: DUAL_PURPOSE_DISPLAY_NAMES[key] ?? `${titleCase(action)} ${titleCase(module)}`,
+        };
+      })
   );
 
 const MODULE_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
@@ -174,6 +211,7 @@ const MODULE_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "housekeeping:read", "housekeeping:create", "housekeeping:update",
     "maintenance:read", "maintenance:create", "maintenance:update",
     "pos:read", "pos:create", "pos:manage",
+    "rates:read", "rates:create", "rates:update",
     "team:read", "team:create", "team:update",
     "reports:read",
     "settings:read", "settings:update",
@@ -374,6 +412,58 @@ async function main() {
     data:  { subdomain: DEMO_SLUG },
   });
   console.log("✅ Demo hotel subdomain set to: demo-hotel");
+
+  // ── 7. Subscription plans ────────────────────────────────────────────────────
+  console.log("💳  Seeding subscription plans…");
+
+  const trialFeatures = {
+    whatsappBriefing: true,
+    reportsExport: true,
+    inventoryManagement: true,
+    groupBookings: true,
+    maintenanceTickets: true,
+    housekeepingPWA: true,
+    posModule: true,
+    qrOrdering: true,
+    kitchenDisplay: true,
+    nightAudit: true,
+    auditLog: true,
+    ratePlans: true,
+    bookingEngine: true,
+    channelManager: true,
+    customDomain: true,
+    corporateBilling: true,
+  };
+
+  const trialPlan = await adminPrisma.subscriptionPlan.upsert({
+    where: { slug: "trial" },
+    update: {
+      name: "Trial",
+      priceMonthly: 0,
+      maxRooms: 999,
+      maxUsers: 999,
+      features: trialFeatures,
+      isActive: true,
+      displayOrder: 0,
+    },
+    create: {
+      name: "Trial",
+      slug: "trial",
+      priceMonthly: 0,
+      maxRooms: 999,
+      maxUsers: 999,
+      features: trialFeatures,
+      isActive: true,
+      displayOrder: 0,
+    },
+  });
+
+  // Backfill existing hotels that have no plan
+  await adminPrisma.hotel.updateMany({
+    where: { subscriptionPlanId: null },
+    data: { subscriptionPlanId: trialPlan.id },
+  });
+  console.log(`✅ Trial plan seeded (id: ${trialPlan.id}), backfilled hotels with no plan`);
 
   // ── Done ─────────────────────────────────────────────────────────────────────
   console.log("\n✅  Seed complete.");

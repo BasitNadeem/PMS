@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, Building2 } from "lucide-react";
+import { X, Building2, ImagePlus, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { roomsService, type RoomTypeName, type CreateRoomTypeDto } from "@/services/rooms";
+import { uploadService } from "@/services/upload";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 const TYPE_OPTIONS: { value: RoomTypeName; label: string }[] = [
@@ -17,6 +18,8 @@ const TYPE_OPTIONS: { value: RoomTypeName; label: string }[] = [
   { value: "TENT_GLAMPING", label: "Tent / Glamping" },
 ];
 
+const AMENITY_PRESETS = ["WiFi", "AC", "TV", "Minibar", "Balcony", "Attached Bathroom", "Room Service", "Heater"];
+
 const inputCls = "w-full rounded-xl border border-line bg-mist px-3.5 py-2.5 text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors";
 const labelCls = "block text-[12.5px] font-semibold uppercase tracking-wide text-ink-mute mb-1.5";
 
@@ -26,7 +29,12 @@ export function AddRoomTypeModal({ onClose }: AddRoomTypeModalProps) {
   useEscapeKey(onClose);
   const qc = useQueryClient();
   const [form, setForm] = useState({ name: "", typeName: "DOUBLE" as RoomTypeName, description: "", maxOccupancy: "", defaultRate: "" });
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
+  const [amenities, setAmenities] = useState<string[]>([]);
+  const [amenityInput, setAmenityInput] = useState("");
 
   const mutation = useMutation({
     mutationFn: roomsService.createRoomType,
@@ -42,6 +50,37 @@ export function AddRoomTypeModal({ onClose }: AddRoomTypeModalProps) {
     return Object.keys(errs).length === 0;
   }
 
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    const remaining = 8 - photoUrls.length;
+    const toUpload  = files.slice(0, remaining);
+    setPhotoUploading(true);
+    try {
+      const urls = await Promise.all(toUpload.map((f) => uploadService.uploadPhoto(f)));
+      setPhotoUrls((prev) => [...prev, ...urls]);
+    } catch { /* upload errors are non-fatal; user can retry */ }
+    finally { setPhotoUploading(false); e.target.value = ""; }
+  }
+
+  function addAmenity(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed || amenities.includes(trimmed)) return;
+    setAmenities((prev) => [...prev, trimmed]);
+  }
+
+  function handleAmenityKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addAmenity(amenityInput);
+      setAmenityInput("");
+    }
+  }
+
+  function removeAmenity(a: string) {
+    setAmenities((prev) => prev.filter((x) => x !== a));
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
@@ -51,15 +90,17 @@ export function AddRoomTypeModal({ onClose }: AddRoomTypeModalProps) {
       description:  form.description.trim() || undefined,
       maxOccupancy: Number(form.maxOccupancy),
       defaultRate:  Math.round(Number(form.defaultRate) * 100),
+      photoUrls,
+      amenities,
     };
     mutation.mutate(dto);
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4 anim-fade-in">
-      <div className="bg-paper rounded-2xl shadow-xl w-full max-w-md anim-scale-in">
+      <div className="bg-paper rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto anim-scale-in">
         {/* Header */}
-        <div className="flex items-center gap-3 px-6 pt-6 pb-5 border-b border-line">
+        <div className="flex items-center gap-3 px-6 pt-6 pb-5 border-b border-line sticky top-0 bg-paper z-10">
           <div className="grid place-items-center h-10 w-10 rounded-xl bg-slate-soft shrink-0">
             <Building2 size={18} className="text-slate" />
           </div>
@@ -90,6 +131,97 @@ export function AddRoomTypeModal({ onClose }: AddRoomTypeModalProps) {
             <label className={labelCls}>Description</label>
             <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               rows={2} placeholder="Optional description…" className={cn(inputCls, "resize-none")} />
+          </div>
+
+          {/* Amenities */}
+          <div>
+            <label className={labelCls}>Room Amenities</label>
+            {/* Presets */}
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {AMENITY_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  disabled={amenities.includes(preset)}
+                  onClick={() => addAmenity(preset)}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-medium border transition-colors",
+                    amenities.includes(preset)
+                      ? "bg-coral/10 border-coral/20 text-coral cursor-default"
+                      : "bg-mist border-line text-ink-mute hover:border-coral/30 hover:text-ink"
+                  )}
+                >
+                  {!amenities.includes(preset) && <Plus size={10} />}
+                  {preset}
+                </button>
+              ))}
+            </div>
+            {/* Chips */}
+            {amenities.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {amenities.map((a) => (
+                  <span key={a} className="inline-flex items-center gap-1 rounded-full bg-ink text-white text-[12px] px-2.5 py-1 font-medium">
+                    {a}
+                    <button type="button" onClick={() => removeAmenity(a)} className="ml-0.5 hover:opacity-70 transition-opacity">
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {/* Custom input */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={amenityInput}
+                onChange={(e) => setAmenityInput(e.target.value)}
+                onKeyDown={handleAmenityKeyDown}
+                placeholder="Custom amenity, then Enter…"
+                className={cn(inputCls, "flex-1")}
+              />
+              <button
+                type="button"
+                onClick={() => { addAmenity(amenityInput); setAmenityInput(""); }}
+                className="h-[42px] px-3 rounded-xl border border-line text-ink-mute hover:text-coral hover:border-coral/30 transition-colors text-[13px] font-semibold shrink-0"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
+          {/* Photos */}
+          <div>
+            <label className={labelCls}>Photos <span className="normal-case tracking-normal text-ink-faint font-normal">(up to 8)</span></label>
+            {photoUrls.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {photoUrls.map((url, i) => (
+                  <div key={i} className="relative h-16 w-16 rounded-lg overflow-hidden border border-line">
+                    <img src={url} alt="" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setPhotoUrls((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="absolute top-0.5 right-0.5 grid place-items-center h-5 w-5 rounded-full bg-ink/70 text-white hover:bg-clay"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {photoUrls.length < 8 && (
+              <>
+                <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
+                <button
+                  type="button"
+                  disabled={photoUploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2 h-9 px-4 rounded-xl border border-dashed border-line text-ink-mute text-[13px] hover:border-coral/40 hover:text-coral transition-colors disabled:opacity-40"
+                >
+                  {photoUploading ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
+                  {photoUploading ? "Uploading…" : "Add Photo"}
+                </button>
+              </>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

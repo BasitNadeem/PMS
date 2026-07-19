@@ -9,6 +9,8 @@ export interface RoomType {
   maxOccupancy: number;
   defaultRate: number;
   sortOrder: number;
+  photoUrls: string[];
+  amenities: string[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -71,6 +73,8 @@ export interface CreateRoomTypeDto {
   maxOccupancy: number;
   defaultRate: number;
   sortOrder?: number;
+  photoUrls?: string[];
+  amenities?: string[];
 }
 
 export interface UpdateRoomTypeDto extends Partial<CreateRoomTypeDto> {}

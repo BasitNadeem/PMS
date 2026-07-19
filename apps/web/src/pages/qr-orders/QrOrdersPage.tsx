@@ -2,11 +2,13 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import {
   ChevronDown, ChevronUp, Receipt, XCircle, Banknote, BedDouble,
-  ClipboardList, ChevronLeft, ChevronRight, AlertTriangle,
+  ClipboardList, ChevronLeft, ChevronRight, AlertTriangle, Printer,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Card } from "@/components/ui/Card";
 import { qrOrdersService, type QrOrder } from "../../services/qrOrders";
+import { ReceiptView } from "@/components/pos/ReceiptView";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 // ── Status / badge config ─────────────────────────────────────────────────────
 
@@ -58,11 +60,12 @@ const labelCls = "block text-[11px] font-bold uppercase tracking-wide text-ink-f
 
 export default function QrOrdersPage() {
   const qc = useQueryClient();
-  const [status,    setStatus]    = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate,   setEndDate]   = useState("");
-  const [page,      setPage]      = useState(1);
-  const [expanded,  setExpanded]  = useState<Set<string>>(new Set());
+  const [status,       setStatus]       = useState("");
+  const [startDate,    setStartDate]    = useState("");
+  const [endDate,      setEndDate]      = useState("");
+  const [page,         setPage]         = useState(1);
+  const [expanded,     setExpanded]     = useState<Set<string>>(new Set());
+  const [receiptOrder, setReceiptOrder] = useState<QrOrder | null>(null);
 
   const params = {
     status:    status || undefined,
@@ -136,20 +139,18 @@ export default function QrOrdersPage() {
           </div>
           <div>
             <label className={labelCls}>From</label>
-            <input
-              type="date"
-              className={inputCls}
+            <DatePicker
+              className="h-9"
               value={startDate}
-              onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
+              onChange={(v) => { setStartDate(v); setPage(1); }}
             />
           </div>
           <div>
             <label className={labelCls}>To</label>
-            <input
-              type="date"
-              className={inputCls}
+            <DatePicker
+              className="h-9"
               value={endDate}
-              onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
+              onChange={(v) => { setEndDate(v); setPage(1); }}
             />
           </div>
           {(status || startDate || endDate) && (
@@ -207,6 +208,7 @@ export default function QrOrdersPage() {
               onCancel={() => {
                 if (confirm(`Cancel order ${order.order_number}?`)) cancelOrder(order.id);
               }}
+              onPrint={() => setReceiptOrder(order)}
               mutating={mutating}
             />
           ))}
@@ -236,6 +238,31 @@ export default function QrOrdersPage() {
           </div>
         </div>
       )}
+
+      {receiptOrder && (
+        <ReceiptView
+          orderNumber={receiptOrder.order_number}
+          dateTime={receiptOrder.created_at}
+          guestName={receiptOrder.guest_name}
+          roomNumber={receiptOrder.room_number}
+          items={receiptOrder.items.map((i) => ({
+            name:      i.item_name,
+            quantity:  i.quantity,
+            unitPrice: i.item_price,
+            lineTotal: i.subtotal,
+          }))}
+          subtotal={receiptOrder.total_amount}
+          taxAmount={0}
+          discountAmount={0}
+          total={receiptOrder.total_amount}
+          paymentStatus={
+            receiptOrder.payment_preference === "charge_to_room"
+              ? { type: "CHARGED_TO_ROOM", roomNumber: receiptOrder.room_number }
+              : { type: "PENDING_PAYMENT" }
+          }
+          onClose={() => setReceiptOrder(null)}
+        />
+      )}
     </div>
   );
 }
@@ -243,7 +270,7 @@ export default function QrOrdersPage() {
 // ── Order row ─────────────────────────────────────────────────────────────────
 
 function OrderRow({
-  order, isExpanded, onToggle, onAdvance, onPostFolio, onCancel, mutating,
+  order, isExpanded, onToggle, onAdvance, onPostFolio, onCancel, onPrint, mutating,
 }: {
   order:       QrOrder;
   isExpanded:  boolean;
@@ -251,6 +278,7 @@ function OrderRow({
   onAdvance:   (status: string) => void;
   onPostFolio: () => void;
   onCancel:    () => void;
+  onPrint:     () => void;
   mutating:    boolean;
 }) {
   const next = NEXT_STATUS[order.status];
@@ -350,6 +378,12 @@ function OrderRow({
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); onPrint(); }}
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full border border-line text-ink-soft text-[13px] font-semibold hover:bg-mist transition-colors"
+            >
+              <Printer className="w-3.5 h-3.5" /> Print Receipt
+            </button>
             {next && order.status !== "cancelled" && (
               <button
                 disabled={mutating}

@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { X, CheckCircle, Banknote } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { posService, type CartItem } from "@/services/pos";
+import { posService, type CartItem, type PosOrder } from "@/services/pos";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { ReceiptView } from "@/components/pos/ReceiptView";
 
 const PAYMENT_METHODS = [
   { value: "CASH",        label: "Cash" },
@@ -26,9 +27,11 @@ export interface DirectPaymentModalProps {
 export function DirectPaymentModal({ cart, onClose, onSuccess }: DirectPaymentModalProps) {
   useEscapeKey(onClose);
   const qc = useQueryClient();
-  const [method,    setMethod]    = useState("CASH");
-  const [succeeded, setSucceeded] = useState(false);
-  const [error,     setError]     = useState<string | null>(null);
+  const [method,      setMethod]      = useState("CASH");
+  const [succeeded,   setSucceeded]   = useState(false);
+  const [completedOrder, setCompletedOrder] = useState<PosOrder | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [error,       setError]       = useState<string | null>(null);
 
   const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
@@ -39,8 +42,9 @@ export function DirectPaymentModal({ cart, onClose, onSuccess }: DirectPaymentMo
         settlementType: "DIRECT",
         paymentMethod:  method,
       }),
-    onSuccess: () => {
+    onSuccess: (order) => {
       qc.invalidateQueries({ queryKey: ["pos-orders"] });
+      setCompletedOrder(order);
       setSucceeded(true);
     },
     onError: (err: { response?: { data?: { error?: string } } }) => {
@@ -48,16 +52,30 @@ export function DirectPaymentModal({ cart, onClose, onSuccess }: DirectPaymentMo
     },
   });
 
-  useEffect(() => {
-    if (!succeeded) return;
-    const timer = setTimeout(() => {
-      onSuccess("Payment collected");
-      onClose();
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [succeeded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (showReceipt && completedOrder) {
+    return (
+      <ReceiptView
+        orderNumber={completedOrder.orderNumber}
+        dateTime={completedOrder.createdAt}
+        items={completedOrder.items.map((i) => ({
+          name:      i.name,
+          quantity:  i.quantity,
+          unitPrice: i.unitPrice,
+          lineTotal: i.lineTotal,
+        }))}
+        subtotal={completedOrder.subtotal}
+        taxAmount={completedOrder.taxAmount}
+        discountAmount={completedOrder.discountAmount}
+        total={completedOrder.total}
+        paymentStatus={{ type: "PAID", method: completedOrder.paymentMethod ?? method }}
+        onClose={() => setShowReceipt(false)}
+      />
+    );
+  }
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4 anim-fade-in">
       <div className="bg-paper rounded-2xl shadow-xl w-full max-w-md anim-scale-in">
         {/* Header */}
@@ -101,7 +119,22 @@ export function DirectPaymentModal({ cart, onClose, onSuccess }: DirectPaymentMo
                   <span className="serif text-[20px] text-[#1F4D3A] tnum">{formatPKR(total)}</span>
                 </div>
               </div>
-              <p className="text-[12px] text-ink-faint">Closing automatically…</p>
+              <div className="flex gap-2 w-full">
+                {completedOrder && (
+                  <button
+                    onClick={() => setShowReceipt(true)}
+                    className="flex-1 h-10 rounded-xl border-2 border-[#1F4D3A] text-[#1F4D3A] text-[13px] font-semibold hover:bg-[#E6F0EA] transition-colors"
+                  >
+                    Print Receipt →
+                  </button>
+                )}
+                <button
+                  onClick={() => { onSuccess("Payment collected"); onClose(); }}
+                  className="flex-1 h-10 rounded-xl bg-[#1F4D3A] text-white text-[13px] font-semibold hover:bg-[#173a2c] transition-colors"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -163,5 +196,7 @@ export function DirectPaymentModal({ cart, onClose, onSuccess }: DirectPaymentMo
         </div>
       </div>
     </div>
+    </>
   );
 }
+

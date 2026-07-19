@@ -126,9 +126,16 @@ function ReservationRow({ r, groupRoomCount, onOpen }: {
         <Avatar name={r.guest.fullName} size={38} />
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <div className="text-[14px] font-semibold text-ink truncate">{r.guest.fullName}</div>
+            <div className="text-[14px] font-semibold text-ink truncate">
+              {r.bookingContactName ?? r.guest.fullName}
+            </div>
             {r.isVip && <Star size={12} className="text-amber fill-amber shrink-0" />}
           </div>
+          {r.bookingContactName && (
+            <div className="text-[11px] text-ink-faint truncate">
+              profile: {r.guest.fullName}
+            </div>
+          )}
           <div className="flex items-center gap-1.5 text-[12px] text-ink-faint tnum">
             <span>{isGroup ? (r.group?.groupRef ?? `GRP-${r.groupId!.slice(0, 8).toUpperCase()}`) : (r.confirmationNumber || "—")}</span>
             {isGroup && (
@@ -152,9 +159,16 @@ function ReservationRow({ r, groupRoomCount, onOpen }: {
             ) : null}
           </>
         ) : (
-          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold bg-line-soft text-ink-soft w-fit">
-            Single
-          </span>
+          <div className="flex flex-col gap-1">
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold bg-line-soft text-ink-soft w-fit">
+              Single
+            </span>
+            {r.source === "BOOKING_ENGINE" && (
+              <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold bg-emerald-soft text-emerald tracking-wide w-fit">
+                Online Request
+              </span>
+            )}
+          </div>
         )}
       </div>
 
@@ -336,7 +350,7 @@ export default function ReservationsPage() {
           {canCreate && (
             <button
               onClick={() => { setNewCheckIn(undefined); setNewCheckOut(undefined); setShowChooser(true); }}
-              className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-ink text-white text-sm font-semibold hover:bg-ink-soft transition-colors shadow-pop whitespace-nowrap"
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-coral text-white text-sm font-semibold hover:bg-coral-dark transition-colors shadow-pop whitespace-nowrap"
             >
               <Plus size={17} /> New
             </button>
@@ -386,18 +400,25 @@ export default function ReservationsPage() {
 
       {view === "timeline" && (
         <Card pad={false} className="anim-fade-up overflow-hidden">
-          <div className="flex items-center justify-between p-5 border-b border-line-soft">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-line-soft">
             <div>
-              <h3 className="serif text-[22px] text-ink">Room timeline</h3>
-              <p className="text-[13px] text-ink-mute">{monthName} · drag-free occupancy grid</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex gap-1">
-                <button onClick={() => handleMonthChange(calYear, calMonth - 1)} className="grid place-items-center h-8 w-8 rounded-lg border border-line hover:bg-line-soft text-ink-mute transition-colors">
-                  <ChevronLeft size={16} />
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-ink-faint mb-1">Room Timeline</p>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleMonthChange(calYear, calMonth - 1)}
+                  className="grid place-items-center h-7 w-7 rounded-full hover:bg-line-soft text-ink-mute transition-colors"
+                >
+                  <ChevronLeft size={15} />
                 </button>
-                <button onClick={() => handleMonthChange(calYear, calMonth + 1)} className="grid place-items-center h-8 w-8 rounded-lg border border-line hover:bg-line-soft text-ink-mute transition-colors">
-                  <ChevronRight size={16} />
+                <h3 className="serif text-[32px] leading-none text-ink">
+                  {monthName}
+                  <span className="text-ink-mute ml-2.5 text-[24px]">{calYear}</span>
+                </h3>
+                <button
+                  onClick={() => handleMonthChange(calYear, calMonth + 1)}
+                  className="grid place-items-center h-7 w-7 rounded-full hover:bg-line-soft text-ink-mute transition-colors"
+                >
+                  <ChevronRight size={15} />
                 </button>
               </div>
             </div>

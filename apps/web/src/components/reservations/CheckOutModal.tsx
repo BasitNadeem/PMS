@@ -317,8 +317,8 @@ export function CheckOutModal({ reservation, onClose, onSuccess }: CheckOutModal
                 onClick={handleCheckOutWithoutPayment}
                 disabled={isProcessing}
                 className={cn(
-                  "w-full h-12 rounded-full bg-ink text-white font-semibold text-[14px] transition-colors shadow-pop",
-                  isProcessing ? "opacity-50 cursor-not-allowed" : "hover:bg-ink/90",
+                  "w-full h-12 rounded-full bg-coral text-white font-semibold text-[14px] transition-colors shadow-pop",
+                  isProcessing ? "opacity-50 cursor-not-allowed" : "hover:bg-coral-dark",
                 )}
               >
                 {isProcessing ? "Processing…" : "Confirm Check Out"}

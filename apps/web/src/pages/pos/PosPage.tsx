@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Receipt, Plus, Minus, ShoppingCart, UtensilsCrossed, ChevronLeft, ChevronRight } from "lucide-react";
+import { Receipt, Plus, Minus, ShoppingCart, UtensilsCrossed, ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   posService,
@@ -12,6 +12,7 @@ import {
 } from "@/services/pos";
 import { PostToRoomModal } from "@/components/pos/PostToRoomModal";
 import { DirectPaymentModal } from "@/components/pos/DirectPaymentModal";
+import { ReceiptView } from "@/components/pos/ReceiptView";
 import { AddCategoryModal } from "@/components/pos/AddCategoryModal";
 import { EditCategoryModal } from "@/components/pos/EditCategoryModal";
 import { AddItemModal } from "@/components/pos/AddItemModal";
@@ -70,6 +71,7 @@ export default function PosPage() {
   const [showDirect,   setShowDirect]   = useState(false);
 
   const [ordersPage, setOrdersPage] = useState(1);
+  const [receiptOrder, setReceiptOrder] = useState<PosOrder | null>(null);
 
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
   const [showAddCat,    setShowAddCat]    = useState(false);
@@ -455,7 +457,16 @@ export default function PosPage() {
                       </span>
                     </span>
                     <span className="text-[12px] text-ink-faint whitespace-nowrap hidden md:block tnum">{timeAgo(order.createdAt)}</span>
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-end gap-2">
+                      {(order.status === "PAID" || order.status === "POSTED_TO_FOLIO") && (
+                        <button
+                          onClick={() => setReceiptOrder(order)}
+                          className="grid place-items-center h-7 w-7 rounded-full hover:bg-line-soft text-ink-mute hover:text-ink transition-colors"
+                          title="Print receipt"
+                        >
+                          <Printer size={14} />
+                        </button>
+                      )}
                       {canUpdate && order.status === "OPEN" && (
                         <button
                           onClick={() => cancelMutation.mutate(order.id)}
@@ -699,6 +710,30 @@ export default function PosPage() {
         <AddItemModal category={selectedCat} onClose={() => setShowAddItem(false)} />
       )}
       {editItem    && <EditItemModal item={editItem} onClose={() => setEditItem(null)} />}
+
+      {receiptOrder && (
+        <ReceiptView
+          orderNumber={receiptOrder.orderNumber}
+          dateTime={receiptOrder.createdAt}
+          roomNumber={receiptOrder.roomNumber ?? undefined}
+          items={receiptOrder.items.map((i) => ({
+            name:      i.name,
+            quantity:  i.quantity,
+            unitPrice: i.unitPrice,
+            lineTotal: i.lineTotal,
+          }))}
+          subtotal={receiptOrder.subtotal}
+          taxAmount={receiptOrder.taxAmount}
+          discountAmount={receiptOrder.discountAmount}
+          total={receiptOrder.total}
+          paymentStatus={
+            receiptOrder.status === "POSTED_TO_FOLIO"
+              ? { type: "CHARGED_TO_ROOM", roomNumber: receiptOrder.roomNumber ?? "—" }
+              : { type: "PAID", method: receiptOrder.paymentMethod ?? "CASH" }
+          }
+          onClose={() => setReceiptOrder(null)}
+        />
+      )}
 
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>

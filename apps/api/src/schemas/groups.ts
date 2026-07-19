@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DocumentType } from "@pms/db";
+import { phoneSchema, optionalPhoneSchema } from "../lib/validation";
 
 export const PAYER_TYPES = ["TOUR_AGENCY", "CORPORATE", "GOVERNMENT", "NGO", "INDIVIDUAL"] as const;
 export const payerTypeSchema = z.enum(PAYER_TYPES);
@@ -28,7 +29,7 @@ export type ListGroupsQuery = z.infer<typeof listGroupsSchema>;
 const newGuestSchema = z.object({
   firstName:      z.string().trim().min(1),
   lastName:       z.string().trim().min(1),
-  phone:          z.string().trim().min(1),
+  phone:          phoneSchema,
   documentType:   z.nativeEnum(DocumentType).default("CNIC"),
   documentNumber: z.string().trim().min(1),
   allowDuplicate: z.boolean().optional(),
@@ -55,7 +56,7 @@ export const createGroupSchema = z
     groupRef:       z.string().trim().optional(),
     payerType:      payerTypeSchema,
     payerName:      z.string().trim().min(1),
-    payerContact:   z.string().trim().optional(),
+    payerContact:   optionalPhoneSchema,
     billingType:    billingTypeSchema.default("SINGLE"),
     paymentTerms:   paymentTermsSchema.default("CASH"),
     advancePaid:    z.number().min(0).default(0),
@@ -77,7 +78,7 @@ export const updateGroupSchema = z.object({
   name:           z.string().trim().min(1).optional(),
   payerType:      payerTypeSchema.optional(),
   payerName:      z.string().trim().min(1).optional(),
-  payerContact:   z.string().trim().optional(),
+  payerContact:   optionalPhoneSchema,
   billingType:    billingTypeSchema.optional(),
   paymentTerms:   paymentTermsSchema.optional(),
   advancePaid:    z.number().min(0).optional(),

@@ -5,6 +5,7 @@ import { cn } from "@/lib/cn";
 import { housekeepingService, type HousekeepingTaskType, type HousekeepingPriority } from "@/services/housekeeping";
 import { roomsService } from "@/services/rooms";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 const TASK_TYPE_OPTIONS: { value: HousekeepingTaskType; label: string }[] = [
   { value: "CHECKOUT_CLEAN",    label: "Checkout Clean" },
@@ -112,7 +113,7 @@ export function AssignTaskModal({ onClose }: AssignTaskModalProps) {
 
           <div>
             <label className={labelCls}>Scheduled For <span className="normal-case tracking-normal text-ink-faint font-normal">(optional)</span></label>
-            <input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} className={inputCls} />
+            <DatePicker value={scheduledDate} onChange={setScheduledDate} className="w-full" />
           </div>
 
           <div>

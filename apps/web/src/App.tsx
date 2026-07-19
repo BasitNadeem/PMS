@@ -1,41 +1,73 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { getCurrentUserRole } from "./lib/jwt";
 import { isMobileDevice } from "./lib/device";
-import LoginPage from "./pages/LoginPage";
-import OnboardingPage from "./pages/onboarding/OnboardingPage";
-import DashboardPage from "./pages/DashboardPage";
-import HousekeepingMobilePage from "./pages/housekeeping/HousekeepingMobilePage";
-import RoomsPage from "./pages/rooms/RoomsPage";
-import GuestsPage from "./pages/guests/GuestsPage";
-import GuestDetailPage from "./pages/guests/GuestDetailPage";
-import ReservationsPage from "./pages/reservations/ReservationsPage";
-import ReservationDetailPage from "./pages/reservations/ReservationDetailPage";
-import GroupsPage from "./pages/groups/GroupsPage";
-import GroupDetailPage from "./pages/groups/GroupDetailPage";
-import BillingPage from "./pages/billing/BillingPage";
-import FolioPage from "./pages/folio/FolioPage";
-import ExpensesPage from "./pages/expenses/ExpensesPage";
-import CashBookPage from "./pages/cashbook/CashBookPage";
-import HousekeepingPage from "./pages/housekeeping/HousekeepingPage";
-import MaintenanceTicketsPage from "./pages/maintenance/MaintenanceTicketsPage";
-import TeamPage from "./pages/team/TeamPage";
-import PosPage from "./pages/pos/PosPage";
-import ReportsPage from "./pages/reports/ReportsPage";
-import DailyReportPage from "./pages/reports/DailyReportPage";
-import MonthlyReportPage from "./pages/reports/MonthlyReportPage";
-import NotificationsPage from "./pages/notifications/NotificationsPage";
-import SettingsPage from "./pages/settings/SettingsPage";
-import ShiftHandoverPage from "./pages/shifts/ShiftHandoverPage";
-import AuditLogPage from "./pages/audit/AuditLogPage";
-import GuestMenuPage from "./pages/menu/GuestMenuPage";
-import KitchenDisplayPage from "./pages/kitchen/KitchenDisplayPage";
-import KitchenDisplayOnlyPage from "./pages/kitchen/KitchenDisplayOnlyPage";
-import KitchenDashboardPage from "./pages/kitchen/KitchenDashboardPage";
-import { KitchenLayout } from "./components/layout/KitchenLayout";
-import QrOrdersPage from "./pages/qr-orders/QrOrdersPage";
-import InventoryPage from "./pages/inventory/InventoryPage";
-import MobileScanPage from "./pages/MobileScanPage";
+
+// Every page is lazy-loaded so a given user's initial bundle only contains the
+// pages they actually visit (e.g. housekeeping staff never pull in the 20+
+// report pages or admin settings) — see apps/web/CLAUDE.md's documented
+// "Pages are lazy-loaded" convention.
+const LoginPage                    = lazy(() => import("./pages/LoginPage"));
+const OnboardingPage               = lazy(() => import("./pages/onboarding/OnboardingPage"));
+const DashboardPage                = lazy(() => import("./pages/DashboardPage"));
+const HousekeepingMobilePage       = lazy(() => import("./pages/housekeeping/HousekeepingMobilePage"));
+const RoomsPage                    = lazy(() => import("./pages/rooms/RoomsPage"));
+const GuestsPage                   = lazy(() => import("./pages/guests/GuestsPage"));
+const GuestDetailPage              = lazy(() => import("./pages/guests/GuestDetailPage"));
+const ReservationsPage             = lazy(() => import("./pages/reservations/ReservationsPage"));
+const ReservationDetailPage        = lazy(() => import("./pages/reservations/ReservationDetailPage"));
+const GroupsPage                   = lazy(() => import("./pages/groups/GroupsPage"));
+const GroupDetailPage              = lazy(() => import("./pages/groups/GroupDetailPage"));
+const BillingPage                  = lazy(() => import("./pages/billing/BillingPage"));
+const FolioPage                    = lazy(() => import("./pages/folio/FolioPage"));
+const ExpensesPage                 = lazy(() => import("./pages/expenses/ExpensesPage"));
+const CashBookPage                 = lazy(() => import("./pages/cashbook/CashBookPage"));
+const HousekeepingPage             = lazy(() => import("./pages/housekeeping/HousekeepingPage"));
+const MaintenanceTicketsPage       = lazy(() => import("./pages/maintenance/MaintenanceTicketsPage"));
+const TeamPage                     = lazy(() => import("./pages/team/TeamPage"));
+const PosPage                      = lazy(() => import("./pages/pos/PosPage"));
+const ReportsPage                  = lazy(() => import("./pages/reports/ReportsPage"));
+const DailyReportPage              = lazy(() => import("./pages/reports/DailyReportPage"));
+const MonthlyReportPage            = lazy(() => import("./pages/reports/MonthlyReportPage"));
+const RevenueSourcePage            = lazy(() => import("./pages/reports/RevenueSourcePage"));
+const PaymentMethodsPage           = lazy(() => import("./pages/reports/PaymentMethodsPage"));
+const OutstandingBalancesPage      = lazy(() => import("./pages/reports/OutstandingBalancesPage"));
+const VoidRefundLogPage            = lazy(() => import("./pages/reports/VoidRefundLogPage"));
+const CashReconciliationPage       = lazy(() => import("./pages/reports/CashReconciliationPage"));
+const OccupancyTrendPage           = lazy(() => import("./pages/reports/OccupancyTrendPage"));
+const ADRRevPARPage                = lazy(() => import("./pages/reports/ADRRevPARPage"));
+const RoomTypePerformancePage      = lazy(() => import("./pages/reports/RoomTypePerformancePage"));
+const SourceOfBusinessPage         = lazy(() => import("./pages/reports/SourceOfBusinessPage"));
+const LengthOfStayPage             = lazy(() => import("./pages/reports/LengthOfStayPage"));
+const GuestDirectoryPage           = lazy(() => import("./pages/reports/GuestDirectoryPage"));
+const RepeatGuestsPage             = lazy(() => import("./pages/reports/RepeatGuestsPage"));
+const GuestBlacklistPage           = lazy(() => import("./pages/reports/GuestBlacklistPage"));
+const GuestDemographicsPage        = lazy(() => import("./pages/reports/GuestDemographicsPage"));
+const HousekeepingPerformancePage  = lazy(() => import("./pages/reports/HousekeepingPerformancePage"));
+const MaintenanceSummaryPage       = lazy(() => import("./pages/reports/MaintenanceSummaryPage"));
+const StaffActivityPage            = lazy(() => import("./pages/reports/StaffActivityPage"));
+const GroupBookingsSummaryPage     = lazy(() => import("./pages/reports/GroupBookingsSummaryPage"));
+const StockConsumptionPage         = lazy(() => import("./pages/reports/StockConsumptionPage"));
+const WasteLossPage                = lazy(() => import("./pages/reports/WasteLossPage"));
+const LowStockReorderPage          = lazy(() => import("./pages/reports/LowStockReorderPage"));
+const POSSalesPage                 = lazy(() => import("./pages/reports/POSSalesPage"));
+const QROrdersReportPage           = lazy(() => import("./pages/reports/QROrdersPage"));
+const NotificationsPage            = lazy(() => import("./pages/notifications/NotificationsPage"));
+const SettingsPage                 = lazy(() => import("./pages/settings/SettingsPage"));
+const ShiftHandoverPage            = lazy(() => import("./pages/shifts/ShiftHandoverPage"));
+const AuditLogPage                 = lazy(() => import("./pages/audit/AuditLogPage"));
+const GuestMenuPage                = lazy(() => import("./pages/menu/GuestMenuPage"));
+const KitchenDisplayOnlyPage       = lazy(() => import("./pages/kitchen/KitchenDisplayOnlyPage"));
+const KitchenDashboardPage         = lazy(() => import("./pages/kitchen/KitchenDashboardPage"));
+const QrOrdersPage                 = lazy(() => import("./pages/qr-orders/QrOrdersPage"));
+const InventoryPage                = lazy(() => import("./pages/inventory/InventoryPage"));
+const ChannelManagerPage           = lazy(() => import("./pages/channel-manager/ChannelManagerPage"));
+const RatePlansPage                = lazy(() => import("./pages/rates/RatePlansPage"));
+const MobileScanPage               = lazy(() => import("./pages/MobileScanPage"));
+const NightAuditPage               = lazy(() => import("./pages/nightaudit/NightAuditPage"));
+const BookingLandingPage           = lazy(() => import("./pages/booking-engine/BookingLandingPage"));
+const BookingFormPage              = lazy(() => import("./pages/booking-engine/BookingFormPage"));
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem("accessToken");
@@ -80,9 +112,18 @@ function HousekeepingMobileRoute() {
   return <HousekeepingMobilePage />;
 }
 
+function RouteFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-screen text-[14px] text-ink-mute">
+      Loading…
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         {/* Fully public — no auth, no AppLayout */}
@@ -330,6 +371,156 @@ export default function App() {
           }
         />
         <Route
+          path="/reports/revenue-source"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <RevenueSourcePage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/reports/payment-methods"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <PaymentMethodsPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/reports/outstanding-balances"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <OutstandingBalancesPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/reports/void-refund-log"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <VoidRefundLogPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/reports/cash-reconciliation"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <CashReconciliationPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/reports/occupancy-trend"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <OccupancyTrendPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/reports/adr-revpar"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <ADRRevPARPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/reports/room-type-performance"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <RoomTypePerformancePage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/reports/source-of-business"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <SourceOfBusinessPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/reports/length-of-stay"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <LengthOfStayPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/reports/guest-directory"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <GuestDirectoryPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/reports/repeat-guests"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <RepeatGuestsPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/reports/guest-blacklist-report"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <GuestBlacklistPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/reports/guest-demographics"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <GuestDemographicsPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route path="/reports/housekeeping-performance" element={<PrivateRoute><AppLayout><HousekeepingPerformancePage /></AppLayout></PrivateRoute>} />
+        <Route path="/reports/maintenance-summary" element={<PrivateRoute><AppLayout><MaintenanceSummaryPage /></AppLayout></PrivateRoute>} />
+        <Route path="/reports/staff-activity" element={<PrivateRoute><AppLayout><StaffActivityPage /></AppLayout></PrivateRoute>} />
+        <Route path="/reports/group-bookings-summary" element={<PrivateRoute><AppLayout><GroupBookingsSummaryPage /></AppLayout></PrivateRoute>} />
+        <Route path="/reports/stock-consumption" element={<PrivateRoute><AppLayout><StockConsumptionPage /></AppLayout></PrivateRoute>} />
+        <Route path="/reports/waste-loss" element={<PrivateRoute><AppLayout><WasteLossPage /></AppLayout></PrivateRoute>} />
+        <Route path="/reports/low-stock-reorder" element={<PrivateRoute><AppLayout><LowStockReorderPage /></AppLayout></PrivateRoute>} />
+        <Route path="/reports/pos-sales" element={<PrivateRoute><AppLayout><POSSalesPage /></AppLayout></PrivateRoute>} />
+        <Route path="/reports/qr-orders" element={<PrivateRoute><AppLayout><QROrdersReportPage /></AppLayout></PrivateRoute>} />
+        <Route path="/reports/night-audit" element={<PrivateRoute><AppLayout><NightAuditPage /></AppLayout></PrivateRoute>} />
+        <Route
           path="/notifications"
           element={
             <PrivateRoute>
@@ -379,8 +570,33 @@ export default function App() {
             </PrivateRoute>
           }
         />
+        <Route
+          path="/channel-manager"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <ChannelManagerPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/rate-plans"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <RatePlansPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        {/* Public booking engine — no auth, no AppLayout */}
+        <Route path="/book/:hotelSlug" element={<BookingLandingPage />} />
+        <Route path="/book/:hotelSlug/reserve" element={<BookingFormPage />} />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

@@ -7,7 +7,7 @@ import { scanInventorySchema } from "../schemas/inventoryScan";
 import { InventoryScanService } from "../services/InventoryScanService";
 import { ScanSessionService } from "../services/ScanSessionService";
 
-const router = Router();
+const router: Router = Router();
 
 // POST /api/m/scan/:token
 // Mobile device sends base64 image; result is pushed to desktop via SSE.

@@ -4,6 +4,7 @@ import { X, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { cashbookService, type EntryType } from "@/services/cashbook";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 const inputCls = "w-full rounded-xl border border-line bg-mist px-3.5 py-2.5 text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors";
 const labelCls = "block text-[12.5px] font-semibold uppercase tracking-wide text-ink-mute mb-1.5";
@@ -153,8 +154,7 @@ export function RecordEntryModal({ onClose, onSuccess }: RecordEntryModalProps) 
           {/* Date */}
           <div>
             <label className={labelCls}>Date</label>
-            <input type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)}
-              className={inputCls} />
+            <DatePicker value={entryDate} onChange={setEntryDate} className="w-full" />
           </div>
 
           {/* Notes */}

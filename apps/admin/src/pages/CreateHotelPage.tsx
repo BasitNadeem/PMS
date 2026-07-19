@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { ApiError, CreateHotelDto, CreateHotelResult } from "@/types";
+import type { ApiError, CreateHotelDto, CreateHotelResult, SubscriptionPlan } from "@/types";
+import { getEmailErrorMessage } from "@/lib/validation";
 
 const PROPERTY_TYPES: { value: CreateHotelDto["propertyType"]; label: string }[] = [
   { value: "HOTEL", label: "Hotel" },
@@ -18,15 +20,34 @@ export default function CreateHotelPage() {
   const [city, setCity] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
+  const [subscriptionPlanId, setSubscriptionPlanId] = useState<string>("");
 
   const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<CreateHotelResult | null>(null);
   const [copied, setCopied] = useState<"email" | "password" | null>(null);
 
+  const { data: plans = [] } = useQuery<SubscriptionPlan[]>({
+    queryKey: ["admin", "plans"],
+    queryFn: async () => {
+      const res = await api.get<{ data: SubscriptionPlan[] }>("/api/admin/plans");
+      const allPlans = res.data.data;
+      // Default to trial plan
+      const trial = allPlans.find((p) => p.slug === "trial");
+      if (trial && !subscriptionPlanId) {
+        setSubscriptionPlanId(trial.id);
+      }
+      return allPlans;
+    },
+  });
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    const eErr = getEmailErrorMessage(ownerEmail);
+    if (eErr) { setEmailError(eErr); return; }
+    setEmailError(null);
     setIsSubmitting(true);
 
     try {
@@ -37,6 +58,7 @@ export default function CreateHotelPage() {
         city: city || undefined,
         ownerName,
         ownerEmail,
+        subscriptionPlanId: subscriptionPlanId || undefined,
       });
       setResult(res.data.data);
     } catch (err) {
@@ -57,6 +79,7 @@ export default function CreateHotelPage() {
     setCity("");
     setOwnerName("");
     setOwnerEmail("");
+    setSubscriptionPlanId("");
     setResult(null);
     setError(null);
   }
@@ -71,7 +94,7 @@ export default function CreateHotelPage() {
     return (
       <div className="flex justify-center">
         <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-900">✅ Hotel Created Successfully</h2>
+          <h2 className="text-lg font-bold text-gray-900">Hotel Created Successfully</h2>
 
           <dl className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between">
@@ -109,7 +132,7 @@ export default function CreateHotelPage() {
           </div>
 
           <p className="mt-4 text-xs text-amber-700">
-            ⚠️ Share these with the owner. Password is shown once only.
+            Share these with the owner. Password is shown once only.
           </p>
 
           <div className="mt-6 flex flex-col gap-2">
@@ -134,7 +157,7 @@ export default function CreateHotelPage() {
   return (
     <div>
       <Link to="/hotels" className="text-sm text-gray-500 hover:text-gray-700">
-        ← Back to Hotels
+        &larr; Back to Hotels
       </Link>
       <h1 className="mt-2 text-2xl font-bold text-gray-900">Create New Hotel</h1>
 
@@ -187,6 +210,20 @@ export default function CreateHotelPage() {
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Subscription Plan</label>
+              <select
+                value={subscriptionPlanId}
+                onChange={(e) => setSubscriptionPlanId(e.target.value)}
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Default (Trial)</option>
+                {plans.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -210,9 +247,11 @@ export default function CreateHotelPage() {
                 type="email"
                 required
                 value={ownerEmail}
-                onChange={(e) => setOwnerEmail(e.target.value)}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => { setOwnerEmail(e.target.value); setEmailError(null); }}
+                onBlur={() => setEmailError(ownerEmail.trim() ? getEmailErrorMessage(ownerEmail) : null)}
+                className={`mt-1 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${emailError ? "border-red-400" : "border-gray-300"}`}
               />
+              {emailError && <p className="mt-1 text-xs text-red-600">{emailError}</p>}
             </div>
 
             <p className="text-xs text-gray-500">
@@ -228,7 +267,7 @@ export default function CreateHotelPage() {
             disabled={isSubmitting}
             className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
           >
-            {isSubmitting ? "Creating…" : "Create Hotel & Generate Credentials"}
+            {isSubmitting ? "Creating..." : "Create Hotel & Generate Credentials"}
           </button>
         </div>
       </form>

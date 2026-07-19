@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authenticate } from "../middleware/auth";
 import { tenantMiddleware } from "../middleware/tenant";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticate, tenantMiddleware);
 

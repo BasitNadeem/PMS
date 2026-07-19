@@ -29,6 +29,7 @@ export interface MaintenanceTicket {
   estimatedCost: number | null;
   actualCost: number | null;
   scheduledFor: string | null;
+  scheduledEndDate: string | null;
   resolvedAt: string | null;
   isOverdue: boolean;
   createdAt: string;
@@ -51,6 +52,7 @@ export interface CreateTicketDto {
   priority?: MaintenancePriority;
   assignedToId?: string;
   scheduledFor?: string;
+  scheduledEndDate?: string;
   photoUrls?: string[];
 }
 
@@ -66,6 +68,7 @@ export interface UpdateTicketDto {
   title?: string;
   description?: string | null;
   scheduledFor?: string | null;
+  scheduledEndDate?: string | null;
   estimatedCost?: number | null;
   actualCost?: number | null;
 }

@@ -4,7 +4,7 @@ import { env } from "../lib/env";
 import type { JwtPayload } from "../middleware/auth";
 import { subscribe, unsubscribe } from "../lib/realtime";
 
-const router = Router();
+const router: Router = Router();
 
 // GET /api/realtime/events?token=...
 // EventSource can't send an Authorization header, so the access token is

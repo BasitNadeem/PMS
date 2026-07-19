@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, Link } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, Printer, ArrowLeft, FileSpreadsheet,
-  TrendingUp, TrendingDown, Wallet, Users, BedDouble, Wrench,
+  TrendingUp, TrendingDown, Wallet, Users, BedDouble, Wrench, CalendarDays,
 } from "lucide-react";
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis,
@@ -304,57 +304,82 @@ export default function MonthlyReportPage() {
       {/* Print CSS */}
       <style>{`
         @media print {
-          /* ── page setup ── */
-          @page { margin: 14mm 12mm; size: A4 landscape; }
+          /* ── @page: standardised A4 portrait, 1.5 cm margins ── */
+          @page { margin: 1.5cm; size: A4; }
+
+          /* ── root height collapse — kills the dead-space gap ──────────────────
+             AppLayout structure:
+               div.flex.min-h-screen          ← outer root
+                 aside.h-screen.sticky        ← sidebar (hidden below)
+                 div.flex-1.min-w-0.flex.flex-col  ← inner column
+                   main.flex-1.overflow-y-auto  ← THE CULPRIT
+                     div.px-5.py-5            ← content wrapper
+             flex-1 on <main> = flex:1 1 0%, making it claim full viewport height.
+             Setting flex:none + height:auto collapses it to content size.
+          ───────────────────────────────────────────────────────────────────── */
+          html, body {
+            height: auto !important;
+            min-height: 0 !important;
+            background: #fff !important;
+          }
+          #root { height: auto !important; min-height: 0 !important; }
+
+          .flex.min-h-screen,
+          .flex-1.min-w-0.flex.flex-col {
+            display: block !important;
+            height: auto !important;
+            min-height: 0 !important;
+          }
+
+          main {
+            display: block !important;
+            flex: none !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+          }
+          main > div {
+            height: auto !important;
+            min-height: 0 !important;
+            max-width: 100% !important;
+            padding: 0 0 28pt !important;
+            margin: 0 !important;
+          }
+
+          /* ── print colour & animation reset ── */
           *, *::before, *::after {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             box-shadow: none !important;
+            animation: none !important;
+            transition: none !important;
           }
-          body, html { background: #fff !important; }
 
-          /* ── hide chrome ── */
+          /* ── hide UI chrome ── */
           .no-print { display: none !important; }
           aside { display: none !important; }
           .lg\\:hidden { display: none !important; }
+          /* Desktop search bar (hidden lg:flex) — force hidden base class to win */
+          .hidden { display: none !important; }
 
-          /* ── layout: full-width content ── */
-          .flex.min-h-screen { display: block !important; }
-          .flex-1.min-w-0.flex.flex-col { display: block !important; width: 100% !important; }
-          main { overflow: visible !important; height: auto !important; display: block !important; }
-          main > div { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
-          .scroll-area { overflow: visible !important; }
-
-          /* ── spacing ── */
-          .space-y-7 > * + * { margin-top: 11pt !important; }
-          .gap-4 { gap: 7pt !important; }
-          .gap-3 { gap: 5pt !important; }
-          .gap-2 { gap: 4pt !important; }
-          .mb-6 { margin-bottom: 0 !important; }
-          .p-5 { padding: 9pt !important; }
-          .px-5.pb-5 { padding: 0 8pt 8pt !important; }
-          .p-5.pb-0 { padding: 9pt 9pt 0 !important; }
-
-          /* ── cards ── */
-          .bg-card { background: #fff !important; border: 0.75pt solid #c8c0b8 !important; border-radius: 5pt !important; }
-          .bg-mist { background: #f5f2ed !important; }
-          .bg-paper { background: #fff !important; }
-          .border-line { border-color: #c8c0b8 !important; }
-          .border-line-soft { border-color: #e4ddd6 !important; }
-
-          /* ── typography ── */
+          /* ── typography: darken muted text for print legibility ── */
+          .text-ink-faint { color: #5a5250 !important; }
+          .text-ink-mute  { color: #4a3f3a !important; }
+          .text-ink-soft  { color: #3a3230 !important; }
           .serif { font-family: Georgia, 'Times New Roman', serif !important; }
 
-          /* ── chart: hide recharts on print (charts don't render in PDF cleanly) ── */
-          /* Keep chart visible but allow page break before it */
-          .recharts-wrapper { page-break-before: auto; }
+          /* ── colours & surfaces ── */
+          .bg-paper, .bg-card { background: #fff !important; }
+          .bg-mist  { background: #f5f2ed !important; }
+          .border-line      { border-color: #c8c0b8 !important; }
+          .border-line-soft { border-color: #e4ddd6 !important; }
 
-          /* ── tables ── */
-          table { border-collapse: collapse !important; width: 100%; font-size: 8.5pt; page-break-inside: avoid; }
-          tr { page-break-inside: avoid; }
-          th { font-size: 7pt !important; padding: 3.5pt 5pt !important; background: #f0ece6 !important; }
-          td { font-size: 8.5pt !important; padding: 3pt 5pt !important; }
-          .overflow-x-auto { overflow: visible !important; }
+          /* ── KPI card icon badges: outlined instead of solid fill (toner-friendly) ── */
+          .grid.place-items-center.h-10.w-10.rounded-xl {
+            background: transparent !important;
+            border: 1pt solid currentColor !important;
+            opacity: 0.7;
+          }
 
           /* ── stat tiles ── */
           .rounded-xl.border.border-line.bg-mist {
@@ -367,45 +392,123 @@ export default function MonthlyReportPage() {
           /* ── payment method bars ── */
           .flex-1.h-5.bg-mist.rounded-full { background: #ece8e2 !important; border: 0.5pt solid #d0c8bf !important; }
 
-          /* ── print sections ── */
-          .print-section { page-break-inside: avoid !important; margin-bottom: 10pt !important; }
+          /* ── spacing ── */
+          .space-y-7 > * + * { margin-top: 12pt !important; }
+          .gap-4 { gap: 8pt !important; }
+          .gap-3 { gap: 6pt !important; }
+          .gap-2 { gap: 4pt !important; }
+          .p-5 { padding: 9pt !important; }
+          .px-5.pb-5 { padding: 0 8pt 8pt !important; }
+          .p-5.pb-0  { padding: 9pt 9pt 0 !important; }
 
-          /* ── animations ── */
-          .anim-fade-up { animation: none !important; opacity: 1 !important; }
+          /* ── tables ── */
+          .overflow-x-auto { overflow: visible !important; }
+          table {
+            border-collapse: collapse !important;
+            width: 100% !important;
+            font-size: 8.5pt !important;
+            page-break-inside: avoid;
+          }
+          tr { page-break-inside: avoid; }
+          th {
+            font-size: 7pt !important;
+            padding: 3.5pt 5pt !important;
+            background: #f0ece6 !important;
+            color: #5a5250 !important;
+          }
+          td { font-size: 8.5pt !important; padding: 3pt 5pt !important; }
+
+          /* ── section page-break control ── */
+          .print-section {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            margin-bottom: 12pt !important;
+          }
+
+          /* ── report header rule ── */
+          .pb-5.border-b.border-line {
+            border-bottom-width: 1pt !important;
+            padding-bottom: 10pt !important;
+          }
+
+          /* ── recharts: keep charts visible, prevent splits mid-chart ── */
+          .recharts-wrapper, .recharts-surface {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          /* ── running page footer (position:fixed repeats on every printed page) ── */
+          .print-page-footer {
+            display: flex !important;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            font-size: 7.5pt;
+            color: #6b6461;
+            padding: 4pt 1.5cm;
+            border-top: 0.5pt solid #c8c0b8;
+            background: #fff;
+          }
         }
       `}</style>
 
       {/* Action bar */}
-      <div className="no-print mb-6 flex flex-wrap items-center gap-3">
-        <Link to="/reports" className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-mute hover:text-ink">
-          <ArrowLeft size={15} /> Back to Reports
-        </Link>
-        <span className="text-line">|</span>
-        <span className="text-[14px] font-semibold text-ink">
-          {report?.monthName ?? "—"} {year}
-        </span>
-        <div className="flex items-center gap-2 ml-auto">
-          <button onClick={() => navMonth(-1)} className="flex items-center gap-1 text-[13px] font-semibold text-ink-soft hover:text-ink border border-line rounded-full px-3.5 py-2 hover:bg-line-soft transition-colors">
-            <ChevronLeft size={14} /> Previous Month
-          </button>
-          <button onClick={() => navMonth(1)} className="flex items-center gap-1 text-[13px] font-semibold text-ink-soft hover:text-ink border border-line rounded-full px-3.5 py-2 hover:bg-line-soft transition-colors">
-            Next Month <ChevronRight size={14} />
-          </button>
-          {report && (
-            <button
-              onClick={() => exportMonthlyReportExcel(report)}
-              className="flex items-center gap-2 text-[13px] font-semibold text-ink-soft hover:text-ink border border-line rounded-full px-3.5 py-2 hover:bg-line-soft transition-colors"
-            >
-              <FileSpreadsheet size={14} /> Export Excel
+      <div className="no-print mb-6 space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link to="/reports" className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-mute hover:text-ink">
+            <ArrowLeft size={15} /> Back to Reports
+          </Link>
+          <span className="text-line">|</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[14px] font-semibold text-ink">
+              {report?.monthName ?? "—"} {year}
+            </span>
+            <div className="relative inline-flex">
+              <input
+                type="month"
+                value={`${year}-${String(month).padStart(2, "0")}`}
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  const [y, m] = e.target.value.split("-").map(Number);
+                  setSearchParams({ year: String(y), month: String(m) });
+                }}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full z-10"
+                aria-label="Pick a month"
+              />
+              <span className="grid place-items-center h-7 w-7 rounded-full border border-line text-ink-mute hover:text-ink hover:bg-mist transition-colors pointer-events-none">
+                <CalendarDays size={14} />
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 ml-auto">
+            <button onClick={() => navMonth(-1)} className="flex items-center gap-1 text-[13px] font-semibold text-ink-soft hover:text-ink border border-line rounded-full px-3.5 py-2 hover:bg-line-soft transition-colors">
+              <ChevronLeft size={14} /> Previous Month
             </button>
-          )}
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 bg-coral hover:bg-coral-dark text-white text-[13px] font-semibold px-4 py-2 rounded-full transition-colors"
-          >
-            <Printer size={14} /> Print / PDF
-          </button>
+            <button onClick={() => navMonth(1)} className="flex items-center gap-1 text-[13px] font-semibold text-ink-soft hover:text-ink border border-line rounded-full px-3.5 py-2 hover:bg-line-soft transition-colors">
+              Next Month <ChevronRight size={14} />
+            </button>
+            {report && (
+              <button
+                onClick={() => exportMonthlyReportExcel(report)}
+                className="flex items-center gap-2 text-[13px] font-semibold text-ink-soft hover:text-ink border border-line rounded-full px-3.5 py-2 hover:bg-line-soft transition-colors"
+              >
+                <FileSpreadsheet size={14} /> Export Excel
+              </button>
+            )}
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-2 bg-coral hover:bg-coral-dark text-white text-[13px] font-semibold px-4 py-2 rounded-full transition-colors"
+            >
+              <Printer size={14} /> Print / PDF
+            </button>
+          </div>
         </div>
+        <p className="text-[11.5px] text-ink-faint pl-0.5">
+          Tip: In the browser print dialog, disable <strong>Headers and footers</strong> for cleanest output.
+        </p>
       </div>
 
       {isLoading ? (
@@ -594,11 +697,17 @@ export default function MonthlyReportPage() {
             </Card>
           )}
 
-          {/* Footer */}
-          <div className="border-t border-line pt-4">
+          {/* On-screen footer (hidden in print — the fixed .print-page-footer takes over) */}
+          <div className="no-print border-t border-line pt-4">
             <p className="text-[11px] text-ink-faint text-center">
               Confidential — {report.hotel.name} · {report.monthName} {report.year} · Generated {generatedAt}
             </p>
+          </div>
+
+          {/* Print-only per-page footer — position:fixed repeats on every printed page */}
+          <div className="print-page-footer" style={{ display: "none" }} aria-hidden="true">
+            <span>Confidential — {report.hotel.name}</span>
+            <span>{report.monthName} {report.year} · Generated: {generatedAt}</span>
           </div>
         </div>
       )}

@@ -18,7 +18,7 @@ const jwtOpts = (expiresIn: string): SignOptions => ({ expiresIn: expiresIn as S
  *   - Looking up user by email / hotel by slug requires cross-tenant visibility
  */
 
-const router = Router();
+const router: Router = Router();
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -132,6 +132,15 @@ router.post("/refresh", async (req, res) => {
   });
   if (!hotelUser?.isActive) {
     res.status(403).json({ error: "Access revoked" });
+    return;
+  }
+
+  const hotel = await adminPrisma.hotel.findUnique({
+    where: { id: payload.hotelId },
+    select: { isActive: true },
+  });
+  if (!hotel?.isActive) {
+    res.status(403).json({ error: "Hotel account has been deactivated" });
     return;
   }
 

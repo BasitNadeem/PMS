@@ -9,8 +9,9 @@ import {
   updateReservationSchema,
 } from "../schemas/reservations";
 import { ReservationService } from "../services/ReservationService";
+import { getPKTMonthRange } from "../lib/timezone";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticate, tenantMiddleware);
 
@@ -30,8 +31,7 @@ router.get("/calendar", requirePermission("RESERVATION_READ"), async (req, res) 
     return;
   }
 
-  const firstDay = new Date(Date.UTC(year, month - 1, 1));
-  const lastDay  = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+  const { start: firstDay, end: lastDay } = getPKTMonthRange(year, month);
 
   const rows = await req.withTenant((db) =>
     db.reservation.findMany({

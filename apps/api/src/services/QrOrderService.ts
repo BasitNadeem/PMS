@@ -638,7 +638,7 @@ export const QrOrderService = {
 
   async trackOrder(hotelId: string, orderNumber: string) {
     const rows = await adminPrisma.$queryRaw<QrOrderRow[]>`
-      SELECT id, order_number, status, delivery_type, special_instructions, created_at
+      SELECT id, order_number, status, delivery_type, special_instructions, created_at, total_amount, payment_preference, room_number
       FROM   qr_orders
       WHERE  hotel_id     = ${hotelId}::uuid
         AND  order_number ILIKE '%' || ${orderNumber}
@@ -648,8 +648,8 @@ export const QrOrderService = {
     if (rows.length === 0) return null;
     const order = rows[0];
 
-    const items = await adminPrisma.$queryRaw<{ item_name: string; quantity: number }[]>`
-      SELECT item_name, quantity
+    const items = await adminPrisma.$queryRaw<{ item_name: string; quantity: number; item_price: bigint; subtotal: bigint }[]>`
+      SELECT item_name, quantity, item_price, subtotal
       FROM   qr_order_items
       WHERE  order_id = ${order.id}::uuid
       ORDER  BY created_at ASC
@@ -661,7 +661,15 @@ export const QrOrderService = {
       deliveryType:        order.delivery_type,
       specialInstructions: order.special_instructions,
       createdAt:           order.created_at,
-      items:               items.map((i) => ({ name: i.item_name, quantity: i.quantity })),
+      totalAmount:         Number(order.total_amount),
+      paymentPreference:   order.payment_preference,
+      roomNumber:          order.room_number,
+      items:               items.map((i) => ({
+        name:      i.item_name,
+        quantity:  i.quantity,
+        price:     Number(i.item_price),
+        lineTotal: Number(i.subtotal),
+      })),
     };
   },
 };

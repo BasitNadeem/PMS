@@ -1,10 +1,11 @@
 import { z } from "zod";
+import { optionalPhoneSchema } from "../lib/validation";
 
 export const createUserSchema = z.object({
   name:     z.string().trim().min(1, "Name is required"),
   email:    z.string().trim().email("Invalid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  phone:    z.string().trim().optional(),
+  phone:    optionalPhoneSchema,
   roleId:   z.string().uuid("Invalid role"),
 });
 export type CreateUserDto = z.infer<typeof createUserSchema>;

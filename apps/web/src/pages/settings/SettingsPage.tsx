@@ -3,11 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Building2, Clock, Receipt, AlertTriangle, ChevronLeft, Check,
-  MessageSquare, Info, ShieldCheck, KeyRound, Eye, EyeOff, History, QrCode, Copy, Download,
+  MessageSquare, Info, ShieldCheck, KeyRound, Eye, EyeOff, History, QrCode, Copy, Download, CreditCard, Lock, Loader2, ImagePlus,
 } from "lucide-react";
 import QRCode from "qrcode";
 import { cn } from "@/lib/cn";
 import { settingsService, type UpdateSettingsDto, type RolePermissions, type ThemeKey } from "@/services/settings";
+import { getPhoneErrorMessage, getEmailErrorMessage } from "@/lib/validation";
+import { exportAllDataToExcel } from "@/lib/exportExcel";
 import { getCurrentUserRole } from "@/lib/jwt";
 import { authService } from "@/services/auth";
 import { useToast } from "@/hooks/useToast";
@@ -15,6 +17,7 @@ import { ToastContainer } from "@/components/ui/ToastContainer";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ThemePicker } from "@/components/settings/ThemePicker";
 import { applyTheme, isThemeKey } from "@/lib/theme";
+import { uploadService } from "@/services/upload";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -67,8 +70,9 @@ function SaveButton({ saving, saved, onClick }: { saving: boolean; saved: boolea
 
 // ── Section types ─────────────────────────────────────────────────────────────
 
-type Section = "profile" | "operations" | "permissions" | "tax" | "notifications" | "security" | "danger";
+type Section = "plan" | "profile" | "operations" | "permissions" | "tax" | "notifications" | "security" | "danger";
 const ALL_SECTIONS: { key: Section; label: string; icon: React.ElementType; ownerOnly?: boolean }[] = [
+  { key: "plan",          label: "Current Plan",         icon: CreditCard },
   { key: "profile",       label: "Hotel Profile",        icon: Building2 },
   { key: "operations",    label: "Operations",           icon: Clock },
   { key: "permissions",   label: "Permissions",          icon: ShieldCheck, ownerOnly: true },
@@ -160,6 +164,7 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   staff:        ["read", "create", "update", "delete"],
   user:         ["read", "create", "update", "delete"],
   report:       ["read"],
+  app_access:   ["read", "create", "update"],
 };
 
 function formatLabel(s: string): string {
@@ -237,12 +242,28 @@ export default function SettingsPage() {
     staleTime: 30_000,
   });
 
+  const { data: plan } = useQuery({
+    queryKey: ["settings", "plan"],
+    queryFn: async () => {
+      const { api } = await import("@/lib/api");
+      const res = await api.get<{ data: {
+        planName: string; planSlug: string | null; priceMonthly: number;
+        isTrialAccount: boolean; trialEndsAt: string | null;
+        maxRooms: number; maxUsers: number; currentRooms: number; currentUsers: number;
+        features: Record<string, boolean>;
+      } }>("/api/settings/plan");
+      return res.data.data;
+    },
+    staleTime: 60_000,
+  });
+
   // ── Profile form ────────────────────────────────────────────────────────────
   const [profile, setProfile] = useState({
     name: "", propertyType: "HOTEL", starRating: "" as string,
-    description: "", phone: "", email: "", website: "",
+    description: "", amenities: [] as string[], phone: "", email: "", website: "",
     address: "", city: "", country: "PK", timezone: "Asia/Karachi",
   });
+  const [newAmenity, setNewAmenity] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved,  setProfileSaved]  = useState(false);
 
@@ -262,6 +283,7 @@ export default function SettingsPage() {
     pstEnabled: false, pstRate: "5",
     taxInclusive: false, fbrEnabled: false,
     invoicePrefix: "INV",
+    posTaxRate: "0",
   });
   const [taxSaving, setTaxSaving] = useState(false);
   const [taxSaved,  setTaxSaved]  = useState(false);
@@ -272,6 +294,31 @@ export default function SettingsPage() {
   const [notifSaved,      setNotifSaved]      = useState(false);
   const [testSending,     setTestSending]     = useState(false);
   const [whatsappError,   setWhatsappError]   = useState<string | null>(null);
+  const [profilePhoneError, setProfilePhoneError] = useState<string | null>(null);
+  const [profileEmailError, setProfileEmailError] = useState<string | null>(null);
+
+  // ── Logo upload ─────────────────────────────────────────────────────────────
+  const [logoUploading, setLogoUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoUploading(true);
+    try {
+      const url = await uploadService.uploadPhoto(file);
+      await updateMutation.mutateAsync({ logoUrl: url } as UpdateSettingsDto);
+      addToast("Logo updated");
+    } catch { addToast("Failed to upload logo", "error"); }
+    finally { setLogoUploading(false); e.target.value = ""; }
+  }
+
+  async function removeLogo() {
+    try {
+      await updateMutation.mutateAsync({ logoUrl: null } as UpdateSettingsDto);
+      addToast("Logo removed");
+    } catch { addToast("Failed to remove logo", "error"); }
+  }
 
   // ── Security / change password ──────────────────────────────────────────────
   const isFirstLogin = localStorage.getItem("isFirstLogin") === "true";
@@ -284,6 +331,39 @@ export default function SettingsPage() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  // ── Danger zone ─────────────────────────────────────────────────────────────
+  const [exportingData,       setExportingData]       = useState(false);
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [deactivateInput,     setDeactivateInput]     = useState("");
+  const [deactivating,        setDeactivating]        = useState(false);
+
+  async function handleExportData() {
+    setExportingData(true);
+    try {
+      const data = await settingsService.exportData();
+      exportAllDataToExcel(data);
+      addToast("Export downloaded successfully");
+    } catch {
+      addToast("Failed to export data — please try again", "error");
+    } finally {
+      setExportingData(false);
+    }
+  }
+
+  async function handleDeactivate() {
+    setDeactivating(true);
+    try {
+      await settingsService.deactivateHotel();
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      navigate("/login");
+    } catch {
+      setDeactivating(false);
+      setShowDeactivateModal(false);
+      addToast("Failed to deactivate hotel — please try again", "error");
+    }
+  }
 
   const passwordStrength = getPasswordStrength(newPassword);
   const passwordsMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
@@ -365,7 +445,8 @@ export default function SettingsPage() {
       name:         settings.name ?? "",
       propertyType: settings.propertyType ?? "HOTEL",
       starRating:   String(s.starRating ?? ""),
-      description:  String(s.description ?? ""),
+      description:  settings.description ?? "",
+      amenities:    (settings as unknown as { amenities?: string[] }).amenities ?? [],
       phone:        settings.phone ?? "",
       email:        settings.email ?? "",
       website:      settings.website ?? "",
@@ -391,6 +472,7 @@ export default function SettingsPage() {
       taxInclusive: Boolean(s.taxInclusive),
       fbrEnabled:   false,
       invoicePrefix: String(s.invoicePrefix ?? "INV"),
+      posTaxRate:   String(s.posTaxRate  ?? "0"),
     });
     setWhatsappNumber(String(s.ownerWhatsappNumber ?? ""));
   }, [settings]);
@@ -401,14 +483,19 @@ export default function SettingsPage() {
   });
 
   async function saveProfile() {
+    const pErr = profile.phone.trim() ? getPhoneErrorMessage(profile.phone) : null;
+    const eErr = profile.email.trim() ? getEmailErrorMessage(profile.email) : null;
+    setProfilePhoneError(pErr);
+    setProfileEmailError(eErr);
+    if (pErr || eErr) return;
     setProfileSaving(true);
     try {
       const dto: UpdateSettingsDto = {
         name: profile.name, propertyType: profile.propertyType,
+        description: profile.description, amenities: profile.amenities,
         phone: profile.phone, email: profile.email, website: profile.website,
         address: profile.address, city: profile.city, country: profile.country,
         timezone: profile.timezone,
-        description: profile.description,
         starRating: profile.starRating ? parseInt(profile.starRating, 10) : null,
       };
       await updateMutation.mutateAsync(dto);
@@ -456,6 +543,7 @@ export default function SettingsPage() {
         gstEnabled: tax.gstEnabled, gstRate: parseFloat(tax.gstRate) || 0,
         pstEnabled: tax.pstEnabled, pstRate: parseFloat(tax.pstRate) || 0,
         taxInclusive: tax.taxInclusive, invoicePrefix: tax.invoicePrefix,
+        posTaxRate: parseFloat(tax.posTaxRate) || 0,
       };
       await updateMutation.mutateAsync(dto);
       setTaxSaved(true);
@@ -466,9 +554,9 @@ export default function SettingsPage() {
 
   async function saveNotifications() {
     setWhatsappError(null);
-    if (whatsappNumber && !/^\+\d{10,13}$/.test(whatsappNumber)) {
-      setWhatsappError("Must start with + and contain 10–13 digits, e.g. +923001234567");
-      return;
+    if (whatsappNumber) {
+      const err = getPhoneErrorMessage(whatsappNumber);
+      if (err) { setWhatsappError(err); return; }
     }
     setNotifSaving(true);
     try {
@@ -554,6 +642,90 @@ export default function SettingsPage() {
         {/* Content */}
         <div className="flex-1 min-w-0">
 
+          {/* ── Current Plan ──────────────────────────────────────────────── */}
+          {activeSection === "plan" && (
+            <div className={sectionCardCls}>
+              <h2 className="serif text-[22px] text-ink mb-5">Current Plan</h2>
+              {plan ? (
+                <div className="space-y-5">
+                  <div className="rounded-xl border border-line-soft bg-mist p-4 flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-[15px] font-bold text-ink">{plan.planName}</div>
+                      {plan.isTrialAccount && (
+                        <div className="text-[13px] text-coral font-semibold mt-0.5">
+                          Trial Account
+                          {plan.trialEndsAt && (
+                            <span className="text-ink-mute font-normal ml-1">
+                              — expires {new Date(plan.trialEndsAt).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {plan.priceMonthly > 0 && (
+                        <div className="text-[13px] text-ink-mute mt-0.5">
+                          PKR {Math.round(plan.priceMonthly / 100).toLocaleString()} / month
+                        </div>
+                      )}
+                    </div>
+                    <span className="rounded-full bg-pine/10 text-pine text-[12px] font-bold px-3 py-1">
+                      {plan.isTrialAccount ? "Trial" : "Active"}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between text-[13px] font-semibold text-ink-soft mb-1">
+                        <span>Rooms</span>
+                        <span>{plan.currentRooms} / {plan.maxRooms === 999 ? "Unlimited" : plan.maxRooms}</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-line-soft overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-coral transition-all duration-700"
+                          style={{ width: plan.maxRooms === 999 ? "4%" : `${Math.min(100, Math.round((plan.currentRooms / plan.maxRooms) * 100))}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[13px] font-semibold text-ink-soft mb-1">
+                        <span>Users</span>
+                        <span>{plan.currentUsers} / {plan.maxUsers === 999 ? "Unlimited" : plan.maxUsers}</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-line-soft overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-coral transition-all duration-700"
+                          style={{ width: plan.maxUsers === 999 ? "4%" : `${Math.min(100, Math.round((plan.currentUsers / plan.maxUsers) * 100))}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {(() => {
+                    const lockedFeatures = Object.entries(plan.features)
+                      .filter(([, enabled]) => !enabled)
+                      .map(([key]) => key);
+                    if (lockedFeatures.length === 0) return null;
+                    return (
+                      <div>
+                        <div className="text-[12px] font-bold uppercase tracking-[0.12em] text-ink-mute mb-2">Locked Features</div>
+                        <div className="flex flex-wrap gap-2">
+                          {lockedFeatures.map((key) => (
+                            <span key={key} className="flex items-center gap-1 rounded-full bg-line-soft px-3 py-1 text-[12px] font-semibold text-ink-mute">
+                              <Lock size={11} />
+                              {key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase())}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-[12px] text-ink-mute">Contact support to enable additional features on your plan.</p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <div className="h-24 flex items-center justify-center text-ink-mute text-[14px]">Loading plan...</div>
+              )}
+            </div>
+          )}
+
           {/* ── Hotel Profile ─────────────────────────────────────────────── */}
           {activeSection === "profile" && (
             <div className={sectionCardCls}>
@@ -613,22 +785,81 @@ export default function SettingsPage() {
                     placeholder="A short description of the property…"
                   />
                 </div>
+                <div>
+                  <label className={labelCls}>Hotel Amenities</label>
+                  {profile.amenities.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {profile.amenities.map((a, i) => (
+                        <span key={i} className="flex items-center gap-1 rounded-full bg-mist border border-line px-2.5 py-1 text-[12.5px] text-ink-soft">
+                          {a}
+                          <button
+                            type="button"
+                            onClick={() => setProfile((p) => ({ ...p, amenities: p.amenities.filter((_, idx) => idx !== i) }))}
+                            className="text-ink-faint hover:text-clay transition-colors"
+                          >
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newAmenity}
+                      onChange={(e) => setNewAmenity(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          const val = newAmenity.trim();
+                          if (val && !profile.amenities.includes(val)) {
+                            setProfile((p) => ({ ...p, amenities: [...p.amenities, val] }));
+                          }
+                          setNewAmenity("");
+                        }
+                      }}
+                      placeholder="e.g. Swimming Pool"
+                      className={cn(inputCls, "flex-1")}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = newAmenity.trim();
+                        if (val && !profile.amenities.includes(val)) {
+                          setProfile((p) => ({ ...p, amenities: [...p.amenities, val] }));
+                        }
+                        setNewAmenity("");
+                      }}
+                      className="h-11 px-4 rounded-xl border border-line text-ink-soft text-[13px] font-medium hover:bg-mist transition-colors shrink-0"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <p className="text-[11.5px] text-ink-faint mt-1">Press Enter or click Add. These appear on your public booking page.</p>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={labelCls}>Phone number</label>
                     <input
-                      className={inputCls} value={profile.phone}
-                      onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))}
-                      placeholder="+92 5812 000000"
+                      className={cn(inputCls, profilePhoneError && "border-clay focus:border-clay")}
+                      value={profile.phone}
+                      onChange={(e) => { setProfile((p) => ({ ...p, phone: e.target.value })); setProfilePhoneError(null); }}
+                      onBlur={() => setProfilePhoneError(profile.phone.trim() ? getPhoneErrorMessage(profile.phone) : null)}
+                      placeholder="03XX XXXXXXX"
                     />
+                    {profilePhoneError && <p className="mt-1 text-[12px] text-clay">{profilePhoneError}</p>}
                   </div>
                   <div>
                     <label className={labelCls}>Email address</label>
                     <input
-                      type="email" className={inputCls} value={profile.email}
-                      onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))}
+                      type="email"
+                      className={cn(inputCls, profileEmailError && "border-clay focus:border-clay")}
+                      value={profile.email}
+                      onChange={(e) => { setProfile((p) => ({ ...p, email: e.target.value })); setProfileEmailError(null); }}
+                      onBlur={() => setProfileEmailError(profile.email.trim() ? getEmailErrorMessage(profile.email) : null)}
                       placeholder="info@seraihunza.com"
                     />
+                    {profileEmailError && <p className="mt-1 text-[12px] text-clay">{profileEmailError}</p>}
                   </div>
                 </div>
                 <div>
@@ -698,6 +929,59 @@ export default function SettingsPage() {
               ) : (
                 <ThemePicker value={currentThemeKey} onChange={() => {}} className="opacity-60 pointer-events-none" />
               )}
+
+              {/* Hotel Logo */}
+              <div className="mt-6 pt-6 border-t border-line-soft">
+                <div className="text-[13.5px] font-semibold text-ink mb-0.5">Hotel Logo</div>
+                <p className="text-[12.5px] text-ink-mute mb-4">
+                  Displayed on your public booking page. Square image recommended (e.g. 512×512 px).
+                </p>
+                <div className="flex items-center gap-4">
+                  {(() => {
+                    const logoUrl = (settings?.settings?.logoUrl as string | undefined) ?? null;
+                    return logoUrl ? (
+                      <img
+                        src={logoUrl}
+                        alt="Hotel logo"
+                        className="h-16 w-16 rounded-2xl object-cover border border-line bg-mist shrink-0"
+                      />
+                    ) : (
+                      <div className="h-16 w-16 rounded-2xl border-2 border-dashed border-line bg-mist flex items-center justify-center shrink-0">
+                        <ImagePlus size={22} className="text-ink-faint" />
+                      </div>
+                    );
+                  })()}
+                  {canUpdateSettings && (
+                    <div className="flex flex-col gap-2">
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleLogoUpload}
+                      />
+                      <button
+                        type="button"
+                        disabled={logoUploading}
+                        onClick={() => logoInputRef.current?.click()}
+                        className="flex items-center gap-2 h-9 px-4 rounded-full border border-line text-ink-soft text-[13px] font-semibold hover:bg-mist transition-colors disabled:opacity-40"
+                      >
+                        {logoUploading ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
+                        {logoUploading ? "Uploading…" : "Upload Logo"}
+                      </button>
+                      {(settings?.settings?.logoUrl as string | undefined) && (
+                        <button
+                          type="button"
+                          onClick={removeLogo}
+                          className="text-[12px] text-clay hover:underline text-left"
+                        >
+                          Remove logo
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -941,6 +1225,19 @@ export default function SettingsPage() {
                     </span>
                   </div>
                 </div>
+                <div className="rounded-xl border border-line-soft bg-mist p-4">
+                  <div className="text-[13.5px] font-semibold text-ink mb-0.5">POS &amp; F&amp;B Tax Rate</div>
+                  <div className="text-[12px] text-ink-faint mb-3">Applied to the total of every POS and QR order. Set to 0 to disable.</div>
+                  <div className="relative">
+                    <input
+                      type="number" min="0" max="100" step="0.5" className={inputCls}
+                      value={tax.posTaxRate}
+                      onChange={(e) => setTax((t) => ({ ...t, posTaxRate: e.target.value }))}
+                      placeholder="0"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[13px] text-ink-faint font-semibold">%</span>
+                  </div>
+                </div>
                 <div>
                   <label className={labelCls}>Invoice prefix</label>
                   <input
@@ -1112,30 +1409,103 @@ export default function SettingsPage() {
           {activeSection === "danger" && (
             <div className={cn(sectionCardCls, "border-clay/40")}>
               <h2 className="serif text-[22px] text-clay mb-1">Danger Zone</h2>
-              <p className="text-[13px] text-ink-mute mb-5">These actions are permanent and cannot be undone.</p>
+              <p className="text-[13px] text-ink-mute mb-5">Irreversible or high-impact actions for this hotel account.</p>
               <div className="space-y-4">
+
+                {/* Export */}
                 <div className="rounded-xl border border-line-soft bg-mist p-4 flex items-start justify-between gap-4">
                   <div>
                     <div className="text-[14px] font-semibold text-ink">Export All Data</div>
-                    <div className="text-[12.5px] text-ink-mute mt-0.5">Download all hotel data as CSV</div>
+                    <div className="text-[12.5px] text-ink-mute mt-0.5">
+                      Download a full Excel workbook — guests, reservations, rooms, expenses and cash book.
+                    </div>
                   </div>
                   <button
-                    onClick={() => addToast("Export feature coming soon", "error")}
-                    className="shrink-0 h-9 px-4 rounded-full border border-clay/40 text-clay text-[13px] font-semibold hover:bg-clay-soft transition-colors"
+                    onClick={handleExportData}
+                    disabled={exportingData}
+                    className="shrink-0 inline-flex items-center gap-1.5 h-9 px-4 rounded-full border border-line text-ink-soft text-[13px] font-semibold hover:bg-card hover:text-ink transition-colors disabled:opacity-50"
                   >
-                    Export
+                    {exportingData
+                      ? <><Loader2 size={13} className="animate-spin" />Exporting…</>
+                      : <><Download size={13} />Export</>}
                   </button>
                 </div>
-                <div className="rounded-xl border border-clay/30 bg-clay-soft/40 p-4 flex items-start justify-between gap-4">
-                  <div>
-                    <div className="text-[14px] font-semibold text-clay">Deactivate Hotel</div>
-                    <div className="text-[12.5px] text-ink-mute mt-0.5">Permanently deactivate this hotel account</div>
+
+                {/* Deactivate — owner only */}
+                {isOwner && (
+                  <div className="rounded-xl border border-clay/30 bg-clay-soft/40 p-4 flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-[14px] font-semibold text-clay">Deactivate Hotel</div>
+                      <div className="text-[12.5px] text-ink-mute mt-0.5">
+                        Immediately blocks all staff logins. Data is preserved and can be reactivated by support.
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowDeactivateModal(true)}
+                      className="shrink-0 h-9 px-4 rounded-full bg-clay text-white text-[13px] font-semibold hover:bg-clay/90 transition-colors"
+                    >
+                      Deactivate
+                    </button>
                   </div>
+                )}
+
+              </div>
+            </div>
+          )}
+
+          {/* ── Deactivate confirmation modal ─────────────────────────────── */}
+          {showDeactivateModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 backdrop-blur-sm p-4 anim-fade-in">
+              <div className="bg-paper rounded-2xl shadow-xl w-full max-w-md p-6 anim-scale-in">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="grid place-items-center h-10 w-10 rounded-xl bg-clay-soft shrink-0">
+                    <AlertTriangle size={18} className="text-clay" />
+                  </div>
+                  <h3 className="serif text-[20px] text-ink">Deactivate Hotel?</h3>
+                </div>
+
+                <div className="space-y-3 mb-5">
+                  <p className="text-[13px] text-ink-soft leading-relaxed">
+                    This will deactivate <strong className="text-ink">{settings?.name}</strong>.
+                    All staff will be immediately locked out. Your data is not deleted.
+                  </p>
+                  <div className="rounded-xl border border-clay/20 bg-clay-soft/60 px-4 py-3 text-[12.5px] text-clay font-medium leading-relaxed">
+                    This cannot be self-reversed. You will be logged out immediately.
+                  </div>
+                  <div>
+                    <label className={labelCls}>
+                      Type <span className="font-bold text-ink normal-case tracking-normal">{settings?.name}</span> to confirm
+                    </label>
+                    <input
+                      type="text"
+                      className={inputCls}
+                      value={deactivateInput}
+                      onChange={(e) => setDeactivateInput(e.target.value)}
+                      placeholder={settings?.name ?? "Hotel name"}
+                      // eslint-disable-next-line jsx-a11y/no-autofocus
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2.5">
                   <button
-                    onClick={() => addToast("Deactivation feature coming soon", "error")}
-                    className="shrink-0 h-9 px-4 rounded-full bg-clay text-white text-[13px] font-semibold hover:bg-clay/90 transition-colors"
+                    type="button"
+                    onClick={() => { setShowDeactivateModal(false); setDeactivateInput(""); }}
+                    disabled={deactivating}
+                    className="h-10 px-5 rounded-full border border-line text-ink-soft text-[13.5px] font-semibold hover:bg-mist transition-colors disabled:opacity-50"
                   >
-                    Deactivate
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeactivate}
+                    disabled={deactivateInput !== settings?.name || deactivating}
+                    className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-clay text-white text-[13.5px] font-semibold hover:bg-clay/90 transition-colors disabled:opacity-50"
+                  >
+                    {deactivating
+                      ? <><Loader2 size={14} className="animate-spin" />Deactivating…</>
+                      : "Deactivate Hotel"}
                   </button>
                 </div>
               </div>

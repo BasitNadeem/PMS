@@ -23,7 +23,8 @@ export type BookingSource =
   | "BOOKME_PK"
   | "SASTATICKET_PK"
   | "TRAVEL_AGENT"
-  | "OTA_OTHER";
+  | "OTA_OTHER"
+  | "BOOKING_ENGINE";
 
 export interface ReservationGuest {
   id: string;
@@ -99,6 +100,7 @@ export interface ReservationSummary {
   quotedRate: number;
   totalAmount: number;
   specialRequests: string | null;
+  bookingContactName: string | null;
   groupId: string | null;
   group: { groupRef: string; payerType: string; name: string } | null;
   createdAt: string;
@@ -109,6 +111,7 @@ export interface ReservationSummary {
 
 export interface ReservationDetail extends Omit<ReservationSummary, "guest" | "rooms"> {
   balanceDue: number;
+  bookingContactName: string | null;
   cancelledAt: string | null;
   actualCheckIn: string | null;
   actualCheckOut: string | null;

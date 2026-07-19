@@ -4,7 +4,7 @@ import { authenticate } from "../middleware/auth";
 import { tenantMiddleware } from "../middleware/tenant";
 import { NotificationService } from "../services/NotificationService";
 
-const router = Router();
+const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
 
 // GET /api/notifications/count — BEFORE /:id

@@ -2,10 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, Link } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, Printer, ArrowLeft, FileSpreadsheet,
-  BedDouble, Banknote, LogIn, LogOut, Wallet, AlertCircle,
+  BedDouble, Banknote, LogIn, LogOut, AlertCircle,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { TONE } from "@/components/ui/StatusBadge";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { reportsService, type DailyArrival, type DailyDeparture, type DailyStayOver, type ExpenseCategory } from "@/services/reports";
 import { exportDailyReportExcel } from "@/lib/exportExcel";
 
@@ -74,12 +75,13 @@ function KpiCard({ icon: Icon, toneName, label, value, sub }: KpiCardProps) {
   );
 }
 
-function StatTile({ label, value, toneName }: { label: string; value: string; toneName?: keyof typeof TONE }) {
+function StatTile({ label, value, toneName, sub }: { label: string; value: string; toneName?: keyof typeof TONE; sub?: string }) {
   const t = toneName ? TONE[toneName] : null;
   return (
     <div className="rounded-xl border border-line bg-mist p-3.5">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{label}</div>
       <div className="mt-1 text-[20px] font-bold tnum" style={{ color: t ? t.fg : "#2b2722" }}>{value}</div>
+      {sub && <div className="mt-0.5 text-[11px] text-ink-faint">{sub}</div>}
     </div>
   );
 }
@@ -232,9 +234,14 @@ function ExpensesTable({ rows, total }: { rows: ExpenseCategory[]; total: number
 
 // ── page ──────────────────────────────────────────────────────────────────────
 
+function todayDateStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export default function DailyReportPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const date = searchParams.get("date") ?? (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
+  const date = searchParams.get("date") ?? todayDateStr();
 
   const { data: report, isLoading } = useQuery({
     queryKey: ["report-daily", date],
@@ -252,53 +259,86 @@ export default function DailyReportPage() {
       {/* Print CSS */}
       <style>{`
         @media print {
-          /* ── page setup ── */
-          @page { margin: 16mm 14mm; size: A4; }
+          /* ── @page: standardised A4 portrait, 1.5 cm margins ── */
+          @page { margin: 1.5cm; size: A4; }
+
+          /* ── root height collapse — kills the dead-space gap ──────────────────
+             AppLayout structure:
+               div.flex.min-h-screen          ← outer root
+                 aside.h-screen.sticky        ← sidebar (hidden below)
+                 div.flex-1.min-w-0.flex.flex-col  ← inner column
+                   main.flex-1.overflow-y-auto  ← THE CULPRIT
+                     div.px-5.py-5            ← content wrapper
+             flex-1 on <main> = flex:1 1 0%, making it claim full viewport height.
+             Setting flex:none + height:auto collapses it to content size.
+          ───────────────────────────────────────────────────────────────────── */
+          html, body {
+            height: auto !important;
+            min-height: 0 !important;
+            background: #fff !important;
+          }
+          #root { height: auto !important; min-height: 0 !important; }
+
+          .flex.min-h-screen,
+          .flex-1.min-w-0.flex.flex-col {
+            display: block !important;
+            height: auto !important;
+            min-height: 0 !important;
+          }
+
+          main {
+            display: block !important;
+            flex: none !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+          }
+          main > div {
+            height: auto !important;
+            min-height: 0 !important;
+            max-width: 100% !important;
+            /* Extra bottom padding keeps last content above the fixed footer */
+            padding: 0 0 28pt !important;
+            margin: 0 !important;
+          }
+
+          /* ── print colour & animation reset ── */
           *, *::before, *::after {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             box-shadow: none !important;
+            animation: none !important;
+            transition: none !important;
           }
-          body, html { background: #fff !important; }
 
-          /* ── hide chrome ── */
+          /* ── hide UI chrome ── */
           .no-print { display: none !important; }
           aside { display: none !important; }
+          /* Mobile topbar */
           .lg\\:hidden { display: none !important; }
+          /* Desktop search bar has class="hidden lg:flex …"
+             lg:flex overrides hidden in screen @media breakpoints;
+             in print we force hidden to win. */
+          .hidden { display: none !important; }
 
-          /* ── layout: full-width content ── */
-          .flex.min-h-screen { display: block !important; }
-          .flex-1.min-w-0.flex.flex-col { display: block !important; width: 100% !important; }
-          main { overflow: visible !important; height: auto !important; display: block !important; }
-          main > div { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
-          .scroll-area { overflow: visible !important; }
-
-          /* ── spacing ── */
-          .space-y-7 > * + * { margin-top: 13pt !important; }
-          .gap-4 { gap: 8pt !important; }
-          .gap-3 { gap: 6pt !important; }
-          .gap-2 { gap: 4pt !important; }
-          .mb-6 { margin-bottom: 0 !important; }
-          .p-5 { padding: 10pt !important; }
-          .px-5.pb-5 { padding: 0 8pt 8pt !important; }
-          .p-5.pb-0 { padding: 10pt 10pt 0 !important; }
-
-          /* ── cards → clean bordered boxes ── */
-          .bg-card { background: #fff !important; border: 0.75pt solid #c8c0b8 !important; border-radius: 5pt !important; }
-          .bg-mist { background: #f5f2ed !important; }
-          .bg-paper { background: #fff !important; }
-          .border-line { border-color: #c8c0b8 !important; }
-          .border-line-soft { border-color: #e4ddd6 !important; }
-
-          /* ── section heading ── */
+          /* ── typography: darken muted text for print legibility ── */
+          .text-ink-faint { color: #5a5250 !important; }
+          .text-ink-mute  { color: #4a3f3a !important; }
+          .text-ink-soft  { color: #3a3230 !important; }
           .serif { font-family: Georgia, 'Times New Roman', serif !important; }
 
-          /* ── tables ── */
-          table { border-collapse: collapse !important; width: 100%; font-size: 9pt; page-break-inside: avoid; }
-          tr { page-break-inside: avoid; }
-          th { font-size: 7.5pt !important; padding: 4pt 6pt !important; background: #f0ece6 !important; }
-          td { font-size: 9pt !important; padding: 3.5pt 6pt !important; }
-          .overflow-x-auto { overflow: visible !important; }
+          /* ── colours & surfaces ── */
+          .bg-paper, .bg-card { background: #fff !important; }
+          .bg-mist  { background: #f5f2ed !important; }
+          .border-line      { border-color: #c8c0b8 !important; }
+          .border-line-soft { border-color: #e4ddd6 !important; }
+
+          /* ── KPI card icon badges: outlined instead of solid fill (toner-friendly) ── */
+          .grid.place-items-center.h-10.w-10.rounded-xl {
+            background: transparent !important;
+            border: 1pt solid currentColor !important;
+            opacity: 0.7;
+          }
 
           /* ── stat tiles ── */
           .rounded-xl.border.border-line.bg-mist {
@@ -308,43 +348,113 @@ export default function DailyReportPage() {
             padding: 6pt !important;
           }
 
-          /* ── section breaks ── */
-          .print-section { page-break-inside: avoid !important; margin-bottom: 11pt !important; }
+          /* ── spacing ── */
+          .space-y-7 > * + * { margin-top: 12pt !important; }
+          .gap-4 { gap: 8pt !important; }
+          .gap-3 { gap: 6pt !important; }
+          .gap-2 { gap: 4pt !important; }
+          .p-5 { padding: 10pt !important; }
+          .px-5.pb-5 { padding: 0 8pt 8pt !important; }
+          .p-5.pb-0  { padding: 10pt 10pt 0 !important; }
 
-          /* ── hide decorative animated elements ── */
-          .anim-fade-up { animation: none !important; opacity: 1 !important; }
+          /* ── tables ── */
+          .overflow-x-auto { overflow: visible !important; }
+          table {
+            border-collapse: collapse !important;
+            width: 100% !important;
+            font-size: 9pt !important;
+            page-break-inside: avoid;
+          }
+          tr { page-break-inside: avoid; }
+          th {
+            font-size: 7.5pt !important;
+            padding: 4pt 6pt !important;
+            background: #f0ece6 !important;
+            color: #5a5250 !important;
+          }
+          td { font-size: 9pt !important; padding: 3.5pt 6pt !important; }
+
+          /* ── section page-break control ── */
+          .print-section {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            margin-bottom: 12pt !important;
+          }
+
+          /* ── report header rule ── */
+          .pb-5.border-b.border-line {
+            border-bottom-width: 1pt !important;
+            padding-bottom: 10pt !important;
+          }
+
+          /* ── payment method pills ── */
+          .text-ink-soft.px-3.py-1\\.5.rounded-full {
+            border-color: #c8c0b8 !important;
+            background: #f0ece6 !important;
+          }
+
+          /* ── running page footer (position:fixed repeats on every printed page) ── */
+          .print-page-footer {
+            display: flex !important;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            font-size: 7.5pt;
+            color: #6b6461;
+            padding: 4pt 1.5cm;
+            border-top: 0.5pt solid #c8c0b8;
+            background: #fff;
+          }
         }
       `}</style>
 
       {/* Action bar */}
-      <div className="no-print mb-6 flex flex-wrap items-center gap-3">
-        <Link to="/reports" className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-mute hover:text-ink">
-          <ArrowLeft size={15} /> Back to Reports
-        </Link>
-        <span className="text-line">|</span>
-        <span className="text-[14px] font-semibold text-ink">{formatLongDate(date)}</span>
-        <div className="flex items-center gap-2 ml-auto">
-          <button onClick={() => navDate(-1)} className="flex items-center gap-1 text-[13px] font-semibold text-ink-soft hover:text-ink border border-line rounded-full px-3.5 py-2 hover:bg-line-soft transition-colors">
-            <ChevronLeft size={14} /> Previous Day
-          </button>
-          <button onClick={() => navDate(1)} className="flex items-center gap-1 text-[13px] font-semibold text-ink-soft hover:text-ink border border-line rounded-full px-3.5 py-2 hover:bg-line-soft transition-colors">
-            Next Day <ChevronRight size={14} />
-          </button>
-          {report && (
-            <button
-              onClick={() => exportDailyReportExcel(report)}
-              className="flex items-center gap-2 text-[13px] font-semibold text-ink-soft hover:text-ink border border-line rounded-full px-3.5 py-2 hover:bg-line-soft transition-colors"
-            >
-              <FileSpreadsheet size={14} /> Export Excel
+      <div className="no-print mb-6 space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link to="/reports" className="flex items-center gap-1.5 text-[13px] font-semibold text-ink-mute hover:text-ink">
+            <ArrowLeft size={15} /> Back to Reports
+          </Link>
+          <span className="text-line">|</span>
+
+          {/* Date label + calendar picker */}
+          <div className="flex items-center gap-2">
+            <span className="text-[14px] font-semibold text-ink">{formatLongDate(date)}</span>
+            <DatePicker
+              value={date}
+              onChange={(v) => v && setSearchParams({ date: v })}
+              iconOnly
+            />
+          </div>
+
+          <div className="flex items-center gap-2 ml-auto">
+            <button onClick={() => navDate(-1)} className="flex items-center gap-1 text-[13px] font-semibold text-ink-soft hover:text-ink border border-line rounded-full px-3.5 py-2 hover:bg-line-soft transition-colors">
+              <ChevronLeft size={14} /> Previous Day
             </button>
-          )}
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 bg-coral hover:bg-coral-dark text-white text-[13px] font-semibold px-4 py-2 rounded-full transition-colors"
-          >
-            <Printer size={14} /> Print / PDF
-          </button>
+            <button onClick={() => navDate(1)} className="flex items-center gap-1 text-[13px] font-semibold text-ink-soft hover:text-ink border border-line rounded-full px-3.5 py-2 hover:bg-line-soft transition-colors">
+              Next Day <ChevronRight size={14} />
+            </button>
+            {report && (
+              <button
+                onClick={() => exportDailyReportExcel(report)}
+                className="flex items-center gap-2 text-[13px] font-semibold text-ink-soft hover:text-ink border border-line rounded-full px-3.5 py-2 hover:bg-line-soft transition-colors"
+              >
+                <FileSpreadsheet size={14} /> Export Excel
+              </button>
+            )}
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-2 bg-coral hover:bg-coral-dark text-white text-[13px] font-semibold px-4 py-2 rounded-full transition-colors"
+            >
+              <Printer size={14} /> Print / PDF
+            </button>
+          </div>
         </div>
+        <p className="text-[11.5px] text-ink-faint pl-0.5">
+          Tip: In the browser print dialog, disable <strong>Headers and footers</strong> for cleanest output.
+        </p>
       </div>
 
       {isLoading ? (
@@ -372,7 +482,7 @@ export default function DailyReportPage() {
             <SectionHeading title="At a Glance" />
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <KpiCard icon={BedDouble} toneName="pine" label="Occupancy Rate" value={`${report.occupancy.occupancyRate}%`} sub={`${report.occupancy.occupied}/${report.occupancy.totalRooms} rooms`} />
-              <KpiCard icon={Banknote} toneName="coral" label="Total Collected" value={formatPKR(report.revenue.totalCollected)} />
+              <KpiCard icon={Banknote} toneName="coral" label="Collected Today" value={formatPKR(report.revenue.totalCollected)} sub="Cash-basis — includes prior-day balances paid today" />
               <KpiCard icon={LogIn} toneName="slate" label="Check-ins" value={String(report.occupancy.checkIns)} sub={`${report.arrivals.length} arrivals expected`} />
               <KpiCard icon={LogOut} toneName="amber" label="Check-outs" value={String(report.occupancy.checkOuts)} sub={`${report.departures.length} departures expected`} />
             </div>
@@ -398,8 +508,8 @@ export default function DailyReportPage() {
               <StatTile label="Room Revenue" value={formatPKR(report.revenue.roomRevenue)} />
               <StatTile label="POS Revenue" value={formatPKR(report.revenue.posRevenue)} />
               <StatTile label="Other Charges" value={formatPKR(report.revenue.otherCharges)} />
-              <StatTile label="Total Charged" value={formatPKR(report.revenue.totalCharged)} />
-              <StatTile label="Total Collected" value={formatPKR(report.revenue.totalCollected)} toneName="pine" />
+              <StatTile label="Folio Charges" value={formatPKR(report.revenue.totalCharged)} sub="Room charges + folio items (excl. direct POS)" />
+              <StatTile label="Collected Today" value={formatPKR(report.revenue.totalCollected)} toneName="pine" sub="Cash-basis — includes prior-day balances paid today" />
               <StatTile label="Outstanding" value={formatPKR(report.revenue.outstanding)} toneName="clay" />
             </div>
             <div className="flex flex-wrap gap-2">
@@ -514,11 +624,17 @@ export default function DailyReportPage() {
             </Card>
           )}
 
-          {/* Footer */}
-          <div className="border-t border-line pt-4">
+          {/* On-screen footer (hidden in print — the fixed .print-page-footer takes over) */}
+          <div className="no-print border-t border-line pt-4">
             <p className="text-[11px] text-ink-faint text-center">
               Confidential — {report.hotel.name} · Generated {generatedAt}
             </p>
+          </div>
+
+          {/* Print-only per-page footer — position:fixed repeats on every printed page */}
+          <div className="print-page-footer" style={{ display: "none" }} aria-hidden="true">
+            <span>Confidential — {report.hotel.name}</span>
+            <span>Generated: {generatedAt}</span>
           </div>
         </div>
       )}

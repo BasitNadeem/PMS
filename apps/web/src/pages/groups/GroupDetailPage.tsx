@@ -3,10 +3,10 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Building2, Landmark, HeartHandshake, Briefcase, Users,
-  CheckCircle2, X, Search, Plus, MapPin, ExternalLink, Receipt,
+  CheckCircle2, X, Search, Plus, MapPin, ExternalLink, Receipt, Tag,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { getErrorMessage } from "@/lib/api";
+import { api, getErrorMessage } from "@/lib/api";
 import {
   groupsService,
   type GroupStatus,
@@ -238,6 +238,19 @@ export default function GroupDetailPage() {
     enabled: !!id,
   });
 
+  const firstRoomTypeId = group?.reservations.find(r => r.room && !r.room.pending)?.room?.roomType.id;
+  const { data: groupSuggestData } = useQuery({
+    queryKey: ["rate-suggest", firstRoomTypeId, group?.checkInDate?.slice(0, 10), group?.checkOutDate?.slice(0, 10)],
+    queryFn: async () => {
+      const res = await api.get("/api/rate-plans/suggest", {
+        params: { roomTypeId: firstRoomTypeId, checkIn: group!.checkInDate.slice(0, 10), checkOut: group!.checkOutDate.slice(0, 10) },
+      });
+      return res.data.data as { suggestedRate: number; matchedPlan: { id: string; name: string } | null };
+    },
+    enabled: !!firstRoomTypeId && !!group?.checkInDate && !!group?.checkOutDate,
+    staleTime: 60_000,
+  });
+
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["group", id] });
     qc.invalidateQueries({ queryKey: ["groups"] });
@@ -324,7 +337,7 @@ export default function GroupDetailPage() {
                   <button
                     onClick={() => checkOutMutation.mutate()}
                     disabled={isMutating}
-                    className="h-9 px-4 rounded-full bg-ink text-white text-[13px] font-semibold hover:bg-ink-soft transition-colors disabled:opacity-50"
+                    className="h-9 px-4 rounded-full bg-coral text-white text-[13px] font-semibold hover:bg-coral-dark transition-colors disabled:opacity-50"
                   >
                     Check Out Group
                   </button>
@@ -457,7 +470,7 @@ export default function GroupDetailPage() {
                 <button
                   onClick={() => checkOutMutation.mutate()}
                   disabled={isMutating}
-                  className="w-full h-11 rounded-full bg-ink text-white text-[14px] font-semibold hover:bg-ink-soft transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                  className="w-full h-11 rounded-full bg-coral text-white text-[14px] font-semibold hover:bg-coral-dark transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-2"
                 >
                   <CheckCircle2 size={16} /> Check Out Group
                 </button>
@@ -514,6 +527,48 @@ export default function GroupDetailPage() {
               )}
             </div>
           </Card>
+
+          {/* Rate summary — shown when at least one room type is assigned */}
+          {firstRoomTypeId && (
+            <Card>
+              <div className="flex items-center justify-between mb-3.5">
+                <h3 className="text-[12px] font-bold uppercase tracking-wider text-ink-faint">Rate Summary</h3>
+                {groupSuggestData?.matchedPlan && (
+                  <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-pine bg-pine/20 border border-pine/40 px-2.5 py-1 rounded-lg">
+                    <Tag size={11} strokeWidth={2.5} />
+                    {groupSuggestData.matchedPlan.name}
+                  </span>
+                )}
+              </div>
+              {groupSuggestData ? (() => {
+                const ratePerRoom = groupSuggestData.suggestedRate;
+                const subtotal = ratePerRoom * group.summary.totalRooms * nights;
+                const tax = Math.round(subtotal * 0.05);
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[13px]">
+                      <span className="text-ink-mute">Rate/room/night</span>
+                      <span className="font-semibold text-ink tnum">{fmtPkr(ratePerRoom)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[13px]">
+                      <span className="text-ink-mute">{group.summary.totalRooms} room{group.summary.totalRooms !== 1 ? "s" : ""} × {nights} nights</span>
+                      <span className="font-semibold text-ink tnum">{fmtPkr(subtotal)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[13px]">
+                      <span className="text-ink-mute">Service tax (5%)</span>
+                      <span className="font-semibold text-ink tnum">{fmtPkr(tax)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[13px] pt-2 border-t border-line-soft">
+                      <span className="font-semibold text-ink-soft">Total</span>
+                      <span className="font-bold text-ink tnum">{fmtPkr(subtotal + tax)}</span>
+                    </div>
+                  </div>
+                );
+              })() : (
+                <p className="text-[13px] text-ink-mute">Loading rates…</p>
+              )}
+            </Card>
+          )}
 
           {/* Financial summary */}
           <Card>

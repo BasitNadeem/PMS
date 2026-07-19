@@ -1,4 +1,19 @@
 // ============================================================================
+// ⚠️  NEVER RUN `prisma db push` ON THIS PROJECT ⚠️
+//
+//   Raw-SQL tables managed OUTSIDE this schema (via migration files only):
+//     expenses, cash_accounts, ledger_entries, whatsapp_briefing_logs,
+//     menu_categories, menu_items, qr_orders, qr_order_items, subscription_plans
+//
+//   `prisma db push` syncs the DB to match THIS file exactly, which means
+//   it SILENTLY DROPS every table not listed here — including all of the above.
+//   This happened on 2026-07-15 and wiped all 8 tables with no warning.
+//
+//   ALWAYS use:
+//     prisma migrate dev   — to create a new migration from schema changes
+//     prisma migrate deploy — to apply existing migrations only
+//
+// ============================================================================
 // Hotel PMS — Prisma Schema  v2.0
 // Stack    : PostgreSQL 16 + Prisma ORM
 // Updated  : Roles & Permissions tables added, HotelUser updated,
@@ -88,6 +103,7 @@ enum BookingSource {
   SASTATICKET_PK
   TRAVEL_AGENT
   OTA_OTHER
+  BOOKING_ENGINE
 }
 
 enum GuestType {
@@ -275,6 +291,13 @@ model Role {
   permissions RolePermission[]
   hotelUsers  HotelUser[]
 
+  // NOTE: this composite unique constraint does not stop duplicate system
+  // roles (hotelId = NULL) — Postgres never treats two NULLs as equal in a
+  // unique index. The real guard for that case is a partial unique index
+  // (roles_system_name_key, ON (name) WHERE hotel_id IS NULL) added by
+  // migration 20260706000000_dedupe_system_roles_and_fix_constraint — Prisma's
+  // schema DSL can't express a partial index, so it only exists in raw SQL
+  // and won't show up here. Don't let a future `prisma migrate dev` drop it.
   @@unique([hotelId, name])
   @@index([hotelId])
   @@index([isSystem])
@@ -323,6 +346,8 @@ model Hotel {
   name             String
   slug             String       @unique
   propertyType     PropertyType @default(HOTEL) @map("property_type")
+  description      String?
+  amenities        String[]     @default([])
 
   phone            String?
   whatsappNumber   String? @map("whatsapp_number")
@@ -385,11 +410,55 @@ model Hotel {
   customFields          CustomFieldDefinition[]
   frontDeskNotes        FrontDeskNote[]
   pushSubscriptions     PushSubscription[]
+  currentBusinessDate   DateTime?          @db.Date @map("current_business_date")
+  nightAuditRecords     NightAuditRecord[]
+  subscriptionPlanId    String?            @db.Uuid @map("subscription_plan_id")
+  subscriptionPlan      SubscriptionPlan?  @relation(fields: [subscriptionPlanId], references: [id])
+  roomLimitOverride     Int?               @map("room_limit_override")
+  featureOverrides      Json?              @map("feature_overrides")
 
   @@index([slug])
   @@index([isActive])
   @@index([region])
   @@map("hotels")
+}
+
+model NightAuditRecord {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId          String   @db.Uuid
+  businessDate     DateTime @db.Date
+  runAt            DateTime @default(now())
+  runBy            String   @db.Uuid
+  occupancyRate    Decimal
+  roomRevenue      Int
+  posRevenue       Int
+  totalCollected   Int
+  totalOutstanding Int
+  noShowsFlagged   Int      @default(0)
+  openBalanceCount Int      @default(0)
+  snapshot         Json
+  hotel            Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, businessDate])
+  @@index([hotelId, businessDate])
+  @@map("night_audit_records")
+}
+
+model SubscriptionPlan {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  slug          String   @unique
+  priceMonthly  Int      @map("price_monthly")
+  maxRooms      Int      @map("max_rooms")
+  maxUsers      Int      @map("max_users")
+  features      Json
+  isActive      Boolean  @default(true) @map("is_active")
+  displayOrder  Int      @default(0)    @map("display_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  hotels        Hotel[]
+
+  @@map("subscription_plans")
 }
 
 model User {
@@ -633,6 +702,8 @@ model Reservation {
   discountAmount      Int               @default(0) @map("discount_amount")
   advancePaid         Int               @default(0) @map("advance_paid")
   balanceDue          Int               @default(0) @map("balance_due")
+
+  bookingContactName  String? @map("booking_contact_name")
 
   specialRequests     String? @map("special_requests")
   internalNotes       String? @map("internal_notes")
@@ -1068,6 +1139,7 @@ model MaintenanceTicket {
   partsUsed       Json? @map("parts_used")
 
   scheduledFor    DateTime? @map("scheduled_for")
+  scheduledEndDate DateTime? @map("scheduled_end_date") @db.Date
   resolvedAt      DateTime? @map("resolved_at")
 
   createdAt       DateTime            @default(now()) @map("created_at")
@@ -1348,7 +1420,10 @@ model ShiftReport {
   newBookings     Int       @default(0) @map("new_bookings")
   posOrders       Int       @default(0) @map("pos_orders")
 
-  notes           String?
+  notes               String?
+  handoverBriefing    Json?     @map("handover_briefing")
+  varianceReason      String?   @map("variance_reason")
+  discrepancyAlerted  Boolean   @default(false) @map("discrepancy_alerted")
   signedOffAt     DateTime? @map("signed_off_at")
   signedOffBy     String?   @db.Uuid @map("signed_off_by")
 

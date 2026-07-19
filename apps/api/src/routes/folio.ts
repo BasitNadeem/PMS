@@ -6,7 +6,7 @@ import { addFolioItemSchema, addPaymentSchema } from "../schemas/folio";
 import { FolioService } from "../services/FolioService";
 import { createLedgerEntryFromPayment } from "../services/CashBookService";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticate, tenantMiddleware);
 

@@ -5,7 +5,7 @@ import { requirePermission } from "../middleware/permission";
 import { GuestService } from "../services/GuestService";
 import { listGuestsSchema, createGuestSchema, updateGuestSchema, blacklistGuestSchema, checkBlacklistSchema } from "../schemas/guests";
 
-const router = Router();
+const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
 
 router.get("/", requirePermission("GUEST_READ"), async (req, res) => {

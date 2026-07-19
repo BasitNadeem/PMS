@@ -27,7 +27,7 @@ const upload = multer({
   },
 });
 
-const router = Router();
+const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
 
 router.post(

@@ -1,3 +1,16 @@
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  slug: string;
+  priceMonthly: number;
+  maxRooms: number;
+  maxUsers: number;
+  features: Record<string, boolean>;
+  isActive: boolean;
+  displayOrder: number;
+  _count: { hotels: number };
+}
+
 export interface Hotel {
   id: string;
   name: string;
@@ -7,6 +20,18 @@ export interface Hotel {
   isActive: boolean;
   onboardingCompleted: boolean;
   createdAt: string;
+  subscriptionPlanId: string | null;
+  subscriptionPlan: {
+    id: string;
+    name: string;
+    slug: string;
+    priceMonthly: number;
+    maxRooms: number;
+    maxUsers: number;
+    features: Record<string, boolean>;
+  } | null;
+  roomLimitOverride: number | null;
+  featureOverrides: Record<string, boolean> | null;
   _count: {
     rooms: number;
     reservations: number;
@@ -21,6 +46,7 @@ export interface CreateHotelDto {
   ownerEmail: string;
   city?: string;
   propertyType: "HOTEL" | "GUESTHOUSE" | "HOSTEL" | "RESORT" | "LODGE" | "CAMPSITE" | "SERVICED_APARTMENT";
+  subscriptionPlanId?: string;
 }
 
 export interface CreateHotelResult {

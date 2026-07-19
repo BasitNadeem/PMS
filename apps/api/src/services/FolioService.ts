@@ -3,6 +3,7 @@ import { FolioItemType } from "@pms/db";
 import type { JwtPayload } from "../middleware/auth";
 import type { AddFolioItemDto, AddPaymentDto, BillingListQuery } from "../schemas/folio";
 import { AppError } from "../utils/AppError";
+import { getPKTDayRange, getCurrentPKTDate } from "../lib/timezone";
 import { paginationMeta } from "../utils/pagination";
 import { recalculateFolioTotals } from "../utils/folioTotals";
 import { notifyHotelDataChanged } from "../lib/realtime";
@@ -228,9 +229,7 @@ export const FolioService = {
 
   async summary(withTenant: WithTenantFn) {
     return withTenant(async (db) => {
-      const today    = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today.getTime() + 86_400_000);
+      const { start: today, end: tomorrow } = getPKTDayRange(getCurrentPKTDate());
 
       const [billedAgg, collectedAgg, outstandingAgg, checkedOutUnpaid] = await Promise.all([
         db.folioItem.aggregate({

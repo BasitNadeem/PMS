@@ -23,9 +23,6 @@
     "migrate:dev": {
       "cache": false
     },
-    "db:push": {
-      "cache": false
-    },
     "studio": {
       "cache": false,
       "persistent": true

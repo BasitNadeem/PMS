@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 /* ── Theme palettes ────────────────────────────────────────────────────────────
    Values match the "Dashboard Options v4" design mockup exactly.
    Ink (text) stays CONSTANT across every theme — only neutrals (paper/mist/
@@ -166,6 +168,46 @@
   background-image: url('data:image/svg+xml,%3Csvg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="n"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100" height="100" filter="url(%23n)" opacity="0.05"/%3E%3C/svg%3E');
 }
 
+/* ── Booking Engine — .booking-theme ─────────────────────────────────────────
+   Guest-facing booking page scope. Deliberately independent of both the staff
+   app data-theme system and .qr-theme. Accent personalizes per hotel via the
+   data-be-theme attribute; neutrals are a fixed warm off-white.
+   Use arbitrary Tailwind values (bg-[rgb(var(--be-accent))]) inside pages. */
+.booking-theme {
+  --be-paper:       245 245 245; /* Light gray background */
+  --be-card:        255 255 255;
+  --be-line:        229 231 235; /* gray-200 */
+  --be-line-soft:   243 244 246; /* gray-100 */
+  --be-ink:         17 24 39;    /* gray-900 */
+  --be-ink-soft:    75 85 99;    /* gray-600 */
+  --be-ink-mute:    156 163 175; /* gray-400 */
+  --be-accent:      22 163 74;   /* Green-600 */
+  --be-accent-dark: 21 128 61;   /* Green-700 */
+  --be-accent-soft: 220 252 231;  /* Green-50 */
+  --be-search:      255 255 255; 
+  font-family: "Inter", system-ui, sans-serif;
+  background: rgb(var(--be-paper));
+  color: rgb(var(--be-ink));
+}
+.booking-theme[data-be-theme="PINE_TEAL"] {
+  --be-accent:      13 148 136;  /* Teal-600 */
+  --be-accent-dark: 15 118 110;  /* Teal-700 */
+  --be-accent-soft: 240 253 250;  /* Teal-50 */
+}
+.booking-theme[data-be-theme="AZURE_SLATE"] {
+  --be-accent:      37 99 235;   /* Blue-600 */
+  --be-accent-dark: 29 78 216;   /* Blue-700 */
+  --be-accent-soft: 239 246 255;  /* Blue-50 */
+}
+.booking-theme[data-be-theme="INDIGO_NIGHT"] {
+  --be-accent:      99 102 241;  /* Indigo-500 */
+  --be-accent-dark: 79 70 229;   /* Indigo-600 */
+  --be-accent-soft: 245 243 255;  /* Indigo-50 */
+}
+.booking-theme .be-serif {
+  font-family: "Inter", system-ui, sans-serif;
+}
+
 /* ── Base ──────────────────────────────────────────────────────────────────── */
 html, body {
   margin: 0;
@@ -234,4 +276,24 @@ body {
 @media print {
   .no-print { display: none !important; }
   @page { margin: 20mm; size: A4; }
+}
+
+/* ── Receipt print — scoped to body.receipt-mode, does not affect A4 reports ── */
+@media print {
+  body.receipt-mode * {
+    visibility: hidden;
+  }
+  body.receipt-mode .receipt-print-paper,
+  body.receipt-mode .receipt-print-paper * {
+    visibility: visible;
+  }
+  body.receipt-mode .receipt-print-paper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    font-size: 11px;
+    line-height: 1.45;
+    background: #fff;
+    color: #000;
+  }
 }

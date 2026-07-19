@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Loader2, UtensilsCrossed, ChefHat, LogOut, Pencil, X, Plus, Minus,
-  Trash2, Monitor, AlertTriangle,
+  Trash2, Monitor, AlertTriangle, Printer,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { qrOrdersService, type QrOrder, type QrOrderItem } from "../../services/qrOrders";
 import { posService, type PosItem } from "../../services/pos";
+import { ReceiptView } from "../../components/pos/ReceiptView";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 // ── constants ─────────────────────────────────────────────────────────────────
@@ -63,8 +64,9 @@ export default function KitchenDisplayPage() {
   const navigate = useNavigate();
   const qc       = useQueryClient();
   const [tick, setTick] = useState(0);
-  const [editOrder,  setEditOrder]  = useState<QrOrder | null>(null);
-  const [cancelOrder, setCancelOrder] = useState<QrOrder | null>(null);
+  const [editOrder,    setEditOrder]    = useState<QrOrder | null>(null);
+  const [cancelOrder,  setCancelOrder]  = useState<QrOrder | null>(null);
+  const [receiptOrder, setReceiptOrder] = useState<QrOrder | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 8000);
@@ -153,6 +155,7 @@ export default function KitchenDisplayPage() {
                 onAdvance={(id, status) => advance({ id, status })}
                 onEdit={() => setEditOrder(order)}
                 onCancel={() => setCancelOrder(order)}
+                onPrintReceipt={() => setReceiptOrder(order)}
                 isAdvancing={advancing}
               />
             ))}
@@ -179,6 +182,32 @@ export default function KitchenDisplayPage() {
           confirming={cancelling}
         />
       )}
+
+      {/* Receipt */}
+      {receiptOrder && (
+        <ReceiptView
+          orderNumber={receiptOrder.order_number}
+          dateTime={receiptOrder.created_at}
+          guestName={receiptOrder.guest_name}
+          roomNumber={receiptOrder.room_number}
+          items={receiptOrder.items.map((i) => ({
+            name:      i.item_name,
+            quantity:  i.quantity,
+            unitPrice: i.item_price,
+            lineTotal: i.subtotal,
+          }))}
+          subtotal={receiptOrder.total_amount}
+          taxAmount={0}
+          discountAmount={0}
+          total={receiptOrder.total_amount}
+          paymentStatus={
+            receiptOrder.payment_preference === "charge_to_room"
+              ? { type: "CHARGED_TO_ROOM", roomNumber: receiptOrder.room_number }
+              : { type: "PENDING_PAYMENT" }
+          }
+          onClose={() => setReceiptOrder(null)}
+        />
+      )}
     </div>
   );
 }
@@ -186,13 +215,14 @@ export default function KitchenDisplayPage() {
 // ── OrderCard ─────────────────────────────────────────────────────────────────
 
 function OrderCard({
-  order, onAdvance, onEdit, onCancel, isAdvancing,
+  order, onAdvance, onEdit, onCancel, onPrintReceipt, isAdvancing,
 }: {
-  order:       QrOrder;
-  onAdvance:   (id: string, status: string) => void;
-  onEdit:      () => void;
-  onCancel:    () => void;
-  isAdvancing: boolean;
+  order:            QrOrder;
+  onAdvance:        (id: string, status: string) => void;
+  onEdit:           () => void;
+  onCancel:         () => void;
+  onPrintReceipt:   () => void;
+  isAdvancing:      boolean;
 }) {
   const next      = NEXT_STATUS[order.status];
   const nextLabel = NEXT_LABEL[order.status];
@@ -208,6 +238,13 @@ function OrderCard({
           <p className="text-xs text-gray-500 mt-0.5">Room {order.room_number} · {order.guest_name}</p>
         </div>
         <div className="flex items-center gap-1.5">
+          <button
+            onClick={onPrintReceipt}
+            className="grid place-items-center h-7 w-7 rounded-lg bg-white/60 text-gray-700 hover:bg-white transition-colors"
+            title="Print receipt"
+          >
+            <Printer size={13} />
+          </button>
           <button
             onClick={onEdit}
             className="grid place-items-center h-7 w-7 rounded-lg bg-white/60 text-gray-700 hover:bg-white transition-colors"

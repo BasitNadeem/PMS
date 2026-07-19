@@ -1,22 +1,24 @@
 import { z } from "zod";
 
 export const createShiftReportSchema = z.object({
-  shiftDate:      z.string().date(),
-  shiftType:      z.enum(["MORNING", "EVENING", "NIGHT"]),
-  openingBalance: z.number().int().min(0),
-  cashCollected:  z.number().int().min(0),
-  cashExpenses:   z.number().int().min(0),
-  checkIns:       z.number().int().min(0),
-  checkOuts:      z.number().int().min(0),
-  newBookings:    z.number().int().min(0),
-  posOrders:      z.number().int().min(0),
-  notes:          z.string().trim().optional(),
+  shiftDate:        z.string().date(),
+  shiftType:        z.enum(["MORNING", "EVENING", "NIGHT"]),
+  openingBalance:   z.number().int().min(0),
+  cashCollected:    z.number().int().min(0),
+  cashExpenses:     z.number().int().min(0),
+  checkIns:         z.number().int().min(0),
+  checkOuts:        z.number().int().min(0),
+  newBookings:      z.number().int().min(0),
+  posOrders:        z.number().int().min(0),
+  notes:            z.string().trim().optional(),
+  handoverBriefing: z.record(z.unknown()).optional(),
 });
 export type CreateShiftReportDto = z.infer<typeof createShiftReportSchema>;
 
 export const signOffSchema = z.object({
   actualCashCount: z.number().int().min(0),
   notes:           z.string().trim().optional(),
+  varianceReason:  z.string().trim().optional(),
 });
 export type SignOffDto = z.infer<typeof signOffSchema>;
 
@@ -34,3 +36,9 @@ export const prefillQuerySchema = z.object({
   shiftType: z.enum(["MORNING", "EVENING", "NIGHT"]),
 });
 export type PrefillQuery = z.infer<typeof prefillQuerySchema>;
+
+export const briefingQuerySchema = z.object({
+  date:      z.string().date(),
+  shiftType: z.enum(["MORNING", "EVENING", "NIGHT"]),
+});
+export type BriefingQuery = z.infer<typeof briefingQuerySchema>;

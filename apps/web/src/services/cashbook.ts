@@ -115,4 +115,13 @@ export const cashbookService = {
     const res = await api.post("/api/cashbook/entries", dto);
     return res.data.data;
   },
+
+  exportLedger: async (params: {
+    startDate?:  string;
+    endDate?:    string;
+    entryType?:  EntryType;
+  }): Promise<{ entries: LedgerEntry[]; summary: LedgerSummary; filters: typeof params }> => {
+    const res = await api.get("/api/cashbook/export", { params });
+    return res.data.data;
+  },
 };

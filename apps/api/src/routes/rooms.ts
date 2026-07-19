@@ -15,7 +15,7 @@ import {
 
 // ── Room Types router  (mounted at /api/room-types) ───────────────────────────
 
-export const roomTypesRouter = Router();
+export const roomTypesRouter: Router = Router();
 roomTypesRouter.use(authenticate, tenantMiddleware);
 
 roomTypesRouter.get("/", requirePermission("ROOM_TYPE_READ"), async (req, res) => {
@@ -38,7 +38,7 @@ roomTypesRouter.patch("/:id", requirePermission("ROOM_TYPE_UPDATE"), async (req,
 
 // ── Rooms router  (mounted at /api/rooms) ────────────────────────────────────
 
-export const roomsRouter = Router();
+export const roomsRouter: Router = Router();
 roomsRouter.use(authenticate, tenantMiddleware);
 
 roomsRouter.get("/", requirePermission("ROOM_READ"), async (req, res) => {

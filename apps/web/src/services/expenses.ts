@@ -50,6 +50,7 @@ export interface Expense {
   paid_to:        string;
   receipt_ref:    string | null;
   notes:          string | null;
+  attachment_url: string | null;
   created_by_id:  string;
   created_at:     string;
   updated_at:     string;
@@ -75,6 +76,7 @@ export interface CreateExpenseDto {
   paidTo:        string;
   receiptRef?:   string;
   notes?:        string;
+  attachmentUrl?: string | null;
 }
 
 export interface PaginationMeta {

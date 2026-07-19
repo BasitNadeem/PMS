@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { prisma } from "@pms/db";
 
-const router = Router();
+const router: Router = Router();
 
 router.get("/", async (_req, res) => {
   await prisma.$queryRaw`SELECT 1`;

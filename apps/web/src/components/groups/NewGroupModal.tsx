@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { getPhoneErrorMessage } from "@/lib/validation";
 import { useMutation, useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   X, ChevronLeft, ChevronDown, ArrowRight, Check, CheckCircle2,
-  Users2, Plus, Trash2, Search,
+  Users2, Plus, Trash2, Search, Tag, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getErrorMessage, getErrorDetails } from "@/lib/api";
@@ -16,6 +18,7 @@ import {
   type PaymentTerms,
 } from "@/services/groups";
 import { Avatar } from "@/components/ui/Avatar";
+import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -27,12 +30,6 @@ function nightsBetween(from: string, to: string): number {
   if (!from || !to) return 0;
   return Math.max(0, Math.ceil((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000));
 }
-function addOneDay(isoDate: string): string {
-  const d = new Date(isoDate + "T12:00:00"); // noon UTC avoids DST/midnight edge cases
-  d.setDate(d.getDate() + 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 const inputCls = "h-11 w-full rounded-xl bg-white border border-line px-3.5 text-sm text-ink placeholder:text-ink-faint outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all";
 
 const STEPS = ["Group Details", "Rooms", "Group Leader"] as const;
@@ -144,6 +141,7 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
   const [step, setStep] = useState(0);
   const [stepError, setStepError] = useState("");
   const [duplicateGuestWarning, setDuplicateGuestWarning] = useState("");
+  const [newPhoneError, setNewPhoneError] = useState("");
 
   const [form, setForm] = useState<WizardState>({
     name: "", payerType: initialPayerType ?? "TOUR_AGENCY", payerName: "", payerContact: "",
@@ -200,11 +198,49 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
   const [addQuantity, setAddQuantity]   = useState(1);
   const [addRate, setAddRate]           = useState(0); // PKR
 
+  // Reset quantity when room type changes
   useEffect(() => {
-    const rt = roomTypes.find((t) => t.id === addRoomTypeId);
-    if (rt) setAddRate(Math.round(rt.defaultRate / 100));
     setAddQuantity(1);
-  }, [addRoomTypeId, roomTypes]);
+  }, [addRoomTypeId]);
+
+  function payerTypeToBookingContext(pt: string): "TOUR_AGENCY" | "CORPORATE" | "OTHER" {
+    if (pt === "TOUR_AGENCY") return "TOUR_AGENCY";
+    if (pt === "CORPORATE")   return "CORPORATE";
+    return "OTHER";
+  }
+
+  // Suggest rate for the selected room type + dates; falls back to defaultRate
+  const suggestAddEnabled = !!addRoomTypeId && !!form.checkIn && !!form.checkOut && form.checkOut > form.checkIn;
+  const { data: addSuggestData } = useQuery({
+    queryKey: ["rate-suggest-group", addRoomTypeId, form.checkIn, form.checkOut, form.payerType],
+    queryFn: async () => {
+      const res = await api.get("/api/rate-plans/suggest", {
+        params: {
+          roomTypeId:     addRoomTypeId,
+          checkIn:        form.checkIn,
+          checkOut:       form.checkOut,
+          bookingContext: payerTypeToBookingContext(form.payerType),
+        },
+      });
+      return res.data.data as {
+        suggestedRate:       number;
+        matchedPlan:         { id: string; name: string } | null;
+        noDedicatedRateHint: string | null;
+      };
+    },
+    enabled: suggestAddEnabled,
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    if (addSuggestData) {
+      setAddRate(Math.round(addSuggestData.suggestedRate / 100));
+    } else if (!suggestAddEnabled) {
+      // Fall back to room type defaultRate when dates aren't set yet
+      const rt = roomTypes.find((t) => t.id === addRoomTypeId);
+      if (rt) setAddRate(Math.round(rt.defaultRate / 100));
+    }
+  }, [addSuggestData, addRoomTypeId, roomTypes, suggestAddEnabled]);
 
   function addRoomLine() {
     const rt = roomTypes.find((t) => t.id === addRoomTypeId);
@@ -327,6 +363,8 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
       if (!form.newFirstName.trim()) return "First name is required";
       if (!form.newLastName.trim())  return "Last name is required";
       if (!form.newPhone.trim())     return "Phone is required";
+      const phoneErr = getPhoneErrorMessage(form.newPhone);
+      if (phoneErr) { setNewPhoneError(phoneErr); return phoneErr; }
     } else {
       if (!form.guestId) return "Please select the group leader";
     }
@@ -471,23 +509,18 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Check-in <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
-                  <input
-                    type="date" min={today} value={form.checkIn}
-                    onChange={(e) => { set("checkIn", e.target.value); if (form.checkOut && form.checkOut <= e.target.value) set("checkOut", ""); }}
-                    className={inputCls}
-                  />
+              <div>
+                <div className="grid grid-cols-2 gap-4 mb-1.5">
+                  <label className="text-[13px] font-semibold text-ink-soft">Check-in <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
+                  <label className="text-[13px] font-semibold text-ink-soft">Check-out <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Check-out <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
-                  <input
-                    type="date" min={form.checkIn ? addOneDay(form.checkIn) : today} value={form.checkOut}
-                    onChange={(e) => set("checkOut", e.target.value)}
-                    className={inputCls}
-                  />
-                </div>
+                <DateRangePicker
+                  min={today}
+                  checkIn={form.checkIn}
+                  checkOut={form.checkOut}
+                  onChange={(checkIn, checkOut) => { set("checkIn", checkIn); set("checkOut", checkOut); }}
+                  className="w-full"
+                />
               </div>
 
               {nights > 0 && (
@@ -625,13 +658,25 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-[12px] font-semibold text-ink-soft">Rate/night (PKR)</label>
+                      <label className="block text-[12px] font-semibold text-ink-soft mb-1.5">Rate/night (PKR)</label>
                       <input type="number" min={0} value={addRate} onChange={(e) => setAddRate(Math.max(0, parseInt(e.target.value, 10) || 0))} className={cn(inputCls, "h-10 text-[13px]")} />
+                      {addSuggestData?.matchedPlan && (
+                        <span className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-pine bg-pine/20 border border-pine/40 px-2.5 py-1 rounded-lg">
+                          <Tag size={11} strokeWidth={2.5} />
+                          {addSuggestData.matchedPlan.name}
+                        </span>
+                      )}
+                      {addSuggestData?.noDedicatedRateHint && (
+                        <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                          <AlertTriangle size={13} className="text-amber-500 shrink-0 mt-px" />
+                          <p className="text-[12px] leading-snug text-amber-700">{addSuggestData.noDedicatedRateHint}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center justify-end gap-2">
                     <button onClick={() => setShowAddRoom(false)} className="h-9 px-3.5 rounded-lg text-[13px] font-semibold text-ink-mute hover:text-ink transition-colors">Cancel</button>
-                    <button onClick={addRoomLine} disabled={!addRoomTypeId || availableForAddType < 1} className="h-9 px-4 rounded-lg bg-ink text-white text-[13px] font-semibold hover:bg-ink-soft transition-colors disabled:opacity-40">Add</button>
+                    <button onClick={addRoomLine} disabled={!addRoomTypeId || availableForAddType < 1} className="h-9 px-4 rounded-lg bg-coral text-white text-[13px] font-semibold hover:bg-coral-dark transition-colors disabled:opacity-40">Add</button>
                   </div>
                 </div>
               ) : (
@@ -732,7 +777,14 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
                     </div>
                     <div className="col-span-2">
                       <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Phone <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
-                      <input type="tel" value={form.newPhone} onChange={(e) => set("newPhone", e.target.value)} placeholder="+92 3..." className={inputCls} />
+                      <input
+                        type="tel" value={form.newPhone}
+                        onChange={(e) => { set("newPhone", e.target.value); setNewPhoneError(""); }}
+                        onBlur={() => { if (form.newPhone.trim()) setNewPhoneError(getPhoneErrorMessage(form.newPhone) ?? ""); }}
+                        placeholder="03XX XXXXXXX"
+                        className={cn(inputCls, newPhoneError && "border-clay/50")}
+                      />
+                      {newPhoneError && <p className="mt-1 text-[12px] text-clay">{newPhoneError}</p>}
                     </div>
                     <div>
                       <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">ID type</label>
@@ -841,7 +893,7 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
           )}
 
           {step < 2 ? (
-            <button onClick={goNext} className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-ink text-white text-[14px] font-semibold hover:bg-ink-soft transition-colors shadow-pop">
+            <button onClick={goNext} className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-coral text-white text-[14px] font-semibold hover:bg-coral-dark transition-colors shadow-pop">
               Continue <ArrowRight size={16} />
             </button>
           ) : (

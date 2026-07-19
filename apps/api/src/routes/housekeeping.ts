@@ -10,7 +10,7 @@ import {
 } from "../schemas/housekeeping";
 import { HousekeepingService } from "../services/HousekeepingService";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticate, tenantMiddleware);
 

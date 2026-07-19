@@ -5,7 +5,7 @@ import { authenticate } from "../middleware/auth";
 import { tenantMiddleware } from "../middleware/tenant";
 import { AppError } from "../utils/AppError";
 
-const router = Router();
+const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
 
 const createNoteSchema = z.object({

@@ -5,7 +5,7 @@ import { requirePermission } from "../middleware/permission";
 import { createUserSchema, updateUserSchema, resetPasswordSchema } from "../schemas/users";
 import { UserService } from "../services/UserService";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticate, tenantMiddleware);
 

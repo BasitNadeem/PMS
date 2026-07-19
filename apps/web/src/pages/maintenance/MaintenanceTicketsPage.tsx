@@ -303,7 +303,7 @@ export default function MaintenanceTicketsPage() {
         {canCreate && (
           <button
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-ink text-white text-sm font-semibold hover:bg-ink-soft transition-colors shadow-pop whitespace-nowrap"
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-coral text-white text-sm font-semibold hover:bg-coral-dark transition-colors shadow-pop whitespace-nowrap"
           >
             <Plus size={17} /> Report Issue
           </button>

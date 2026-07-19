@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DocumentType } from "@pms/db";
+import { phoneSchema, optionalPhoneSchema, optionalEmailSchema } from "../lib/validation";
 
 export const listGuestsSchema = z.object({
   search:      z.string().trim().optional(),
@@ -12,9 +13,9 @@ export type ListGuestsQuery = z.infer<typeof listGuestsSchema>;
 export const createGuestSchema = z.object({
   firstName:      z.string().trim().min(1),
   lastName:       z.string().trim().min(1),
-  email:          z.string().trim().email().optional().or(z.literal("")),
-  phone:          z.string().trim().min(1),
-  alternatePhone: z.string().trim().optional(),
+  email:          optionalEmailSchema,
+  phone:          phoneSchema,
+  alternatePhone: optionalPhoneSchema,
   nationality:    z.string().trim().optional(),
   gender:         z.string().trim().optional(),
   dateOfBirth:    z.string().date().optional(),
@@ -44,8 +45,8 @@ export type BlacklistGuestDto = z.infer<typeof blacklistGuestSchema>;
 
 export const checkBlacklistSchema = z.object({
   documentNumber: z.string().trim().optional(),
-  phone: z.string().trim().optional(),
-  email: z.string().trim().optional(),
+  phone: optionalPhoneSchema,
+  email: optionalEmailSchema,
 }).refine((d) => d.documentNumber || d.phone || d.email, {
   message: "At least one of documentNumber, phone, or email is required",
 });

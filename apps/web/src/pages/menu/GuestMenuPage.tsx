@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Star, Loader2, UtensilsCrossed, CheckCircle2, Leaf, Search, ArrowLeft, Clock, Sparkles,
   Coffee, Soup, Sandwich, GlassWater, Cookie, Salad, IceCreamCone, Plus,
-  Receipt, ChefHat, BellRing, PartyPopper, XCircle,
+  Receipt, ChefHat, BellRing, PartyPopper, XCircle, ShoppingBag,
 } from "lucide-react";
 import { qrMenuService, type MenuCategory, type MenuItem } from "../../services/qrMenu";
 import { CartBar, type CartItem } from "../../components/menu/CartBar";
@@ -558,6 +558,40 @@ function TrackOrderView({
                 </p>
               )}
             </div>
+
+            {/* Delivery summary — itemized bill shown once the order is delivered */}
+            {order.status === "delivered" && (
+              <div className="qr-glass rounded-[1.5rem] p-5" style={{ boxShadow: "0 10px 28px -10px rgb(41 26 18 / 0.12)", border: "1px solid rgb(var(--qr-line-soft))" }}>
+                <div className="flex items-center gap-2 mb-4">
+                  <ShoppingBag className="w-4 h-4" style={{ color: "rgb(var(--qr-accent))" }} />
+                  <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: "rgb(var(--qr-ink-faint))" }}>Your order</p>
+                </div>
+                <div className="space-y-2" style={{ borderTop: "1px solid rgb(var(--qr-line-soft))", paddingTop: "0.75rem" }}>
+                  {order.items.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2 text-[13.5px]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-bold shrink-0" style={{ color: "rgb(var(--qr-accent))" }}>×{item.quantity}</span>
+                        <span className="truncate" style={{ color: "rgb(var(--qr-ink-soft))" }}>{item.name}</span>
+                      </div>
+                      <span className="shrink-0 tnum font-semibold" style={{ color: "rgb(var(--qr-ink))" }}>
+                        PKR {Math.floor(item.lineTotal / 100).toLocaleString("en-PK")}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between items-center mt-3 pt-3 font-bold text-[15px]" style={{ borderTop: "1px solid rgb(var(--qr-line-soft))" }}>
+                  <span style={{ color: "rgb(var(--qr-ink))" }}>Total</span>
+                  <span className="tnum" style={{ color: "rgb(var(--qr-accent))" }}>
+                    PKR {Math.floor(order.totalAmount / 100).toLocaleString("en-PK")}
+                  </span>
+                </div>
+                <p className="text-[11px] text-center mt-3 italic" style={{ color: "rgb(var(--qr-ink-faint))" }}>
+                  {order.paymentPreference === "charge_to_room"
+                    ? `Charged to Room ${order.roomNumber} — to be settled at checkout`
+                    : "Please pay at the counter"}
+                </p>
+              </div>
+            )}
 
             {/* Progress tracker */}
             {isCancelled ? (

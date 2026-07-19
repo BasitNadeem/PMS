@@ -16,6 +16,8 @@ export const createRoomTypeSchema = z.object({
   maxOccupancy: z.number().int().min(1),
   defaultRate:  z.number().int().positive(),
   sortOrder:    z.number().int().min(0).default(0),
+  photoUrls:    z.array(z.string().min(1)).max(8).default([]),
+  amenities:    z.array(z.string().trim()).default([]),
 });
 export type CreateRoomTypeDto = z.infer<typeof createRoomTypeSchema>;
 

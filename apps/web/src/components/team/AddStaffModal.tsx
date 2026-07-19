@@ -7,6 +7,7 @@ import {
 import { cn } from "@/lib/cn";
 import { usersService, type Role } from "@/services/users";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { getPhoneErrorMessage, getEmailErrorMessage } from "@/lib/validation";
 
 // ── Role grid config ──────────────────────────────────────────────────────────
 
@@ -82,8 +83,14 @@ export function AddStaffModal({ onClose, onSuccess }: AddStaffModalProps) {
     e.preventDefault();
     if (!name.trim())        { setError("Name is required"); return; }
     if (!email.trim())       { setError("Email is required"); return; }
+    const emailErr = getEmailErrorMessage(email);
+    if (emailErr)            { setError(emailErr); return; }
     if (password.length < 8) { setError("Password must be at least 8 characters"); return; }
     if (!roleId)             { setError("Please select a role"); return; }
+    if (phone.trim()) {
+      const phoneErr = getPhoneErrorMessage(phone);
+      if (phoneErr) { setError(phoneErr); return; }
+    }
     setError(null);
     createMutation.mutate({
       name: name.trim(),
@@ -161,7 +168,7 @@ export function AddStaffModal({ onClose, onSuccess }: AddStaffModalProps) {
               <input
                 type="tel" value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+92 3…"
+                placeholder="03XX XXXXXXX"
                 className={inputCls}
               />
             </div>

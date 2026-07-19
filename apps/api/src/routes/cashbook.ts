@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { authenticate } from "../middleware/auth";
 import { tenantMiddleware } from "../middleware/tenant";
 import {
@@ -8,11 +9,13 @@ import {
   ledgerQuerySchema,
   summaryQuerySchema,
   balancesQuerySchema,
+  ENTRY_TYPES,
+  SOURCE_TYPES,
 } from "../schemas/cashbook";
 import { CashBookService } from "../services/CashBookService";
 
 // No requirePermission — permissions table is seeded empty.
-const router = Router();
+const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
 
 // GET /api/cashbook/accounts
@@ -57,6 +60,22 @@ router.get("/ledger", async (req, res) => {
   const query  = ledgerQuerySchema.parse(req.query);
   const result = await CashBookService.getLedger(req.user!.hotelId, query);
   res.json(result);
+});
+
+// GET /api/cashbook/export — all matching entries for the active filters, no pagination cap
+router.get("/export", async (req, res) => {
+  const filters = summaryQuerySchema.extend({
+    entryType:  z.enum(ENTRY_TYPES).optional(),
+    sourceType: z.enum(SOURCE_TYPES).optional(),
+    accountId:  z.string().uuid().optional(),
+  }).parse(req.query);
+
+  const [result, summary] = await Promise.all([
+    CashBookService.getLedger(req.user!.hotelId, { ...filters, page: 1, limit: 10_000 }),
+    CashBookService.getSummary(req.user!.hotelId, { startDate: filters.startDate, endDate: filters.endDate }),
+  ]);
+
+  res.json({ data: { entries: result.data, summary, filters } });
 });
 
 // POST /api/cashbook/entries

@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BookOpen, ArrowDownLeft, ArrowUpRight, TrendingUp, TrendingDown,
-  Plus, ChevronLeft, ChevronRight, Wallet,
+  Plus, ChevronLeft, ChevronRight, Wallet, Download, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -12,11 +12,13 @@ import {
   type EntryType,
   type SourceType,
 } from "@/services/cashbook";
+import { exportCashBookToExcel } from "@/lib/exportExcel";
 import { RecordEntryModal } from "@/components/cashbook/RecordEntryModal";
 import { BalancesDrawer } from "@/components/cashbook/BalancesDrawer";
 import { useToast } from "@/hooks/useToast";
 import { ToastContainer } from "@/components/ui/ToastContainer";
 import { usePermissions } from "@/hooks/usePermissions";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -136,6 +138,23 @@ export default function CashBookPage() {
   const [page,          setPage]          = useState(1);
   const [showRecord,    setShowRecord]    = useState(false);
   const [showBalances,  setShowBalances]  = useState(false);
+  const [exporting,     setExporting]     = useState(false);
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const result = await cashbookService.exportLedger({
+        startDate: startDate || undefined,
+        endDate:   endDate   || undefined,
+        entryType: entryType || undefined,
+      });
+      exportCashBookToExcel(result.entries, result.summary, result.filters);
+    } catch {
+      addToast("Export failed — please try again", "error");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const { startDate, endDate } = useMemo(() => {
     if (preset === "custom") return { startDate: customStart, endDate: customEnd };
@@ -201,6 +220,15 @@ export default function CashBookPage() {
           >
             <Wallet size={14} /> Balances
           </button>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-full border border-line bg-card text-ink-soft text-sm font-semibold hover:bg-mist transition-colors disabled:opacity-50"
+          >
+            {exporting
+              ? <><Loader2 size={14} className="animate-spin" />Exporting…</>
+              : <><Download size={14} />Export</>}
+          </button>
           {canCreate && (
             <button
               onClick={() => setShowRecord(true)}
@@ -228,13 +256,13 @@ export default function CashBookPage() {
         {/* Custom range inputs */}
         {preset === "custom" && (
           <>
-            <input type="date" value={customStart}
-              onChange={(e) => { setCustomStart(e.target.value); setPage(1); }}
-              className={inputCls} />
+            <DatePicker value={customStart}
+              onChange={(v) => { setCustomStart(v); setPage(1); }}
+              className="h-9" />
             <span className="text-ink-faint text-sm select-none">–</span>
-            <input type="date" value={customEnd}
-              onChange={(e) => { setCustomEnd(e.target.value); setPage(1); }}
-              className={inputCls} />
+            <DatePicker value={customEnd}
+              onChange={(v) => { setCustomEnd(v); setPage(1); }}
+              className="h-9" />
           </>
         )}
 

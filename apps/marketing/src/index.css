@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    font-family: "Inter", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #F5EBE4;
+    color: #211E1A;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  ::selection {
+    background: #FBD9CC;
+    color: #9E3417;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: #D8D0C4; }
+  ::-webkit-scrollbar-thumb {
+    background: #DED6C9;
+    border-radius: 999px;
+    border: 2px solid #D8D0C4;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: #CDC3B2; background-clip: content-box; }
+}
+
+@layer utilities {
+  .font-display { font-family: "Fraunces", Georgia, serif; }
+
+  /* Dot-grid texture — same formula as apps/web's unused .stripe-paper primitive */
+  .bg-grid {
+    background-image: radial-gradient(circle, rgba(33,30,26,0.05) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .rule-coral {
+    display: block;
+    width: 100%;
+    height: 1px;
+    background: #E0532B;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #C2431F;
+  }
+
+  /* Device frames — warm paper chrome instead of dark glass */
+  .phone-frame {
+    border-radius: 32px;
+    border: 3px solid #FFFFFF;
+    background: #FFFFFF;
+    overflow: hidden;
+    box-shadow: 0 30px 70px -16px rgba(33,30,26,0.28), 0 4px 14px rgba(33,30,26,0.08);
+  }
+
+  .tablet-frame {
+    border-radius: 20px;
+    border: 3px solid #FFFFFF;
+    background: #FFFFFF;
+    overflow: hidden;
+    box-shadow: 0 30px 70px -16px rgba(33,30,26,0.24), 0 4px 14px rgba(33,30,26,0.06);
+  }
+
+  /* Cursor-follow spotlight, paired with components/motion/Spotlight.tsx */
+  .spotlight-layer { opacity: 0; transition: opacity 0.4s ease; }
+  .spotlight:hover .spotlight-layer { opacity: 1; }
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes softFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+
+@keyframes scanline {
+  0%   { top: 20%; opacity: 0.9; }
+  50%  { top: 72%; opacity: 1;   }
+  100% { top: 20%; opacity: 0.9; }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

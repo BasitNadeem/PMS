@@ -4,7 +4,7 @@ import { tenantMiddleware } from "../middleware/tenant";
 import { searchQuerySchema } from "../schemas/search";
 import { SearchService, type SearchResultType } from "../services/SearchService";
 
-const router = Router();
+const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
 
 // GET /api/search?q=...

@@ -4,6 +4,8 @@ import { X, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { guestsService, type CreateGuestDto, type DocumentType } from "@/services/guests";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { getPhoneErrorMessage, getEmailErrorMessage } from "@/lib/validation";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 const DOC_TYPES: { value: DocumentType; label: string }[] = [
   { value: "CNIC",            label: "CNIC" },
@@ -60,7 +62,11 @@ export function AddGuestModal({ onClose, onSuccess }: AddGuestModalProps) {
     if (!form.firstName.trim())      errs.firstName      = "First name is required";
     if (!form.lastName.trim())       errs.lastName       = "Last name is required";
     if (!form.phone.trim())          errs.phone          = "Phone is required";
+    else                             errs.phone          = getPhoneErrorMessage(form.phone) ?? undefined;
     if (!form.documentNumber.trim()) errs.documentNumber = "ID number is required";
+    if (form.email.trim())           errs.email          = getEmailErrorMessage(form.email) ?? undefined;
+    // Remove undefined keys so Object.keys check works correctly
+    (Object.keys(errs) as (keyof typeof errs)[]).forEach((k) => { if (!errs[k]) delete errs[k]; });
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -116,7 +122,7 @@ export function AddGuestModal({ onClose, onSuccess }: AddGuestModalProps) {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={labelCls}>Date of Birth</label>
-                    <input type="date" value={form.dateOfBirth} onChange={(e) => set("dateOfBirth", e.target.value)} className={ic("dateOfBirth")} />
+                    <DatePicker value={form.dateOfBirth} onChange={(v) => set("dateOfBirth", v)} className="w-full" />
                   </div>
                   <div>
                     <label className={labelCls}>Nationality</label>
@@ -140,11 +146,24 @@ export function AddGuestModal({ onClose, onSuccess }: AddGuestModalProps) {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={labelCls}>Email</label>
-                    <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="optional" className={ic("email")} />
+                    <input
+                      type="email" value={form.email}
+                      onChange={(e) => set("email", e.target.value)}
+                      onBlur={() => { if (form.email.trim()) setErrors((e) => ({ ...e, email: getEmailErrorMessage(form.email) ?? undefined })); }}
+                      placeholder="optional"
+                      className={ic("email")}
+                    />
+                    {errors.email && <p className="text-[12px] text-clay mt-1">{errors.email}</p>}
                   </div>
                   <div>
                     <label className={labelCls}>Phone <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
-                    <input type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)} className={ic("phone")} />
+                    <input
+                      type="tel" value={form.phone}
+                      onChange={(e) => set("phone", e.target.value)}
+                      onBlur={() => { if (form.phone.trim()) setErrors((e) => ({ ...e, phone: getPhoneErrorMessage(form.phone) ?? undefined })); }}
+                      placeholder="03XX XXXXXXX"
+                      className={ic("phone")}
+                    />
                     {errors.phone && <p className="text-[12px] text-clay mt-1">{errors.phone}</p>}
                   </div>
                 </div>

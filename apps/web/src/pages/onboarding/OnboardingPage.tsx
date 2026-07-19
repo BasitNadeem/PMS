@@ -15,6 +15,7 @@ import { usersService, type Role } from "@/services/users";
 import { applyTheme } from "@/lib/theme";
 import { pkrInWords } from "@/lib/numberToWords";
 import { ThemePicker } from "@/components/settings/ThemePicker";
+import { getPhoneErrorMessage } from "@/lib/validation";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -271,6 +272,7 @@ function StepHotelProfile({ onBack, onNext }: { onBack: () => void; onNext: () =
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!settings) return;
@@ -291,6 +293,11 @@ function StepHotelProfile({ onBack, onNext }: { onBack: () => void; onNext: () =
       setError("Hotel name and city are required");
       return;
     }
+    if (form.phone.trim()) {
+      const pErr = getPhoneErrorMessage(form.phone);
+      if (pErr) { setPhoneError(pErr); return; }
+    }
+    setPhoneError(null);
     setError(null);
     setSaving(true);
     try {
@@ -363,10 +370,13 @@ function StepHotelProfile({ onBack, onNext }: { onBack: () => void; onNext: () =
         <div>
           <label className={labelCls}>Phone number</label>
           <input
-            className={inputCls} value={form.phone}
-            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-            placeholder="+92 5812 000000"
+            className={cn(inputCls, phoneError && "border-clay")}
+            value={form.phone}
+            onChange={(e) => { setForm((f) => ({ ...f, phone: e.target.value })); setPhoneError(null); }}
+            onBlur={() => setPhoneError(form.phone.trim() ? getPhoneErrorMessage(form.phone) : null)}
+            placeholder="03XX XXXXXXX"
           />
+          {phoneError && <p className="mt-1 text-[12px] text-clay">{phoneError}</p>}
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>

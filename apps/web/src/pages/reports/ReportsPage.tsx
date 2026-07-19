@@ -1,15 +1,21 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  CalendarDays, BarChart3, ClipboardList, BedDouble,
-  Banknote, LogIn, LogOut, TrendingUp, ChevronRight,
-  Sparkles, Wrench, ShoppingCart, AlertCircle,
+  CalendarDays, BarChart3, ClipboardList,
+  TrendingUp, ShoppingCart, ReceiptText, CreditCard,
+  AlertCircle, RotateCcw, Scale,
+  BedDouble, Users, Wrench, Package, Utensils,
+  ChevronDown, ChevronRight, Search,
+  Banknote, LogIn, LogOut, Sparkles, Moon,
+  Lock,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { TONE } from "@/components/ui/StatusBadge";
+import { cn } from "@/lib/cn";
 import { reportsService } from "@/services/reports";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 function localIso(): string {
   const d = new Date();
@@ -25,19 +31,156 @@ function formatPKR(paisas: number): string {
 
 const TODAY = localIso();
 
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
+// ── Report card definitions ───────────────────────────────────────────────────
 
-function buildYears(): number[] {
-  const y = new Date().getFullYear();
-  return [y - 2, y - 1, y, y + 1];
+type ReportCard = {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ElementType;
+  route: string;
+  comingSoon?: false;
+} | {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ElementType;
+  route: string;
+  comingSoon: true;
+};
+
+interface Category {
+  id: string;
+  name: string;
+  icon: React.ElementType;
+  reports: ReportCard[];
 }
 
-const inputCls  = "h-11 w-full rounded-xl bg-mist border border-line px-3.5 text-sm text-ink placeholder:text-ink-faint outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all";
-// Select-specific: no w-full so flex-1 / fixed widths can size correctly inside a flex container
-const selectCls = "h-11 rounded-xl bg-mist border border-line px-3.5 text-sm text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all appearance-none cursor-pointer";
+const CATEGORIES: Category[] = [
+  {
+    id: "financial",
+    name: "Financial",
+    icon: Banknote,
+    reports: [
+      {
+        id: "daily",
+        name: "Daily Operations Report",
+        description: "Full operations summary for any single day",
+        icon: CalendarDays,
+        route: `/reports/daily?date=${TODAY}`,
+      },
+      {
+        id: "monthly",
+        name: "Monthly Summary Report",
+        description: "Trends, KPIs and insights for any month",
+        icon: BarChart3,
+        route: "/reports/monthly",
+      },
+      {
+        id: "shift",
+        name: "Shift Handover",
+        description: "Cash count and shift sign-off reports",
+        icon: ClipboardList,
+        route: "/reports/shifts",
+      },
+      {
+        id: "night-audit",
+        name: "Night Audit",
+        description: "Close the business day, flag no-shows, and advance the property date",
+        icon: Moon,
+        route: "/reports/night-audit",
+      },
+      {
+        id: "revenue-source",
+        name: "Revenue by Source",
+        description: "Room, POS and other revenue breakdown by date range",
+        icon: TrendingUp,
+        route: "/reports/revenue-source",
+      },
+      {
+        id: "payment-methods",
+        name: "Payment Method Breakdown",
+        description: "Collections grouped by payment method with donut chart",
+        icon: CreditCard,
+        route: "/reports/payment-methods",
+      },
+      {
+        id: "outstanding-balances",
+        name: "Outstanding Balances",
+        description: "Open folios with balance due, aged by days",
+        icon: AlertCircle,
+        route: "/reports/outstanding-balances",
+      },
+      {
+        id: "void-refund",
+        name: "Void & Refund Log",
+        description: "Audit trail of all voided charges and refunds",
+        icon: RotateCcw,
+        route: "/reports/void-refund-log",
+      },
+      {
+        id: "cash-reconciliation",
+        name: "Cash / Bank Reconciliation",
+        description: "Balance Book account flows and net positions",
+        icon: Scale,
+        route: "/reports/cash-reconciliation",
+      },
+    ],
+  },
+  {
+    id: "occupancy",
+    name: "Occupancy & Performance",
+    icon: BedDouble,
+    reports: [
+      { id: "occ-daily", name: "Occupancy Trend", description: "Daily occupancy rate over a date range", icon: BarChart3, route: "/reports/occupancy-trend" },
+      { id: "adr", name: "ADR / RevPAR Analysis", description: "Average daily rate and revenue per available room", icon: TrendingUp, route: "/reports/adr-revpar" },
+      { id: "room-type-perf", name: "Room Type Performance", description: "Occupancy and revenue split by room type", icon: BedDouble, route: "/reports/room-type-performance" },
+      { id: "length-of-stay", name: "Length of Stay Report", description: "Average stay duration and distribution", icon: CalendarDays, route: "/reports/length-of-stay" },
+      { id: "source-of-business", name: "Source of Business", description: "Booking source breakdown with revenue per channel", icon: ShoppingCart, route: "/reports/source-of-business" },
+    ],
+  },
+  {
+    id: "guests",
+    name: "Guests",
+    icon: Users,
+    reports: [
+      { id: "guest-directory", name: "Guest Directory", description: "Searchable, paginated export of all guests on file", icon: Users, route: "/reports/guest-directory" },
+      { id: "repeat-guests", name: "Repeat Guests / VIP Report", description: "Highest-value repeat guests ranked by total spend", icon: TrendingUp, route: "/reports/repeat-guests" },
+      { id: "guest-blacklist", name: "Guest Blacklist Report", description: "Current blacklist snapshot with severity breakdown", icon: ReceiptText, route: "/reports/guest-blacklist-report" },
+      { id: "guest-demographics", name: "Nationality / Guest Type Mix", description: "Guest origin and type breakdown for compliance and marketing", icon: Users, route: "/reports/guest-demographics" },
+    ],
+  },
+  {
+    id: "operations",
+    name: "Operations",
+    icon: Wrench,
+    reports: [
+      { id: "hk-performance", name: "Housekeeping Performance", description: "Per-staff task counts, avg completion time, by-type breakdown", icon: Sparkles, route: "/reports/housekeeping-performance" },
+      { id: "maintenance-summary", name: "Maintenance Summary", description: "Tickets by status, priority, category and cost variance", icon: Wrench, route: "/reports/maintenance-summary" },
+      { id: "staff-activity", name: "Staff Activity", description: "Audit log grouped by staff member with action breakdown", icon: Users, route: "/reports/staff-activity" },
+      { id: "group-bookings-summary", name: "Group Bookings Summary", description: "Group revenue, room-nights and operator breakdown", icon: Users, route: "/reports/group-bookings-summary" },
+    ],
+  },
+  {
+    id: "inventory",
+    name: "Inventory",
+    icon: Package,
+    reports: [
+      { id: "stock-consumption", name: "Stock Consumption", description: "Items consumed by period, grouped by category", icon: Package, route: "/reports/stock-consumption" },
+      { id: "waste-loss", name: "Waste & Loss", description: "Waste quantities, cost lost and waste percentage per item", icon: Package, route: "/reports/waste-loss" },
+      { id: "low-stock-reorder", name: "Low Stock / Reorder", description: "Items at or below reorder level with estimated reorder cost", icon: Package, route: "/reports/low-stock-reorder" },
+    ],
+  },
+  {
+    id: "pos-dining",
+    name: "POS & Dining",
+    icon: Utensils,
+    reports: [
+      { id: "pos-sales", name: "POS Sales", description: "Top items by revenue, category breakdown, order count", icon: ShoppingCart, route: "/reports/pos-sales" },
+      { id: "qr-orders", name: "QR Orders", description: "QR menu order volume by delivery type, status and payment preference", icon: Utensils, route: "/reports/qr-orders" },
+    ],
+  },
+];
 
 // ── Today snapshot tile ───────────────────────────────────────────────────────
 
@@ -60,60 +203,126 @@ function SnapTile({
   );
 }
 
-// ── Report card feature list ──────────────────────────────────────────────────
+// ── Report card ───────────────────────────────────────────────────────────────
 
-function FeatureList({ items }: { items: string[] }) {
+function ReportCardItem({ report }: { report: ReportCard }) {
+  const navigate = useNavigate();
+  const Icon = report.icon;
+
+  if (report.comingSoon) {
+    return (
+      <div className="group relative flex flex-col gap-3 rounded-2xl border border-line bg-white p-5 opacity-55 cursor-default select-none">
+        <div className="flex items-start justify-between">
+          <span className="grid place-items-center h-11 w-11 rounded-xl bg-line-soft text-ink-faint shrink-0">
+            <Icon size={20} />
+          </span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-ink-faint border border-line rounded-full px-2 py-0.5">
+            Coming soon
+          </span>
+        </div>
+        <div>
+          <div className="text-[14px] font-bold text-ink-soft">{report.name}</div>
+          <div className="text-[12px] text-ink-faint mt-0.5 leading-snug">{report.description}</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <ul className="space-y-1.5">
-      {items.map((item) => (
-        <li key={item} className="flex items-center gap-2 text-[12.5px] text-ink-soft">
-          <span className="h-1.5 w-1.5 rounded-full bg-coral-soft flex-shrink-0" />
-          {item}
-        </li>
-      ))}
-    </ul>
+    <button
+      onClick={() => navigate(report.route)}
+      className="group flex flex-col gap-3 rounded-2xl border border-line bg-white p-5 text-left transition-all hover:border-coral/60 hover:shadow-pop active:scale-[0.98]"
+    >
+      <div className="flex items-start justify-between">
+        <span className="grid place-items-center h-11 w-11 rounded-xl bg-coral-soft text-coral-deep group-hover:bg-coral group-hover:text-white transition-colors shrink-0">
+          <Icon size={20} />
+        </span>
+        <ChevronRight size={15} className="text-ink-faint group-hover:text-coral transition-colors mt-0.5" />
+      </div>
+      <div>
+        <div className="text-[14px] font-bold text-ink">{report.name}</div>
+        <div className="text-[12px] text-ink-mute mt-0.5 leading-snug">{report.description}</div>
+      </div>
+    </button>
+  );
+}
+
+// ── Category section ──────────────────────────────────────────────────────────
+
+function CategorySection({ category, query }: { category: Category; query: string }) {
+  const [open, setOpen] = useState(false);
+  const CatIcon = category.icon;
+
+  const filtered = useMemo(() => {
+    if (!query) return category.reports;
+    const q = query.toLowerCase();
+    return category.reports.filter(
+      (r) => r.name.toLowerCase().includes(q) || r.description.toLowerCase().includes(q),
+    );
+  }, [category.reports, query]);
+
+  if (query && filtered.length === 0) return null;
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2.5 w-full text-left mb-4 group"
+      >
+        <span className="grid place-items-center h-8 w-8 rounded-xl bg-mist text-ink-soft group-hover:bg-line-soft transition-colors">
+          <CatIcon size={16} />
+        </span>
+        <span className="text-[15px] font-bold text-ink">{category.name}</span>
+        <span className="text-[12px] font-semibold text-ink-faint">({filtered.length})</span>
+        <ChevronDown
+          size={15}
+          className={cn("text-ink-faint ml-auto transition-transform", !open && "-rotate-90")}
+        />
+      </button>
+
+      {open && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filtered.map((r) => (
+            <ReportCardItem key={r.id} report={r} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
-  const navigate = useNavigate();
-  const today = new Date();
+  const [search, setSearch] = useState("");
 
-  const [dailyDate, setDailyDate] = useState(TODAY);
-  const [monthVal,  setMonthVal]  = useState(today.getMonth() + 1);
-  const [yearVal,   setYearVal]   = useState(today.getFullYear());
-
-  // Live today snapshot — powers the "at a glance" section at the top.
-  // Lightweight: uses the same endpoint as the daily report, no extra API needed.
   const { data: todaySnap, isLoading: snapLoading } = useQuery({
     queryKey: ["report-daily-snap", TODAY],
-    queryFn:  () => reportsService.getDailyReport(TODAY),
+    queryFn: () => reportsService.getDailyReport(TODAY),
     staleTime: 2 * 60_000,
     retry: 1,
   });
 
-  const YEARS = buildYears();
+  const filteredCategories = useMemo(() => {
+    if (!search) return CATEGORIES;
+    const q = search.toLowerCase();
+    return CATEGORIES.filter((cat) =>
+      cat.reports.some(
+        (r) => r.name.toLowerCase().includes(q) || r.description.toLowerCase().includes(q),
+      ),
+    );
+  }, [search]);
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="mb-1.5 text-[12px] font-bold uppercase tracking-[0.14em] text-coral">Analytics</div>
-          <h1 className="serif text-[34px] leading-[1.05] text-ink">Reports</h1>
-          <p className="mt-1.5 text-[15px] text-ink-mute">Generate, view, and export operational reports</p>
-        </div>
-        <Link
-          to={`/reports/daily?date=${TODAY}`}
-          className="inline-flex items-center gap-2 h-10 px-4 rounded-full border border-line text-ink-soft text-sm font-semibold hover:bg-mist hover:text-ink transition-colors"
-        >
-          <TrendingUp size={15} /> Today's Full Report
-        </Link>
+      <div>
+        <div className="mb-1.5 text-[12px] font-bold uppercase tracking-[0.14em] text-coral">Analytics</div>
+        <h1 className="serif text-[34px] leading-[1.05] text-ink">Reports</h1>
+        <p className="mt-1.5 text-[15px] text-ink-mute">Generate insights across your property</p>
       </div>
 
-      {/* ── Today at a Glance ──────────────────────────────────────────────── */}
+      {/* Today at a Glance */}
       <Card>
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -122,9 +331,6 @@ export default function ReportsPage() {
               {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </p>
           </div>
-          <Link to={`/reports/daily?date=${TODAY}`} className="text-[12px] font-semibold text-coral hover:underline flex items-center gap-1">
-            Full report <ChevronRight size={13} />
-          </Link>
         </div>
 
         {snapLoading || !todaySnap ? (
@@ -136,16 +342,16 @@ export default function ReportsPage() {
         ) : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-              <SnapTile icon={BedDouble}  label="Occupancy"       value={`${todaySnap.occupancy.occupancyRate}%`}          sub={`${todaySnap.occupancy.occupied}/${todaySnap.occupancy.totalRooms} rooms`} color="#2F7256" />
-              <SnapTile icon={Banknote}   label="Collected Today" value={formatPKR(todaySnap.revenue.totalCollected)}       sub="Payments received"             color="#e04b22" />
-              <SnapTile icon={LogIn}      label="Arrivals"        value={String(todaySnap.arrivals.length)}                 sub={`${todaySnap.occupancy.checkIns} checked in`}   color="#2c455c" />
-              <SnapTile icon={LogOut}     label="Departures"      value={String(todaySnap.departures.length)}               sub={`${todaySnap.occupancy.checkOuts} checked out`} color="#86600F" />
+              <SnapTile icon={BedDouble}  label="Occupancy"       value={`${todaySnap.occupancy.occupancyRate}%`}     sub={`${todaySnap.occupancy.occupied}/${todaySnap.occupancy.totalRooms} rooms`} color="#2F7256" />
+              <SnapTile icon={Banknote}   label="Collected Today" value={formatPKR(todaySnap.revenue.totalCollected)} sub="Payments received"             color="#e04b22" />
+              <SnapTile icon={LogIn}      label="Arrivals"        value={String(todaySnap.arrivals.length)}            sub={`${todaySnap.occupancy.checkIns} checked in`}   color="#2c455c" />
+              <SnapTile icon={LogOut}     label="Departures"      value={String(todaySnap.departures.length)}          sub={`${todaySnap.occupancy.checkOuts} checked out`} color="#86600F" />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <SnapTile icon={TrendingUp}    label="Room Revenue"    value={formatPKR(todaySnap.revenue.roomRevenue)}       sub="Room charges"          color="#5B4B82" />
-              <SnapTile icon={ShoppingCart}  label="POS Revenue"     value={formatPKR(todaySnap.revenue.posRevenue)}        sub={`${todaySnap.operations.pos.totalOrders} orders`} color="#2F7256" />
-              <SnapTile icon={Sparkles}      label="HK Tasks"        value={`${todaySnap.operations.housekeeping.completed}/${todaySnap.operations.housekeeping.totalTasks}`} sub="Completed today" color="#e04b22" />
-              <SnapTile icon={Wrench}        label="Open Tickets"    value={String(todaySnap.operations.maintenance.openTickets)} sub={todaySnap.operations.maintenance.urgentOpen > 0 ? `${todaySnap.operations.maintenance.urgentOpen} urgent` : "No urgent"} color={todaySnap.operations.maintenance.urgentOpen > 0 ? "#aa4432" : "#2F7256"} />
+              <SnapTile icon={TrendingUp}  label="Room Revenue" value={formatPKR(todaySnap.revenue.roomRevenue)}       sub="Room charges"          color="#5B4B82" />
+              <SnapTile icon={ShoppingCart} label="POS Revenue" value={formatPKR(todaySnap.revenue.posRevenue)}        sub={`${todaySnap.operations.pos.totalOrders} orders`} color="#2F7256" />
+              <SnapTile icon={Sparkles}    label="HK Tasks"     value={`${todaySnap.operations.housekeeping.completed}/${todaySnap.operations.housekeeping.totalTasks}`} sub="Completed today" color="#e04b22" />
+              <SnapTile icon={Wrench}      label="Open Tickets" value={String(todaySnap.operations.maintenance.openTickets)} sub={todaySnap.operations.maintenance.urgentOpen > 0 ? `${todaySnap.operations.maintenance.urgentOpen} urgent` : "No urgent"} color={todaySnap.operations.maintenance.urgentOpen > 0 ? "#aa4432" : "#2F7256"} />
             </div>
             {todaySnap.revenue.outstanding > 0 && (
               <div className="mt-3 flex items-center gap-2 rounded-xl bg-amber-soft border border-amber/30 px-4 py-2.5">
@@ -159,143 +365,30 @@ export default function ReportsPage() {
         )}
       </Card>
 
-      {/* ── Report generators ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-
-        {/* Daily Report */}
-        <Card className="anim-fade-up flex flex-col gap-5" style={{ animationDelay: "0ms" }}>
-          <div className="flex items-start gap-4">
-            <span className="grid place-items-center h-12 w-12 rounded-xl bg-coral-soft text-coral-deep shrink-0">
-              <CalendarDays size={22} />
-            </span>
-            <div>
-              <h2 className="serif text-[20px] text-ink leading-tight">Daily Report</h2>
-              <p className="text-[12.5px] text-ink-mute mt-0.5">Full operations summary for any single day</p>
-            </div>
-          </div>
-
-          <FeatureList items={[
-            "Occupancy & room status breakdown",
-            "Arrivals, departures & stay-overs",
-            "Revenue, payments & outstanding",
-            "POS sales, housekeeping & maintenance",
-            "Expense breakdown & cash variance",
-          ]} />
-
-          <div className="space-y-2.5 mt-auto">
-            <div>
-              <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-ink-faint">Select Date</label>
-              <input type="date" value={dailyDate} onChange={(e) => setDailyDate(e.target.value)} className={inputCls} />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => { const d = new Date(); d.setDate(d.getDate() - 1); const s = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; setDailyDate(s); }}
-                className="flex-1 h-9 rounded-full border border-line text-ink-soft text-[12.5px] font-semibold hover:bg-mist transition-colors"
-              >
-                Yesterday
-              </button>
-              <button
-                onClick={() => setDailyDate(TODAY)}
-                className="flex-1 h-9 rounded-full border border-line text-ink-soft text-[12.5px] font-semibold hover:bg-mist transition-colors"
-              >
-                Today
-              </button>
-            </div>
-            <button
-              onClick={() => navigate(`/reports/daily?date=${dailyDate}`)}
-              className="w-full h-11 rounded-full bg-coral text-white font-semibold text-sm hover:bg-coral-dark transition-colors shadow-pop"
-            >
-              Generate Report →
-            </button>
-          </div>
-        </Card>
-
-        {/* Monthly Report */}
-        <Card className="anim-fade-up flex flex-col gap-5" style={{ animationDelay: "60ms" }}>
-          <div className="flex items-start gap-4">
-            <span className="grid place-items-center h-12 w-12 rounded-xl bg-dusk-soft text-dusk shrink-0">
-              <BarChart3 size={22} />
-            </span>
-            <div>
-              <h2 className="serif text-[20px] text-ink leading-tight">Monthly Report</h2>
-              <p className="text-[12.5px] text-ink-mute mt-0.5">Trends, KPIs and insights for any month</p>
-            </div>
-          </div>
-
-          <FeatureList items={[
-            "Revenue trend chart (daily breakdown)",
-            "ADR, RevPAR & avg length of stay",
-            "Payment method distribution",
-            "Expenses, net profit & margin",
-            "Top guests & group booking summary",
-            "Occupancy by room type",
-          ]} />
-
-          <div className="space-y-2.5 mt-auto">
-            <div>
-              <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-ink-faint">Select Month</label>
-              <div className="flex gap-2">
-                <select value={monthVal} onChange={(e) => setMonthVal(Number(e.target.value))} className={`${selectCls} flex-1`}>
-                  {MONTHS.map((name, i) => <option key={i + 1} value={i + 1}>{name}</option>)}
-                </select>
-                <select value={yearVal} onChange={(e) => setYearVal(Number(e.target.value))} className={`${selectCls} w-24`}>
-                  {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => { const d = new Date(); d.setMonth(d.getMonth() - 1); setMonthVal(d.getMonth() + 1); setYearVal(d.getFullYear()); }}
-                className="flex-1 h-9 rounded-full border border-line text-ink-soft text-[12.5px] font-semibold hover:bg-mist transition-colors"
-              >
-                Last Month
-              </button>
-              <button
-                onClick={() => { setMonthVal(today.getMonth() + 1); setYearVal(today.getFullYear()); }}
-                className="flex-1 h-9 rounded-full border border-line text-ink-soft text-[12.5px] font-semibold hover:bg-mist transition-colors"
-              >
-                This Month
-              </button>
-            </div>
-            <button
-              onClick={() => navigate(`/reports/monthly?year=${yearVal}&month=${monthVal}`)}
-              className="w-full h-11 rounded-full bg-ink text-white font-semibold text-sm hover:bg-ink/90 transition-colors shadow-pop"
-            >
-              Generate Report →
-            </button>
-          </div>
-        </Card>
-
-        {/* Shift Handover */}
-        <Card className="anim-fade-up flex flex-col gap-5" style={{ animationDelay: "120ms" }}>
-          <div className="flex items-start gap-4">
-            <span className="grid place-items-center h-12 w-12 rounded-xl bg-pine-soft text-pine-deep shrink-0">
-              <ClipboardList size={22} />
-            </span>
-            <div>
-              <h2 className="serif text-[20px] text-ink leading-tight">Shift Handover</h2>
-              <p className="text-[12.5px] text-ink-mute mt-0.5">Cash count and shift sign-off reports</p>
-            </div>
-          </div>
-
-          <FeatureList items={[
-            "Opening & closing cash count",
-            "Cash collected vs expected variance",
-            "Per-shift revenue summary",
-            "Sign-off and notes for incoming shift",
-            "Historical handover log",
-          ]} />
-
-          <div className="space-y-2.5 mt-auto">
-            <button
-              onClick={() => navigate("/reports/shifts")}
-              className="w-full h-11 rounded-full bg-pine text-white font-semibold text-sm hover:bg-pine-deep transition-colors shadow-pop"
-            >
-              Open Shift Handover →
-            </button>
-          </div>
-        </Card>
+      {/* Search */}
+      <div className="relative">
+        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
+        <input
+          type="text"
+          placeholder="Search reports…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full h-12 pl-10 pr-4 rounded-2xl border border-line bg-white text-[14px] text-ink placeholder:text-ink-faint outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all shadow-sm"
+        />
       </div>
+
+      {/* Category sections */}
+      {filteredCategories.length === 0 ? (
+        <div className="py-16 text-center">
+          <div className="text-[14px] font-semibold text-ink-mute">No reports match "{search}"</div>
+        </div>
+      ) : (
+        <div className="space-y-10">
+          {filteredCategories.map((cat) => (
+            <CategorySection key={cat.id} category={cat} query={search} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

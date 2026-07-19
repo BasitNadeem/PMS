@@ -4,6 +4,8 @@ import { X, Star, Users } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { guestsService, type GuestDetail, type UpdateGuestDto, type DocumentType } from "../../services/guests";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { getPhoneErrorMessage, getEmailErrorMessage } from "@/lib/validation";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 const DOC_TYPES: { value: DocumentType; label: string }[] = [
   { value: "CNIC",            label: "CNIC" },
@@ -48,6 +50,8 @@ export function EditGuestModal({ guest, onClose, onSuccess }: EditGuestModalProp
     isVip:          guest.vipLevel > 0,
   });
 
+  const [errors, setErrors] = useState<{ phone?: string; email?: string }>({});
+
   const mutation = useMutation({
     mutationFn: (dto: UpdateGuestDto) => guestsService.updateGuest(guest.id, dto),
     onSuccess: () => {
@@ -64,6 +68,12 @@ export function EditGuestModal({ guest, onClose, onSuccess }: EditGuestModalProp
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const errs: typeof errors = {};
+    if (form.phone.trim()) errs.phone = getPhoneErrorMessage(form.phone) ?? undefined;
+    if (form.email.trim()) errs.email = getEmailErrorMessage(form.email) ?? undefined;
+    (Object.keys(errs) as (keyof typeof errs)[]).forEach((k) => { if (!errs[k]) delete errs[k]; });
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
     mutation.mutate({
       firstName:      form.firstName.trim() || undefined,
       lastName:       form.lastName.trim() || undefined,
@@ -152,8 +162,8 @@ export function EditGuestModal({ guest, onClose, onSuccess }: EditGuestModalProp
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Date of birth</label>
-                  <input type="date" value={form.dateOfBirth}
-                    onChange={(e) => set("dateOfBirth", e.target.value)} className={inputCls} />
+                  <DatePicker value={form.dateOfBirth}
+                    onChange={(v) => set("dateOfBirth", v)} className="w-full" />
                 </div>
                 <div>
                   <label className={labelCls}>Nationality</label>
@@ -181,13 +191,23 @@ export function EditGuestModal({ guest, onClose, onSuccess }: EditGuestModalProp
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Email</label>
-                  <input type="email" value={form.email} placeholder="name@email.com"
-                    onChange={(e) => set("email", e.target.value)} className={inputCls} />
+                  <input
+                    type="email" value={form.email} placeholder="name@email.com"
+                    onChange={(e) => set("email", e.target.value)}
+                    onBlur={() => { if (form.email.trim()) setErrors((e) => ({ ...e, email: getEmailErrorMessage(form.email) ?? undefined })); }}
+                    className={cn(inputCls, errors.email && "border-clay/50")}
+                  />
+                  {errors.email && <p className="text-[12px] text-clay mt-1">{errors.email}</p>}
                 </div>
                 <div>
                   <label className={labelCls}>Phone <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
-                  <input type="tel" value={form.phone} placeholder="+92 3…"
-                    onChange={(e) => set("phone", e.target.value)} className={inputCls} />
+                  <input
+                    type="tel" value={form.phone} placeholder="03XX XXXXXXX"
+                    onChange={(e) => set("phone", e.target.value)}
+                    onBlur={() => { if (form.phone.trim()) setErrors((e) => ({ ...e, phone: getPhoneErrorMessage(form.phone) ?? undefined })); }}
+                    className={cn(inputCls, errors.phone && "border-clay/50")}
+                  />
+                  {errors.phone && <p className="text-[12px] text-clay mt-1">{errors.phone}</p>}
                 </div>
               </div>
               <div>

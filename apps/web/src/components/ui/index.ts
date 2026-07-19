@@ -8,3 +8,5 @@ export { Trend } from "./Trend";
 export { EmptyState } from "./EmptyState";
 export { SearchInput } from "./SearchInput";
 export { Segmented } from "./Segmented";
+export { DatePicker } from "./DatePicker";
+export { DateRangePicker } from "./DateRangePicker";

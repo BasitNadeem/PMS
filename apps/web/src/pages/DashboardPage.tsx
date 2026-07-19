@@ -21,6 +21,7 @@ import {
   type RevenueTrendRange,
 } from "@/services/dashboard";
 import { notesService, type FrontDeskNote } from "@/services/notes";
+import { shiftsService } from "@/services/shifts";
 import { roomsService, type Room } from "@/services/rooms";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -522,9 +523,18 @@ function LiveScheduleHero({
   departuresToday: number;
   inHouse: number;
 }) {
-  const START_HOUR = 8;
-  const END_HOUR = 22;
   const now = new Date();
+  const nowHour = now.getHours() + now.getMinutes() / 60;
+
+  // Compute window from actual event times + NOW so nothing is ever clipped.
+  const eventHours = events.map((e) => {
+    const [h, m] = e.time.split(":").map(Number);
+    return h + m / 60;
+  });
+  const allHours = [...eventHours, nowHour];
+  const START_HOUR = Math.max(0,  Math.floor(Math.min(...allHours)) - 1);
+  const END_HOUR   = Math.min(24, Math.ceil(Math.max(...allHours))  + 1);
+
   const nowPct = timeToPct(`${now.getHours()}:${now.getMinutes()}`, START_HOUR, END_HOUR);
 
   // Summary counts derived from events
@@ -755,7 +765,7 @@ function ArrivalsReadiness({ scheduleEvents }: { scheduleEvents: DashboardSchedu
   }, [roomsData]);
 
   // Today's pending/confirmed arrivals only (not already checked-in)
-  const arrivals = scheduleEvents.filter((e) => e.type === "checkin");
+  const arrivals = scheduleEvents.filter((e) => e.type === "checkin" && !e.isDone);
   if (arrivals.length === 0) return null;
 
   const readyCount = arrivals.filter((e) => {
@@ -864,6 +874,12 @@ export default function DashboardPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: shiftDiscrepancyCount = 0 } = useQuery({
+    queryKey: ["shift-discrepancy-count"],
+    queryFn:  shiftsService.getDiscrepancyCount,
+    staleTime: 5 * 60 * 1000,
+  });
+
   if (isLoading) {
     return (
       <div className="space-y-5">
@@ -925,20 +941,34 @@ export default function DashboardPage() {
           <NotificationBell />
           <button
             onClick={() => navigate("/reservations?view=calendar")}
-            className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-white border border-line text-ink-mute text-sm font-semibold hover:bg-gray-50 hover:text-ink transition-colors"
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-white ring-1 ring-ink/20 text-ink text-sm font-semibold hover:bg-gray-50 hover:ring-ink/40 transition-colors shadow-sm"
           >
             <Calendar size={16} />
             Calendar
           </button>
           <button
             onClick={() => navigate("/reservations?new=1")}
-            className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-ink text-white text-sm font-semibold hover:bg-ink-soft transition-colors shadow-pop"
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-coral text-white text-sm font-semibold hover:bg-coral-dark transition-colors shadow-pop"
           >
             <Plus size={16} />
             New reservation
           </button>
         </div>
       </div>
+
+      {/* Shift discrepancy alert — shows when ≥1 cash variance in last 3 days */}
+      {shiftDiscrepancyCount > 0 && (
+        <button
+          type="button"
+          onClick={() => navigate("/reports/shifts")}
+          className="w-full flex items-center gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-left hover:bg-red-100 transition-colors"
+        >
+          <AlertTriangle size={16} className="text-red-600 shrink-0" />
+          <p className="flex-1 text-[13px] font-semibold text-red-900">
+            {shiftDiscrepancyCount} shift cash {shiftDiscrepancyCount === 1 ? "discrepancy" : "discrepancies"} in the last 3 days — review in Shift Reports
+          </p>
+        </button>
+      )}
 
       {/* Inventory alert banner — only when alerts exist */}
       {inv && (inv.lowStockCount > 0 || inv.outOfStockCount > 0) && (

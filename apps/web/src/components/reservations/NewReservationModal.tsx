@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { X, ChevronLeft, Check, CalendarPlus, CheckCircle2, ArrowRight, Minus, Plus, ChevronDown, Search, ShieldAlert, Star, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { getPhoneErrorMessage } from "@/lib/validation";
+import { useMutation, useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
+import { X, ChevronLeft, Check, CalendarPlus, CheckCircle2, ArrowRight, Minus, Plus, ChevronDown, Search, ShieldAlert, Star, Loader2, Tag } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { getErrorMessage, getErrorDetails } from "@/lib/api";
+import { api, getErrorMessage, getErrorDetails } from "@/lib/api";
 import { roomsService, type Room } from "@/services/rooms";
 import { guestsService, type GuestSummary } from "@/services/guests";
 import {
@@ -13,7 +14,14 @@ import {
 import type { PaymentMethod } from "@/services/folio";
 import { Avatar } from "@/components/ui/Avatar";
 import { TONE } from "@/components/ui/StatusBadge";
+import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+
+interface SuggestResult {
+  suggestedRate: number;
+  matchedPlan: { id: string; name: string; type: string } | null;
+  allMatchingPlans: { id: string; name: string; rate: number }[];
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -154,6 +162,7 @@ function VipToggleRow({ checked, onToggle }: { checked: boolean; onToggle: () =>
 
 interface WizardState {
   checkIn: string; checkOut: string; roomId: string; roomTypeFilter: string;
+  ratePerNight: number; // paisas; editable, seeded from suggest endpoint
   guestId: string; guestName: string; guestCity: string; guestStays: number; guestBlacklisted: boolean;
   newFirstName: string; newLastName: string; newPhone: string;
   newDocType: string; newDocNumber: string;
@@ -185,11 +194,13 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
   const [step, setStep] = useState(0);
   const [stepError, setStepError] = useState("");
   const [duplicateGuestWarning, setDuplicateGuestWarning] = useState("");
+  const [newPhoneError, setNewPhoneError] = useState("");
 
   const [form, setForm] = useState<WizardState>({
     checkIn:  initialCheckInDate  ?? "",
     checkOut: initialCheckOutDate ?? (initialCheckInDate ? addOneDay(initialCheckInDate) : ""),
     roomId: "", roomTypeFilter: "",
+    ratePerNight: 0,
     guestId: "", guestName: "", guestCity: "", guestStays: 0, guestBlacklisted: false,
     useNewGuest: true,
     newFirstName: "", newLastName: "", newPhone: "", newDocType: "CNIC", newDocNumber: "",
@@ -245,6 +256,35 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
 
   const selectedRoom = allRooms.find((r) => r.id === form.roomId) ?? null;
 
+  // Fetch suggested rates for every visible room type so Step 1 cards show the
+  // correct rate-plan price. Uses the same query keys as the per-room suggest
+  // query below, so TanStack Query de-dupes the requests.
+  const uniqueRoomTypeIds = useMemo(
+    () => [...new Set(vacantRooms.map((r) => r.roomTypeId))],
+    [vacantRooms],
+  );
+  const roomTypeSuggestResults = useQueries({
+    queries: uniqueRoomTypeIds.map((rtId) => ({
+      queryKey: ["rate-suggest", rtId, form.checkIn, form.checkOut, "SINGLE"],
+      queryFn: async (): Promise<SuggestResult> => {
+        const res = await api.get("/api/rate-plans/suggest", {
+          params: { roomTypeId: rtId, checkIn: form.checkIn, checkOut: form.checkOut, bookingContext: "SINGLE" },
+        });
+        return res.data.data as SuggestResult;
+      },
+      enabled: datesReady,
+      staleTime: 60_000,
+    })),
+  });
+  const roomTypeRateMap = useMemo(() => {
+    const map = new Map<string, SuggestResult>();
+    uniqueRoomTypeIds.forEach((rtId, i) => {
+      const result = roomTypeSuggestResults[i]?.data;
+      if (result) map.set(rtId, result);
+    });
+    return map;
+  }, [uniqueRoomTypeIds, roomTypeSuggestResults]);
+
   // Proactive conflict check — fires the moment a room + both dates are picked,
   // so the user finds out immediately instead of after filling the whole form.
   const { data: availability, isFetching: checkingAvailability } = useQuery({
@@ -256,6 +296,26 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
     staleTime: 10_000,
   });
   const roomConflict = availability?.conflicts[0] ?? null;
+
+  // Rate suggestion — fires when room + dates are ready; staff can always override
+  const suggestEnabled = !!selectedRoom && datesReady;
+  const { data: suggestData } = useQuery({
+    queryKey: ["rate-suggest", selectedRoom?.roomTypeId, form.checkIn, form.checkOut, "SINGLE"],
+    queryFn: async (): Promise<SuggestResult> => {
+      const res = await api.get("/api/rate-plans/suggest", {
+        params: { roomTypeId: selectedRoom!.roomTypeId, checkIn: form.checkIn, checkOut: form.checkOut, bookingContext: "SINGLE" },
+      });
+      return res.data.data as SuggestResult;
+    },
+    enabled: suggestEnabled,
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    if (suggestData) {
+      setForm((f) => ({ ...f, ratePerNight: suggestData.suggestedRate }));
+    }
+  }, [suggestData]);
 
   // Guest search
   const [guestSearchInput, setGuestSearchInput] = useState("");
@@ -308,9 +368,8 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
     },
   });
 
-  const nights       = nightsBetween(form.checkIn, form.checkOut);
-  const ratePerNight = selectedRoom?.roomType.defaultRate ?? 0;
-  const subtotal     = ratePerNight * nights;
+  const nights   = nightsBetween(form.checkIn, form.checkOut);
+  const subtotal = form.ratePerNight * nights;
   const tax          = Math.round(subtotal * 0.05);
   const totalAmount  = subtotal + tax;
   const maxOccupancy = selectedRoom?.roomType.maxOccupancy ?? 10;
@@ -336,6 +395,8 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
       if (!form.newFirstName.trim()) return "First name is required";
       if (!form.newLastName.trim())  return "Last name is required";
       if (!form.newPhone.trim())     return "Phone is required";
+      const phoneErr = getPhoneErrorMessage(form.newPhone);
+      if (phoneErr) { setNewPhoneError(phoneErr); return phoneErr; }
       if (!form.newDocNumber.trim()) return `${form.newDocType === "CNIC" ? "CNIC number" : "ID number"} is required`;
     } else {
       if (!form.guestId) return "Please select a guest";
@@ -353,7 +414,7 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
     return {
       guestId, checkInDate: form.checkIn, checkOutDate: form.checkOut,
       roomId: form.roomId, roomTypeId: selectedRoom!.roomTypeId,
-      ratePerNight, adults: form.adults, children: form.children,
+      ratePerNight: form.ratePerNight, adults: form.adults, children: form.children,
       source: form.source, specialRequests: form.specialRequests.trim() || undefined,
       isVip: form.isVip,
       ...(advancePaymentPaise > 0 && {
@@ -424,7 +485,7 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
       onMouseDown={onClose}
     >
       <div
-        className="relative w-full max-w-2xl max-h-[92vh] flex flex-col bg-card rounded-[1.75rem] shadow-float anim-scale-in"
+        className="relative w-full max-w-2xl max-h-[95vh] min-h-[560px] flex flex-col bg-card rounded-[1.75rem] shadow-float anim-scale-in"
         onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -454,23 +515,18 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
           {step === 0 && (
             <div className="space-y-4">
               {/* Date row */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Check-in <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
-                  <input
-                    type="date" min={today} value={form.checkIn}
-                    onChange={(e) => { set("checkIn", e.target.value); if (form.checkOut && form.checkOut <= e.target.value) set("checkOut", ""); }}
-                    className={inputCls}
-                  />
+              <div>
+                <div className="grid grid-cols-2 gap-4 mb-1.5">
+                  <label className="text-[13px] font-semibold text-ink-soft">Check-in <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
+                  <label className="text-[13px] font-semibold text-ink-soft">Check-out <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Check-out <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
-                  <input
-                    type="date" min={form.checkIn || today} value={form.checkOut}
-                    onChange={(e) => set("checkOut", e.target.value)}
-                    className={inputCls}
-                  />
-                </div>
+                <DateRangePicker
+                  min={today}
+                  checkIn={form.checkIn}
+                  checkOut={form.checkOut}
+                  onChange={(checkIn, checkOut) => { set("checkIn", checkIn); set("checkOut", checkOut); }}
+                  className="w-full"
+                />
               </div>
 
               {/* Info row */}
@@ -509,7 +565,7 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                   No rooms available for these dates
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3 max-h-[44vh] overflow-y-auto scroll-area pr-0.5">
+                <div className="grid grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto scroll-area pr-0.5">
                   {vacantRooms.map((r) => {
                     const on = form.roomId === r.id;
                     const conflicted = on && !!roomConflict;
@@ -550,9 +606,19 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                         <div className="text-[12.5px] text-ink-mute mt-0.5">
                           {r.roomType.typeName.replace(/_/g, " ")} · max {r.roomType.maxOccupancy}{r.floor != null ? ` · Floor ${r.floor}` : ""}
                         </div>
-                        <div className="mt-3 flex items-baseline gap-1">
-                          <span className="serif text-[20px] text-ink tnum">{fmtPkrK(r.roomType.defaultRate)}</span>
-                          <span className="text-[12px] text-ink-mute">/night</span>
+                        <div className="mt-3">
+                          <div className="flex items-baseline gap-1">
+                            <span className="serif text-[20px] text-ink tnum">
+                              {fmtPkrK(roomTypeRateMap.get(r.roomTypeId)?.suggestedRate ?? r.roomType.defaultRate)}
+                            </span>
+                            <span className="text-[12px] text-ink-mute">/night</span>
+                          </div>
+                          {roomTypeRateMap.get(r.roomTypeId)?.matchedPlan && (
+                            <span className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-pine bg-pine/20 border border-pine/40 px-2.5 py-1 rounded-lg">
+                              <Tag size={11} strokeWidth={2.5} />
+                              {roomTypeRateMap.get(r.roomTypeId)!.matchedPlan!.name}
+                            </span>
+                          )}
                         </div>
                       </button>
                     );
@@ -620,7 +686,7 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                   </div>
 
                   {/* Guest cards grid */}
-                  <div className="grid grid-cols-2 gap-2.5 max-h-[34vh] overflow-y-auto scroll-area pr-0.5">
+                  <div className="grid grid-cols-2 gap-2.5 max-h-[40vh] overflow-y-auto scroll-area pr-0.5">
                     {allGuests.length === 0 ? (
                       <div className="col-span-2 rounded-xl border border-dashed border-line py-6 text-center text-[13px] text-ink-mute">
                         {guestSearch ? `No guests matching "${guestSearch}"` : "No guests found"}
@@ -684,8 +750,10 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                         min={0} max={maxOccupancy - form.adults}
                       />
                     </div>
-                    <p className="text-[12px] text-ink-faint">
-                      Max {maxOccupancy} guest{maxOccupancy !== 1 ? "s" : ""} · {form.adults + form.children} of {maxOccupancy} used
+                    <p className={cn("text-[13px]", form.adults + form.children >= maxOccupancy ? "text-amber font-semibold" : "text-ink-soft")}>
+                      {form.adults + form.children >= maxOccupancy
+                        ? `Max occupancy reached (${maxOccupancy} guest${maxOccupancy !== 1 ? "s" : ""})`
+                        : `${form.adults + form.children} of ${maxOccupancy} guest${maxOccupancy !== 1 ? "s" : ""} · ${maxOccupancy - form.adults - form.children} remaining`}
                     </p>
                   </div>
 
@@ -705,7 +773,14 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                     </div>
                     <div className="col-span-2">
                       <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Phone <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
-                      <input type="tel" value={form.newPhone} onChange={(e) => set("newPhone", e.target.value)} placeholder="+92 3..." className={inputCls} />
+                      <input
+                        type="tel" value={form.newPhone}
+                        onChange={(e) => { set("newPhone", e.target.value); setNewPhoneError(""); }}
+                        onBlur={() => { if (form.newPhone.trim()) setNewPhoneError(getPhoneErrorMessage(form.newPhone) ?? ""); }}
+                        placeholder="03XX XXXXXXX"
+                        className={cn(inputCls, newPhoneError && "border-clay/50")}
+                      />
+                      {newPhoneError && <p className="mt-1 text-[12px] text-clay">{newPhoneError}</p>}
                     </div>
                     <div>
                       <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">ID type <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
@@ -747,8 +822,10 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                       <NumStepper label="Adults"   value={form.adults}   onInc={() => set("adults",   Math.min(maxOccupancy - form.children, form.adults + 1))}   onDec={() => set("adults",   Math.max(1, form.adults - 1))}   min={1} max={maxOccupancy - form.children} />
                       <NumStepper label="Children" value={form.children} onInc={() => set("children", Math.min(maxOccupancy - form.adults, form.children + 1))} onDec={() => set("children", Math.max(0, form.children - 1))} min={0} max={maxOccupancy - form.adults} />
                     </div>
-                    <p className="text-[12px] text-ink-faint">
-                      Max {maxOccupancy} guest{maxOccupancy !== 1 ? "s" : ""} · {form.adults + form.children} of {maxOccupancy} used
+                    <p className={cn("text-[13px]", form.adults + form.children >= maxOccupancy ? "text-amber font-semibold" : "text-ink-soft")}>
+                      {form.adults + form.children >= maxOccupancy
+                        ? `Max occupancy reached (${maxOccupancy} guest${maxOccupancy !== 1 ? "s" : ""})`
+                        : `${form.adults + form.children} of ${maxOccupancy} guest${maxOccupancy !== 1 ? "s" : ""} · ${maxOccupancy - form.adults - form.children} remaining`}
                     </p>
                   </div>
 
@@ -804,8 +881,48 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
 
               {/* Charges */}
               <div className="rounded-[1.25rem] border border-line bg-white p-5 space-y-3">
-                <div className="flex items-center justify-between text-[14px]">
-                  <span className="text-ink-mute">{fmtPkr(ratePerNight)} × {nights} nights</span>
+                {/* Editable rate — seeded from suggest endpoint, staff can override */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[13px] font-semibold text-ink-soft">Rate per night</label>
+                    {suggestData?.matchedPlan && (
+                      <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-pine bg-pine/20 border border-pine/40 px-2.5 py-1 rounded-lg">
+                        <Tag size={11} strokeWidth={2.5} />
+                        {suggestData.matchedPlan.name}
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[13px] text-ink-mute pointer-events-none">Rs</span>
+                    <input
+                      type="number" min={0} step="1"
+                      value={Math.round(form.ratePerNight / 100)}
+                      onChange={(e) => set("ratePerNight", Math.max(0, Math.round((Number(e.target.value) || 0) * 100)))}
+                      className={cn(inputCls, "pl-9")}
+                    />
+                  </div>
+                  {suggestData && suggestData.allMatchingPlans.length > 1 && (
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {suggestData.allMatchingPlans.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => set("ratePerNight", p.rate)}
+                          className={cn(
+                            "text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors",
+                            form.ratePerNight === p.rate
+                              ? "border-coral bg-coral-soft text-coral-deep"
+                              : "border-line bg-white text-ink-mute hover:border-ink-faint",
+                          )}
+                        >
+                          {p.name} · Rs {Math.round(p.rate / 100).toLocaleString("en-PK")}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-between text-[14px] border-t border-line-soft pt-3">
+                  <span className="text-ink-mute">{fmtPkr(form.ratePerNight)} × {nights} nights</span>
                   <span className="font-semibold text-ink tnum">{fmtPkr(subtotal)}</span>
                 </div>
                 <div className="flex items-center justify-between text-[14px]">
@@ -918,7 +1035,7 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
             <button
               onClick={goNext}
               disabled={step === 0 && (!!roomConflict || checkingAvailability)}
-              className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-ink text-white text-[14px] font-semibold hover:bg-ink-soft transition-colors shadow-pop disabled:opacity-40 disabled:pointer-events-none"
+              className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-coral text-white text-[14px] font-semibold hover:bg-coral-dark transition-colors shadow-pop disabled:opacity-40 disabled:pointer-events-none"
             >
               Continue <ArrowRight size={16} />
             </button>

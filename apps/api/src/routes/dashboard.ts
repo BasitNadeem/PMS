@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { FolioItemType, HousekeepingTaskStatus, MaintenanceStatus, PaymentStatus, Prisma } from "@pms/db";
+import { HousekeepingTaskStatus, MaintenanceStatus, PaymentStatus, Prisma } from "@pms/db";
 import { authenticate } from "../middleware/auth";
 import { tenantMiddleware } from "../middleware/tenant";
 import { computeMaintenanceSummary } from "../services/MaintenanceService";
 
-const router = Router();
+const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
 
 router.get("/", async (req, res) => {
@@ -70,14 +70,23 @@ router.get("/", async (req, res) => {
       db.reservation.count({ where: { status: "CONFIRMED" } }),
       db.reservation.count({ where: { status: "CHECKED_IN" } }),
       db.reservation.count({ where: { status: "ENQUIRY" } }),
-      db.folioItem.aggregate({
-        _sum: { amount: true },
-        where: {
-          chargeDate: { gte: todayStart, lte: todayEnd },
-          type: { not: FolioItemType.DISCOUNT },
-          isVoided: false,
-        },
-      }),
+      // Revenue today = folio charges + POS orders NOT already posted to a folio
+      // (folio-posted POS items are already in folio_items; excluding them avoids double-counting)
+      db.$queryRaw<[{ total: bigint }]>(Prisma.sql`
+        SELECT COALESCE(SUM(amount), 0)::bigint AS total
+        FROM (
+          SELECT amount FROM folio_items
+          WHERE hotel_id = ${req.user!.hotelId}::uuid
+            AND charge_date >= ${todayStart} AND charge_date <= ${todayEnd}
+            AND type != 'DISCOUNT'
+            AND is_voided = false
+          UNION ALL
+          SELECT total AS amount FROM pos_orders
+          WHERE hotel_id = ${req.user!.hotelId}::uuid
+            AND created_at >= ${todayStart} AND created_at <= ${todayEnd}
+            AND is_posted_to_folio = false
+        ) _combined
+      `),
       db.payment.aggregate({
         _sum: { amount: true },
         where: {
@@ -137,14 +146,21 @@ router.get("/", async (req, res) => {
           status: { notIn: ["CANCELLED", "NO_SHOW"] },
         },
       }),
-      db.folioItem.aggregate({
-        _sum: { amount: true },
-        where: {
-          chargeDate: { gte: yesterdayStart, lte: yesterdayEnd },
-          type: { not: FolioItemType.DISCOUNT },
-          isVoided: false,
-        },
-      }),
+      db.$queryRaw<[{ total: bigint }]>(Prisma.sql`
+        SELECT COALESCE(SUM(amount), 0)::bigint AS total
+        FROM (
+          SELECT amount FROM folio_items
+          WHERE hotel_id = ${req.user!.hotelId}::uuid
+            AND charge_date >= ${yesterdayStart} AND charge_date <= ${yesterdayEnd}
+            AND type != 'DISCOUNT'
+            AND is_voided = false
+          UNION ALL
+          SELECT total AS amount FROM pos_orders
+          WHERE hotel_id = ${req.user!.hotelId}::uuid
+            AND created_at >= ${yesterdayStart} AND created_at <= ${yesterdayEnd}
+            AND is_posted_to_folio = false
+        ) _combined
+      `),
       // Money to collect — today's departing guests with an outstanding folio balance.
       db.reservation.findMany({
         where: {
@@ -165,10 +181,11 @@ router.get("/", async (req, res) => {
       db.hotel.findUnique({ where: { id: req.user!.hotelId }, select: { settings: true } }),
       // Live schedule — today's arrivals. actualCheckIn (real) if already checked in,
       // otherwise the event has no real timestamp yet and falls back to checkInTime.
+      // CHECKED_OUT is included so guests who arrived and departed today still appear.
       db.reservation.findMany({
         where: {
           checkInDate: { gte: todayStart, lte: todayEnd },
-          status: { in: ["CHECKED_IN", "CONFIRMED"] },
+          status: { in: ["CHECKED_IN", "CONFIRMED", "CHECKED_OUT"] },
         },
         take: 15,
         orderBy: { checkInDate: "asc" },
@@ -271,10 +288,10 @@ router.get("/", async (req, res) => {
       today: { arrivalsToday, departuresToday, newBookingsToday, arrivalsYesterday, departuresYesterday },
       reservations: { confirmedCount, checkedInCount, pendingCount, checkedInYesterday },
       revenue: {
-        revenueToday:        revenueTodayAgg._sum.amount  ?? 0,
-        paymentsToday:       paymentsTodayAgg._sum.amount ?? 0,
-        outstandingBalance:  outstandingAgg._sum.balanceDue ?? 0,
-        revenueYesterday:    revenueYesterdayAgg._sum.amount ?? 0,
+        revenueToday:        Number(revenueTodayAgg[0]?.total    ?? 0),
+        paymentsToday:       paymentsTodayAgg._sum.amount        ?? 0,
+        outstandingBalance:  outstandingAgg._sum.balanceDue      ?? 0,
+        revenueYesterday:    Number(revenueYesterdayAgg[0]?.total ?? 0),
       },
       housekeeping: { pendingTasks, inProgressTasks, checkoutCleansPending },
       maintenance: computeMaintenanceSummary(openMaintenanceTickets),
@@ -332,16 +349,26 @@ router.get("/revenue-trend", async (req, res) => {
   rangeStart.setUTCDate(rangeStart.getUTCDate() - (days - 1));
 
   const data = await req.withTenant(async (db) => {
-    const bucketSql = bucketWeekly ? Prisma.sql`date_trunc('week', charge_date)` : Prisma.sql`date_trunc('day', charge_date)`;
+    const bucketColSql = bucketWeekly
+      ? Prisma.sql`date_trunc('week', bucket_date)`
+      : Prisma.sql`date_trunc('day', bucket_date)`;
     const rows = await db.$queryRaw<{ bucket: Date; total: bigint }[]>(
       Prisma.sql`
-        SELECT ${bucketSql} as bucket, COALESCE(SUM(amount), 0)::bigint as total
-        FROM folio_items
-        WHERE hotel_id = ${req.user!.hotelId}::uuid
-          AND type != 'DISCOUNT'
-          AND is_voided = false
-          AND charge_date >= ${rangeStart}
-          AND charge_date <= ${todayEnd}
+        SELECT ${bucketColSql} AS bucket, COALESCE(SUM(amount), 0)::bigint AS total
+        FROM (
+          SELECT amount, charge_date AS bucket_date FROM folio_items
+          WHERE hotel_id = ${req.user!.hotelId}::uuid
+            AND type != 'DISCOUNT'
+            AND is_voided = false
+            AND charge_date >= ${rangeStart}
+            AND charge_date <= ${todayEnd}
+          UNION ALL
+          SELECT total AS amount, created_at AS bucket_date FROM pos_orders
+          WHERE hotel_id = ${req.user!.hotelId}::uuid
+            AND created_at >= ${rangeStart}
+            AND created_at <= ${todayEnd}
+            AND is_posted_to_folio = false
+        ) _combined
         GROUP BY bucket
         ORDER BY bucket ASC
       `

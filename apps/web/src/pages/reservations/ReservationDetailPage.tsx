@@ -3,9 +3,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   ArrowLeft, Copy, Phone, Mail, BadgeCheck, MapPin,
-  LogIn, LogOut, Check, Receipt, BedDouble, Users,
+  LogIn, LogOut, Check, Receipt, BedDouble, Users, Tag,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { api } from "@/lib/api";
 import {
   reservationsService,
   type ReservationDetail,
@@ -127,6 +128,19 @@ export default function ReservationDetailPage() {
     queryKey: ["reservation", id],
     queryFn: () => reservationsService.getReservation(id!),
     enabled: !!id,
+  });
+
+  const room0 = reservation?.rooms[0];
+  const { data: suggestData } = useQuery({
+    queryKey: ["rate-suggest", room0?.roomTypeId, reservation?.checkInDate?.slice(0, 10), reservation?.checkOutDate?.slice(0, 10)],
+    queryFn: async () => {
+      const res = await api.get("/api/rate-plans/suggest", {
+        params: { roomTypeId: room0!.roomTypeId, checkIn: reservation!.checkInDate.slice(0, 10), checkOut: reservation!.checkOutDate.slice(0, 10) },
+      });
+      return res.data.data as { suggestedRate: number; matchedPlan: { id: string; name: string } | null };
+    },
+    enabled: !!room0 && !!reservation?.checkInDate && !!reservation?.checkOutDate,
+    staleTime: 60_000,
   });
 
   const statusMutation = useMutation({
@@ -293,7 +307,15 @@ export default function ReservationDetailPage() {
           {/* Rate summary */}
           {room && (
             <Card>
-              <SectionLabel>Rate summary</SectionLabel>
+              <div className="flex items-center justify-between mb-2">
+                <SectionLabel>Rate summary</SectionLabel>
+                {suggestData?.matchedPlan && (
+                  <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-pine bg-pine/20 border border-pine/40 px-2.5 py-1 rounded-lg">
+                    <Tag size={11} strokeWidth={2.5} />
+                    {suggestData.matchedPlan.name}
+                  </span>
+                )}
+              </div>
               <div className="rounded-xl2 border border-line bg-card p-4 space-y-2.5">
                 <div className="flex items-center justify-between text-[14px]">
                   <span className="text-ink-mute">{fmtPkr(room.ratePerNight)} × {nights} nights</span>
@@ -358,7 +380,7 @@ export default function ReservationDetailPage() {
                 className={cn(
                   "w-full h-11 rounded-full font-semibold text-sm transition-all flex items-center justify-center gap-2",
                   nextStatus === "CHECKED_IN"  ? "bg-pine text-white hover:bg-pine-deep" :
-                  nextStatus === "CHECKED_OUT" ? "bg-ink text-white hover:bg-ink-soft" :
+                  nextStatus === "CHECKED_OUT" ? "bg-coral text-white hover:bg-coral-dark" :
                   "bg-coral text-white hover:bg-coral-dark",
                   "disabled:opacity-40 disabled:pointer-events-none",
                 )}

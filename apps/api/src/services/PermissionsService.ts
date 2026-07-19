@@ -24,6 +24,7 @@ export const PermissionsService = {
           key: permission.key,
           module: permission.module,
           action: permission.action,
+          displayName: permission.displayName,
           enabled: grantedIds.has(permission.id),
         })),
       };

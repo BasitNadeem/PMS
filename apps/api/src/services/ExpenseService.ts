@@ -24,7 +24,7 @@ import { adminPrisma, Prisma } from "@pms/db";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
 import type { CreateExpenseDto, UpdateExpenseDto, ListExpensesQuery } from "../schemas/expenses";
-import { createLedgerEntryFromExpense } from "./CashBookService";
+import { createLedgerEntryFromExpense, voidLedgerEntryFromExpense } from "./CashBookService";
 
 export interface ExpenseRow {
   id:             string;
@@ -37,6 +37,7 @@ export interface ExpenseRow {
   paid_to:        string;
   receipt_ref:    string | null;
   notes:          string | null;
+  attachment_url: string | null;
   created_by_id:  string;
   created_at:     Date;
   updated_at:     Date;
@@ -86,11 +87,11 @@ export const ExpenseService = {
     const rows = await adminPrisma.$queryRaw<ExpenseRow[]>`
       INSERT INTO expenses
         (hotel_id, date, category, description, amount, payment_method, paid_to,
-         receipt_ref, notes, created_by_id, created_at, updated_at)
+         receipt_ref, notes, attachment_url, created_by_id, created_at, updated_at)
       VALUES
         (${hotelId}::uuid, ${dto.date}::date, ${dto.category}, ${dto.description},
          ${dto.amount}::int, ${dto.paymentMethod}, ${dto.paidTo},
-         ${dto.receiptRef ?? null}, ${dto.notes ?? null},
+         ${dto.receiptRef ?? null}, ${dto.notes ?? null}, ${dto.attachmentUrl ?? null},
          ${actorId}::uuid, now(), now())
       RETURNING *
     `;
@@ -122,6 +123,7 @@ export const ExpenseService = {
     if (dto.paidTo        !== undefined) sets.push(Prisma.sql`paid_to        = ${dto.paidTo}`);
     if (dto.receiptRef    !== undefined) sets.push(Prisma.sql`receipt_ref    = ${dto.receiptRef ?? null}`);
     if (dto.notes         !== undefined) sets.push(Prisma.sql`notes          = ${dto.notes ?? null}`);
+    if (dto.attachmentUrl !== undefined) sets.push(Prisma.sql`attachment_url = ${dto.attachmentUrl ?? null}`);
     sets.push(Prisma.sql`updated_at = now()`);
 
     const setClause = Prisma.join(sets, ", ");
@@ -138,6 +140,8 @@ export const ExpenseService = {
     if (!["OWNER", "MANAGER"].includes(actorRole)) {
       throw new AppError(403, "Only owners and managers can delete expenses");
     }
+    // Reverse the cash book entry before deleting so the ledger stays balanced
+    await voidLedgerEntryFromExpense(hotelId, id, actorId);
     await adminPrisma.$executeRaw`
       DELETE FROM expenses WHERE id = ${id}::uuid AND hotel_id = ${hotelId}::uuid
     `;

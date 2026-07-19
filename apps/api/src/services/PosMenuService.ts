@@ -138,6 +138,7 @@ export const PosMenuService = {
           photoUrl:         dto.photoUrl ?? null,
           isQrVisible:      dto.isQrVisible,
           isFeatured:       dto.isFeatured,
+          taxRate:          dto.taxRate,
         },
       });
       await db.auditLog.create({
@@ -177,6 +178,7 @@ export const PosMenuService = {
           ...(dto.photoUrl         !== undefined && { photoUrl:         dto.photoUrl }),
           ...(dto.isQrVisible      !== undefined && { isQrVisible:      dto.isQrVisible }),
           ...(dto.isFeatured       !== undefined && { isFeatured:       dto.isFeatured }),
+          ...(dto.taxRate          !== undefined && { taxRate:          dto.taxRate }),
         },
       });
       await db.auditLog.create({

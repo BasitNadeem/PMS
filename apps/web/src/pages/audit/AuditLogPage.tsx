@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { TONE, type ToneConfig } from "@/components/ui/StatusBadge";
 import { auditService, type AuditLogParams, type AuditLogEntry } from "@/services/audit";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 const ACTION_LABELS: Record<string, string> = {
   GUEST_CREATE: "Guest Created",
@@ -299,11 +300,11 @@ export default function AuditLogPage() {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[12px] font-semibold text-ink-mute">From</label>
-            <input type="date" value={filters.startDate ?? ""} onChange={(e) => setFilter("startDate", e.target.value || undefined)} className={inputCls} />
+            <DatePicker value={filters.startDate ?? ""} onChange={(v) => setFilter("startDate", v || undefined)} className="h-10" />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[12px] font-semibold text-ink-mute">To</label>
-            <input type="date" value={filters.endDate ?? ""} onChange={(e) => setFilter("endDate", e.target.value || undefined)} className={inputCls} />
+            <DatePicker value={filters.endDate ?? ""} onChange={(v) => setFilter("endDate", v || undefined)} className="h-10" />
           </div>
           <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
             <label className="text-[12px] font-semibold text-ink-mute">Action</label>

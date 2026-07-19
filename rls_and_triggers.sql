@@ -137,6 +137,15 @@ SELECT enable_hotel_rls('custom_field_definitions');
 SELECT enable_hotel_rls('push_subscriptions');
 SELECT enable_hotel_rls('front_desk_notes');
 
+-- night_audit_records: hotel column is "hotelId" (camelCase, no @map in schema)
+-- Cannot use enable_hotel_rls() which hardcodes hotel_id — inline policy instead.
+ALTER TABLE night_audit_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE night_audit_records FORCE   ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS hotel_isolation ON night_audit_records;
+CREATE POLICY hotel_isolation ON night_audit_records
+  USING      ("hotelId" = current_hotel_id())
+  WITH CHECK ("hotelId" = current_hotel_id());
+
 
 -- ── Tables without a direct hotel_id (accessed via parent FK) ────────────────
 -- These still get RLS enabled but with a permissive policy.
@@ -979,7 +988,7 @@ VALUES
    'Room status updates, housekeeping tasks, maintenance and supplies.',
    '#6B21A8', true, false, 4, NOW(), NOW()),
 
-  ('KITCHEN',      'Kitchen Staff',
+  ('KITCHEN',      'Kitchen',
    'View and manage POS orders and kitchen inventory only.',
    '#0F766E', true, false, 5, NOW(), NOW()),
 
@@ -990,7 +999,13 @@ VALUES
   ('ACCOUNTANT',   'Accountant',
    'Financial reports, payment reconciliation, shift sign-off and FBR invoicing.',
    '#374151', true, false, 7, NOW(), NOW())
-ON CONFLICT (hotel_id, name) DO NOTHING;
+-- Targets roles_system_name_key (partial unique index on name WHERE hotel_id
+-- IS NULL, added by migration 20260706000000_dedupe_system_roles_and_fix_constraint).
+-- The old `ON CONFLICT (hotel_id, name)` here never actually matched these
+-- rows — a plain composite unique index doesn't treat NULL hotel_id as a
+-- conflict, so every re-run of this script (it's meant to be re-run after
+-- every migrate deploy) inserted 7 fresh duplicate system roles.
+ON CONFLICT (name) WHERE hotel_id IS NULL DO NOTHING;
 
 
 -- ============================================================================
@@ -1071,22 +1086,6 @@ VALUES
    'Issue Refunds',
    'Issue full or partial refunds to guests'),
 
-  -- ── POS ───────────────────────────────────────────────────────────────────
-  ('pos:view-orders',
-   'pos', 'view',
-   'View Orders',
-   'View kitchen and service orders'),
-
-  ('pos:create-order',
-   'pos', 'create',
-   'Create Orders',
-   'Create F&B, laundry and other service orders'),
-
-  ('pos:manage-menu',
-   'pos', 'edit',
-   'Manage Menu',
-   'Add, edit and deactivate POS items and categories'),
-
   -- ── Rooms ─────────────────────────────────────────────────────────────────
   ('rooms:view-status',
    'rooms', 'view',
@@ -1098,32 +1097,17 @@ VALUES
    'Update Room Status',
    'Mark rooms as clean, dirty, out of order or blocked'),
 
-  -- ── Housekeeping ──────────────────────────────────────────────────────────
-  ('housekeeping:view',
-   'housekeeping', 'view',
-   'View Housekeeping Tasks',
-   'View daily task assignments and room cleaning schedules'),
-
-  ('housekeeping:update',
-   'housekeeping', 'edit',
-   'Update Housekeeping Tasks',
-   'Mark tasks complete, flag issues and upload issue photos'),
-
-  -- ── Maintenance ───────────────────────────────────────────────────────────
-  ('maintenance:view',
-   'maintenance', 'view',
-   'View Maintenance Tickets',
-   'View open and closed maintenance tickets'),
-
-  ('maintenance:create',
-   'maintenance', 'create',
-   'Create Maintenance Tickets',
-   'Raise new maintenance requests with photos and descriptions'),
-
-  ('maintenance:resolve',
-   'maintenance', 'edit',
-   'Resolve Maintenance Tickets',
-   'Update ticket status, add resolution notes and record costs'),
+  -- ── POS, Housekeeping, Maintenance ──────────────────────────────────────────
+  -- Deliberately NOT seeded here. packages/db/src/seed.ts is the sole source
+  -- of truth for these three modules — HOUSEKEEPING_*/MAINTENANCE_*/POS_*
+  -- (ALL_PERMISSIONS, gates the API routes) and housekeeping:*/maintenance:*/
+  -- pos:* (MODULE_PERMISSIONS, gates app menu/button visibility — see
+  -- apps/web's usePermissions()). This file used to define its own
+  -- pos:view-orders/pos:create-order/pos:manage-menu/housekeeping:view/
+  -- maintenance:view/maintenance:resolve here, none of which were ever
+  -- checked anywhere in the app — dead rows that also caused the Settings
+  -- permissions UI to show doubled Read/Create/Update toggles for these
+  -- modules. Fixed by migration 20260706000001_reclassify_dual_purpose_permissions.
 
   -- ── Reports ───────────────────────────────────────────────────────────────
   ('reports:view',
@@ -1234,10 +1218,7 @@ SELECT assign_permissions_to_role('OWNER', ARRAY[
   'guests:view', 'guests:view-sensitive', 'guests:edit',
   'folio:view', 'folio:post-charge', 'folio:void-charge',
   'payments:view', 'payments:process', 'payments:refund',
-  'pos:view-orders', 'pos:create-order', 'pos:manage-menu',
   'rooms:view-status', 'rooms:update-status',
-  'housekeeping:view', 'housekeeping:update',
-  'maintenance:view', 'maintenance:create', 'maintenance:resolve',
   'reports:view',
   'audit:view',
   'staff:manage', 'staff:manage-roles',
@@ -1247,16 +1228,15 @@ SELECT assign_permissions_to_role('OWNER', ARRAY[
 ]);
 
 -- ── MANAGER — everything except audit log and hotel settings ──────────────────
+-- Housekeeping/Maintenance/POS access for this role comes from seed.ts's
+-- MODULE_ROLE_PERMISSIONS + ROLE_PERMISSIONS (see note above) — not from here.
 SELECT assign_permissions_to_role('MANAGER', ARRAY[
   'reservations:view', 'reservations:create', 'reservations:edit', 'reservations:cancel',
   'guests:view', 'guests:view-sensitive', 'guests:edit',
   'folio:view', 'folio:post-charge', 'folio:void-charge',
   'payments:view', 'payments:process',
   -- no 'payments:refund' — owner approval required
-  'pos:view-orders', 'pos:create-order', 'pos:manage-menu',
   'rooms:view-status', 'rooms:update-status',
-  'housekeeping:view', 'housekeeping:update',
-  'maintenance:view', 'maintenance:create', 'maintenance:resolve',
   'reports:view',
   -- no 'audit:view'
   'staff:manage',
@@ -1275,35 +1255,31 @@ SELECT assign_permissions_to_role('FRONT_DESK', ARRAY[
   'folio:view', 'folio:post-charge',
   -- no 'folio:void-charge' — needs manager
   'payments:view', 'payments:process',
-  'pos:view-orders', 'pos:create-order',
   'rooms:view-status', 'rooms:update-status',
-  'housekeeping:view',
-  -- no 'housekeeping:update' — they log tasks but don't complete them
-  'maintenance:view', 'maintenance:create',
   'settings:view',
   'shift-reports:view'
 ]);
 
 -- ── HOUSEKEEPING — rooms, tasks, maintenance, supplies ────────────────────────
+-- Housekeeping/maintenance access for this role comes from seed.ts instead
+-- (see note above) — this array only covers what's still defined in this file.
 SELECT assign_permissions_to_role('HOUSEKEEPING', ARRAY[
   'rooms:view-status', 'rooms:update-status',
-  'housekeeping:view', 'housekeeping:update',
-  'maintenance:view', 'maintenance:create',
   'inventory:view', 'inventory:update'
   -- no guest data, no financials, no reports
 ]);
 
 -- ── KITCHEN — orders and kitchen stock only ───────────────────────────────────
+-- POS access for this role comes from seed.ts instead (see note above).
 SELECT assign_permissions_to_role('KITCHEN', ARRAY[
-  'pos:view-orders', 'pos:create-order',
   'inventory:view', 'inventory:update'
   -- no guest names, no room numbers in detail, no payments
 ]);
 
 -- ── MAINTENANCE — tickets and asset management ────────────────────────────────
+-- Maintenance access for this role comes from seed.ts instead (see note above).
 SELECT assign_permissions_to_role('MAINTENANCE', ARRAY[
   'rooms:view-status',
-  'maintenance:view', 'maintenance:create', 'maintenance:resolve',
   'inventory:view', 'inventory:update'
 ]);
 

@@ -41,7 +41,8 @@ conversations messages \
 rate_plans rate_plan_items channel_configs \
 staff shift_reports tax_configs \
 audit_logs notifications \
-custom_field_definitions custom_field_values"
+custom_field_definitions custom_field_values \
+night_audit_records"
 
 for t in $CORE_TABLES; do
   EXISTS=$(check_table "$t")
@@ -83,6 +84,19 @@ for t in $OP_TABLES; do
     echo "  ✅ exists, RLS on   $t"
   else
     echo "  ⚠️  exists, RLS OFF  $t"
+  fi
+done
+
+# ── Admin/Platform tables (no RLS — global, not hotel-scoped) ─────────────────
+echo ""
+echo "── Admin/Platform tables (no RLS — global, not hotel-scoped) ──"
+PLATFORM_TABLES="subscription_plans"
+for t in $PLATFORM_TABLES; do
+  EXISTS=$(check_table "$t")
+  if [ "$EXISTS" = "1" ]; then
+    echo "  ✅ exists           $t"
+  else
+    echo "  ❌ MISSING          $t"
   fi
 done
 
@@ -131,7 +145,14 @@ for col in is_qr_visible is_featured; do
     echo "  ❌ MISSING  pos_items.$col"
   fi
 done
-for col in subdomain onboarding_completed onboarding_step; do
+for col in booking_contact_name; do
+  if [ "$(check_col reservations $col)" = "1" ]; then
+    echo "  ✅ reservations.$col"
+  else
+    echo "  ❌ MISSING  reservations.$col"
+  fi
+done
+for col in subdomain onboarding_completed onboarding_step subscription_plan_id room_limit_override feature_overrides description amenities; do
   if [ "$(check_col hotels $col)" = "1" ]; then
     echo "  ✅ hotels.$col"
   else

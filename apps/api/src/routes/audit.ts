@@ -5,9 +5,14 @@ import { tenantMiddleware } from "../middleware/tenant";
 import { requirePermission } from "../middleware/permission";
 import { adminPrisma, Prisma } from "@pms/db";
 import { paginationMeta } from "../utils/pagination";
+import { checkFeatureAccess } from "../lib/subscription";
 
-const router = Router();
+const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
+router.use(async (req, _res, next) => {
+  await checkFeatureAccess(req.user!.hotelId, "auditLog");
+  next();
+});
 
 const querySchema = z.object({
   entity:    z.string().trim().optional(),

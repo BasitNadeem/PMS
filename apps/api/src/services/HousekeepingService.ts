@@ -3,6 +3,7 @@ import { HousekeepingTaskStatus, RoomStatus, UserRole, adminPrisma } from "@pms/
 import type { JwtPayload } from "../middleware/auth";
 import { NotificationService } from "./NotificationService";
 import { notifyHotelDataChanged } from "../lib/realtime";
+import { getPKTDayRange, getCurrentPKTDate } from "../lib/timezone";
 import { sendPushToUser } from "../lib/webpush";
 import type {
   ListTasksQuery,
@@ -298,8 +299,7 @@ export const HousekeepingService = {
   },
 
   async summary(withTenant: WithTenantFn) {
-    const now = new Date();
-    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const todayStart = getPKTDayRange(getCurrentPKTDate()).start;
 
     const [pending, inProgress, completedToday] = await withTenant((db) =>
       Promise.all([

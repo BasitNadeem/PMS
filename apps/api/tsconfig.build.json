@@ -3,7 +3,25 @@
   "compilerOptions": {
     "rootDir": "./src",
     "outDir":  "./dist",
-    "declaration": true
+    // No "declaration" — apps/api is a deployable leaf app, not a library; nothing
+    // imports its types (unlike packages/db). Emitting .d.ts here would force every
+    // exported const whose inferred type transitively touches @prisma/client's
+    // internal runtime types to need an explicit portable annotation for no benefit.
+    // Dev mode runs everything through tsx, which transpiles in-memory regardless of
+    // this setting — so this only affects what's literally written to dist/. Emitting
+    // ESM here would leave every extensionless relative import (e.g. "./lib/env")
+    // broken under Node's native ESM resolver, which requires explicit .js extensions.
+    // CommonJS output sidesteps that without having to touch every import in the codebase.
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    // Dev/typecheck resolve "@pms/db" straight to its TS source (see tsconfig.json) for
+    // instant cross-package edits with no rebuild step. The production build must NOT
+    // inherit that override — it needs @pms/db's compiled dist/ (built via its own
+    // "build" script, per turbo.json's `dependsOn: ["^build"]`), both because a .ts
+    // source file would violate rootDir here, and because the emitted dist/index.js
+    // is the only form plain `node` can load at runtime. Clearing paths falls through
+    // to normal package.json-based resolution, which now points at packages/db/dist.
+    "paths": {}
   },
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

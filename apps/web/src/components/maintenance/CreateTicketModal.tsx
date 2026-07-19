@@ -7,6 +7,7 @@ import { maintenanceService, type MaintenanceCategory, type MaintenancePriority 
 import { uploadService } from "@/services/upload";
 import { roomsService } from "@/services/rooms";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 const CATEGORY_OPTIONS: { value: MaintenanceCategory; label: string }[] = [
   { value: "ELECTRICAL",   label: "Electrical" },
@@ -39,14 +40,15 @@ export function CreateTicketModal({ onClose, initialRoomId, initialRoomNumber }:
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [roomId,         setRoomId]         = useState(initialRoomId ?? "");
-  const [title,          setTitle]          = useState("");
-  const [description,    setDescription]    = useState("");
-  const [category,       setCategory]       = useState<MaintenanceCategory>("OTHER");
-  const [priority,       setPriority]       = useState<MaintenancePriority>("MEDIUM");
-  const [photoUrls,      setPhotoUrls]      = useState<string[]>([]);
-  const [uploadingCount, setUploadingCount] = useState(0);
-  const [error,          setError]          = useState<string | null>(null);
+  const [roomId,           setRoomId]           = useState(initialRoomId ?? "");
+  const [title,            setTitle]            = useState("");
+  const [description,      setDescription]      = useState("");
+  const [category,         setCategory]         = useState<MaintenanceCategory>("OTHER");
+  const [priority,         setPriority]         = useState<MaintenancePriority>("MEDIUM");
+  const [scheduledEndDate, setScheduledEndDate] = useState("");
+  const [photoUrls,        setPhotoUrls]        = useState<string[]>([]);
+  const [uploadingCount,   setUploadingCount]   = useState(0);
+  const [error,            setError]            = useState<string | null>(null);
 
   const { data: roomsData } = useQuery({
     queryKey: ["rooms"],
@@ -97,9 +99,10 @@ export function CreateTicketModal({ onClose, initialRoomId, initialRoomNumber }:
       title: title.trim(),
       category,
       priority,
-      ...(roomId            && { roomId }),
-      ...(description.trim() && { description: description.trim() }),
-      ...(photoUrls.length  && { photoUrls }),
+      ...(roomId              && { roomId }),
+      ...(description.trim()  && { description: description.trim() }),
+      ...(scheduledEndDate    && { scheduledEndDate }),
+      ...(photoUrls.length    && { photoUrls }),
     });
   }
 
@@ -144,6 +147,24 @@ export function CreateTicketModal({ onClose, initialRoomId, initialRoomNumber }:
               </select>
             )}
           </div>
+
+          {(roomId || initialRoomId) && (
+            <div>
+              <label className={labelCls}>
+                Room available from <span className="normal-case tracking-normal text-ink-faint font-normal">(optional)</span>
+              </label>
+              <DatePicker
+                value={scheduledEndDate}
+                onChange={setScheduledEndDate}
+                className="w-full"
+              />
+              {scheduledEndDate && (
+                <p className="mt-1.5 text-[12px] text-amber-600">
+                  Room will be blocked for new reservations until {scheduledEndDate}. Choose carefully.
+                </p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className={labelCls}>Category <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>

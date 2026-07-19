@@ -4,9 +4,14 @@ import { tenantMiddleware } from "../middleware/tenant";
 import { requirePermission } from "../middleware/permission";
 import { listQrOrdersSchema, advanceStatusSchema, editOrderSchema } from "../schemas/qrMenu";
 import { QrOrderService } from "../services/QrOrderService";
+import { checkFeatureAccess } from "../lib/subscription";
 
-const router = Router();
+const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
+router.use(async (req, _res, next) => {
+  await checkFeatureAccess(req.user!.hotelId, "qrOrdering");
+  next();
+});
 
 // GET /api/qr-orders — list all orders with items
 router.get("/", requirePermission("pos:read"), async (req, res) => {

@@ -2,6 +2,7 @@ import type { TenantTx } from "@pms/db";
 import type { JwtPayload } from "../middleware/auth";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
+import { checkRoomLimit } from "../lib/subscription";
 import type {
   ListRoomsQuery,
   CreateRoomDto,
@@ -44,6 +45,8 @@ export const RoomService = {
           maxOccupancy: dto.maxOccupancy,
           defaultRate:  dto.defaultRate,
           sortOrder:    dto.sortOrder,
+          photoUrls:    dto.photoUrls ?? [],
+          amenities:    dto.amenities ?? [],
         },
       });
 
@@ -122,6 +125,9 @@ export const RoomService = {
   },
 
   async createRoom(withTenant: WithTenantFn, actor: JwtPayload, dto: CreateRoomDto) {
+    const roomCount = await withTenant((db) => db.room.count({ where: { isActive: true } }));
+    await checkRoomLimit(actor.hotelId, roomCount);
+
     return withTenant(async (db) => {
       const roomType = await db.roomType.findUnique({ where: { id: dto.roomTypeId } });
       if (!roomType) throw new AppError(404, "Room type not found");

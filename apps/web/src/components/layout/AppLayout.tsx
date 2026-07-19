@@ -5,7 +5,7 @@ import {
   LayoutDashboard, BedDouble, Users, Users2, CalendarCheck,
   Landmark, Sparkles, ShoppingCart, FileBarChart, LogOut,
   ChevronsUpDown, PanelLeftClose, PanelLeftOpen, TrendingUp, Menu, X, Settings,
-  Receipt, TrendingDown, BookOpen, Wrench, ClipboardList, ChefHat, Monitor, Package,
+  Receipt, TrendingDown, BookOpen, Wrench, ClipboardList, ChefHat, Monitor, Package, Network, Moon, Tag,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useQuery } from "@tanstack/react-query";
@@ -108,6 +108,7 @@ interface NavItem {
   permission: string;
   roleOnly?: string;
   newTab?: boolean;
+  featureGate?: string;
   children?: NavSubItem[];
 }
 
@@ -133,7 +134,15 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/pos",          label: "POS",       icon: ShoppingCart,  permission: "pos:read" },
   { to: "/qr-orders",    label: "QR Orders", icon: ClipboardList, permission: "pos:read" },
   { to: "/inventory",    label: "Inventory", icon: Package,       permission: "pos:read" },
-  { to: "/reports", label: "Reports", icon: FileBarChart, permission: "reports:read" },
+  {
+    to: "/reports", label: "Reports", icon: FileBarChart, permission: "reports:read",
+    children: [
+      { to: "/reports",             label: "All Reports", icon: FileBarChart, permission: "reports:read" },
+      { to: "/reports/night-audit", label: "Night Audit", icon: Moon,         permission: "reports:read" },
+    ],
+  },
+  { to: "/rate-plans",      label: "Rate Plans", icon: Tag,     permission: "rates:read",      featureGate: "ratePlans" },
+  { to: "/channel-manager", label: "Channels",  icon: Network, permission: "dashboard:read",  featureGate: "channelManager" },
 ];
 
 function Logo({ size = 38 }: { size?: number }) {
@@ -167,20 +176,19 @@ function OccupancyMini() {
   const barColor = pct < 30 ? "#BB4A33" : pct < 70 ? "#B7791A" : "#2F7256";
 
   return (
-    <div className="rounded-xl2 bg-ink p-4 text-white relative overflow-hidden">
-      <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-coral/20 blur-xl" />
-      <div className="relative">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/55">Occupancy</span>
-          <TrendingUp size={15} className="text-coral" />
+    <div className="rounded-xl bg-ink px-3 py-2 text-white">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <TrendingUp size={13} className="text-coral shrink-0" />
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-white/45 shrink-0">Occupancy</span>
         </div>
-        <div className="mt-1 flex items-end gap-1.5">
-          <span className="serif text-[30px] leading-none tnum">{pct}%</span>
-          <span className="mb-1 text-[12px] text-white/55">{rooms}/{total} rooms</span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-[15px] font-bold leading-none tnum">{pct}%</span>
+          <span className="text-[11px] text-white/40">{rooms}/{total}</span>
         </div>
-        <div className="mt-2.5 h-1.5 rounded-full bg-white/15 overflow-hidden">
-          <div className="h-full rounded-full transition-all duration-700" style={{ width: pct + "%", background: barColor }} />
-        </div>
+      </div>
+      <div className="mt-2 h-1 rounded-full bg-white/10 overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-700" style={{ width: pct + "%", background: barColor }} />
       </div>
     </div>
   );
@@ -235,6 +243,15 @@ function SidebarContent({
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: planFeatures } = useQuery<Record<string, boolean>>({
+    queryKey: ["settings", "plan", "features"],
+    queryFn: () =>
+      api
+        .get<{ data: { features: Record<string, boolean> } }>("/api/settings/plan")
+        .then((r) => r.data.data.features),
+    staleTime: 5 * 60 * 1000,
+  });
+
   function logout() {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
@@ -268,6 +285,7 @@ function SidebarContent({
   const navItems = NAV_ITEMS
     .filter((item) => {
       if (item.roleOnly && item.roleOnly !== userRole) return false;
+      if (item.featureGate && planFeatures && planFeatures[item.featureGate] !== true) return false;
       return item.children
         ? hasAny(item.children.map((c) => c.permission))
         : has(item.permission);

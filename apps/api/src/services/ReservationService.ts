@@ -1,5 +1,5 @@
 import type { TenantTx } from "@pms/db";
-import { ReservationStatus, FolioItemType } from "@pms/db";
+import { ReservationStatus, FolioItemType, RoomStatus, MaintenanceStatus } from "@pms/db";
 import type { JwtPayload } from "../middleware/auth";
 import { recalculateFolioTotals } from "../utils/folioTotals";
 import { createLedgerEntryFromPayment } from "./CashBookService";
@@ -52,7 +52,7 @@ function buildReservationOrderBy(sortBy: string, sortDir: SortDir) {
 
 const ALLOWED_TRANSITIONS: Partial<Record<ReservationStatus, ReservationStatus[]>> = {
   ENQUIRY:    ["CONFIRMED", "CANCELLED"],
-  CONFIRMED:  ["CHECKED_IN", "CANCELLED"],
+  CONFIRMED:  ["CHECKED_IN", "CANCELLED", "NO_SHOW"],
   CHECKED_IN: ["CHECKED_OUT"],
 };
 
@@ -168,6 +168,27 @@ export const ReservationService = {
       });
       if (conflict) {
         throw new AppError(409, formatRoomConflictMessage(conflict));
+      }
+
+      const room = await db.room.findUnique({ where: { id: dto.roomId }, select: { status: true, number: true } });
+      if (!room) throw new AppError(404, "Room not found");
+      const permanentlyBlocked: RoomStatus[] = [RoomStatus.OUT_OF_ORDER, RoomStatus.BLOCKED];
+      if (permanentlyBlocked.includes(room.status)) {
+        throw new AppError(409, `Room ${room.number} is currently ${room.status.toLowerCase().replace(/_/g, " ")} and cannot be reserved`);
+      }
+
+      // Block if an open maintenance ticket covers the check-in date.
+      const maintenanceConflict = await db.maintenanceTicket.findFirst({
+        where: {
+          roomId:          dto.roomId,
+          status:          { notIn: [MaintenanceStatus.RESOLVED, MaintenanceStatus.CLOSED] },
+          scheduledEndDate: { not: null, gte: new Date(dto.checkInDate) },
+        },
+        select: { scheduledEndDate: true },
+      });
+      if (maintenanceConflict) {
+        const endStr = maintenanceConflict.scheduledEndDate!.toISOString().slice(0, 10);
+        throw new AppError(409, `Room ${room.number} is under maintenance until ${endStr}`);
       }
 
       const nights = Math.ceil(

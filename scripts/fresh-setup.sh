@@ -156,6 +156,9 @@ EXPECTED_TABLES=(
   cash_accounts ledger_entries
   menu_categories menu_items
   qr_orders qr_order_items
+  # Night audit + subscription
+  night_audit_records
+  subscription_plans
 )
 
 MISSING=0

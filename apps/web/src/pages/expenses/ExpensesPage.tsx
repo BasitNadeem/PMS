@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  TrendingDown, Plus, Pencil, Trash2, ChevronLeft, ChevronRight,
+  TrendingDown, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Paperclip,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -18,6 +18,7 @@ import { Card } from "@/components/ui/Card";
 import { useToast } from "@/hooks/useToast";
 import { ToastContainer } from "@/components/ui/ToastContainer";
 import { usePermissions } from "@/hooks/usePermissions";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -182,7 +183,7 @@ export default function ExpensesPage() {
         {has("expenses:create") && (
           <button
             onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-ink text-white text-sm font-semibold hover:bg-ink/90 transition-colors shadow-pop"
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-coral text-white text-sm font-semibold hover:bg-coral-dark transition-colors shadow-pop"
           >
             <Plus size={16} /> Add Expense
           </button>
@@ -220,11 +221,11 @@ export default function ExpensesPage() {
         <div className="flex flex-wrap items-end gap-3 px-5 py-4">
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wide text-ink-faint mb-1">From</label>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} />
+            <DatePicker value={startDate} onChange={setStartDate} className="h-9" />
           </div>
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wide text-ink-faint mb-1">To</label>
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputCls} />
+            <DatePicker value={endDate} onChange={setEndDate} className="h-9" />
           </div>
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wide text-ink-faint mb-1">Category</label>
@@ -237,7 +238,7 @@ export default function ExpensesPage() {
           </div>
           <button
             onClick={applyFilters}
-            className="h-9 px-4 rounded-full bg-ink text-white text-[13px] font-semibold hover:bg-ink/90 transition-colors shadow-pop"
+            className="h-9 px-4 rounded-full bg-coral text-white text-[13px] font-semibold hover:bg-coral-dark transition-colors shadow-pop"
           >
             Apply
           </button>
@@ -283,7 +284,7 @@ export default function ExpensesPage() {
           ))
         ) : expenses.length === 0 ? (
           <div className="flex flex-col items-center py-16 gap-3">
-            <div className="grid place-items-center h-14 w-14 rounded-2xl bg-clay-soft text-clay mb-1">
+            <div className="grid place-items-center h-14 w-14 rounded-2xl bg-coral-soft text-coral mb-1">
               <TrendingDown size={26} />
             </div>
             <p className="text-base font-semibold text-ink-soft">No expenses recorded</p>
@@ -291,7 +292,7 @@ export default function ExpensesPage() {
             {has("expenses:create") && (
               <button
                 onClick={() => setShowAdd(true)}
-                className="mt-1 inline-flex items-center gap-2 h-9 px-4 rounded-full bg-ink text-white text-[13px] font-semibold hover:bg-ink/90 transition-colors shadow-pop"
+                className="mt-1 inline-flex items-center gap-2 h-9 px-4 rounded-full bg-coral text-white text-[13px] font-semibold hover:bg-coral-dark transition-colors shadow-pop"
               >
                 <Plus size={14} /> Add Expense
               </button>
@@ -339,6 +340,17 @@ export default function ExpensesPage() {
                       </div>
                     ) : (
                       <>
+                        {exp.attachment_url && (
+                          <a
+                            href={exp.attachment_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="View receipt"
+                            className="grid place-items-center h-7 w-7 rounded-lg text-ink-faint hover:text-pine hover:bg-pine/10 transition-colors"
+                          >
+                            <Paperclip size={14} />
+                          </a>
+                        )}
                         {has("expenses:update") && (
                           <button
                             onClick={() => setEditExpense(exp)}

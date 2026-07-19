@@ -3,6 +3,7 @@ import { ArrowLeft, X, Loader2, CheckCircle2, Search, BedDouble, ShoppingBag, Ut
 import type { CartItem } from "./CartBar";
 import { qrMenuService } from "../../services/qrMenu";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { getPhoneErrorMessage } from "@/lib/validation";
 
 interface OrderConfirmSheetProps {
   hotelSlug:   string;
@@ -140,6 +141,8 @@ export function OrderConfirmSheet({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    const phoneErr = getPhoneErrorMessage(guestPhone);
+    if (phoneErr) { setError(phoneErr); return; }
     setLoading(true);
     try {
       const result = await qrMenuService.placeOrder(hotelSlug, {
@@ -383,7 +386,7 @@ export function OrderConfirmSheet({
               <input
                 className={inputCls}
                 style={inputStyle}
-                placeholder="Phone number *"
+                placeholder="03XX XXXXXXX *"
                 value={guestPhone}
                 onChange={(e) => setGuestPhone(e.target.value)}
                 type="tel"

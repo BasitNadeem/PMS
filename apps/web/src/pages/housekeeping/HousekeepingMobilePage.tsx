@@ -178,7 +178,7 @@ function ReportIssueForm({ roomId, onDone, onCancel }: {
         <button
           onClick={submit}
           disabled={!title.trim() || submitting}
-          className="flex-1 h-10 rounded-lg bg-ink text-white text-[13.5px] font-semibold disabled:opacity-50"
+          className="flex-1 h-10 rounded-lg bg-coral text-white text-[13.5px] font-semibold hover:bg-coral-dark transition-colors disabled:opacity-50"
         >
           {submitting ? "Sending…" : "Submit"}
         </button>
@@ -644,7 +644,7 @@ export default function HousekeepingMobilePage() {
                 const { outcome } = await installPrompt.userChoice;
                 if (outcome === "accepted") setInstallPrompt(null);
               }}
-              className="h-8 px-3 rounded-lg bg-ink text-white text-[12.5px] font-semibold"
+              className="h-8 px-3 rounded-lg bg-coral text-white text-[12.5px] font-semibold hover:bg-coral-dark transition-colors"
             >
               Install
             </button>

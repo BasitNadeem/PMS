@@ -479,3 +479,41 @@ export async function createLedgerEntryFromExpense(
     console.error("[CashBook] createLedgerEntryFromExpense error:", expense.id, err);
   }
 }
+
+export async function voidLedgerEntryFromExpense(
+  hotelId: string,
+  expenseId: string,
+  actorId: string,
+): Promise<void> {
+  try {
+    const rows = await adminPrisma.$queryRaw<
+      { id: string; amount: number; account_id: string; payment_method: string | null; description: string }[]
+    >`
+      SELECT id, amount, account_id, payment_method, description
+      FROM ledger_entries
+      WHERE hotel_id    = ${hotelId}::uuid
+        AND source_type = 'EXPENSE'
+        AND source_id   = ${expenseId}
+        AND entry_type  = 'OUTGOING'
+      LIMIT 1
+    `;
+    if (rows.length === 0) return;
+
+    const original = rows[0];
+    await CashBookService.createEntry(
+      hotelId,
+      {
+        accountId:     original.account_id,
+        entryType:     "INCOMING",
+        amount:        original.amount,
+        sourceType:    "EXPENSE",
+        sourceId:      expenseId,
+        description:   `Void: ${original.description}`,
+        paymentMethod: original.payment_method ?? undefined,
+      } as CreateEntryDto & { sourceId: string },
+      actorId,
+    );
+  } catch (err) {
+    console.error("[CashBook] voidLedgerEntryFromExpense error:", expenseId, err);
+  }
+}

@@ -9,10 +9,15 @@ import {
   updateTicketStatusSchema,
 } from "../schemas/maintenance";
 import { MaintenanceService } from "../services/MaintenanceService";
+import { checkFeatureAccess } from "../lib/subscription";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authenticate, tenantMiddleware);
+router.use(async (req, _res, next) => {
+  await checkFeatureAccess(req.user!.hotelId, "maintenanceTickets");
+  next();
+});
 
 // GET /api/maintenance/summary — BEFORE /:id
 router.get("/summary", requirePermission("MAINTENANCE_READ"), async (req, res) => {

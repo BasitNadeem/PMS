@@ -5,17 +5,18 @@ import { AppError } from "../utils/AppError";
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
 
 const SETTINGS_JSON_KEYS = [
-  "starRating", "description", "timezone",
+  "starRating", "timezone",
   "checkInTime", "checkOutTime",
   "lateCheckoutFee", "earlyCheckinFee",
   "defaultSource", "autoConfirm", "maxAdvanceDays",
   "gstEnabled", "gstRate", "pstEnabled", "pstRate",
   "taxInclusive", "fbrEnabled", "invoicePrefix",
-  "ownerWhatsappNumber", "themeKey",
+  "ownerWhatsappNumber", "themeKey", "posTaxRate", "logoUrl",
 ] as const;
 
 const HOTEL_MODEL_KEYS = [
-  "name", "propertyType", "phone", "email", "website",
+  "name", "propertyType", "description", "amenities",
+  "phone", "email", "website",
   "address", "city", "country", "onboardingStep",
 ] as const;
 
@@ -26,6 +27,7 @@ export const SettingsService = {
         where: { id: hotelId },
         select: {
           id: true, name: true, slug: true, propertyType: true,
+          description: true, amenities: true,
           phone: true, email: true, website: true,
           address: true, city: true, country: true,
           settings: true,
@@ -66,6 +68,7 @@ export const SettingsService = {
         data: { ...modelData, settings: settingsUpdate as any },
         select: {
           id: true, name: true, slug: true, propertyType: true,
+          description: true, amenities: true,
           phone: true, email: true, website: true,
           address: true, city: true, country: true,
           settings: true,

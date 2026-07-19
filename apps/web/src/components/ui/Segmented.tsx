@@ -18,7 +18,7 @@ export function Segmented({ options, value, onChange, size = "md", className }: 
   const h = size === "sm" ? "h-8" : "h-10";
   const ts = size === "sm" ? "text-[13px]" : "text-sm";
   return (
-    <div className={cn("inline-flex items-center gap-0.5 rounded-full bg-line-soft p-1", className)}>
+    <div className={cn("inline-flex items-center gap-0.5 rounded-full bg-line-soft p-1 ring-1 ring-ink/40", className)}>
       {options.map((o) => {
         const val = typeof o === "string" ? o : o.value;
         const lab = typeof o === "string" ? o : o.label;
@@ -31,7 +31,7 @@ export function Segmented({ options, value, onChange, size = "md", className }: 
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-3.5 font-semibold whitespace-nowrap transition-all duration-200",
               h, ts,
-              on ? "bg-card text-ink shadow-pop" : "text-ink-mute hover:text-ink-soft",
+              on ? "bg-card text-ink shadow-pop ring-1 ring-ink/50" : "text-ink-mute hover:text-ink-soft",
             )}
           >
             {Icon && <Icon size={15} />}

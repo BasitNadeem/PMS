@@ -27,9 +27,11 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
 };
 
 function notificationHref(n: AppNotification): string {
-  const entityId = n.metadata?.entityId;
+  const entityId   = n.metadata?.entityId;
+  const entityType = n.metadata?.entityType;
   if (n.type === "HOUSEKEEPING") return "/housekeeping";
-  if (entityId) return `/reservations/${entityId}`;
+  if (entityType === "group"       && entityId) return `/groups/${entityId}`;
+  if (entityType === "reservation" && entityId) return `/reservations/${entityId}`;
   return "/notifications";
 }
 

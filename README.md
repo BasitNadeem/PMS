@@ -154,24 +154,26 @@ pnpm db:generate
 
 ---
 
-## Production Build & Deployment
+## Production Build
 
-`VITE_API_URL` **must be set as an environment variable before running `pnpm build`** for
-`apps/web` and `apps/admin` — Vite bakes `VITE_*` vars into the compiled bundle at build
-time, not runtime. Setting it in a server-side `.env` file after the fact has no effect;
-the value has to be present in the shell environment when the build command itself runs.
+1. Copy `.env.production.example` to `.env.production`
+2. Fill in `VITE_API_URL` with your real production API URL
+3. Run: `pnpm build:prod`
 
-`apps/admin`'s build will now fail loudly (via `vite.config.ts`) if `VITE_API_URL` is
-unset, rather than silently shipping a bundle pointed at `localhost:4000`.
+`VITE_*` vars are baked into the compiled frontend bundles by Vite at **build time**, not
+runtime — setting them in a server-side `.env` file after the fact has no effect. `pnpm
+build:prod` (`scripts/production-build.sh`) loads `.env.production`, confirms `VITE_API_URL`
+is actually set, and only then runs the real build across all workspaces — so nobody has to
+remember to prefix the command by hand.
 
-For InnFlo's production domain structure:
+`apps/admin`'s build still fails loudly (via `vite.config.ts`) if `VITE_API_URL` is unset,
+rather than silently shipping a bundle pointed at `localhost:4000` — `build:prod` just makes
+it hard to hit that case in the first place.
+
+For a one-off override without touching `.env.production`, the manual form still works:
 
 ```bash
-# apps/web build
-VITE_API_URL=https://api.innflo.co pnpm --filter @pms/web build
-
-# apps/admin build
-VITE_API_URL=https://api.innflo.co pnpm --filter @pms/admin build
+VITE_API_URL=https://api.innflo.co pnpm build
 ```
 
 `apps/api` reads its config from `lib/env.ts` (validated with Zod) at process **startup**,

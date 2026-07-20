@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Users, Calendar, Minus, Plus, X, Check, ChevronLeft, ChevronRight, ZoomIn, Lock, Search, Tag,
@@ -435,9 +435,12 @@ function RoomCard({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-export default function BookingLandingPage() {
-  const { hotelSlug } = useParams<{ hotelSlug: string }>();
-  const navigate      = useNavigate();
+export interface BookingLandingPageProps {
+  hotelSlug: string;
+}
+
+export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProps) {
+  const navigate = useNavigate();
 
   const [checkIn,  setCheckIn]  = useState("");
   const [checkOut, setCheckOut] = useState("");
@@ -471,13 +474,11 @@ export default function BookingLandingPage() {
     : 0;
 
   const [cart, setCart] = useState<CartItem[]>(() => {
-    if (!hotelSlug) return [];
     try { return JSON.parse(sessionStorage.getItem(CART_KEY(hotelSlug)) ?? "[]") as CartItem[]; }
     catch { return []; }
   });
 
   useEffect(() => {
-    if (!hotelSlug) return;
     sessionStorage.setItem(CART_KEY(hotelSlug), JSON.stringify(cart));
   }, [cart, hotelSlug]);
 
@@ -488,25 +489,23 @@ export default function BookingLandingPage() {
 
   const { data: hotel, isLoading, isError } = useQuery({
     queryKey: ["booking-hotel", hotelSlug],
-    queryFn:  () => bookingEngineService.getHotel(hotelSlug!),
-    enabled:  !!hotelSlug,
+    queryFn:  () => bookingEngineService.getHotel(hotelSlug),
   });
 
   const { data: roomTypes = [] } = useQuery({
     queryKey: ["booking-room-types", hotelSlug],
-    queryFn:  () => bookingEngineService.getRoomTypes(hotelSlug!),
-    enabled:  !!hotelSlug,
+    queryFn:  () => bookingEngineService.getRoomTypes(hotelSlug),
   });
 
   const { data: availability } = useQuery({
     queryKey: ["booking-availability", hotelSlug, checkIn, checkOut],
-    queryFn:  () => bookingEngineService.getAvailability(hotelSlug!, checkIn, checkOut),
-    enabled:  !!hotelSlug && datesSelected,
+    queryFn:  () => bookingEngineService.getAvailability(hotelSlug, checkIn, checkOut),
+    enabled:  datesSelected,
   });
 
   const [rates, setRates] = useState<Record<string, number | null>>({});
   useEffect(() => {
-    if (!datesSelected || !hotelSlug || roomTypes.length === 0) { setRates({}); return; }
+    if (!datesSelected || roomTypes.length === 0) { setRates({}); return; }
     let cancelled = false;
     (async () => {
       const entries = await Promise.all(
@@ -597,8 +596,7 @@ export default function BookingLandingPage() {
              )}
           </div>
           <div className="flex items-center gap-4">
-            <a href="/" className="text-[13px] text-gray-700 hover:text-gray-900 hover:underline">Home</a>
-            <a href="/login"
+            <a href={`https://app.innflo.co/login?slug=${hotelSlug}`}
               className="flex items-center px-4 py-2 rounded-lg border-2 border-gray-800 text-[13px] font-bold text-gray-800 hover:bg-gray-800 hover:text-white transition-all whitespace-nowrap shrink-0">
               Property Login
             </a>
@@ -790,7 +788,7 @@ export default function BookingLandingPage() {
                 </div>
 
                 <div className="p-4 bg-gray-50/50">
-                   <button disabled={cartTotalRooms === 0} onClick={() => { if (hotelSlug) navigate(`/book/${hotelSlug}/reserve?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}`); }}
+                   <button disabled={cartTotalRooms === 0} onClick={() => navigate(`/reserve?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}`)}
                      className="w-full py-3 bg-[rgb(var(--be-accent))] text-white font-bold text-[13px] rounded-lg hover:bg-[rgb(var(--be-accent-dark))] transition-all disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed shadow-sm">
                      Continue &gt;
                    </button>

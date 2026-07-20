@@ -1,10 +1,14 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: "", password: "", hotelSlug: "" });
+  // ?slug= pre-fills the hotel slug field as a convenience when arriving from
+  // a Booking Engine's "Property Login" link — UX only, never used for auth;
+  // the field stays a normal editable input the user can change.
+  const [searchParams] = useSearchParams();
+  const [form, setForm] = useState({ email: "", password: "", hotelSlug: searchParams.get("slug") ?? "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 

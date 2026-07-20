@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useSearchParams, useNavigate, Link } from "react-router-dom";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Minus, Plus, ChevronLeft, Lock, Calendar } from "lucide-react";
 import {
@@ -114,9 +114,9 @@ function Stepper({ value, min = 0, max = 99, onChange, accentColor }: {
 
 // ── Booking Summary ───────────────────────────────────────────────────────────
 
-function SummaryCard({ cart, checkIn, checkOut, nights, hotelSlug, accentColor }: {
+function SummaryCard({ cart, checkIn, checkOut, nights, accentColor }: {
   cart: CartItem[]; checkIn: string; checkOut: string;
-  nights: number; hotelSlug: string; accentColor: string;
+  nights: number; accentColor: string;
 }) {
   const nightlyTotal = cart.reduce((s, c) => s + (c.ratePerNight ?? c.defaultRate) * c.quantity, 0);
   const grandTotal   = nightlyTotal * nights;
@@ -171,7 +171,7 @@ function SummaryCard({ cart, checkIn, checkOut, nights, hotelSlug, accentColor }
           <Lock size={11} />
           <span>No payment collected now. Hotel will confirm.</span>
         </div>
-        <Link to={`/book/${hotelSlug}?checkIn=${checkIn}&checkOut=${checkOut}`}
+        <Link to={`/?checkIn=${checkIn}&checkOut=${checkOut}`}
           className="flex items-center gap-1 text-[12px] font-semibold transition-opacity hover:opacity-70"
           style={{ color: accentColor }}>
           <ChevronLeft size={13} /> Change rooms
@@ -183,9 +183,9 @@ function SummaryCard({ cart, checkIn, checkOut, nights, hotelSlug, accentColor }
 
 // ── Compact mobile summary ────────────────────────────────────────────────────
 
-function CompactSummary({ cart, checkIn, checkOut, nights, hotelSlug, accentColor }: {
+function CompactSummary({ cart, checkIn, checkOut, nights, accentColor }: {
   cart: CartItem[]; checkIn: string; checkOut: string;
-  nights: number; hotelSlug: string; accentColor: string;
+  nights: number; accentColor: string;
 }) {
   const grandTotal = cart.reduce((s, c) => s + (c.ratePerNight ?? c.defaultRate) * c.quantity, 0) * nights;
 
@@ -198,7 +198,7 @@ function CompactSummary({ cart, checkIn, checkOut, nights, hotelSlug, accentColo
         </p>
         <p className="text-[15px] font-bold text-gray-900">{fmt(grandTotal)}</p>
       </div>
-      <Link to={`/book/${hotelSlug}?checkIn=${checkIn}&checkOut=${checkOut}`}
+      <Link to={`/?checkIn=${checkIn}&checkOut=${checkOut}`}
         className="text-[12px] font-semibold shrink-0 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
         Edit
       </Link>
@@ -208,8 +208,8 @@ function CompactSummary({ cart, checkIn, checkOut, nights, hotelSlug, accentColo
 
 // ── Success screen ────────────────────────────────────────────────────────────
 
-function SuccessScreen({ confirmation, hotelSlug, themeKey }: {
-  confirmation: BookMultiConfirmation; hotelSlug: string; themeKey: string;
+function SuccessScreen({ confirmation, themeKey }: {
+  confirmation: BookMultiConfirmation; themeKey: string;
 }) {
   const isMulti = confirmation.rooms.length > 1;
 
@@ -273,7 +273,7 @@ function SuccessScreen({ confirmation, hotelSlug, themeKey }: {
               This is a <strong className="text-gray-600">booking request</strong> — no payment has been collected.
               The hotel will reach out to confirm your stay.
             </p>
-            <Link to={`/book/${hotelSlug}`}
+            <Link to="/"
               className="inline-flex items-center gap-1.5 text-[13px] font-semibold transition-opacity hover:opacity-70"
               style={{ color: "rgb(var(--be-accent))" }}>
               <ArrowLeft size={13} /> Back to hotel
@@ -287,8 +287,11 @@ function SuccessScreen({ confirmation, hotelSlug, themeKey }: {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-export default function BookingFormPage() {
-  const { hotelSlug }    = useParams<{ hotelSlug: string }>();
+export interface BookingFormPageProps {
+  hotelSlug: string;
+}
+
+export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
   const [searchParams]   = useSearchParams();
   const navigate         = useNavigate();
 
@@ -299,19 +302,17 @@ export default function BookingFormPage() {
     : 0;
 
   const [cart] = useState<CartItem[]>(() => {
-    if (!hotelSlug) return [];
     try { return JSON.parse(sessionStorage.getItem(CART_KEY(hotelSlug)) ?? "[]") as CartItem[]; }
     catch { return []; }
   });
 
   useEffect(() => {
-    if (hotelSlug && cart.length === 0) navigate(`/book/${hotelSlug}`, { replace: true });
-  }, [cart.length, hotelSlug, navigate]);
+    if (cart.length === 0) navigate("/", { replace: true });
+  }, [cart.length, navigate]);
 
   const { data: hotel } = useQuery({
     queryKey: ["booking-hotel", hotelSlug],
-    queryFn:  () => bookingEngineService.getHotel(hotelSlug!),
-    enabled:  !!hotelSlug,
+    queryFn:  () => bookingEngineService.getHotel(hotelSlug),
   });
 
   const themeKey    = hotel?.themeKey ?? "WARM_CLAY";
@@ -330,12 +331,12 @@ export default function BookingFormPage() {
   const [confirmation, setConfirmation] = useState<BookMultiConfirmation | null>(null);
 
   if (confirmation) {
-    return <SuccessScreen confirmation={confirmation} hotelSlug={hotelSlug ?? ""} themeKey={themeKey} />;
+    return <SuccessScreen confirmation={confirmation} themeKey={themeKey} />;
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!hotelSlug || !checkIn || !checkOut || cart.length === 0) return;
+    if (!checkIn || !checkOut || cart.length === 0) return;
     const pErr = getPhoneErrorMessage(form.guestPhone);
     const eErr = form.guestEmail.trim() ? getEmailErrorMessage(form.guestEmail) : null;
     setPhoneError(pErr);
@@ -355,7 +356,7 @@ export default function BookingFormPage() {
         children:        form.children || undefined,
         specialRequests: form.specialRequests.trim() || undefined,
       });
-      if (hotelSlug) sessionStorage.removeItem(CART_KEY(hotelSlug));
+      sessionStorage.removeItem(CART_KEY(hotelSlug));
       setConfirmation(result);
     } catch (err) {
       const msg = getErrorMessage(err);
@@ -387,11 +388,11 @@ export default function BookingFormPage() {
             {hotel && <span className="font-semibold text-[14px] text-gray-900 truncate">{hotel.name}</span>}
           </div>
           <div className="flex items-center gap-3">
-            <Link to={`/book/${hotelSlug}?checkIn=${checkIn}&checkOut=${checkOut}`}
+            <Link to={`/?checkIn=${checkIn}&checkOut=${checkOut}`}
               className="hidden sm:flex items-center gap-1.5 text-[12px] font-medium text-gray-400 hover:text-gray-600 transition-colors">
               <ArrowLeft size={13} /> Back to rooms
             </Link>
-            <a href="/login"
+            <a href={`https://app.innflo.co/login?slug=${hotelSlug}`}
               className="flex items-center px-4 py-2 rounded-lg border-2 border-gray-800 text-[13px] font-bold text-gray-800 hover:bg-gray-800 hover:text-white transition-all whitespace-nowrap">
               Property Login
             </a>
@@ -403,7 +404,7 @@ export default function BookingFormPage() {
       <div className="lg:hidden sticky top-14 z-30 bg-white border-b border-gray-100 shadow-sm">
         <CompactSummary
           cart={cart} checkIn={checkIn} checkOut={checkOut}
-          nights={nights} hotelSlug={hotelSlug ?? ""} accentColor={accentColor}
+          nights={nights} accentColor={accentColor}
         />
       </div>
 
@@ -432,7 +433,7 @@ export default function BookingFormPage() {
                     <div>
                       <p className="text-[13px] text-rose-700">{submitError}</p>
                       {(submitError.toLowerCase().includes("available") || submitError.toLowerCase().includes("option")) && (
-                        <Link to={`/book/${hotelSlug}`}
+                        <Link to="/"
                           className="text-[12px] text-rose-600 underline mt-1 inline-block">
                           Choose different rooms →
                         </Link>
@@ -539,7 +540,7 @@ export default function BookingFormPage() {
           <div className="hidden lg:block w-72 xl:w-80 shrink-0">
             <SummaryCard
               cart={cart} checkIn={checkIn} checkOut={checkOut}
-              nights={nights} hotelSlug={hotelSlug ?? ""} accentColor={accentColor}
+              nights={nights} accentColor={accentColor}
             />
           </div>
         </div>

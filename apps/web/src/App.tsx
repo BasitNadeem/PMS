@@ -1,8 +1,9 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { getCurrentUserRole } from "./lib/jwt";
 import { isMobileDevice } from "./lib/device";
+import { resolveAppMode } from "./lib/hostname";
 
 // Every page is lazy-loaded so a given user's initial bundle only contains the
 // pages they actually visit (e.g. housekeeping staff never pull in the 20+
@@ -120,10 +121,13 @@ function RouteFallback() {
   );
 }
 
-export default function App() {
+// PMS mode: app.innflo.co, localhost, or 127.0.0.1 (see lib/hostname.ts).
+// Unchanged from before the hostname split — same routes, same PrivateRoute,
+// just extracted into its own component instead of being mixed with the
+// Booking Engine's /book/:hotelSlug routes in one tree.
+function PmsRoutes() {
   return (
-    <BrowserRouter>
-      <Suspense fallback={<RouteFallback />}>
+    <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         {/* Fully public — no auth, no AppLayout */}
@@ -160,8 +164,20 @@ export default function App() {
             </PrivateRoute>
           }
         />
+        {/* "/" is only ever reached in PMS mode (Booking Engine mode never
+            renders PmsRoutes at all) — authenticated users land on the real
+            dashboard at /dashboard; PrivateRoute already sends unauthenticated
+            hits to /login before this element ever renders. */}
         <Route
           path="/"
+          element={
+            <PrivateRoute>
+              <Navigate to="/dashboard" replace />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
           element={
             <PrivateRoute>
               <AppLayout>
@@ -590,13 +606,38 @@ export default function App() {
             </PrivateRoute>
           }
         />
-        {/* Public booking engine — no auth, no AppLayout */}
-        <Route path="/book/:hotelSlug" element={<BookingLandingPage />} />
-        <Route path="/book/:hotelSlug/reserve" element={<BookingFormPage />} />
-
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      </Suspense>
+    </Suspense>
+  );
+}
+
+// Hotel subdomains (any *.innflo.co host other than app.innflo.co) render
+// ONLY these two routes — no /login, no PrivateRoute, no PMS routes exist
+// on this branch at all. hotelSlug comes from the hostname (see
+// lib/hostname.ts), never from the URL path.
+function BookingEngineRoutes({ hotelSlug }: { hotelSlug: string }) {
+  return (
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
+        <Route path="/" element={<BookingLandingPage hotelSlug={hotelSlug} />} />
+        <Route path="/reserve" element={<BookingFormPage hotelSlug={hotelSlug} />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
+  );
+}
+
+export default function App() {
+  // Computed once per page load, not re-evaluated on every render — the
+  // hostname can't change without a full navigation anyway.
+  const [appMode] = useState(() => resolveAppMode());
+
+  return (
+    <BrowserRouter>
+      {appMode.type === "booking-engine"
+        ? <BookingEngineRoutes hotelSlug={appMode.hotelSlug} />
+        : <PmsRoutes />}
     </BrowserRouter>
   );
 }

@@ -298,7 +298,7 @@ export default function Nav() {
 
         <div className="hidden md:flex items-center gap-3">
           <a
-            href="#"
+            href="https://app.innflo.co/login"
             className="h-11 px-7 rounded-full border border-ink text-[15px] font-bold font-body text-ink hover:bg-ink hover:text-white transition-colors flex items-center"
           >
             Login
@@ -425,7 +425,7 @@ export default function Nav() {
           ))}
           <div className="mt-5 flex items-center gap-3">
             <a
-              href="#"
+              href="https://app.innflo.co/login"
               className="h-10 px-6 rounded-full border border-ink text-[13.5px] font-semibold font-body text-ink flex items-center"
             >
               Login

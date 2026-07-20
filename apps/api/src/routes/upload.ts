@@ -6,6 +6,7 @@ import { randomUUID } from "crypto";
 import { authenticate } from "../middleware/auth";
 import { tenantMiddleware } from "../middleware/tenant";
 import { AppError } from "../utils/AppError";
+import { env } from "../lib/env";
 
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -44,7 +45,11 @@ router.post(
   },
   (req, res) => {
     if (!req.file) throw new AppError(400, "No file uploaded");
-    res.json({ data: { url: `/uploads/${req.file.filename}` } });
+    // Absolute URL, not a relative path — this gets stored (RoomType.photoUrls,
+    // hotel.settings.logoUrl, etc.) and rendered from origins other than this API
+    // (app.innflo.co, every hotel subdomain), so a relative path would only ever
+    // resolve correctly here on the API's own origin.
+    res.json({ data: { url: `${env.API_PUBLIC_URL}/uploads/${req.file.filename}` } });
   },
 );
 

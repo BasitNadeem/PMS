@@ -21,6 +21,13 @@ const envSchema = z.object({
   // NOT z.coerce.boolean() — that coerces via JS's Boolean(str), where any non-empty string
   // (including the literal text "false") is truthy. Only the exact string "true" opens this.
   ALLOW_DEV_CORS_BYPASS:   z.string().optional().transform((v) => v === "true"),
+  // Base URL other origins use to reach THIS API server — needed because uploaded file
+  // URLs (see routes/upload.ts) are stored and rendered on completely different origins
+  // (app.innflo.co, every *.innflo.co hotel subdomain). A relative "/uploads/xxx.jpg"
+  // only resolves correctly on the API's own origin; every other consumer sees a broken
+  // image. Optional here (not .default()) so the superRefine below can require it in
+  // production specifically — the dev fallback is derived from PORT after parsing.
+  API_PUBLIC_URL:          z.string().url().optional(),
   REDIS_URL:               z.string().default("redis://localhost:6379"),
   ADMIN_EMAIL:             z.string().email().default("admin@yourpms.com"),
   ADMIN_PASSWORD:          z.string().default("AdminPass123!"),
@@ -34,6 +41,21 @@ const envSchema = z.object({
   CLOUDINARY_API_SECRET:   z.string().optional(),
   // ── Vision API (Google Vision — swap to ANTHROPIC_API_KEY when migrating) ───
   GOOGLE_VISION_API_KEY:   z.string().optional(),
+}).superRefine((val, ctx) => {
+  if (val.NODE_ENV === "production" && !val.API_PUBLIC_URL) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["API_PUBLIC_URL"],
+      message: "API_PUBLIC_URL is required in production (e.g. https://api.innflo.co) — " +
+        "uploaded file URLs are unusable from any other origin without it.",
+    });
+  }
 });
 
-export const env = envSchema.parse(process.env);
+const parsedEnv = envSchema.parse(process.env);
+
+export const env = {
+  ...parsedEnv,
+  // Dev-only fallback — production must set this explicitly (enforced above).
+  API_PUBLIC_URL: parsedEnv.API_PUBLIC_URL ?? `http://localhost:${parsedEnv.PORT}`,
+};

@@ -18,6 +18,7 @@
     "db:migrate:deploy": "dotenv -e .env -- pnpm --filter @pms/db migrate:deploy",
     "db:studio": "dotenv -e .env -- pnpm --filter @pms/db studio",
     "db:seed": "dotenv -e .env -- pnpm --filter @pms/db seed",
+    "backfill:upload-urls": "dotenv -e .env -- pnpm --filter @pms/db backfill:upload-urls",
     "apply:rls": "tsx --env-file=.env scripts/apply-rls.ts",
     "setup": "pnpm docker:up && sleep 3 && pnpm db:migrate && pnpm apply:rls && pnpm db:generate && pnpm db:seed",
     "fresh-setup": "bash scripts/fresh-setup.sh",

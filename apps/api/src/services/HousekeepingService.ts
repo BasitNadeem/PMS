@@ -48,11 +48,16 @@ function mapTask<T extends { priority: number }>(task: T): Omit<T, "priority"> &
 }
 
 // Broadcasts a push notification to every active HOUSEKEEPING staff member in
-// the hotel except the actor who triggered the change — so e.g. "task taken"
-// updates reach everyone else without spamming the person who just acted.
+// the hotel. excludeUserId is only meaningful for STATUS UPDATES (checking a
+// task in/out, marking progress) — it stops someone getting notified about
+// their own just-completed action. Pass null for NEW task creation, since
+// every staff member — including whoever created the task, if they're also
+// housekeeping — needs to actually learn a new task exists. Excluding the
+// actor there previously meant a single-staff hotel got zero notifications
+// whenever that one person created their own task.
 async function notifyHousekeepingStaff(
   hotelId: string,
-  excludeUserId: string,
+  excludeUserId: string | null,
   payload: { title: string; body: string; url: string },
 ): Promise<void> {
   try {
@@ -60,10 +65,11 @@ async function notifyHousekeepingStaff(
       where:  { hotelId, role: UserRole.HOUSEKEEPING, isActive: true },
       select: { userId: true },
     });
+    const targets = excludeUserId
+      ? staff.filter((s) => s.userId !== excludeUserId)
+      : staff;
     await Promise.allSettled(
-      staff
-        .filter((s) => s.userId !== excludeUserId)
-        .map((s) => sendPushToUser(s.userId, payload)),
+      targets.map((s) => sendPushToUser(s.userId, payload)),
     );
   } catch { /* push delivery is non-critical */ }
 }
@@ -173,7 +179,9 @@ export const HousekeepingService = {
 
     notifyHotelDataChanged(actor.hotelId);
 
-    await notifyHousekeepingStaff(actor.hotelId, actor.userId, {
+    // No exclusion — every housekeeping staff member, including whoever just
+    // created this task, needs to know a new task exists.
+    await notifyHousekeepingStaff(actor.hotelId, null, {
       title: "🧹 New Cleaning Task",
       body:  `Room ${task.room.number} needs cleaning`,
       url:   "/housekeeping/mobile",
@@ -248,6 +256,8 @@ export const HousekeepingService = {
 
     notifyHotelDataChanged(actor.hotelId);
 
+    // Excludes the actor — correct here, unlike creation: don't notify someone
+    // about the status change they themselves just made.
     await notifyHousekeepingStaff(actor.hotelId, actor.userId, {
       title: "Task Updated",
       body:  `Room ${task.room.number} — ${newStatus}`,

@@ -31,7 +31,16 @@ export async function sendPushNotification(
   } catch (err) {
     // Subscription expired or invalid — log and continue. A dead subscription
     // (404/410) is cleaned up lazily here rather than blocking the caller.
-    console.error("Push notification failed:", err);
+    // Full detail (not just the error object) because web-push's thrown
+    // errors often carry the real reason in .body/.statusCode rather than
+    // .message.
+    console.error("Push notification failed:", {
+      endpoint: subscription.endpoint,
+      message: (err as Error)?.message,
+      statusCode: (err as { statusCode?: number }).statusCode,
+      body: (err as { body?: unknown }).body,
+      headers: (err as { headers?: unknown }).headers,
+    });
     const statusCode = (err as { statusCode?: number }).statusCode;
     if (statusCode === 404 || statusCode === 410) {
       await adminPrisma.pushSubscription

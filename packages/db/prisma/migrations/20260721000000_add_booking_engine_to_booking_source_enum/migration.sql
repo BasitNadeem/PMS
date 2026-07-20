@@ -1,0 +1,12 @@
+-- AlterEnum
+-- BOOKING_ENGINE was added to schema.prisma's BookingSource enum when the public
+-- Booking Engine was built, but no migration was ever generated for it — the value
+-- only ever existed on dev databases via an out-of-band change (same gap as the
+-- earlier hotels.amenities/description incident). This closes that gap.
+--
+-- ALTER TYPE ... ADD VALUE cannot run inside a multi-statement transaction block in
+-- Postgres if the new value is used in the same transaction — not an issue here since
+-- this migration only adds the value and never references it. IF NOT EXISTS (PG 12+)
+-- makes this safe to apply on databases that already have the value out-of-band
+-- (e.g. local dev) as well as ones that don't (production).
+ALTER TYPE "BookingSource" ADD VALUE IF NOT EXISTS 'BOOKING_ENGINE';

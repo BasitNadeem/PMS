@@ -1,7 +1,9 @@
 import axios from "axios";
 
-// Separate axios instance — no auth headers, same origin
-const publicApi = axios.create();
+// Separate axios instance — no auth headers, but still needs the real API origin.
+const publicApi = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "",
+});
 
 export interface PublicHotel {
   name: string;

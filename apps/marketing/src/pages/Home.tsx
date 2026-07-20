@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import Reveal from "../components/motion/Reveal";
@@ -46,6 +46,24 @@ function HeroMockup() {
   const y = useTransform(scrollY, [0, 700], [0, 90]);
   const rotateY = useTransform(scrollY, [0, 700], [-7, 0]);
   const rotateX = useTransform(scrollY, [0, 700], [3, 0]);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // The video is above the fold, but its bytes shouldn't compete with the
+  // page's critical resources (HTML/CSS/JS/fonts) on first paint. preload="none"
+  // stops the browser from eagerly fetching it during parsing; assigning src
+  // on a deferred tick pushes the request past the initial critical path
+  // instead of racing it. (Not requestIdleCallback: unsupported in Safari,
+  // and a fixed short delay is plenty for "after the page is interactive".)
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const id = window.setTimeout(() => {
+      video.src = "/video/hero-software_2.mp4";
+      video.load();
+      void video.play();
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, []);
 
   return (
     <motion.div
@@ -57,9 +75,9 @@ function HeroMockup() {
       <motion.div style={{ rotateY, rotateX, transformStyle: "preserve-3d" }}>
         <div className="rounded-2xl overflow-hidden bg-ink border border-line shadow-[0_32px_80px_rgba(0,0,0,0.10)]">
           <video
+            ref={videoRef}
             className="w-full h-full object-cover aspect-[4/3]"
-            src="/video/hero-software_2.mp4"
-            autoPlay
+            preload="none"
             muted
             loop
             playsInline
@@ -306,6 +324,8 @@ export default function Home() {
                   <img
                     src={type.image}
                     alt={type.title}
+                    loading="lazy"
+                    decoding="async"
                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   {/* Gradient Overlay */}

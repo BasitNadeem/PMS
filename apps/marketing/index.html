@@ -7,7 +7,12 @@
     <meta name="description" content="InnFlo connects every corner of your hotel in one dashboard. Reservations, billing, housekeeping, QR dining, and nightly WhatsApp briefings — built for the way hospitality actually runs." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <!-- opsz (optical size) axis intentionally omitted: nothing in this app varies
+         it, so requesting the full 9..144 range only bloats the font files with
+         interpolation data that's never used. Every weight/style below (roman
+         400/500/600, italic 400/500, Inter 400-800) is confirmed in active use
+         across the site — do not trim further without re-auditing usage. -->
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   </head>
   <body>
     <div id="root"></div>

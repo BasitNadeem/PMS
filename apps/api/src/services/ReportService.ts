@@ -1179,6 +1179,60 @@ export const ReportService = {
     });
   },
 
+  // ── BOOKING ENGINE INSIGHTS ──────────────────────────────────────────────────
+  // source = BOOKING_ENGINE is unforgeable by staff — it's never offered as an
+  // option in the staff-facing reservation-source dropdown, only ever set by
+  // the public booking routes. Revenue uses quotedRate × nights (same shape as
+  // the guest-facing cart total) rather than totalAmount, since ENQUIRY-status
+  // reservations never get totalAmount populated until confirmed/checked-in.
+
+  async getBookingEngineInsights(withTenant: WithTenantFn, startDate?: string, endDate?: string) {
+    const dateFilter = startDate && endDate ? utcRange(startDate, endDate) : null;
+
+    return withTenant(async (db) => {
+      const reservations = await db.reservation.findMany({
+        where: {
+          source: "BOOKING_ENGINE",
+          ...(dateFilter ? { createdAt: { gte: dateFilter.start, lt: dateFilter.end } } : {}),
+        },
+        select: {
+          id: true, confirmationNumber: true, status: true, groupId: true,
+          checkInDate: true, checkOutDate: true, quotedRate: true, createdAt: true,
+          guest: { select: { fullName: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const byStatus: Record<string, number> = {};
+      let multiRoomCount = 0;
+      let totalEstimatedRevenue = 0;
+
+      for (const r of reservations) {
+        byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
+        if (r.groupId) multiRoomCount += 1;
+        totalEstimatedRevenue += r.quotedRate * Math.max(diffDays(r.checkInDate, r.checkOutDate), 0);
+      }
+
+      return {
+        totalCount:            reservations.length,
+        byStatus,
+        multiRoomCount,
+        singleRoomCount:       reservations.length - multiRoomCount,
+        totalEstimatedRevenue,
+        recent: reservations.slice(0, 10).map((r) => ({
+          id:                 r.id,
+          confirmationNumber: r.confirmationNumber,
+          status:             r.status,
+          guestName:          r.guest.fullName,
+          checkInDate:        r.checkInDate,
+          checkOutDate:       r.checkOutDate,
+          isMultiRoom:        r.groupId !== null,
+          createdAt:          r.createdAt,
+        })),
+      };
+    });
+  },
+
   // ── LENGTH OF STAY ──────────────────────────────────────────────────────────
 
   async getLengthOfStay(withTenant: WithTenantFn, startDate: string, endDate: string) {

@@ -74,6 +74,19 @@ export interface RolePermissions {
   permissions: RolePermission[];
 }
 
+export interface PlanInfo {
+  planName:       string;
+  planSlug:       string | null;
+  priceMonthly:   number;
+  isTrialAccount: boolean;
+  trialEndsAt:    string | null;
+  maxRooms:       number;
+  maxUsers:       number;
+  currentRooms:   number;
+  currentUsers:   number;
+  features:       Record<string, boolean>;
+}
+
 export interface ExportAllData {
   hotelName: string;
   exportedAt: string;
@@ -134,6 +147,10 @@ export interface ExportAllData {
 export const settingsService = {
   getSettings: async (): Promise<HotelSettings> => {
     const res = await api.get("/api/settings");
+    return res.data.data;
+  },
+  getPlan: async (): Promise<PlanInfo> => {
+    const res = await api.get("/api/settings/plan");
     return res.data.data;
   },
   updateSettings: async (dto: UpdateSettingsDto): Promise<HotelSettings> => {

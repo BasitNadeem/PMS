@@ -5,7 +5,7 @@ import {
   LayoutDashboard, BedDouble, Users, Users2, CalendarCheck,
   Landmark, Sparkles, ShoppingCart, FileBarChart, LogOut,
   ChevronsUpDown, PanelLeftClose, PanelLeftOpen, TrendingUp, Menu, X, Settings,
-  Receipt, TrendingDown, BookOpen, Wrench, ClipboardList, ChefHat, Monitor, Package, Network, Moon, Tag,
+  Receipt, TrendingDown, BookOpen, Wrench, ClipboardList, ChefHat, Monitor, Package, Network, Moon, Tag, Globe,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useQuery } from "@tanstack/react-query";
@@ -142,6 +142,7 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   { to: "/rate-plans",      label: "Rate Plans", icon: Tag,     permission: "rates:read",      featureGate: "ratePlans" },
+  { to: "/booking-engine",  label: "Booking Engine", icon: Globe, permission: "bookingEngine:read", featureGate: "bookingEngine" },
   { to: "/channel-manager", label: "Channels",  icon: Network, permission: "dashboard:read",  featureGate: "channelManager" },
 ];
 

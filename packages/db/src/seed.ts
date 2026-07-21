@@ -71,6 +71,8 @@ const ALL_PERMISSIONS: { key: string; module: string; action: string; displayNam
   // Channel manager
   { key: "CHANNEL_READ",         module: "channel",      action: "read",     displayName: "View Channel Config" },
   { key: "CHANNEL_UPDATE",       module: "channel",      action: "update",   displayName: "Edit Channel Config" },
+
+  { key: "BOOKING_ENGINE_READ",  module: "booking_engine", action: "read",   displayName: "View Booking Engine Hub" },
   // Staff
   { key: "STAFF_READ",           module: "staff",        action: "read",     displayName: "View Staff" },
   { key: "STAFF_CREATE",         module: "staff",        action: "create",   displayName: "Create Staff" },
@@ -140,7 +142,7 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
 const MODULE_KEYS = [
   "dashboard", "rooms", "guests", "reservations", "groups",
   "billing", "expenses", "cashbook", "housekeeping", "maintenance", "pos",
-  "rates", "team", "reports", "settings", "notifications",
+  "rates", "bookingEngine", "team", "reports", "settings", "notifications",
 ] as const;
 
 const ACTION_KEYS = ["read", "create", "update", "delete", "manage"] as const;
@@ -175,6 +177,10 @@ const MODULE_ACTION_EXCLUSIONS = new Set<string>([
   "housekeeping:delete", "housekeeping:manage",
   "maintenance:delete", "maintenance:manage",
   "pos:delete",
+  // bookingEngine is a settings/insights hub, not a CRUD resource of its own —
+  // read (view the hub) and manage (link out to edit linked resources) cover
+  // it fully; create/update/delete would have nothing to act on.
+  "bookingEngine:create", "bookingEngine:update", "bookingEngine:delete",
 ]);
 
 function titleCase(s: string): string {
@@ -212,6 +218,7 @@ const MODULE_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "maintenance:read", "maintenance:create", "maintenance:update",
     "pos:read", "pos:create", "pos:manage",
     "rates:read", "rates:create", "rates:update",
+    "bookingEngine:read", "bookingEngine:manage",
     "team:read", "team:create", "team:update",
     "reports:read",
     "settings:read", "settings:update",

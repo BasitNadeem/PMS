@@ -65,6 +65,7 @@ const QrOrdersPage                 = lazy(() => import("./pages/qr-orders/QrOrde
 const InventoryPage                = lazy(() => import("./pages/inventory/InventoryPage"));
 const ChannelManagerPage           = lazy(() => import("./pages/channel-manager/ChannelManagerPage"));
 const RatePlansPage                = lazy(() => import("./pages/rates/RatePlansPage"));
+const BookingEngineHubPage         = lazy(() => import("./pages/booking-engine-hub/BookingEngineHubPage"));
 const MobileScanPage               = lazy(() => import("./pages/MobileScanPage"));
 const NightAuditPage               = lazy(() => import("./pages/nightaudit/NightAuditPage"));
 const BookingLandingPage           = lazy(() => import("./pages/booking-engine/BookingLandingPage"));
@@ -602,6 +603,16 @@ function PmsRoutes() {
             <PrivateRoute>
               <AppLayout>
                 <RatePlansPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/booking-engine"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <BookingEngineHubPage />
               </AppLayout>
             </PrivateRoute>
           }

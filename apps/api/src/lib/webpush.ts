@@ -19,6 +19,7 @@ interface PushSubscriptionKeys {
 export async function sendPushNotification(
   subscription: PushSubscriptionKeys,
   payload: PushPayload,
+  userId?: string,
 ): Promise<void> {
   try {
     await webpush.sendNotification(
@@ -28,6 +29,10 @@ export async function sendPushNotification(
       },
       JSON.stringify(payload),
     );
+    // Permanent — the only other outcomes (failure, or never attempted) are
+    // both logged too, so log-reading can always tell which of the three
+    // actually happened instead of treating silence as success.
+    console.log("Push notification sent:", { endpoint: subscription.endpoint, userId });
   } catch (err) {
     // Subscription expired or invalid — log and continue. A dead subscription
     // (404/410) is cleaned up lazily here rather than blocking the caller.
@@ -54,8 +59,12 @@ export async function sendPushNotification(
 export async function sendPushToUser(userId: string, payload: PushPayload): Promise<void> {
   try {
     const subs = await adminPrisma.pushSubscription.findMany({ where: { userId } });
-    await Promise.allSettled(subs.map((sub) => sendPushNotification(sub, payload)));
+    if (subs.length === 0) {
+      console.log("sendPushToUser: 0 subscriptions found", { userId });
+      return;
+    }
+    await Promise.allSettled(subs.map((sub) => sendPushNotification(sub, payload, userId)));
   } catch (err) {
-    console.error("sendPushToUser failed:", err);
+    console.error("sendPushToUser failed:", { userId, err });
   }
 }

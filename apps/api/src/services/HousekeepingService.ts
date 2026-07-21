@@ -60,6 +60,10 @@ async function notifyHousekeepingStaff(
   excludeUserId: string | null,
   payload: { title: string; body: string; url: string },
 ): Promise<void> {
+  // Permanent operational visibility, not a one-off debug line — push delivery
+  // failures are swallowed below by design (must never break task creation),
+  // so this is the only signal that a broadcast was even attempted at all.
+  console.log("notifyHousekeepingStaff called:", { hotelId, excludeUserId, title: payload.title });
   try {
     const staff = await adminPrisma.hotelUser.findMany({
       where:  { hotelId, role: UserRole.HOUSEKEEPING, isActive: true },
@@ -68,10 +72,23 @@ async function notifyHousekeepingStaff(
     const targets = excludeUserId
       ? staff.filter((s) => s.userId !== excludeUserId)
       : staff;
+    if (targets.length === 0) {
+      console.log("notifyHousekeepingStaff: 0 recipients found", {
+        hotelId,
+        roleSearched: UserRole.HOUSEKEEPING,
+        staffFound: staff.length,
+        excludedActor: excludeUserId,
+      });
+      return;
+    }
     await Promise.allSettled(
       targets.map((s) => sendPushToUser(s.userId, payload)),
     );
-  } catch { /* push delivery is non-critical */ }
+  } catch (err) {
+    // Push delivery is genuinely non-critical — never throw out of here and
+    // break task creation — but "non-critical" must not mean "invisible".
+    console.error("notifyHousekeepingStaff: caught error, continuing without push:", { hotelId, err });
+  }
 }
 
 export const HousekeepingService = {

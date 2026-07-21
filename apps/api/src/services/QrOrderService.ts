@@ -14,6 +14,7 @@ import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
 import { QrMenuService } from "./QrMenuService";
 import { deductInventoryForQrOrder } from "./InventoryService";
+import { createLedgerEntryFromQrOrder } from "./CashBookService";
 import { notifyHotelDataChanged } from "../lib/realtime";
 import type { PlaceOrderDto, ListQrOrdersQuery, AdvanceStatusDto, EditOrderDto } from "../schemas/qrMenu";
 
@@ -25,7 +26,7 @@ export interface QrOrderRow {
   order_number:         string;
   guest_name:           string;
   guest_phone:          string;
-  room_number:          string;
+  room_number:          string | null;
   room_verified:        boolean;
   reservation_id:       string | null;
   delivery_type:        string;
@@ -35,6 +36,7 @@ export interface QrOrderRow {
   folio_id:                string | null;
   requires_folio_review:   boolean;
   payment_preference:      string; // "charge_to_room" | "pay_now"
+  payment_method:          string | null;
   created_at:              Date;
   updated_at:              Date;
 }
@@ -209,21 +211,23 @@ export const QrOrderService = {
     // 2. Verify room (non-fatal — order proceeds even if verification fails or throws)
     let roomVerified   = false;
     let reservationId: string | null = null;
-    try {
-      const reservation = await adminPrisma.reservation.findFirst({
-        where: {
-          hotelId,
-          status: ReservationStatus.CHECKED_IN,
-          rooms:  { some: { room: { number: dto.roomNumber } } },
-        },
-        select: { id: true },
-      });
-      if (reservation) {
-        roomVerified  = true;
-        reservationId = reservation.id;
+    if (dto.roomNumber) {
+      try {
+        const reservation = await adminPrisma.reservation.findFirst({
+          where: {
+            hotelId,
+            status: ReservationStatus.CHECKED_IN,
+            rooms:  { some: { room: { number: dto.roomNumber } } },
+          },
+          select: { id: true },
+        });
+        if (reservation) {
+          roomVerified  = true;
+          reservationId = reservation.id;
+        }
+      } catch {
+        // Verification failure is non-fatal
       }
-    } catch {
-      // Verification failure is non-fatal
     }
 
     // 3. Atomically assign a sequential order number and insert the order.
@@ -252,7 +256,7 @@ export const QrOrderService = {
            payment_preference, status, total_amount)
         VALUES
           (${hotelId}::uuid, ${orderNumber}, ${dto.guestName}, ${dto.guestPhone},
-           ${dto.roomNumber}, ${roomVerified}, ${resIdSql},
+           ${dto.roomNumber ?? null}, ${roomVerified}, ${resIdSql},
            ${dto.deliveryType}, ${dto.specialInstructions ?? null},
            ${dto.paymentPreference ?? "charge_to_room"},
            'pending', ${total}::bigint)
@@ -387,9 +391,18 @@ export const QrOrderService = {
       }
     }
 
+    // "Pay now" orders have no folio to reconcile against — staff must record
+    // which payment method the guest actually handed over before the order can
+    // be marked delivered, so the sale lands in the cash book.
+    if (dto.status === "delivered" && order.payment_preference === "pay_now" && !dto.paymentMethod) {
+      throw new AppError(400, "Payment method received is required to mark this order delivered");
+    }
+
     const [updated] = await adminPrisma.$queryRaw<QrOrderRow[]>`
       UPDATE qr_orders
-      SET    status = ${dto.status}, updated_at = now()
+      SET    status         = ${dto.status},
+             payment_method = ${dto.paymentMethod ?? order.payment_method},
+             updated_at     = now()
       WHERE  id     = ${orderId}::uuid AND hotel_id = ${hotelId}::uuid
       RETURNING *
     `;
@@ -415,6 +428,21 @@ export const QrOrderService = {
         .catch((err) => {
           console.error("[QrOrder] folio post on delivery failed:", order.order_number, err);
         });
+    }
+
+    // On delivery of a "pay now" order: record the sale in the cash book under
+    // whichever payment method staff just captured above.
+    if (dto.status === "delivered" && order.payment_preference === "pay_now" && dto.paymentMethod) {
+      createLedgerEntryFromQrOrder(
+        hotelId,
+        {
+          id:            orderId,
+          orderNumber:   order.order_number,
+          total:         Number(order.total_amount),
+          paymentMethod: dto.paymentMethod,
+        },
+        actorId,
+      );
     }
 
     // On confirm (kitchen accepts): deduct inventory for linked items. Forward-only

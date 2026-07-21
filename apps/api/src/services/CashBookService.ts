@@ -453,6 +453,33 @@ export async function createLedgerEntryFromPosOrder(
   }
 }
 
+export async function createLedgerEntryFromQrOrder(
+  hotelId: string,
+  order: { id: string; orderNumber: string; total: number; paymentMethod: string },
+  actorId: string,
+): Promise<void> {
+  try {
+    const accountType = PAYMENT_METHOD_TO_ACCOUNT[order.paymentMethod] ?? "CASH_DRAWER";
+    const account      = await CashBookService.getOrCreateAccount(hotelId, accountType, actorId);
+
+    await CashBookService.createEntry(
+      hotelId,
+      {
+        accountId:     account.id,
+        entryType:     "INCOMING",
+        amount:        order.total,
+        sourceType:    "QR_ORDER_SALE",
+        sourceId:      order.id,
+        description:   `QR Order — ${order.orderNumber}`,
+        paymentMethod: order.paymentMethod,
+      } as CreateEntryDto & { sourceId: string },
+      actorId,
+    );
+  } catch (err) {
+    console.error("[CashBook] createLedgerEntryFromQrOrder error:", order.id, err);
+  }
+}
+
 export async function createLedgerEntryFromExpense(
   hotelId: string,
   expense: { id: string; amount: number; paymentMethod: string; description: string; paidTo: string },

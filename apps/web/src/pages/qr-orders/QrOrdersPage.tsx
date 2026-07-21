@@ -53,6 +53,14 @@ const DELIVERY_LABELS: Record<string, string> = {
   dine_in:       "Dine In",
 };
 
+const PAYMENT_METHOD_OPTIONS = [
+  { value: "CASH",        label: "Cash" },
+  { value: "JAZZCASH",    label: "JazzCash" },
+  { value: "EASYPAISA",   label: "Easypaisa" },
+  { value: "CREDIT_CARD", label: "Credit Card" },
+  { value: "DEBIT_CARD",  label: "Debit Card" },
+];
+
 const inputCls = "h-9 rounded-xl border border-line bg-mist px-3.5 text-[13px] text-ink focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors";
 const labelCls = "block text-[11px] font-bold uppercase tracking-wide text-ink-faint mb-1.5";
 
@@ -84,8 +92,8 @@ export default function QrOrdersPage() {
   });
 
   const { mutate: advanceStatus, isPending: advancing } = useMutation({
-    mutationFn: ({ id, status: s }: { id: string; status: string }) =>
-      qrOrdersService.updateStatus(id, s),
+    mutationFn: ({ id, status: s, paymentMethod }: { id: string; status: string; paymentMethod?: string }) =>
+      qrOrdersService.updateStatus(id, s, paymentMethod),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["qr-orders"] }),
   });
 
@@ -203,7 +211,7 @@ export default function QrOrdersPage() {
               order={order}
               isExpanded={expanded.has(order.id)}
               onToggle={() => toggleExpand(order.id)}
-              onAdvance={(s) => advanceStatus({ id: order.id, status: s })}
+              onAdvance={(s, paymentMethod) => advanceStatus({ id: order.id, status: s, paymentMethod })}
               onPostFolio={() => postFolio(order.id)}
               onCancel={() => {
                 if (confirm(`Cancel order ${order.order_number}?`)) cancelOrder(order.id);
@@ -244,7 +252,7 @@ export default function QrOrdersPage() {
           orderNumber={receiptOrder.order_number}
           dateTime={receiptOrder.created_at}
           guestName={receiptOrder.guest_name}
-          roomNumber={receiptOrder.room_number}
+          roomNumber={receiptOrder.room_number ?? undefined}
           items={receiptOrder.items.map((i) => ({
             name:      i.item_name,
             quantity:  i.quantity,
@@ -256,7 +264,7 @@ export default function QrOrdersPage() {
           discountAmount={0}
           total={receiptOrder.total_amount}
           paymentStatus={
-            receiptOrder.payment_preference === "charge_to_room"
+            receiptOrder.payment_preference === "charge_to_room" && receiptOrder.room_number
               ? { type: "CHARGED_TO_ROOM", roomNumber: receiptOrder.room_number }
               : { type: "PENDING_PAYMENT" }
           }
@@ -275,13 +283,15 @@ function OrderRow({
   order:       QrOrder;
   isExpanded:  boolean;
   onToggle:    () => void;
-  onAdvance:   (status: string) => void;
+  onAdvance:   (status: string, paymentMethod?: string) => void;
   onPostFolio: () => void;
   onCancel:    () => void;
   onPrint:     () => void;
   mutating:    boolean;
 }) {
   const next = NEXT_STATUS[order.status];
+  const needsPaymentMethod = next === "delivered" && order.payment_preference === "pay_now";
+  const [paymentMethod, setPaymentMethod] = useState("");
 
   return (
     <div className="border-b border-line-soft last:border-0">
@@ -298,7 +308,7 @@ function OrderRow({
         </div>
         <div className="min-w-0 hidden md:block">
           <p className="text-[13.5px] font-semibold text-ink truncate">{order.guest_name}</p>
-          <p className="text-[12px] text-ink-mute">Room {order.room_number}</p>
+          {order.room_number && <p className="text-[12px] text-ink-mute">Room {order.room_number}</p>}
         </div>
         <div className="hidden md:block">
           <p className="text-[13px] text-ink-soft">{DELIVERY_LABELS[order.delivery_type] ?? order.delivery_type}</p>
@@ -384,10 +394,22 @@ function OrderRow({
             >
               <Printer className="w-3.5 h-3.5" /> Print Receipt
             </button>
+            {next && order.status !== "cancelled" && needsPaymentMethod && (
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className={cn(inputCls, "cursor-pointer pr-8")}
+              >
+                <option value="">Payment method received…</option>
+                {PAYMENT_METHOD_OPTIONS.map((m) => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            )}
             {next && order.status !== "cancelled" && (
               <button
-                disabled={mutating}
-                onClick={() => onAdvance(next)}
+                disabled={mutating || (needsPaymentMethod && !paymentMethod)}
+                onClick={() => onAdvance(next, needsPaymentMethod ? paymentMethod : undefined)}
                 className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-ink text-white text-[13px] font-semibold hover:bg-ink/90 transition-colors shadow-pop disabled:opacity-50"
               >
                 Mark {STATUS_LABEL[next] ?? next}

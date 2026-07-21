@@ -189,7 +189,7 @@ export default function KitchenDisplayPage() {
           orderNumber={receiptOrder.order_number}
           dateTime={receiptOrder.created_at}
           guestName={receiptOrder.guest_name}
-          roomNumber={receiptOrder.room_number}
+          roomNumber={receiptOrder.room_number ?? undefined}
           items={receiptOrder.items.map((i) => ({
             name:      i.item_name,
             quantity:  i.quantity,
@@ -201,7 +201,7 @@ export default function KitchenDisplayPage() {
           discountAmount={0}
           total={receiptOrder.total_amount}
           paymentStatus={
-            receiptOrder.payment_preference === "charge_to_room"
+            receiptOrder.payment_preference === "charge_to_room" && receiptOrder.room_number
               ? { type: "CHARGED_TO_ROOM", roomNumber: receiptOrder.room_number }
               : { type: "PENDING_PAYMENT" }
           }
@@ -235,7 +235,7 @@ function OrderCard({
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-gray-900 font-bold text-lg leading-none">{order.order_number}</p>
-          <p className="text-xs text-gray-500 mt-0.5">Room {order.room_number} · {order.guest_name}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{order.room_number ? `Room ${order.room_number} · ` : ""}{order.guest_name}</p>
         </div>
         <div className="flex items-center gap-1.5">
           <button
@@ -420,7 +420,7 @@ function EditOrderModal({
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-700 flex-shrink-0">
           <div>
             <h2 className="text-lg font-bold text-white">Edit Order</h2>
-            <p className="text-xs text-gray-400 mt-0.5">{order.order_number} · Room {order.room_number}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{order.order_number}{order.room_number ? ` · Room ${order.room_number}` : ""}</p>
           </div>
           <button
             onClick={onClose}

@@ -7,7 +7,7 @@ export type AccountType = typeof ACCOUNT_TYPES[number];
 
 export const ENTRY_TYPES  = ["INCOMING", "OUTGOING"] as const;
 export const SOURCE_TYPES = [
-  "FOLIO_PAYMENT", "EXPENSE", "POS_SALE", "BANK_DEPOSIT", "CASH_WITHDRAWAL",
+  "FOLIO_PAYMENT", "EXPENSE", "POS_SALE", "QR_ORDER_SALE", "BANK_DEPOSIT", "CASH_WITHDRAWAL",
   "OPENING_BALANCE", "ADJUSTMENT", "OTHER",
 ] as const;
 

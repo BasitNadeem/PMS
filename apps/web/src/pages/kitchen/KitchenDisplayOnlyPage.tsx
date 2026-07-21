@@ -81,7 +81,7 @@ function DisplayCard({ order }: { order: QrOrder }) {
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-gray-900 font-black text-2xl leading-none">{order.order_number}</p>
-          <p className="text-sm text-gray-500 mt-1">Room {order.room_number}</p>
+          {order.room_number && <p className="text-sm text-gray-500 mt-1">Room {order.room_number}</p>}
           <p className="text-sm text-gray-600 font-medium">{order.guest_name}</p>
         </div>
         <div className="text-right">

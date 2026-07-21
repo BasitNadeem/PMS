@@ -18,7 +18,7 @@ export interface QrOrder {
   order_number:         string;
   guest_name:           string;
   guest_phone:          string;
-  room_number:          string;
+  room_number:          string | null;
   room_verified:        boolean;
   reservation_id:       string | null;
   delivery_type:        "room_delivery" | "pickup" | "dine_in";
@@ -28,6 +28,7 @@ export interface QrOrder {
   folio_id:               string | null;
   requires_folio_review:  boolean;
   payment_preference:     "charge_to_room" | "pay_now";
+  payment_method:         string | null;
   created_at:             string;
   updated_at:             string;
   items:                  QrOrderItem[];
@@ -53,8 +54,8 @@ export const qrOrdersService = {
     return res.data.data;
   },
 
-  updateStatus: async (id: string, status: string): Promise<QrOrder> => {
-    const res = await api.patch(`/api/qr-orders/${id}/status`, { status });
+  updateStatus: async (id: string, status: string, paymentMethod?: string): Promise<QrOrder> => {
+    const res = await api.patch(`/api/qr-orders/${id}/status`, { status, ...(paymentMethod ? { paymentMethod } : {}) });
     return res.data.data;
   },
 

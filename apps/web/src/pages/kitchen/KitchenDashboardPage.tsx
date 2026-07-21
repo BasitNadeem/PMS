@@ -217,7 +217,7 @@ function OrderCard({
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="font-bold text-lg text-ink leading-none">{order.order_number}</p>
-          <p className="text-xs text-ink-mute mt-0.5">Room {order.room_number} · {order.guest_name}</p>
+          <p className="text-xs text-ink-mute mt-0.5">{order.room_number ? `Room ${order.room_number} · ` : ""}{order.guest_name}</p>
         </div>
         <div className="flex items-center gap-1.5">
           <button
@@ -373,7 +373,7 @@ function EditOrderModal({
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-line flex-shrink-0">
           <div>
             <h2 className="text-base font-bold text-ink">Edit Order</h2>
-            <p className="text-xs text-ink-mute mt-0.5">{order.order_number} · Room {order.room_number}</p>
+            <p className="text-xs text-ink-mute mt-0.5">{order.order_number}{order.room_number ? ` · Room ${order.room_number}` : ""}</p>
           </div>
           <button
             onClick={onClose}

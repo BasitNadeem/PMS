@@ -38,7 +38,8 @@ router.get("/:hotelSlug/menu", async (req, res) => {
 
 // GET /api/qr-public/:hotelSlug/verify-room?q=204
 // Checks whether a room number has an active checked-in reservation.
-// Intentionally minimal — returns ONLY { found, roomNumber }, never PII.
+// Returns { found, roomNumber, guestName, guestPhone } when matched — used to
+// autofill the guest details form, so this endpoint does expose guest PII.
 router.get("/:hotelSlug/verify-room", async (req, res) => {
   const hotel = await resolveHotel(req.params.hotelSlug as string);
   if (!hotel?.isActive) {

@@ -194,7 +194,7 @@ export default function QrOrdersPage() {
       ) : (
         <Card pad={false} className="anim-fade-up overflow-hidden">
           {/* Column headers */}
-          <div className="hidden md:grid grid-cols-[0.7fr_1.2fr_0.8fr_0.7fr_auto] gap-3 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-ink-faint border-b border-line-soft">
+          <div className="hidden md:grid grid-cols-[0.7fr_1.2fr_0.8fr_0.7fr_1fr] gap-3 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-ink-faint border-b border-line-soft">
             <span>Order #</span><span>Guest / Room</span><span>Type</span><span>Amount</span><span />
           </div>
           {orders.map((order) => (
@@ -287,7 +287,7 @@ function OrderRow({
     <div className="border-b border-line-soft last:border-0">
       {/* Summary row */}
       <div
-        className="grid grid-cols-2 md:grid-cols-[0.7fr_1.2fr_0.8fr_0.7fr_auto] gap-3 px-5 py-3.5 items-center hover:bg-mist cursor-pointer transition-colors"
+        className="grid grid-cols-2 md:grid-cols-[0.7fr_1.2fr_0.8fr_0.7fr_1fr] gap-3 px-5 py-3.5 items-center hover:bg-mist cursor-pointer transition-colors"
         onClick={onToggle}
       >
         <div>
@@ -308,7 +308,7 @@ function OrderRow({
             PKR {Math.floor(order.total_amount / 100).toLocaleString("en-PK")}
           </p>
         </div>
-        <div className="flex items-center gap-2 justify-end">
+        <div className="min-w-0 flex items-center gap-2 justify-end">
           {order.requires_folio_review && (
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-soft text-amber border border-amber/30">
               Review

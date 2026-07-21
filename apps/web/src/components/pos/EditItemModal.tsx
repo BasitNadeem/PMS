@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { X, UtensilsCrossed, Star } from "lucide-react";
+import { X, UtensilsCrossed, Star, ImagePlus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { posService, type PosItem } from "@/services/pos";
 import { inventoryService } from "@/services/inventory";
+import { uploadService } from "@/services/upload";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 export interface EditItemModalProps {
@@ -25,6 +26,22 @@ export function EditItemModal({ item, onClose }: EditItemModalProps) {
   const [qrVisible, setQrVisible] = useState(item.isQrVisible);
   const [featured,  setFeatured]  = useState(item.isFeatured);
   const [error, setError] = useState<string | null>(null);
+
+  // Photo
+  const [photoUrl, setPhotoUrl] = useState<string | null>(item.photoUrl);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoUploading(true);
+    try {
+      const url = await uploadService.uploadPhoto(file);
+      setPhotoUrl(url);
+    } catch { /* non-fatal */ }
+    finally { setPhotoUploading(false); e.target.value = ""; }
+  }
 
   // Inventory link state
   const [linkInventory,    setLinkInventory]    = useState(item.inventoryItemId !== null);
@@ -63,6 +80,7 @@ export function EditItemModal({ item, onClose }: EditItemModalProps) {
         isAvailable: avail,
         isQrVisible: qrVisible,
         isFeatured:  featured,
+        photoUrl,
       };
 
       if (linkInventory && inventoryItemId) {
@@ -138,6 +156,43 @@ export function EditItemModal({ item, onClose }: EditItemModalProps) {
             <label className={labelClass}>Price (PKR) <span className="text-coral text-[15px] font-bold leading-none normal-case tracking-normal">*</span></label>
             <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} min="0" step="1" className={inputClass} />
           </div>
+
+          {/* Photo */}
+          <div>
+            <label className={labelClass}>Photo <span className="normal-case tracking-normal text-ink-faint font-normal">(optional)</span></label>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+            {photoUrl ? (
+              <div className="relative h-20 w-20 rounded-lg overflow-hidden border border-line">
+                <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  disabled={photoUploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute inset-0 flex items-center justify-center bg-ink/0 hover:bg-ink/50 text-white opacity-0 hover:opacity-100 transition-all disabled:opacity-100 disabled:bg-ink/50"
+                >
+                  {photoUploading ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPhotoUrl(null)}
+                  className="absolute top-0.5 right-0.5 grid place-items-center h-5 w-5 rounded-full bg-ink/70 text-white hover:bg-clay"
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={photoUploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 h-9 px-4 rounded-xl border border-dashed border-line text-ink-mute text-[13px] hover:border-coral/40 hover:text-coral transition-colors disabled:opacity-40"
+              >
+                {photoUploading ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
+                {photoUploading ? "Uploading…" : "Add Photo"}
+              </button>
+            )}
+          </div>
+
           {/* Available toggle */}
           <div className="flex items-center gap-3 pt-1">
             <button

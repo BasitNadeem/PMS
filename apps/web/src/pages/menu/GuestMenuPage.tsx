@@ -500,7 +500,7 @@ function TrackOrderView({
         {/* Search form — input "pressed" into the linen surface */}
         <form onSubmit={handleSearch} className="flex gap-2">
           <input
-            className="flex-1 rounded-xl px-4 py-3 text-sm font-mono font-semibold uppercase tracking-wider focus:outline-none transition-colors placeholder:font-sans placeholder:normal-case placeholder:tracking-normal placeholder:font-normal"
+            className="flex-1 rounded-xl px-4 py-3 text-base font-mono font-semibold uppercase tracking-wider focus:outline-none transition-colors placeholder:font-sans placeholder:normal-case placeholder:tracking-normal placeholder:font-normal"
             style={{ background: "rgb(var(--qr-bg-deep))", border: "none", color: "rgb(var(--qr-ink))", boxShadow: "inset 0 1px 3px rgb(41 26 18 / 0.08)" }}
             placeholder="e.g. 0019 or ORD-0019"
             value={input}

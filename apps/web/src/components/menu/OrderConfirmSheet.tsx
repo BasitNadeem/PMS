@@ -36,7 +36,7 @@ const DELIVERY_ICONS: Record<DeliveryType, typeof BedDouble> = {
 };
 
 // "Pressed into the linen" — darker sand fill, no border, soft inset shadow.
-const inputCls = "w-full rounded-xl px-3.5 py-2.5 text-[14px] focus:outline-none transition-colors";
+const inputCls = "w-full rounded-xl px-3.5 py-2.5 text-base focus:outline-none transition-colors";
 const inputStyle = { background: "rgb(var(--qr-bg-deep))", border: "none", color: "rgb(var(--qr-ink))", boxShadow: "inset 0 1px 3px rgb(41 26 18 / 0.08)" };
 const sectionLabelCls = "text-[11px] font-bold uppercase tracking-widest mb-2 block";
 const cardStyle = { border: "1px solid rgb(var(--qr-line-soft))", boxShadow: "0 10px 28px -10px rgb(41 26 18 / 0.12)" };

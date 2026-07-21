@@ -71,7 +71,7 @@ function shortDate(d: Date) {
   return d.toLocaleDateString("en-PK", { day: "numeric", month: "short" });
 }
 
-async function generateGroupRef(db: TenantTx, hotelId: string): Promise<string> {
+export async function generateGroupRef(db: TenantTx, hotelId: string): Promise<string> {
   const year   = new Date().getFullYear();
   const prefix = `GRP-${year}-`;
 

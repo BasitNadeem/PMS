@@ -1185,9 +1185,12 @@ export const ReportService = {
   // the public booking routes. Revenue uses quotedRate × nights (same shape as
   // the guest-facing cart total) rather than totalAmount, since ENQUIRY-status
   // reservations never get totalAmount populated until confirmed/checked-in.
+  // Cancelled/no-show reservations are excluded from revenue (a cancelled
+  // booking earned nothing) but still counted in totalCount/byStatus.
 
   async getBookingEngineInsights(withTenant: WithTenantFn, startDate?: string, endDate?: string) {
     const dateFilter = startDate && endDate ? utcRange(startDate, endDate) : null;
+    const REVENUE_EXCLUDED_STATUSES = new Set(["CANCELLED", "NO_SHOW"]);
 
     return withTenant(async (db) => {
       const reservations = await db.reservation.findMany({
@@ -1199,6 +1202,7 @@ export const ReportService = {
           id: true, confirmationNumber: true, status: true, groupId: true,
           checkInDate: true, checkOutDate: true, quotedRate: true, createdAt: true,
           guest: { select: { fullName: true } },
+          group: { select: { groupRef: true } },
         },
         orderBy: { createdAt: "desc" },
       });
@@ -1210,8 +1214,65 @@ export const ReportService = {
       for (const r of reservations) {
         byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
         if (r.groupId) multiRoomCount += 1;
-        totalEstimatedRevenue += r.quotedRate * Math.max(diffDays(r.checkInDate, r.checkOutDate), 0);
+        if (!REVENUE_EXCLUDED_STATUSES.has(r.status)) {
+          totalEstimatedRevenue += r.quotedRate * Math.max(diffDays(r.checkInDate, r.checkOutDate), 0);
+        }
       }
+
+      // Consolidate multi-room bookings: a guest submitting one multi-room cart
+      // produces N reservations (one per room) sharing a groupId — they should
+      // read as one booking, not N separate rows.
+      interface BookingEntry {
+        id:           string; // groupId for a group booking, reservation id otherwise
+        isGroup:      boolean;
+        reference:    string;
+        guestName:    string;
+        checkInDate:  Date;
+        checkOutDate: Date;
+        roomCount:    number;
+        statuses:     Set<string>;
+        createdAt:    Date;
+      }
+      const byGroup = new Map<string, BookingEntry>();
+      const standalone: BookingEntry[] = [];
+
+      for (const r of reservations) {
+        if (r.groupId) {
+          const existing = byGroup.get(r.groupId);
+          if (existing) {
+            existing.roomCount += 1;
+            existing.statuses.add(r.status);
+            if (r.createdAt < existing.createdAt) existing.createdAt = r.createdAt;
+          } else {
+            byGroup.set(r.groupId, {
+              id:           r.groupId,
+              isGroup:      true,
+              reference:    r.group?.groupRef ?? r.confirmationNumber,
+              guestName:    r.guest.fullName,
+              checkInDate:  r.checkInDate,
+              checkOutDate: r.checkOutDate,
+              roomCount:    1,
+              statuses:     new Set([r.status]),
+              createdAt:    r.createdAt,
+            });
+          }
+        } else {
+          standalone.push({
+            id:           r.id,
+            isGroup:      false,
+            reference:    r.confirmationNumber,
+            guestName:    r.guest.fullName,
+            checkInDate:  r.checkInDate,
+            checkOutDate: r.checkOutDate,
+            roomCount:    1,
+            statuses:     new Set([r.status]),
+            createdAt:    r.createdAt,
+          });
+        }
+      }
+
+      const bookings = [...byGroup.values(), ...standalone]
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
       return {
         totalCount:            reservations.length,
@@ -1219,15 +1280,16 @@ export const ReportService = {
         multiRoomCount,
         singleRoomCount:       reservations.length - multiRoomCount,
         totalEstimatedRevenue,
-        recent: reservations.slice(0, 10).map((r) => ({
-          id:                 r.id,
-          confirmationNumber: r.confirmationNumber,
-          status:             r.status,
-          guestName:          r.guest.fullName,
-          checkInDate:        r.checkInDate,
-          checkOutDate:       r.checkOutDate,
-          isMultiRoom:        r.groupId !== null,
-          createdAt:          r.createdAt,
+        recent: bookings.slice(0, 10).map((b) => ({
+          id:                 b.id,
+          isGroup:            b.isGroup,
+          confirmationNumber: b.reference,
+          status:             b.statuses.size === 1 ? [...b.statuses][0] : "MIXED",
+          guestName:          b.guestName,
+          checkInDate:        b.checkInDate,
+          checkOutDate:       b.checkOutDate,
+          roomCount:          b.roomCount,
+          createdAt:          b.createdAt,
         })),
       };
     });

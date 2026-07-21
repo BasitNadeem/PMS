@@ -1,13 +1,14 @@
 import { api } from "@/lib/api";
 
 export interface BookingEngineRecentBooking {
-  id:                 string;
+  id:                 string; // groupId for a group booking, reservation id otherwise
+  isGroup:            boolean;
   confirmationNumber: string;
   status:             string;
   guestName:          string;
   checkInDate:        string;
   checkOutDate:       string;
-  isMultiRoom:        boolean;
+  roomCount:          number;
   createdAt:          string;
 }
 

@@ -15,6 +15,7 @@ import { checkFeatureAccess } from "../lib/subscription";
 import { RoomService } from "../services/RoomService";
 import { RatePlanService } from "../services/RatePlanService";
 import { NotificationService } from "../services/NotificationService";
+import { generateGroupRef } from "../services/GroupService";
 import {
   bookingAvailabilitySchema,
   publicSuggestRateSchema,
@@ -387,11 +388,14 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
 
     // 3. Create GroupBooking if multi-room (pure linking mechanism, no agency semantics)
     let groupId: string | null = null;
+    let groupRefResult: string | null = null;
     if (useGroup) {
+      const groupRef = await generateGroupRef(db, hotel.id);
       const group = await db.groupBooking.create({
         data: {
           hotelId:    hotel.id,
           name:       `Online Multi-Room – ${dto.guestName.trim()}`,
+          groupRef,
           payerType:  "INDIVIDUAL",
           billingType: "SPLIT",
           notes: JSON.stringify({
@@ -408,6 +412,7 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
         select: { id: true, groupRef: true },
       });
       groupId = group.id;
+      groupRefResult = group.groupRef;
     }
 
     // 4. Create all reservations
@@ -494,11 +499,11 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
       });
     } catch { /* non-critical */ }
 
-    return { createdReservations, groupId };
+    return { createdReservations, groupId, groupRef: groupRefResult };
   });
 
   const confirmationReference = useGroup
-    ? (result.groupId ? `GRP-${result.groupId.slice(0, 8).toUpperCase()}` : result.createdReservations[0]?.confirmationNumber)
+    ? (result.groupRef ?? result.createdReservations[0]?.confirmationNumber)
     : result.createdReservations[0]?.confirmationNumber;
 
   res.status(201).json({

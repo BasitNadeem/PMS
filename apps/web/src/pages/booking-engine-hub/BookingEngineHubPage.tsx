@@ -321,7 +321,7 @@ export default function BookingEngineHubPage() {
                     {insights?.recent.map((r) => (
                       <Link
                         key={r.id}
-                        to={`/reservations/${r.id}`}
+                        to={r.isGroup ? `/groups/${r.id}` : `/reservations/${r.id}`}
                         className="grid grid-cols-2 md:grid-cols-[1fr_1fr_0.8fr_0.8fr_0.6fr] gap-3 px-5 py-3 items-center border-b border-line-soft last:border-0 hover:bg-mist transition-colors"
                       >
                         <span className="text-[13px] font-semibold text-ink">{r.confirmationNumber}</span>
@@ -330,7 +330,7 @@ export default function BookingEngineHubPage() {
                         <span className="hidden md:block">
                           <StatusBadge status={STATUS_LABEL[r.status] ?? r.status} size="sm" />
                         </span>
-                        <span className="hidden md:block text-[12.5px] text-ink-faint">{r.isMultiRoom ? "Multi-room" : "Single"}</span>
+                        <span className="hidden md:block text-[12.5px] text-ink-faint">{r.roomCount} room{r.roomCount === 1 ? "" : "s"}</span>
                       </Link>
                     ))}
                   </Card>

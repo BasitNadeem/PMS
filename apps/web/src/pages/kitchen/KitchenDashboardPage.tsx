@@ -55,6 +55,14 @@ const DELIVERY_LABELS: Record<string, string> = {
 
 const IN_PROGRESS_STATUSES = new Set(["preparing", "ready", "delivered"]);
 
+const PAYMENT_METHOD_OPTIONS = [
+  { value: "CASH",        label: "Cash" },
+  { value: "JAZZCASH",    label: "JazzCash" },
+  { value: "EASYPAISA",   label: "Easypaisa" },
+  { value: "CREDIT_CARD", label: "Credit Card" },
+  { value: "DEBIT_CARD",  label: "Debit Card" },
+];
+
 // ── types ─────────────────────────────────────────────────────────────────────
 
 interface EditItem {
@@ -85,8 +93,8 @@ export default function KitchenDashboardPage() {
   });
 
   const { mutate: advance, isPending: advancing } = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      qrOrdersService.updateStatus(id, status),
+    mutationFn: ({ id, status, paymentMethod }: { id: string; status: string; paymentMethod?: string }) =>
+      qrOrdersService.updateStatus(id, status, paymentMethod),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["kitchen-orders-dashboard"] }),
   });
 
@@ -158,7 +166,7 @@ export default function KitchenDashboardPage() {
                     <OrderCard
                       key={order.id}
                       order={order}
-                      onAdvance={(id, status) => advance({ id, status })}
+                      onAdvance={(id, status, paymentMethod) => advance({ id, status, paymentMethod })}
                       onEdit={() => setEditOrder(order)}
                       onCancel={() => setCancelOrder(order)}
                       isAdvancing={advancing}
@@ -200,7 +208,7 @@ function OrderCard({
   order, onAdvance, onEdit, onCancel, isAdvancing,
 }: {
   order:       QrOrder;
-  onAdvance:   (id: string, status: string) => void;
+  onAdvance:   (id: string, status: string, paymentMethod?: string) => void;
   onEdit:      () => void;
   onCancel:    () => void;
   isAdvancing: boolean;
@@ -210,6 +218,8 @@ function OrderCard({
   const elapsed   = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000);
   const canCancel = order.status !== "delivered" && order.status !== "cancelled";
   const cardStyle = ORDER_CARD_STYLES[order.status] ?? "border-line bg-card";
+  const needsPaymentMethod = next === "delivered" && order.payment_preference === "pay_now";
+  const [paymentMethod, setPaymentMethod] = useState("");
 
   return (
     <div className={`rounded-2xl border-2 ${cardStyle} p-4 flex flex-col gap-3`}>
@@ -281,13 +291,27 @@ function OrderCard({
 
       {/* Advance button */}
       {next && (
-        <button
-          onClick={() => onAdvance(order.id, next)}
-          disabled={isAdvancing}
-          className="mt-auto w-full py-2.5 rounded-xl bg-ink text-white text-sm font-bold hover:bg-ink/80 disabled:opacity-50 transition-colors"
-        >
-          {nextLabel}
-        </button>
+        <div className="mt-auto flex flex-col gap-2">
+          {needsPaymentMethod && (
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className="h-9 rounded-xl border border-line bg-white px-3 text-sm text-ink cursor-pointer"
+            >
+              <option value="">Payment method received…</option>
+              {PAYMENT_METHOD_OPTIONS.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          )}
+          <button
+            onClick={() => onAdvance(order.id, next, needsPaymentMethod ? paymentMethod : undefined)}
+            disabled={isAdvancing || (needsPaymentMethod && !paymentMethod)}
+            className="w-full py-2.5 rounded-xl bg-ink text-white text-sm font-bold hover:bg-ink/80 disabled:opacity-50 transition-colors"
+          >
+            {nextLabel}
+          </button>
+        </div>
       )}
     </div>
   );

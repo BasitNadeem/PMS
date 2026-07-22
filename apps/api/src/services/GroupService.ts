@@ -5,6 +5,7 @@ import { paginationMeta } from "../utils/pagination";
 import { NotificationService } from "./NotificationService";
 import { ReservationService, formatRoomConflictMessage } from "./ReservationService";
 import { assertNoDuplicateGuest } from "../utils/guestDuplicate";
+import { notifyHotelDataChanged } from "../lib/realtime";
 import {
   GROUP_STATUSES,
   type ListGroupsQuery,
@@ -405,6 +406,9 @@ export const GroupService = {
       } catch { /* notifications are non-critical */ }
 
       return GroupService.getGroup(async (fn) => fn(db), group.id);
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 
@@ -449,6 +453,9 @@ export const GroupService = {
       });
 
       return GroupService.getGroup(async (fn) => fn(db), groupId);
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 
@@ -493,6 +500,9 @@ export const GroupService = {
       });
 
       return GroupService.getGroup(async (fn) => fn(db), groupId);
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 
@@ -531,6 +541,9 @@ export const GroupService = {
       });
 
       return GroupService.getGroup(async (fn) => fn(db), groupId);
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 
@@ -569,6 +582,9 @@ export const GroupService = {
       });
 
       return GroupService.getGroup(async (fn) => fn(db), groupId);
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 
@@ -607,6 +623,9 @@ export const GroupService = {
       });
 
       return GroupService.getGroup(async (fn) => fn(db), groupId);
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 
@@ -658,6 +677,9 @@ export const GroupService = {
       });
 
       return GroupService.getGroup(async (fn) => fn(db), groupId);
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 };

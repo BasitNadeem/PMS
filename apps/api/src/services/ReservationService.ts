@@ -585,6 +585,9 @@ export const ReservationService = {
       });
 
       return updated;
+    }).then((updated) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return updated;
     });
   },
 };

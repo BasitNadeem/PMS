@@ -21,6 +21,7 @@ import { ToastContainer } from "@/components/ui/ToastContainer";
 import { useToast } from "@/hooks/useToast";
 import { Card } from "@/components/ui/Card";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ export default function PosPage() {
   const canCreate = has("pos:create");
   const canUpdate = has("pos:update");
   const { toasts, addToast, removeToast } = useToast();
+  useRealtimeSync();
 
   const [tab, setTab] = useState<TabType>("terminal");
 
@@ -83,18 +85,21 @@ export default function PosPage() {
     queryKey: ["pos-categories"],
     queryFn:  posService.getCategories,
     enabled:  tab === "terminal",
+    refetchInterval: 60_000,
   });
 
   const { data: adminCats = [] } = useQuery<PosCategory[]>({
     queryKey: ["pos-categories-admin"],
     queryFn:  posService.getCategoriesAdmin,
     enabled:  tab === "menu",
+    refetchInterval: 60_000,
   });
 
   const { data: ordersData } = useQuery({
     queryKey: ["pos-orders", ordersPage],
     queryFn:  () => posService.getOrders({ page: ordersPage, limit: 20 }),
     enabled:  tab === "orders",
+    refetchInterval: 60_000,
   });
 
   const cancelMutation = useMutation({

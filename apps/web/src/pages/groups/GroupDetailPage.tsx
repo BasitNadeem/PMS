@@ -23,6 +23,7 @@ import { ToastContainer } from "@/components/ui/ToastContainer";
 import { useToast } from "@/hooks/useToast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -226,6 +227,7 @@ export default function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  useRealtimeSync();
   const { has } = usePermissions();
   const canUpdate = has("groups:update");
   const { toasts, addToast, removeToast } = useToast();
@@ -236,6 +238,7 @@ export default function GroupDetailPage() {
     queryKey: ["group", id],
     queryFn: () => groupsService.getGroup(id!),
     enabled: !!id,
+    refetchInterval: 60_000,
   });
 
   const firstRoomTypeId = group?.reservations.find(r => r.room && !r.room.pending)?.room?.roomType.id;

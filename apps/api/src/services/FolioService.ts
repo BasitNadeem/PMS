@@ -88,6 +88,9 @@ export const FolioService = {
       });
 
       return item;
+    }).then((item) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return item;
     });
   },
 
@@ -130,6 +133,9 @@ export const FolioService = {
       });
 
       return { voided: true };
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 

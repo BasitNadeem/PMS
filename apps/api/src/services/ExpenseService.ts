@@ -25,6 +25,7 @@ import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
 import type { CreateExpenseDto, UpdateExpenseDto, ListExpensesQuery } from "../schemas/expenses";
 import { createLedgerEntryFromExpense, voidLedgerEntryFromExpense } from "./CashBookService";
+import { notifyHotelDataChanged } from "../lib/realtime";
 
 export interface ExpenseRow {
   id:             string;
@@ -104,6 +105,7 @@ export const ExpenseService = {
       actorId,
     ).catch(() => { /* already logged inside */ });
 
+    notifyHotelDataChanged(hotelId);
     return expense;
   },
 
@@ -132,6 +134,7 @@ export const ExpenseService = {
       WHERE id = ${id}::uuid AND hotel_id = ${hotelId}::uuid
       RETURNING *
     `;
+    notifyHotelDataChanged(hotelId);
     return rows[0];
   },
 
@@ -145,6 +148,7 @@ export const ExpenseService = {
     await adminPrisma.$executeRaw`
       DELETE FROM expenses WHERE id = ${id}::uuid AND hotel_id = ${hotelId}::uuid
     `;
+    notifyHotelDataChanged(hotelId);
   },
 
   async getSummary(hotelId: string, startDate: string, endDate: string) {

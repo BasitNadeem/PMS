@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
 import { StatusBadge, toneOf } from "@/components/ui/StatusBadge";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,7 @@ export default function FolioPage() {
   const { pathname } = useLocation();
   const fromBilling = pathname.startsWith("/financials");
   const qc = useQueryClient();
+  useRealtimeSync();
   const { has } = usePermissions();
   const canCreateCharge = has("billing:create");
   const canRecordPayment = has("billing:create");
@@ -75,6 +77,7 @@ export default function FolioPage() {
     queryKey: ["folio", reservationId],
     queryFn: () => folioService.getFolio(reservationId!),
     enabled: !!reservationId,
+    refetchInterval: 60_000,
   });
 
   const voidMutation = useMutation({

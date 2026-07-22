@@ -10,6 +10,7 @@ import { applyTheme } from "@/lib/theme";
 import { decodeToken, getCurrentUserName, formatRoleLabel, getInitials } from "@/lib/jwt";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import {
   housekeepingService,
   type HousekeepingTask,
@@ -398,6 +399,7 @@ export default function HousekeepingMobilePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
+  useRealtimeSync();
 
   const payload = decodeToken();
   const userId = payload?.userId ?? null;

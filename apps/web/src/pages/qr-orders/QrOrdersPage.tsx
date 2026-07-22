@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { qrOrdersService, type QrOrder } from "../../services/qrOrders";
 import { ReceiptView } from "@/components/pos/ReceiptView";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 // ── Status / badge config ─────────────────────────────────────────────────────
 
@@ -68,6 +69,7 @@ const labelCls = "block text-[11px] font-bold uppercase tracking-wide text-ink-f
 
 export default function QrOrdersPage() {
   const qc = useQueryClient();
+  useRealtimeSync();
   const [status,       setStatus]       = useState("");
   const [startDate,    setStartDate]    = useState("");
   const [endDate,      setEndDate]      = useState("");
@@ -89,6 +91,7 @@ export default function QrOrdersPage() {
     placeholderData: keepPreviousData,
     staleTime:       30_000,
     retry:           1, // fail fast — don't spin for 30+ seconds on API errors
+    refetchInterval: 60_000,
   });
 
   const { mutate: advanceStatus, isPending: advancing } = useMutation({

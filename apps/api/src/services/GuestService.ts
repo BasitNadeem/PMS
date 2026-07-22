@@ -3,6 +3,7 @@ import type { JwtPayload } from "../middleware/auth";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
 import { assertNoDuplicateGuest } from "../utils/guestDuplicate";
+import { notifyHotelDataChanged } from "../lib/realtime";
 import type { ListGuestsQuery, CreateGuestDto, UpdateGuestDto, BlacklistGuestDto, CheckBlacklistDto } from "../schemas/guests";
 
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
@@ -123,6 +124,9 @@ export const GuestService = {
       });
 
       return guest;
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 
@@ -168,6 +172,9 @@ export const GuestService = {
       });
 
       return updated;
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 
@@ -205,6 +212,9 @@ export const GuestService = {
       });
 
       return db.guest.findFirst({ where: { id: guestId } });
+    }).then((result) => {
+      notifyHotelDataChanged(hotelId);
+      return result;
     });
   },
 
@@ -231,6 +241,9 @@ export const GuestService = {
       });
 
       return db.guest.findFirst({ where: { id: guestId } });
+    }).then((result) => {
+      notifyHotelDataChanged(hotelId);
+      return result;
     });
   },
 

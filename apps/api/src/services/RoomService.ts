@@ -3,6 +3,7 @@ import type { JwtPayload } from "../middleware/auth";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
 import { checkRoomLimit } from "../lib/subscription";
+import { notifyHotelDataChanged } from "../lib/realtime";
 import type {
   ListRoomsQuery,
   CreateRoomDto,
@@ -61,6 +62,9 @@ export const RoomService = {
       });
 
       return roomType;
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 
@@ -86,6 +90,9 @@ export const RoomService = {
       });
 
       return updated;
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 
@@ -155,6 +162,9 @@ export const RoomService = {
       });
 
       return room;
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 
@@ -186,6 +196,9 @@ export const RoomService = {
       });
 
       return updated;
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 
@@ -205,6 +218,8 @@ export const RoomService = {
           entityId: id,
         },
       });
+    }).then(() => {
+      notifyHotelDataChanged(actor.hotelId);
     });
   },
 

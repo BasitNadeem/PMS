@@ -42,6 +42,7 @@
 import { adminPrisma, Prisma } from "@pms/db";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
+import { notifyHotelDataChanged } from "../lib/realtime";
 import type { AccountType, BalancesQuery, CreateAccountDto, CreateEntryDto, LedgerQuery, SummaryQuery } from "../schemas/cashbook";
 
 // ── Row types ─────────────────────────────────────────────────────────────────
@@ -152,6 +153,7 @@ export const CashBookService = {
         RETURNING *
       `;
       if (!rows[0]) throw new AppError(500, "Insert returned no row");
+      notifyHotelDataChanged(hotelId);
       return rows[0];
     } catch (err) {
       if (err instanceof AppError) throw err;
@@ -215,6 +217,9 @@ export const CashBookService = {
             '' AS account_type,
             NULL::text AS recorder_name
         `;
+        return entry;
+      }).then((entry) => {
+        notifyHotelDataChanged(hotelId);
         return entry;
       });
     } catch (err) {

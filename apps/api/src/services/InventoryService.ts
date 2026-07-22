@@ -3,6 +3,7 @@ import { InventoryTransactionType, Prisma } from "@pms/db";
 import { adminPrisma } from "@pms/db";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
+import { notifyHotelDataChanged } from "../lib/realtime";
 import type {
   ListInventoryQuery,
   CreateInventoryItemDto,
@@ -261,6 +262,9 @@ export const InventoryService = {
         parLevel:     parseFloat(item.parLevel.toString()),
         reorderLevel: parseFloat(item.reorderLevel.toString()),
       };
+    }).then((result) => {
+      notifyHotelDataChanged(hotelId);
+      return result;
     });
   },
 
@@ -319,6 +323,9 @@ export const InventoryService = {
         parLevel:     parseFloat(updated.parLevel.toString()),
         reorderLevel: parseFloat(updated.reorderLevel.toString()),
       };
+    }).then((result) => {
+      notifyHotelDataChanged(hotelId);
+      return result;
     });
   },
 
@@ -328,7 +335,7 @@ export const InventoryService = {
     itemId: string,
     actorId: string,
   ) {
-    return withTenant(async (db) => {
+    await withTenant(async (db) => {
       await db.inventoryItem.update({
         where: { id: itemId, hotelId },
         data:  { isActive: false },
@@ -344,6 +351,8 @@ export const InventoryService = {
         },
       });
     });
+
+    notifyHotelDataChanged(hotelId);
   },
 
   async recordTransaction(
@@ -389,6 +398,8 @@ export const InventoryService = {
         },
       });
     });
+
+    notifyHotelDataChanged(hotelId);
 
     // Re-fetch item after DB trigger has updated currentStock
     const updatedItem = await withTenant((db) =>

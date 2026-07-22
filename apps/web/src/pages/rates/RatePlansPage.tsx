@@ -9,6 +9,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { Card } from "@/components/ui/Card";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -318,6 +319,7 @@ function RatePlanModal({ plan, onClose, onSuccess }: RatePlanModalProps) {
 // ── RatePlansPage ─────────────────────────────────────────────────────────────
 
 export default function RatePlansPage() {
+  useRealtimeSync();
   const { has } = usePermissions();
   const canCreate = has("rates:create");
   const canUpdate = has("rates:update");
@@ -333,6 +335,7 @@ export default function RatePlansPage() {
     queryKey: ["rate-plans", showActive],
     queryFn: () => ratePlansService.list({ isActive: showActive }),
     staleTime: 30_000,
+    refetchInterval: 60_000,
   });
   const plans = data?.data ?? [];
 

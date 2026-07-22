@@ -16,6 +16,7 @@ import { ItemDetailDrawer } from "../../components/inventory/ItemDetailDrawer";
 import { RecordTransactionModal } from "../../components/inventory/RecordTransactionModal";
 import { ScanStockModal } from "../../components/inventory/ScanStockModal";
 import type { CreateTransactionDto } from "../../services/inventory";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -106,6 +107,7 @@ type ViewMode = "table" | "grid";
 
 export default function InventoryPage() {
   const qc = useQueryClient();
+  useRealtimeSync();
 
   const [search,          setSearch]         = useState("");
   const [activeCategory,  setActiveCategory] = useState<string | null>(null);
@@ -121,6 +123,7 @@ export default function InventoryPage() {
     queryKey: ["inventory", "summary"],
     queryFn:  inventoryService.getSummary,
     staleTime: 60_000,
+    refetchInterval: 60_000,
   });
 
   const { data: listData, isLoading } = useQuery({
@@ -133,6 +136,7 @@ export default function InventoryPage() {
       limit: 50,
     }),
     staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
   const items = listData?.data ?? [];

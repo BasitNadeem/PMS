@@ -10,6 +10,7 @@ import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
 import { getEffectiveLimits } from "../lib/subscription";
 import { publicWithTenant } from "../lib/publicTenant";
+import { notifyHotelDataChanged } from "../lib/realtime";
 
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
 
@@ -199,6 +200,9 @@ export const RatePlanService = {
       });
 
       return plan;
+    }).then((result) => {
+      notifyHotelDataChanged(hotelId);
+      return result;
     });
   },
 
@@ -259,6 +263,9 @@ export const RatePlanService = {
       });
 
       return plan;
+    }).then((result) => {
+      notifyHotelDataChanged(hotelId);
+      return result;
     });
   },
 
@@ -284,6 +291,8 @@ export const RatePlanService = {
           after:    JSON.parse(JSON.stringify({ name: existing.name, isActive: true })),
         },
       });
+    }).then(() => {
+      notifyHotelDataChanged(hotelId);
     });
   },
 
@@ -309,6 +318,8 @@ export const RatePlanService = {
           after:    JSON.parse(JSON.stringify({ name: existing.name, isActive: false })),
         },
       });
+    }).then(() => {
+      notifyHotelDataChanged(hotelId);
     });
   },
 

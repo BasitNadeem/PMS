@@ -530,6 +530,7 @@ export const QrOrderService = {
         after:    JSON.parse(JSON.stringify({ folioId: folio.id, orderNumber: order.order_number })),
       },
     });
+    notifyHotelDataChanged(hotelId);
     return serializeOrder(updated!);
   },
 
@@ -619,6 +620,7 @@ export const QrOrderService = {
       },
     });
 
+    notifyHotelDataChanged(hotelId);
     return {
       ...serializeOrder(updated),
       items: updatedItems.map(serializeOrderItem),
@@ -659,6 +661,7 @@ export const QrOrderService = {
         after:    JSON.parse(JSON.stringify({ status: "cancelled" })),
       },
     });
+    notifyHotelDataChanged(hotelId);
     return serializeOrder(updated!);
   },
 

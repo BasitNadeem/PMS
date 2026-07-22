@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bell, CalendarPlus, LogIn, LogOut, Sparkles } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { notificationsService, type AppNotification } from "../../services/notifications";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 function timeAgo(iso: string): string {
   const diff  = Date.now() - new Date(iso).getTime();
@@ -58,11 +59,13 @@ function NotificationRow({ n }: { n: AppNotification }) {
 
 export default function NotificationsPage() {
   const qc      = useQueryClient();
+  useRealtimeSync();
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
     queryKey: ["notifications-all", page],
     queryFn:  () => notificationsService.getAllNotifications(page),
+    refetchInterval: 60_000,
   });
 
   const markAllMutation = useMutation({

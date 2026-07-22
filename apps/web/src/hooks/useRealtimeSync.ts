@@ -38,11 +38,14 @@ export function useRealtimeSync(onBookingCreated?: () => void): void {
 
       source.addEventListener("change", (e) => {
         retryDelay.current = 2000;
-        qc.invalidateQueries({ queryKey: ["dashboard"] });
-        qc.invalidateQueries({ queryKey: ["front-desk-notes"] });
-        qc.invalidateQueries({ queryKey: ["reservations"] });
-        qc.invalidateQueries({ queryKey: ["reservations-counts"] });
-        qc.invalidateQueries({ queryKey: ["notifications-count"] });
+        // Blanket invalidation rather than a hand-maintained key list: this
+        // hook is now mounted on most data pages in the app, and a growing
+        // per-page key list here would need editing every time a new page
+        // adopts it. invalidateQueries() with no filter only forces an
+        // immediate refetch for queries an actively-mounted component is
+        // observing — everything else is just marked stale and refetches
+        // next time it's read, so this stays cheap even as coverage grows.
+        qc.invalidateQueries();
 
         try {
           const data = JSON.parse((e as MessageEvent).data) as RealtimeChangeEvent;

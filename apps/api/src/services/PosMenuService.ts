@@ -1,6 +1,7 @@
 import type { TenantTx } from "@pms/db";
 import type { JwtPayload } from "../middleware/auth";
 import { AppError } from "../utils/AppError";
+import { notifyHotelDataChanged } from "../lib/realtime";
 import type {
   CreateCategoryDto,
   UpdateCategoryDto,
@@ -53,6 +54,9 @@ export const PosMenuService = {
         },
       });
       return category;
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 
@@ -88,6 +92,9 @@ export const PosMenuService = {
         },
       });
       return updated;
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 
@@ -111,6 +118,8 @@ export const PosMenuService = {
           entityId: id,
         },
       });
+    }).then(() => {
+      notifyHotelDataChanged(actor.hotelId);
     });
   },
 
@@ -152,6 +161,9 @@ export const PosMenuService = {
         },
       });
       return item;
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 
@@ -192,6 +204,9 @@ export const PosMenuService = {
         },
       });
       return updated;
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 
@@ -210,6 +225,8 @@ export const PosMenuService = {
           entityId: id,
         },
       });
+    }).then(() => {
+      notifyHotelDataChanged(actor.hotelId);
     });
   },
 
@@ -233,6 +250,9 @@ export const PosMenuService = {
         },
       });
       return updated;
+    }).then((result) => {
+      notifyHotelDataChanged(actor.hotelId);
+      return result;
     });
   },
 };

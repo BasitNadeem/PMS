@@ -304,6 +304,7 @@ export const MaintenanceService = {
       return updated;
     });
 
+    notifyHotelDataChanged(actor.hotelId);
     return mapTicket(ticket);
   },
 

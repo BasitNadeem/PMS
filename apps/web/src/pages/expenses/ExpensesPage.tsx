@@ -18,6 +18,7 @@ import { Card } from "@/components/ui/Card";
 import { useToast } from "@/hooks/useToast";
 import { ToastContainer } from "@/components/ui/ToastContainer";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { DatePicker } from "@/components/ui/DatePicker";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -101,6 +102,7 @@ function SummaryCard({ icon: Icon, bg, fg, label, value, sub }: {
 
 export default function ExpensesPage() {
   const qc = useQueryClient();
+  useRealtimeSync();
   const { toasts, addToast, removeToast } = useToast();
   const { has } = usePermissions();
 
@@ -127,12 +129,14 @@ export default function ExpensesPage() {
       page,
       limit: 20,
     }),
+    refetchInterval: 60_000,
   });
 
   const { data: summary } = useQuery({
     queryKey: ["expenses-summary", appliedStart, appliedEnd],
     queryFn: () => expensesService.getExpenseSummary(appliedStart, appliedEnd),
     staleTime: 60_000,
+    refetchInterval: 60_000,
   });
 
   const deleteMutation = useMutation({

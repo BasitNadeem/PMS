@@ -322,6 +322,7 @@ export const HousekeepingService = {
       return updated;
     });
 
+    notifyHotelDataChanged(actor.hotelId);
     return mapTask(task);
   },
 

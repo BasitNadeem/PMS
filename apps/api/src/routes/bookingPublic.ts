@@ -180,6 +180,10 @@ router.post("/:hotelSlug/book", bookSubmitLimit, async (req, res) => {
     bookingContext: "SINGLE",
   });
   const ratePerNight = rateResult.suggestedRate; // in paisas
+  const nights       = Math.ceil(
+    (new Date(dto.checkOutDate).getTime() - new Date(dto.checkInDate).getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const totalAmount = ratePerNight * nights;
 
   // Single transaction: re-verify availability + guest upsert + reservation + audit + notify
   const reservation = await wt(async (db) => {
@@ -264,6 +268,8 @@ router.post("/:hotelSlug/book", bookSubmitLimit, async (req, res) => {
         children:        dto.children,
         specialRequests: dto.specialRequests ?? null,
         quotedRate:      ratePerNight,
+        totalAmount,
+        balanceDue:      totalAmount,
         rooms: {
           create: {
             roomId:      freeRoom.id,
@@ -328,6 +334,9 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
   // Compute total number of reservations to decide whether to create a GroupBooking
   const totalRooms = dto.items.reduce((s, i) => s + i.quantity, 0);
   const useGroup   = totalRooms > 1;
+  const nights     = Math.ceil(
+    (new Date(dto.checkOutDate).getTime() - new Date(dto.checkInDate).getTime()) / (1000 * 60 * 60 * 24)
+  );
 
   // Fetch suggested rates for each room type (read-only, outside transaction)
   const rateMap = new Map<string, number>();
@@ -438,6 +447,7 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
       const bookedSet = new Set(bookedIds.map((r) => r.roomId));
       const freeRooms = allRooms.filter((r) => !bookedSet.has(r.id));
       const ratePerNight = rateMap.get(item.roomTypeId) ?? 0;
+      const totalAmount  = ratePerNight * nights;
 
       for (let q = 0; q < item.quantity; q++) {
         const freeRoom = freeRooms[q];
@@ -456,6 +466,8 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
             children:        dto.children,
             specialRequests: dto.specialRequests ?? null,
             quotedRate:      ratePerNight,
+            totalAmount,
+            balanceDue:      totalAmount,
             ...(groupId ? { groupId } : {}),
             rooms: {
               create: {

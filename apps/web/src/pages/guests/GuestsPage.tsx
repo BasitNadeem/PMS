@@ -12,7 +12,6 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 function maskId(doc: string | null): string {
   if (!doc) return "—";
@@ -73,7 +72,6 @@ function GuestRow({ guest, onOpen, onEdit, canEdit }: { guest: GuestSummary; onO
 export default function GuestsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  useRealtimeSync();
   const { has } = usePermissions();
   const canCreate = has("guests:create");
   const canEdit   = has("guests:update");

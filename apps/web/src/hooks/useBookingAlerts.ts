@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 
 export interface BookingAlert {
   id: number;
+  title: string;
   message: string;
 }
 
@@ -11,8 +12,8 @@ export interface BookingAlert {
 export function useBookingAlerts() {
   const [alerts, setAlerts] = useState<BookingAlert[]>([]);
 
-  const addAlert = useCallback((message: string) => {
-    setAlerts((prev) => [...prev, { id: Date.now(), message }]);
+  const addAlert = useCallback((title: string, message: string) => {
+    setAlerts((prev) => [...prev, { id: Date.now(), title, message }]);
   }, []);
 
   const removeAlert = useCallback((id: number) => {

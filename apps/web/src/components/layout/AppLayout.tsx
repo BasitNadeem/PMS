@@ -19,8 +19,9 @@ import { getCurrentUserName, getCurrentUserRole, formatRoleLabel, getInitials } 
 import { applyTheme } from "@/lib/theme";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { useBookingAlerts } from "@/hooks/useBookingAlerts";
+import { useBookingNotificationAlerts } from "@/hooks/useBookingNotificationAlerts";
 import { BookingAlertStack } from "@/components/ui/BookingAlertStack";
-import { playNotificationSound } from "@/lib/notificationSound";
+import { playNotificationSound, unlockNotificationSound } from "@/lib/notificationSound";
 
 function useOnlineStatus() {
   return useSyncExternalStore(
@@ -641,10 +642,28 @@ export function AppLayout({ children }: AppLayoutProps) {
   // Mounted once here (not per-page) so a Booking Engine reservation pops
   // up with a sound no matter which page the front desk is currently on.
   const { alerts, addAlert, removeAlert } = useBookingAlerts();
-  useRealtimeSync(() => {
+  useRealtimeSync();
+  useBookingNotificationAlerts((notification) => {
     playNotificationSound();
-    addAlert("New booking request received — check Reservations");
+    addAlert(notification.title, notification.body);
   });
+
+  useEffect(() => {
+    // Covers restored sessions and page reloads where the login-button gesture
+    // did not occur during this AppLayout mount.
+    const unlock = () => {
+      unlockNotificationSound();
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
   const { data: hotel } = useQuery<Hotel>({
     queryKey: ["hotel"],
     queryFn: () => api.get("/api/hotels/me").then((r) => r.data.data),

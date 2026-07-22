@@ -21,7 +21,6 @@ import { ToastContainer } from "@/components/ui/ToastContainer";
 import { useToast } from "@/hooks/useToast";
 import { Card } from "@/components/ui/Card";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -63,7 +62,6 @@ export default function PosPage() {
   const canCreate = has("pos:create");
   const canUpdate = has("pos:update");
   const { toasts, addToast, removeToast } = useToast();
-  useRealtimeSync();
 
   const [tab, setTab] = useState<TabType>("terminal");
 

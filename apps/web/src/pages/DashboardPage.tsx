@@ -26,7 +26,6 @@ import { roomsService, type Room } from "@/services/rooms";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { getCurrentUserName } from "@/lib/jwt";
-import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -862,7 +861,6 @@ function ArrivalsReadiness({ scheduleEvents }: { scheduleEvents: DashboardSchedu
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  useRealtimeSync();
 
   const { data: dash, isLoading } = useQuery({
     queryKey: ["dashboard"],

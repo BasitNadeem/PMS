@@ -8,7 +8,6 @@ import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Avatar } from "@/components/ui/Avatar";
 import { toneOf } from "@/components/ui/StatusBadge";
-import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 function formatPkr(paise: number): string {
   const r = paise / 100;
@@ -110,7 +109,6 @@ function FolioRow({ folio }: { folio: BillingFolio }) {
 
 export default function BillingPage() {
   const navigate        = useNavigate();
-  useRealtimeSync();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<"open" | "settled" | "all">("open");
   const [sortBy, setSortBy]             = useState<"checkOut" | "balance" | "guestName">("checkOut");

@@ -21,9 +21,6 @@ import { Segmented } from "@/components/ui/Segmented";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useRealtimeSync } from "@/hooks/useRealtimeSync";
-import { useToast } from "@/hooks/useToast";
-import { ToastContainer } from "@/components/ui/ToastContainer";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -255,8 +252,6 @@ export default function ReservationsPage() {
   const [calYear, setCalYear]       = useState(new Date().getFullYear());
   const [calMonth, setCalMonth]     = useState(new Date().getMonth() + 1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { toasts, addToast, removeToast } = useToast();
-  useRealtimeSync(() => addToast("New booking request received — check Reservations"));
 
   // Clear ?new=1 / ?view=calendar from URL once consumed
   useEffect(() => {
@@ -283,8 +278,8 @@ export default function ReservationsPage() {
       search:   debouncedSearch || undefined,
       page, limit: 20, sortBy, sortDir,
     }),
-    // SSE (useRealtimeSync) pushes instant invalidation on real changes —
-    // this interval is just a fallback in case the connection drops.
+    // SSE (mounted once in AppLayout) pushes instant invalidation on real
+    // changes — this interval is just a fallback in case the connection drops.
     refetchInterval: 15_000,
   });
 
@@ -661,8 +656,6 @@ export default function ReservationsPage() {
           qc.invalidateQueries({ queryKey: ["reservations-counts"] });
         }}
       />
-
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

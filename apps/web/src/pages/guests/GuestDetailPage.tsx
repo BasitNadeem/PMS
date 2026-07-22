@@ -12,7 +12,6 @@ import { Avatar } from "@/components/ui/Avatar";
 import { StatusBadge, TONE } from "@/components/ui/StatusBadge";
 import { BlacklistModal } from "@/components/guests/BlacklistModal";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -61,7 +60,6 @@ export default function GuestDetailPage() {
   const { toasts, addToast, removeToast } = useToast();
   const { has } = usePermissions();
   const qc = useQueryClient();
-  useRealtimeSync();
   const canEdit = has("guests:update");
   const [activeTab, setActiveTab] = useState<"details" | "stays">("details");
   const [showBlacklist, setShowBlacklist] = useState(false);

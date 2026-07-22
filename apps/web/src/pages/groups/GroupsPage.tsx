@@ -9,7 +9,6 @@ import { StatusBadge, toneOf, TONE } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { NewGroupModal } from "@/components/groups/NewGroupModal";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 function formatPkr(paisas: number): string {
   return `PKR ${Math.round(paisas / 100).toLocaleString("en-PK")}`;
@@ -87,7 +86,6 @@ function SummaryCard({ label, value, tone, delay = 0 }: SummaryCardProps) {
 
 export default function GroupsPage() {
   const navigate = useNavigate();
-  useRealtimeSync();
   const { has } = usePermissions();
   const canCreate = has("groups:create");
   const [activeTab, setActiveTab] = useState<TabKey>("ALL");

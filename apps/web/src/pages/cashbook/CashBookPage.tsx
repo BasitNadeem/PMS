@@ -18,7 +18,6 @@ import { BalancesDrawer } from "@/components/cashbook/BalancesDrawer";
 import { useToast } from "@/hooks/useToast";
 import { ToastContainer } from "@/components/ui/ToastContainer";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { DatePicker } from "@/components/ui/DatePicker";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -128,7 +127,6 @@ const inputCls = "h-9 rounded-xl border border-line bg-mist px-3 text-[13px] tex
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function CashBookPage() {
-  useRealtimeSync();
   const { has } = usePermissions();
   const canCreate = has("cashbook:create");
   const { toasts, addToast, removeToast } = useToast();

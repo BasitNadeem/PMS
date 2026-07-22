@@ -18,7 +18,6 @@ import { ResolveTicketModal } from "@/components/maintenance/ResolveTicketModal"
 import { Card } from "@/components/ui/Card";
 import { toneOf, type ToneConfig } from "@/components/ui/StatusBadge";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -244,7 +243,6 @@ const BOARD_COLUMNS: MaintenanceStatus[] = ["OPEN", "IN_PROGRESS", "AWAITING_PAR
 
 export default function MaintenanceTicketsPage() {
   const qc = useQueryClient();
-  useRealtimeSync();
   const { has } = usePermissions();
   const canCreate = has("maintenance:create");
   const canUpdate = has("maintenance:update");

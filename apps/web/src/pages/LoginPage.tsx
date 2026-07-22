@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { api } from "../lib/api";
+import { api } from "@/lib/api";
+import { unlockNotificationSound } from "@/lib/notificationSound";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -14,6 +15,9 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // This submit event is a trusted user gesture, so use it to unlock the
+    // chime before navigating into the PMS and waiting for background events.
+    unlockNotificationSound();
     setError("");
     setLoading(true);
     try {

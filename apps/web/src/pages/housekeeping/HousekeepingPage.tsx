@@ -20,7 +20,6 @@ import { Card } from "@/components/ui/Card";
 import { toneOf } from "@/components/ui/StatusBadge";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage } from "@/lib/api";
-import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -215,7 +214,6 @@ const TABS: { value: TabStatus; label: string }[] = [
 
 export default function HousekeepingPage() {
   const qc = useQueryClient();
-  useRealtimeSync();
   const { has } = usePermissions();
   const canCreate = has("housekeeping:create");
   const canUpdate = has("housekeeping:update");

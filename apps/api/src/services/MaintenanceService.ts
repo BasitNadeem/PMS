@@ -1,5 +1,5 @@
 import type { TenantTx } from "@pms/db";
-import { MaintenanceStatus, RoomStatus } from "@pms/db";
+import { MaintenanceStatus, RoomStatus, UserRole } from "@pms/db";
 import type { JwtPayload } from "../middleware/auth";
 import { NotificationService } from "./NotificationService";
 import { notifyHotelDataChanged } from "../lib/realtime";
@@ -156,7 +156,7 @@ export const MaintenanceService = {
         },
       });
 
-      if (dto.priority === "URGENT" || dto.priority === "HIGH") {
+      if (dto.priority === "HIGH") {
         try {
           await NotificationService.createNotification(db, actor.hotelId, {
             title:      "Maintenance Ticket",
@@ -170,6 +170,25 @@ export const MaintenanceService = {
 
       return created;
     });
+
+    if (dto.priority === "URGENT") {
+      try {
+        await NotificationService.createNotificationsForRoles(
+          actor.hotelId,
+          [UserRole.OWNER, UserRole.MANAGER, UserRole.MAINTENANCE],
+          {
+            title:      "Urgent Maintenance",
+            body:       `${ticket.room ? `Room ${ticket.room.number}: ` : ""}${dto.title}`,
+            type:       "MAINTENANCE_URGENT",
+            entityId:   ticket.id,
+            entityType: "maintenance_ticket",
+          },
+          ticket.assignedToId ? [ticket.assignedToId] : [],
+        );
+      } catch (err) {
+        console.error("Failed to create urgent maintenance notification:", err);
+      }
+    }
 
     notifyHotelDataChanged(actor.hotelId);
     return mapTicket(ticket);

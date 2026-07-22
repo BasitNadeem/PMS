@@ -1,3 +1,4 @@
+import { adminPrisma, Prisma, UserRole } from "@pms/db";
 import type { TenantTx } from "@pms/db";
 import { paginationMeta } from "../utils/pagination";
 
@@ -10,6 +11,12 @@ interface CreateNotificationData {
   entityId?:   string;
   entityType?: string;
   userId?:     string | null;
+}
+
+function notificationMetadata(data: CreateNotificationData): Prisma.InputJsonValue | undefined {
+  return data.entityId
+    ? { entityId: data.entityId, entityType: data.entityType ?? "" }
+    : undefined;
 }
 
 function userWhere(userId: string) {
@@ -36,11 +43,62 @@ export const NotificationService = {
         type:     data.type,
         title:    data.title,
         body:     data.body,
-        metadata: data.entityId
-          ? { entityId: data.entityId, entityType: data.entityType ?? "" }
-          : undefined,
+        metadata: notificationMetadata(data),
         channel: "IN_APP",
       },
+    });
+  },
+
+  // Some producers (notably the raw-SQL QR order service) have no TenantTx.
+  // Both the recipient lookup and inserted records are therefore explicitly
+  // constrained to hotelId before using adminPrisma.
+  async createNotificationsForRoles(
+    hotelId: string,
+    roles: UserRole[],
+    data: CreateNotificationData,
+    additionalUserIds: string[] = [],
+  ): Promise<number> {
+    const recipients = await adminPrisma.hotelUser.findMany({
+      where: {
+        hotelId,
+        isActive: true,
+        OR: [
+          { role: { in: roles } },
+          ...(additionalUserIds.length > 0 ? [{ userId: { in: additionalUserIds } }] : []),
+        ],
+      },
+      select: { userId: true },
+    });
+    const userIds = [...new Set(recipients.map((recipient) => recipient.userId))];
+    if (userIds.length === 0) return 0;
+
+    await adminPrisma.notification.createMany({
+      data: userIds.map((userId) => ({
+        hotelId,
+        userId,
+        type:     data.type,
+        title:    data.title,
+        body:     data.body,
+        metadata: notificationMetadata(data),
+        channel:  "IN_APP",
+      })),
+    });
+    return userIds.length;
+  },
+
+  async resolveEntityNotifications(
+    hotelId: string,
+    type: string,
+    entityId: string,
+  ): Promise<void> {
+    await adminPrisma.notification.updateMany({
+      where: {
+        hotelId,
+        type,
+        isRead: false,
+        metadata: { path: ["entityId"], equals: entityId },
+      },
+      data: { isRead: true, readAt: new Date() },
     });
   },
 

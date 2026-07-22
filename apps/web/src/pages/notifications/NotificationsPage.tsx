@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bell, CalendarPlus, LogIn, LogOut, Sparkles } from "lucide-react";
+import { AlertTriangle, Banknote, Bell, CalendarPlus, ChefHat, LogIn, LogOut, Sparkles, Wrench } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { notificationsService, type AppNotification } from "../../services/notifications";
 
@@ -16,16 +16,26 @@ function timeAgo(iso: string): string {
 }
 
 const TYPE_ICON: Record<string, React.ElementType> = {
-  NEW_BOOKING:  CalendarPlus,
-  CHECK_IN:     LogIn,
-  CHECK_OUT:    LogOut,
-  HOUSEKEEPING: Sparkles,
+  NEW_BOOKING:            CalendarPlus,
+  BOOKING_REQUEST:        CalendarPlus,
+  CHECK_IN:               LogIn,
+  CHECK_OUT:              LogOut,
+  HOUSEKEEPING:           Sparkles,
+  QR_ORDER:               ChefHat,
+  MAINTENANCE:            Wrench,
+  MAINTENANCE_URGENT:     AlertTriangle,
+  SHIFT_CASH_DISCREPANCY: Banknote,
 };
 const TYPE_COLOR: Record<string, string> = {
-  NEW_BOOKING:  "bg-blue-100 text-blue-600",
-  CHECK_IN:     "bg-green-100 text-green-600",
-  CHECK_OUT:    "bg-orange-100 text-orange-600",
-  HOUSEKEEPING: "bg-purple-100 text-purple-600",
+  NEW_BOOKING:            "bg-blue-100 text-blue-600",
+  BOOKING_REQUEST:        "bg-amber-100 text-amber-700",
+  CHECK_IN:               "bg-green-100 text-green-600",
+  CHECK_OUT:              "bg-orange-100 text-orange-600",
+  HOUSEKEEPING:           "bg-purple-100 text-purple-600",
+  QR_ORDER:               "bg-emerald-100 text-emerald-700",
+  MAINTENANCE:            "bg-orange-100 text-orange-700",
+  MAINTENANCE_URGENT:     "bg-red-100 text-red-700",
+  SHIFT_CASH_DISCREPANCY: "bg-orange-100 text-orange-700",
 };
 
 function NotificationRow({ n }: { n: AppNotification }) {

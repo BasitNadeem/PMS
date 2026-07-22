@@ -19,6 +19,18 @@ export interface NotificationCount {
   count: number;
 }
 
+export function notificationHref(notification: AppNotification): string {
+  const entityId   = notification.metadata?.entityId;
+  const entityType = notification.metadata?.entityType;
+  if (notification.type === "HOUSEKEEPING") return "/housekeeping";
+  if (notification.type === "QR_ORDER") return "/qr-orders";
+  if (notification.type === "MAINTENANCE" || notification.type === "MAINTENANCE_URGENT") return "/maintenance";
+  if (notification.type === "SHIFT_CASH_DISCREPANCY") return "/reports/shifts";
+  if (entityType === "group"       && entityId) return `/groups/${entityId}`;
+  if (entityType === "reservation" && entityId) return `/reservations/${entityId}`;
+  return "/notifications";
+}
+
 export const notificationsService = {
   getNotifications: async (): Promise<AppNotification[]> => {
     const res = await api.get("/api/notifications");

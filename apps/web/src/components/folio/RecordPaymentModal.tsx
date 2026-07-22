@@ -47,6 +47,8 @@ export function RecordPaymentModal({ reservationId, balanceDue, onClose }: Recor
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["folio", reservationId] });
+      qc.invalidateQueries({ queryKey: ["billing-folios"] });
+      qc.invalidateQueries({ queryKey: ["billing-summary"] });
       onClose();
     },
     onError: (err: unknown) => {

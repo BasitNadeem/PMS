@@ -1,10 +1,12 @@
 import type { TenantTx } from "@pms/db";
 import { adminPrisma, HousekeepingTaskStatus, MaintenanceStatus, PaymentStatus, Prisma, UserRole } from "@pms/db";
 import { sendPushToUser } from "../lib/webpush";
+import { notifyHotelDataChanged } from "../lib/realtime";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
 import type { CreateShiftReportDto, SignOffDto, ListShiftsQuery } from "../schemas/shifts";
 import { getPKTDayRange } from "../lib/timezone";
+import { NotificationService } from "./NotificationService";
 
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
 
@@ -232,7 +234,7 @@ export const ShiftService = {
   },
 
   async signOff(withTenant: WithTenantFn, hotelId: string, reportId: string, dto: SignOffDto, actorId: string) {
-    return withTenant(async (db) => {
+    const outcome = await withTenant(async (db) => {
       const report = await db.shiftReport.findFirst({ where: { id: reportId, hotelId } });
       if (!report) throw new AppError(404, "Shift report not found");
       if (report.signedOffAt) throw new AppError(409, "Already signed off");
@@ -273,17 +275,42 @@ export const ShiftService = {
         },
       });
 
-      if (isLargeDiscrepancy) {
-        const pkrVariance = Math.round(Math.abs(variance) / 100).toLocaleString("en-PK");
-        void notifyManagersOfDiscrepancy(hotelId, {
-          title: "⚠ Shift Cash Discrepancy",
-          body:  `PKR ${pkrVariance} variance on ${report.shiftDate.toISOString().slice(0, 10)} ${report.shiftType} shift`,
-          url:   "/reports/shifts",
-        });
+      const discrepancyBody = isLargeDiscrepancy
+        ? `PKR ${Math.round(Math.abs(variance) / 100).toLocaleString("en-PK")} variance on ${report.shiftDate.toISOString().slice(0, 10)} ${report.shiftType} shift`
+        : null;
+
+      return {
+        report: { ...updated, actualCashCount: dto.actualCashCount },
+        discrepancyBody,
+      };
+    });
+
+    if (outcome.discrepancyBody) {
+      try {
+        await NotificationService.createNotificationsForRoles(
+          hotelId,
+          [UserRole.OWNER, UserRole.MANAGER],
+          {
+            title:      "Shift Cash Discrepancy",
+            body:       outcome.discrepancyBody,
+            type:       "SHIFT_CASH_DISCREPANCY",
+            entityId:   reportId,
+            entityType: "shift_report",
+          },
+        );
+      } catch (err) {
+        console.error("Failed to create shift discrepancy notification:", err);
       }
 
-      return { ...updated, actualCashCount: dto.actualCashCount };
-    });
+      void notifyManagersOfDiscrepancy(hotelId, {
+        title: "⚠ Shift Cash Discrepancy",
+        body:  outcome.discrepancyBody,
+        url:   "/reports/shifts",
+      });
+    }
+
+    notifyHotelDataChanged(hotelId);
+    return outcome.report;
   },
 
   async list(withTenant: WithTenantFn, hotelId: string, params: ListShiftsQuery) {

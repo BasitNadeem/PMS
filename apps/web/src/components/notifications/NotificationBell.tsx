@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, Link } from "react-router-dom";
-import { Bell, CalendarPlus, LogIn, LogOut, Sparkles } from "lucide-react";
+import { AlertTriangle, Banknote, Bell, CalendarPlus, ChefHat, LogIn, LogOut, Sparkles, Wrench } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { notificationsService, type AppNotification } from "@/services/notifications";
+import { notificationHref, notificationsService, type AppNotification } from "@/services/notifications";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 function timeAgo(iso: string): string {
@@ -20,20 +20,16 @@ function timeAgo(iso: string): string {
 interface TypeConfig { icon: React.ElementType; bg: string; fg: string }
 
 const TYPE_CONFIG: Record<string, TypeConfig> = {
-  NEW_BOOKING:  { icon: CalendarPlus, bg: "#E7EEF3", fg: "#3D5A73" },
-  CHECK_IN:     { icon: LogIn,        bg: "#E6F0EA", fg: "#1F4D3A" },
-  CHECK_OUT:    { icon: LogOut,       bg: "#FBEAE1", fg: "#9E3417" },
-  HOUSEKEEPING: { icon: Sparkles,     bg: "#EDE9F4", fg: "#5B4B82" },
+  NEW_BOOKING:           { icon: CalendarPlus,  bg: "#E7EEF3", fg: "#3D5A73" },
+  BOOKING_REQUEST:       { icon: CalendarPlus,  bg: "#FEF3C7", fg: "#B45309" },
+  CHECK_IN:              { icon: LogIn,         bg: "#E6F0EA", fg: "#1F4D3A" },
+  CHECK_OUT:             { icon: LogOut,        bg: "#FBEAE1", fg: "#9E3417" },
+  HOUSEKEEPING:          { icon: Sparkles,      bg: "#EDE9F4", fg: "#5B4B82" },
+  QR_ORDER:              { icon: ChefHat,       bg: "#D1FAE5", fg: "#047857" },
+  MAINTENANCE:           { icon: Wrench,        bg: "#FFEDD5", fg: "#C2410C" },
+  MAINTENANCE_URGENT:    { icon: AlertTriangle, bg: "#FEE2E2", fg: "#B91C1C" },
+  SHIFT_CASH_DISCREPANCY:{ icon: Banknote,      bg: "#FFEDD5", fg: "#C2410C" },
 };
-
-function notificationHref(n: AppNotification): string {
-  const entityId   = n.metadata?.entityId;
-  const entityType = n.metadata?.entityType;
-  if (n.type === "HOUSEKEEPING") return "/housekeeping";
-  if (entityType === "group"       && entityId) return `/groups/${entityId}`;
-  if (entityType === "reservation" && entityId) return `/reservations/${entityId}`;
-  return "/notifications";
-}
 
 function NotificationItem({ notification: n, onRead }: { notification: AppNotification; onRead: (n: AppNotification) => void }) {
   const cfg  = TYPE_CONFIG[n.type] ?? { icon: Bell, bg: "#F1ECE4", fg: "#938C81" };

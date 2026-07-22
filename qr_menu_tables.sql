@@ -18,6 +18,14 @@
 -- ============================================================================
 
 
+-- INTENTIONAL: RLS is NOT enabled on these tables, consistent with
+-- expenses/cash_accounts/whatsapp_briefing_logs. Access is exclusively via
+-- adminPrisma with explicit hotel_id predicates in every query (see
+-- QrOrderService.ts, QrMenuService.ts). qr_orders/qr_order_items contain guest
+-- PII (name, phone) — if these tables are ever queried from a new code path,
+-- that path MUST include an explicit hotel_id filter. Do not assume RLS
+-- provides isolation here.
+
 -- ── 1. menu_categories ───────────────────────────────────────────────────────
 -- Hotel-managed menu sections (e.g. "Breakfast", "Beverages", "Main Course").
 -- available_from / available_until are TIME values (e.g. '07:00', '10:30').

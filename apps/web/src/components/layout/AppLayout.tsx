@@ -18,9 +18,9 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { getCurrentUserName, getCurrentUserRole, formatRoleLabel, getInitials } from "@/lib/jwt";
 import { applyTheme } from "@/lib/theme";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
-import { useBookingAlerts } from "@/hooks/useBookingAlerts";
-import { useBookingNotificationAlerts } from "@/hooks/useBookingNotificationAlerts";
-import { BookingAlertStack } from "@/components/ui/BookingAlertStack";
+import { useOperationalAlerts } from "@/hooks/useOperationalAlerts";
+import { useOperationalNotificationAlerts } from "@/hooks/useOperationalNotificationAlerts";
+import { OperationalAlertStack } from "@/components/ui/OperationalAlertStack";
 import { playNotificationSound, unlockNotificationSound } from "@/lib/notificationSound";
 
 function useOnlineStatus() {
@@ -639,14 +639,17 @@ export function AppLayout({ children }: AppLayoutProps) {
     () => localStorage.getItem("sidebarCollapsed") === "true",
   );
 
-  // Mounted once here (not per-page) so a Booking Engine reservation pops
-  // up with a sound no matter which page the front desk is currently on.
-  const { alerts, addAlert, removeAlert } = useBookingAlerts();
+  // Mounted once here (not per-page) so role-targeted operational alerts can
+  // chime and remain visible regardless of the staff member's current page.
+  const { alerts, addAlert, removeAlert } = useOperationalAlerts();
   useRealtimeSync();
-  useBookingNotificationAlerts((notification) => {
-    playNotificationSound();
-    addAlert(notification.title, notification.body);
-  });
+  useOperationalNotificationAlerts(
+    (notification) => {
+      playNotificationSound();
+      addAlert(notification);
+    },
+    removeAlert,
+  );
 
   useEffect(() => {
     // Covers restored sessions and page reloads where the login-button gesture
@@ -741,7 +744,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           </div>
         </main>
       </div>
-      <BookingAlertStack alerts={alerts} onDismiss={removeAlert} />
+      <OperationalAlertStack alerts={alerts} onDismiss={removeAlert} />
     </div>
   );
 }

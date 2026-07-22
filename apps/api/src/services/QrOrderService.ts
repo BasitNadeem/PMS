@@ -9,13 +9,14 @@
  * failure never blocks guest order placement.
  */
 
-import { adminPrisma, Prisma, ReservationStatus, FolioItemType } from "@pms/db";
+import { adminPrisma, Prisma, ReservationStatus, FolioItemType, UserRole } from "@pms/db";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
 import { QrMenuService } from "./QrMenuService";
 import { deductInventoryForQrOrder } from "./InventoryService";
 import { createLedgerEntryFromQrOrder } from "./CashBookService";
 import { notifyHotelDataChanged } from "../lib/realtime";
+import { NotificationService } from "./NotificationService";
 import type { PlaceOrderDto, ListQrOrdersQuery, AdvanceStatusDto, EditOrderDto } from "../schemas/qrMenu";
 
 // ── Row types ─────────────────────────────────────────────────────────────────
@@ -279,6 +280,30 @@ export const QrOrderService = {
       return newOrder;
     });
 
+    try {
+      const notification = {
+        title:      `New QR Order ${order.order_number}`,
+        body:       `${dto.roomNumber ? `Room ${dto.roomNumber}` : dto.guestName} · PKR ${(total / 100).toLocaleString("en-PK")}`,
+        type:       "QR_ORDER",
+        entityId:   order.id,
+        entityType: "qr_order",
+      };
+      const kitchenRecipients = await NotificationService.createNotificationsForRoles(
+        hotelId,
+        [UserRole.KITCHEN],
+        notification,
+      );
+      if (kitchenRecipients === 0) {
+        await NotificationService.createNotificationsForRoles(
+          hotelId,
+          [UserRole.OWNER, UserRole.MANAGER],
+          notification,
+        );
+      }
+    } catch (err) {
+      console.error("[QrOrder] failed to create kitchen notification:", err);
+    }
+
     notifyHotelDataChanged(hotelId);
     return { orderNumber: order.order_number, estimatedMinutes: 25 };
   },
@@ -459,6 +484,12 @@ export const QrOrderService = {
       if (deductible.length > 0) {
         deductInventoryForQrOrder(hotelId, orderId, deductible, actorId)
           .catch((err) => console.error("[Inventory] QR order deduction error:", order.order_number, err));
+      }
+
+      try {
+        await NotificationService.resolveEntityNotifications(hotelId, "QR_ORDER", orderId);
+      } catch (err) {
+        console.error("[QrOrder] failed to resolve kitchen notification:", err);
       }
     }
 
@@ -661,6 +692,11 @@ export const QrOrderService = {
         after:    JSON.parse(JSON.stringify({ status: "cancelled" })),
       },
     });
+    try {
+      await NotificationService.resolveEntityNotifications(hotelId, "QR_ORDER", orderId);
+    } catch (err) {
+      console.error("[QrOrder] failed to resolve cancelled-order notification:", err);
+    }
     notifyHotelDataChanged(hotelId);
     return serializeOrder(updated!);
   },

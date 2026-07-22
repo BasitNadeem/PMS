@@ -76,6 +76,8 @@ export function AddChargeModal({ reservationId, onClose }: AddChargeModalProps) 
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["folio", reservationId] });
+      qc.invalidateQueries({ queryKey: ["billing-folios"] });
+      qc.invalidateQueries({ queryKey: ["billing-summary"] });
       onClose();
     },
     onError: (err: unknown) => {

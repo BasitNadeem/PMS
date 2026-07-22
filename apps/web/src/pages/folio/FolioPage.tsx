@@ -73,6 +73,15 @@ export default function FolioPage() {
   const [showFbReceipt,    setShowFbReceipt]    = useState(false);
   const [showInvoice,      setShowInvoice]      = useState(false);
 
+  function invalidateFolioAndBilling() {
+    // Folio mutations affect both the detail view and every filtered/sorted
+    // Billing query. Invalidate the prefixes so returning to Billing never
+    // reuses the one-minute "fresh" cache from before the mutation.
+    qc.invalidateQueries({ queryKey: ["folio"] });
+    qc.invalidateQueries({ queryKey: ["billing-folios"] });
+    qc.invalidateQueries({ queryKey: ["billing-summary"] });
+  }
+
   const { data: folio, isLoading } = useQuery({
     queryKey: ["folio", reservationId],
     queryFn: () => folioService.getFolio(reservationId!),
@@ -82,7 +91,10 @@ export default function FolioPage() {
 
   const voidMutation = useMutation({
     mutationFn: (itemId: string) => folioService.deleteFolioItem(reservationId!, itemId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["folio", reservationId] }); addToast("Charge removed"); },
+    onSuccess: () => {
+      invalidateFolioAndBilling();
+      addToast("Charge removed");
+    },
     onError: () => addToast("Failed to remove charge", "error"),
   });
 
@@ -112,6 +124,7 @@ export default function FolioPage() {
         .every((r) => ["CHECKED_OUT", "CANCELLED", "NO_SHOW"].includes(r.status));
 
   function invalidateAfterCheckout() {
+    invalidateFolioAndBilling();
     qc.invalidateQueries({ queryKey: ["reservations"] });
     qc.invalidateQueries({ queryKey: ["reservations-counts"] });
     qc.invalidateQueries({ queryKey: ["rooms"] });

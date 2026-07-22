@@ -71,10 +71,13 @@ export function ReceiptView({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-start pt-20 bg-black/60 backdrop-blur-sm p-4 anim-fade-in overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-start pt-20 bg-black/60 backdrop-blur-sm p-4 anim-fade-in overflow-y-auto"
+      onMouseDown={onClose}
+    >
 
       {/* Controls — hidden on print */}
-      <div className="no-print fixed top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
+      <div className="no-print fixed top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center bg-white rounded-full px-1 py-1 shadow-xl gap-0.5">
           {(["80mm", "58mm"] as PaperWidth[]).map((w) => (
             <button
@@ -111,6 +114,7 @@ export function ReceiptView({
           width === "80mm" ? "w-[80mm]" : "w-[58mm]",
         )}
         style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         {/* ── Header ───────────────────────────────── */}
         <div className="bg-gray-900 px-5 pt-6 pb-5 text-center">

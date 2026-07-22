@@ -297,3 +297,22 @@ body {
     color: #000;
   }
 }
+
+/* ── Invoice print — scoped to body.invoice-mode, isolates the folio invoice paper ── */
+@media print {
+  body.invoice-mode * {
+    visibility: hidden;
+  }
+  body.invoice-mode .invoice-print-paper,
+  body.invoice-mode .invoice-print-paper * {
+    visibility: visible;
+  }
+  body.invoice-mode .invoice-print-paper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-shadow: none;
+    margin: 0;
+  }
+}

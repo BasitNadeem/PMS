@@ -71,7 +71,7 @@ export interface FolioDetail {
     status: string;
     groupId: string | null;
     guest: { fullName: string };
-    rooms: Array<{ room: { number: string } }>;
+    rooms: Array<{ room: { number: string }; roomType: { name: string } }>;
   };
 }
 

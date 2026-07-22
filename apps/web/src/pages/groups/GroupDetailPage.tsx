@@ -3,10 +3,10 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Building2, Landmark, HeartHandshake, Briefcase, Users,
-  CheckCircle2, X, Search, Plus, MapPin, ExternalLink, Receipt, Tag,
+  CheckCircle2, X, Search, Plus, MapPin, ExternalLink, Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { api, getErrorMessage } from "@/lib/api";
+import { getErrorMessage } from "@/lib/api";
 import {
   groupsService,
   type GroupStatus,
@@ -241,19 +241,6 @@ export default function GroupDetailPage() {
     refetchInterval: 60_000,
   });
 
-  const firstRoomTypeId = group?.reservations.find(r => r.room && !r.room.pending)?.room?.roomType.id;
-  const { data: groupSuggestData } = useQuery({
-    queryKey: ["rate-suggest", firstRoomTypeId, group?.checkInDate?.slice(0, 10), group?.checkOutDate?.slice(0, 10)],
-    queryFn: async () => {
-      const res = await api.get("/api/rate-plans/suggest", {
-        params: { roomTypeId: firstRoomTypeId, checkIn: group!.checkInDate.slice(0, 10), checkOut: group!.checkOutDate.slice(0, 10) },
-      });
-      return res.data.data as { suggestedRate: number; matchedPlan: { id: string; name: string } | null };
-    },
-    enabled: !!firstRoomTypeId && !!group?.checkInDate && !!group?.checkOutDate,
-    staleTime: 60_000,
-  });
-
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["group", id] });
     qc.invalidateQueries({ queryKey: ["groups"] });
@@ -295,6 +282,19 @@ export default function GroupDetailPage() {
 
   const nights = nightsBetween(group.checkInDate, group.checkOutDate);
   const isMutating = statusMutation.isPending || checkInMutation.isPending || checkOutMutation.isPending;
+
+  const roomTypeLines = Object.values(
+    group.reservations.reduce<Record<string, { name: string; rooms: number; amount: number }>>((acc, r) => {
+      if (!r.room) return acc;
+      const key = r.room.roomType.id;
+      acc[key] ??= { name: r.room.roomType.name, rooms: 0, amount: 0 };
+      acc[key].rooms += 1;
+      acc[key].amount += r.totalAmount;
+      return acc;
+    }, {})
+  );
+  const rateSubtotal = roomTypeLines.reduce((sum, l) => sum + l.amount, 0);
+  const rateTax = Math.round(rateSubtotal * 0.05);
 
   return (
     <div className="anim-fade-in">
@@ -531,45 +531,28 @@ export default function GroupDetailPage() {
             </div>
           </Card>
 
-          {/* Rate summary — shown when at least one room type is assigned */}
-          {firstRoomTypeId && (
+          {/* Rate summary — one line per room type so mixed-room-type group bookings aren't priced as if every room shared one rate */}
+          {roomTypeLines.length > 0 && (
             <Card>
-              <div className="flex items-center justify-between mb-3.5">
-                <h3 className="text-[12px] font-bold uppercase tracking-wider text-ink-faint">Rate Summary</h3>
-                {groupSuggestData?.matchedPlan && (
-                  <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-pine bg-pine/20 border border-pine/40 px-2.5 py-1 rounded-lg">
-                    <Tag size={11} strokeWidth={2.5} />
-                    {groupSuggestData.matchedPlan.name}
-                  </span>
-                )}
-              </div>
-              {groupSuggestData ? (() => {
-                const ratePerRoom = groupSuggestData.suggestedRate;
-                const subtotal = ratePerRoom * group.summary.totalRooms * nights;
-                const tax = Math.round(subtotal * 0.05);
-                return (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-[13px]">
-                      <span className="text-ink-mute">Rate/room/night</span>
-                      <span className="font-semibold text-ink tnum">{fmtPkr(ratePerRoom)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-[13px]">
-                      <span className="text-ink-mute">{group.summary.totalRooms} room{group.summary.totalRooms !== 1 ? "s" : ""} × {nights} nights</span>
-                      <span className="font-semibold text-ink tnum">{fmtPkr(subtotal)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-[13px]">
-                      <span className="text-ink-mute">Service tax (5%)</span>
-                      <span className="font-semibold text-ink tnum">{fmtPkr(tax)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-[13px] pt-2 border-t border-line-soft">
-                      <span className="font-semibold text-ink-soft">Total</span>
-                      <span className="font-bold text-ink tnum">{fmtPkr(subtotal + tax)}</span>
-                    </div>
+              <h3 className="mb-3.5 text-[12px] font-bold uppercase tracking-wider text-ink-faint">Rate Summary</h3>
+              <div className="space-y-2">
+                {roomTypeLines.map((line) => (
+                  <div key={line.name} className="flex items-center justify-between text-[13px]">
+                    <span className="text-ink-mute">
+                      {line.name} — {fmtPkr(nights > 0 ? line.amount / line.rooms / nights : 0)}/night × {line.rooms} room{line.rooms !== 1 ? "s" : ""} × {nights} night{nights !== 1 ? "s" : ""}
+                    </span>
+                    <span className="font-semibold text-ink tnum">{fmtPkr(line.amount)}</span>
                   </div>
-                );
-              })() : (
-                <p className="text-[13px] text-ink-mute">Loading rates…</p>
-              )}
+                ))}
+                <div className="flex items-center justify-between text-[13px] pt-2 border-t border-line-soft">
+                  <span className="text-ink-mute">Service tax (5%)</span>
+                  <span className="font-semibold text-ink tnum">{fmtPkr(rateTax)}</span>
+                </div>
+                <div className="flex items-center justify-between text-[13px] pt-2 border-t border-line-soft">
+                  <span className="font-semibold text-ink-soft">Total</span>
+                  <span className="font-bold text-ink tnum">{fmtPkr(rateSubtotal + rateTax)}</span>
+                </div>
+              </div>
             </Card>
           )}
 

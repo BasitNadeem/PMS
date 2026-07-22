@@ -27,8 +27,8 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { getCurrentUserName } from "@/lib/jwt";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
-import { useToast } from "@/hooks/useToast";
-import { ToastContainer } from "@/components/ui/ToastContainer";
+import { useBookingAlerts } from "@/hooks/useBookingAlerts";
+import { BookingAlertStack } from "@/components/ui/BookingAlertStack";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -860,8 +860,8 @@ function ArrivalsReadiness({ scheduleEvents }: { scheduleEvents: DashboardSchedu
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { toasts, addToast, removeToast } = useToast();
-  useRealtimeSync(() => addToast("New booking request received — check Reservations"));
+  const { alerts, addAlert, removeAlert } = useBookingAlerts();
+  useRealtimeSync(() => addAlert("New booking request received — check Reservations"));
 
   const { data: dash, isLoading } = useQuery({
     queryKey: ["dashboard"],
@@ -1147,7 +1147,7 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <BookingAlertStack alerts={alerts} onDismiss={removeAlert} />
     </div>
   );
 }

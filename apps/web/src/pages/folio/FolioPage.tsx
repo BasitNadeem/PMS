@@ -9,6 +9,7 @@ import { folioService, type FolioLineItem, type FolioItemType, type PaymentMetho
 import { AddChargeModal } from "@/components/folio/AddChargeModal";
 import { RecordPaymentModal } from "@/components/folio/RecordPaymentModal";
 import { ReceiptView } from "@/components/pos/ReceiptView";
+import { FolioInvoiceView } from "@/components/folio/FolioInvoiceView";
 import { ToastContainer } from "@/components/ui/ToastContainer";
 import { useToast } from "@/hooks/useToast";
 import { Card } from "@/components/ui/Card";
@@ -72,6 +73,7 @@ export default function FolioPage() {
   const [showAddCharge,    setShowAddCharge]    = useState(false);
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [showFbReceipt,    setShowFbReceipt]    = useState(false);
+  const [showInvoice,      setShowInvoice]      = useState(false);
 
   const { data: folio, isLoading } = useQuery({
     queryKey: ["folio", reservationId],
@@ -237,9 +239,9 @@ export default function FolioPage() {
             </button>
           )}
           <button
-            onClick={() => window.print()}
+            onClick={() => setShowInvoice(true)}
             className="grid place-items-center h-10 w-10 rounded-full border border-line text-ink-mute hover:bg-line-soft transition-colors"
-            title="Print folio"
+            title="Print invoice"
           >
             <Printer size={16} />
           </button>
@@ -446,10 +448,10 @@ export default function FolioPage() {
               })()}
 
               <button
-                onClick={() => window.print()}
+                onClick={() => setShowInvoice(true)}
                 className="w-full h-10 rounded-full border border-line text-ink-mute text-[13px] font-semibold hover:bg-line-soft transition-colors flex items-center justify-center gap-2"
               >
-                <Printer size={15} /> Print folio
+                <Printer size={15} /> Print invoice
               </button>
             </div>
           </Card>
@@ -491,6 +493,13 @@ export default function FolioPage() {
           />
         );
       })()}
+      {showInvoice && folio && (
+        <FolioInvoiceView
+          folio={folio}
+          group={groupData ? { name: groupData.name, payerName: groupData.payerName } : null}
+          onClose={() => setShowInvoice(false)}
+        />
+      )}
       {showAddCharge && (
         <AddChargeModal reservationId={reservationId!} onClose={() => setShowAddCharge(false)} />
       )}

@@ -34,7 +34,7 @@ export const FolioService = {
               guest: { select: { fullName: true } },
               rooms: {
                 take:   1,
-                select: { room: { select: { number: true } } },
+                select: { room: { select: { number: true } }, roomType: { select: { name: true } } },
               },
             },
           },

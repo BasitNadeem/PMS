@@ -16,6 +16,16 @@ export interface RatePlanItem {
   roomType: { id: string; name: string };
 }
 
+export interface RatePlanCode {
+  id: string;
+  code: string;
+  label: string | null;
+  validFrom: string | null;
+  validTo: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
 export interface RatePlan {
   id: string;
   name: string;
@@ -25,10 +35,12 @@ export interface RatePlan {
   validTo: string | null;
   daysOfWeek: number[];
   minLos: number;
+  codeRequired: boolean;
   priority: number;
   isActive: boolean;
   createdAt: string;
   items: RatePlanItem[];
+  codes: RatePlanCode[];
 }
 
 export interface CreateRatePlanDto {
@@ -39,6 +51,7 @@ export interface CreateRatePlanDto {
   validTo?: string;
   daysOfWeek: number[];
   minLos: number;
+  codeRequired: boolean;
   priority: number;
   items: { roomTypeId: string; rate: number }[];
 }
@@ -78,6 +91,20 @@ export const ratePlansService = {
 
   async deactivate(id: string): Promise<void> {
     await api.delete(`/api/rate-plans/${id}`);
+  },
+
+  async createCode(ratePlanId: string, dto: { code: string; label?: string; validFrom?: string; validTo?: string }): Promise<RatePlanCode> {
+    const res = await api.post(`/api/rate-plans/${ratePlanId}/codes`, dto);
+    return res.data.data as RatePlanCode;
+  },
+
+  async updateCode(ratePlanId: string, codeId: string, dto: Partial<{ code: string; label: string | null; validFrom: string | null; validTo: string | null; isActive: boolean }>): Promise<RatePlanCode> {
+    const res = await api.patch(`/api/rate-plans/${ratePlanId}/codes/${codeId}`, dto);
+    return res.data.data as RatePlanCode;
+  },
+
+  async deactivateCode(ratePlanId: string, codeId: string): Promise<void> {
+    await api.delete(`/api/rate-plans/${ratePlanId}/codes/${codeId}`);
   },
 
   async suggest(params: { roomTypeId: string; checkIn: string; checkOut: string }): Promise<SuggestRateResult> {

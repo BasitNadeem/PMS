@@ -15,6 +15,7 @@ import { bookingEngineService, type PublicRoomType, type CartItem } from "@/serv
 import { cn } from "@/lib/cn";
 
 const CART_KEY = (slug: string) => `be_cart_${slug}`;
+const PROMO_KEY = (slug: string) => `be_promo_${slug}`;
 
 const fmt = (pkr: number) =>
   new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR", maximumFractionDigits: 0 }).format(pkr);
@@ -409,9 +410,9 @@ function RoomCard({
             {isUnavailable ? (
               <span className="text-[12px] font-semibold text-rose-500 shrink-0">Sold out</span>
             ) : cartQty === 0 ? (
-              <button onClick={() => onChangeQty(1)}
+              <button onClick={() => datesSelected ? onChangeQty(1) : onQuickLook()}
                 className="shrink-0 px-5 py-2.5 text-[13px] font-bold text-white rounded-xl bg-[rgb(var(--be-accent))] hover:bg-[rgb(var(--be-accent-dark))] active:scale-[0.98] transition-all shadow-sm">
-                Add room
+                {datesSelected ? "Add room" : "Select dates"}
               </button>
             ) : (
               <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 shrink-0">
@@ -444,12 +445,18 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
 
   const [checkIn,  setCheckIn]  = useState("");
   const [checkOut, setCheckOut] = useState("");
-  const [adults,        setAdults]        = useState(1); // applied — used for filtering, cart, and continue
-  const [pendingAdults, setPendingAdults]  = useState(1); // live value inside the guest picker, committed on Search
+  const [adults,        setAdults]        = useState(1);
+  const [children,      setChildren]      = useState(0);
+  const [pendingAdults, setPendingAdults] = useState(1);
+  const [pendingChildren, setPendingChildren] = useState(0);
   const [quickLookRoom, setQuickLookRoom] = useState<PublicRoomType | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showPromoInput, setShowPromoInput] = useState(false);
   const [promoCode, setPromoCode] = useState("");
+  const [appliedPromoCode, setAppliedPromoCode] = useState(() => sessionStorage.getItem(PROMO_KEY(hotelSlug)) ?? "");
+  const [promoError, setPromoError] = useState("");
+  const [promoMessage, setPromoMessage] = useState("");
+  const [applyingPromo, setApplyingPromo] = useState(false);
   const [showGuestPicker, setShowGuestPicker] = useState(false);
   const datePickerRef  = useRef<HTMLDivElement>(null);
   const guestPickerRef = useRef<HTMLDivElement>(null);
@@ -486,6 +493,9 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
 
   const cartTotalRooms   = cart.reduce((s, c) => s + c.quantity, 0);
   const cartNightlyTotal = cart.reduce((s, c) => s + (c.ratePerNight ?? c.defaultRate) * c.quantity, 0);
+  const cartCapacity     = cart.reduce((s, c) => s + c.maxOccupancy * c.quantity, 0);
+  const partySize        = adults + children;
+  const cartFitsParty    = cartCapacity >= partySize;
 
   const { data: hotel, isLoading, isError } = useQuery({
     queryKey: ["booking-hotel", hotelSlug],
@@ -511,7 +521,7 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
       const entries = await Promise.all(
         roomTypes.map(async (rt) => {
           try {
-            const r = await bookingEngineService.suggestRate(hotelSlug, rt.id, checkIn, checkOut);
+            const r = await bookingEngineService.suggestRate(hotelSlug, rt.id, checkIn, checkOut, appliedPromoCode || undefined);
             return [rt.id, r.suggestedRate] as const;
           } catch { return [rt.id, null] as const; }
         })
@@ -519,17 +529,49 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
       if (!cancelled) setRates(Object.fromEntries(entries));
     })();
     return () => { cancelled = true; };
-  }, [datesSelected, hotelSlug, checkIn, checkOut, roomTypes]);
+  }, [datesSelected, hotelSlug, checkIn, checkOut, roomTypes, appliedPromoCode]);
 
   const availabilityMap = Object.fromEntries(
     (availability ?? []).map((a) => [a.roomTypeId, a.availableCount])
   );
 
-  const maxCapacityAcrossRooms = roomTypes.length > 0
-    ? Math.max(...roomTypes.map((r) => r.maxOccupancy))
-    : 20;
+  // Party capacity is validated against the combined cart, not against one
+  // room card. This permits two rooms that sleep two guests each for a
+  // four-person party.
+  const visibleRoomTypes = roomTypes;
 
-  const visibleRoomTypes = roomTypes.filter((rt) => rt.maxOccupancy >= adults);
+  async function applyPromoCode() {
+    const normalized = promoCode.trim().toUpperCase();
+    if (!normalized) return;
+    if (!datesSelected) {
+      setPromoError("Choose your stay dates before applying a code.");
+      return;
+    }
+    setApplyingPromo(true);
+    setPromoError("");
+    setPromoMessage("");
+    try {
+      const result = await bookingEngineService.validatePromoCode(hotelSlug, normalized, checkIn, checkOut);
+      setAppliedPromoCode(result.code);
+      sessionStorage.setItem(PROMO_KEY(hotelSlug), result.code);
+      setPromoCode(result.code);
+      setPromoMessage(`${result.label || result.ratePlanName} applied`);
+      setShowPromoInput(false);
+    } catch {
+      setAppliedPromoCode("");
+      sessionStorage.removeItem(PROMO_KEY(hotelSlug));
+      setPromoError("That promo or corporate code is invalid or unavailable for these dates.");
+    } finally {
+      setApplyingPromo(false);
+    }
+  }
+
+  function clearAppliedPromoCode() {
+    setAppliedPromoCode("");
+    setPromoMessage("");
+    setPromoError("");
+    sessionStorage.removeItem(PROMO_KEY(hotelSlug));
+  }
 
   const handleChangeQty = useCallback((room: PublicRoomType, suggestedRate: number | null, delta: number) => {
     if (!datesSelected && delta > 0) {
@@ -631,8 +673,11 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
                        }]}
                        onChange={(ranges: RangeKeyDict) => {
                          const { selection } = ranges;
-                         if (selection.startDate) setCheckIn(localDateString(selection.startDate));
-                         if (selection.endDate) setCheckOut(localDateString(selection.endDate));
+                         const nextCheckIn = selection.startDate ? localDateString(selection.startDate) : checkIn;
+                         const nextCheckOut = selection.endDate ? localDateString(selection.endDate) : checkOut;
+                         if (nextCheckIn !== checkIn || nextCheckOut !== checkOut) clearAppliedPromoCode();
+                         if (selection.startDate) setCheckIn(nextCheckIn);
+                         if (selection.endDate) setCheckOut(nextCheckOut);
                        }}
                        months={2}
                        direction="horizontal"
@@ -649,16 +694,15 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
              </div>
              
              <div className="flex-1 w-full relative" ref={guestPickerRef}>
-               <label className="text-[11px] text-gray-700 font-medium mb-1 block">Rooms and guests</label>
-               <div onClick={() => { if (!showGuestPicker) setPendingAdults(adults); setShowGuestPicker((v) => !v); }}
+               <label className="text-[11px] text-gray-700 font-medium mb-1 block">Guests</label>
+               <div onClick={() => { if (!showGuestPicker) { setPendingAdults(adults); setPendingChildren(children); } setShowGuestPicker((v) => !v); }}
                  className="bg-white border border-gray-200 rounded-lg px-3.5 text-[13px] text-gray-800 flex justify-between items-center cursor-pointer hover:border-gray-300 transition-colors h-11">
-                 <span>1 room, {adults} adult{adults !== 1 ? "s" : ""}</span>
+                 <span>{adults} adult{adults !== 1 ? "s" : ""}{children > 0 ? `, ${children} child${children !== 1 ? "ren" : ""}` : ""}{cartTotalRooms > 0 ? ` · ${cartTotalRooms} room${cartTotalRooms !== 1 ? "s" : ""} selected` : ""}</span>
                  <ChevronRight size={14} className={cn("text-gray-400 transition-transform", showGuestPicker ? "-rotate-90" : "rotate-90")} />
                </div>
 
                {showGuestPicker && (
                  <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-white rounded-xl border border-gray-200 shadow-xl p-4">
-                   <div className="text-[13px] font-semibold text-gray-900 mb-3">Room 1</div>
                    <div className="flex items-center justify-between">
                      <span className="text-[13px] text-gray-700">Adults</span>
                      <div className="flex items-center gap-3">
@@ -667,22 +711,36 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
                          <Minus size={14} strokeWidth={2.5} />
                        </button>
                        <span className="w-5 text-center text-[14px] font-semibold text-gray-900 tabular-nums">{pendingAdults}</span>
-                       <button onClick={() => setPendingAdults((a) => Math.min(maxCapacityAcrossRooms, a + 1))} disabled={pendingAdults >= maxCapacityAcrossRooms}
+                       <button onClick={() => setPendingAdults((a) => Math.min(20 - pendingChildren, a + 1))} disabled={pendingAdults + pendingChildren >= 20}
                          className="h-8 w-8 rounded-full bg-[rgb(var(--be-accent))] flex items-center justify-center text-white hover:bg-[rgb(var(--be-accent-dark))] disabled:opacity-30 transition-colors">
                          <Plus size={14} strokeWidth={2.5} />
                        </button>
                      </div>
                    </div>
-                   <p className="text-[11px] text-gray-400 mt-2">Max {maxCapacityAcrossRooms} — largest room's capacity</p>
+                   <div className="flex items-center justify-between mt-4">
+                     <span className="text-[13px] text-gray-700">Children</span>
+                     <div className="flex items-center gap-3">
+                       <button onClick={() => setPendingChildren((c) => Math.max(0, c - 1))} disabled={pendingChildren <= 0}
+                         className="h-8 w-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-600 hover:border-gray-300 disabled:opacity-30 transition-colors">
+                         <Minus size={14} strokeWidth={2.5} />
+                       </button>
+                       <span className="w-5 text-center text-[14px] font-semibold text-gray-900 tabular-nums">{pendingChildren}</span>
+                       <button onClick={() => setPendingChildren((c) => Math.min(20 - pendingAdults, c + 1))} disabled={pendingAdults + pendingChildren >= 20}
+                         className="h-8 w-8 rounded-full bg-[rgb(var(--be-accent))] flex items-center justify-center text-white hover:bg-[rgb(var(--be-accent-dark))] disabled:opacity-30 transition-colors">
+                         <Plus size={14} strokeWidth={2.5} />
+                       </button>
+                     </div>
+                   </div>
+                   <p className="text-[11px] text-gray-400 mt-3">Choose rooms below. We will check that their combined capacity fits your party.</p>
                    <div className="mt-4 pt-3 border-t border-gray-100 flex justify-end gap-4">
-                     <button onClick={() => { setAdults(pendingAdults); setShowGuestPicker(false); }}
+                     <button onClick={() => { setAdults(pendingAdults); setChildren(pendingChildren); setShowGuestPicker(false); }}
                        className="text-[13px] font-bold text-[rgb(var(--be-accent))] hover:text-[rgb(var(--be-accent-dark))]">Done</button>
                    </div>
                  </div>
                )}
              </div>
 
-             <button onClick={() => { setAdults(pendingAdults); setShowGuestPicker(false); setShowDatePicker(false); }}
+             <button onClick={() => { setAdults(pendingAdults); setChildren(pendingChildren); setShowGuestPicker(false); setShowDatePicker(false); }}
                className="bg-[rgb(var(--be-accent))] text-white text-[14px] font-semibold h-11 px-8 rounded-lg flex items-center justify-center gap-2 hover:bg-[rgb(var(--be-accent-dark))] transition-colors shrink-0 w-full lg:w-44 shadow-sm">
                <Search size={16} strokeWidth={2.5} />
                Search
@@ -710,10 +768,6 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
              {roomTypes.length === 0 ? (
                <div className="bg-white p-12 text-center border border-gray-200/80 rounded-2xl shadow-sm">
                  <p className="text-[14px] text-gray-500">No rooms listed at this time.</p>
-               </div>
-             ) : visibleRoomTypes.length === 0 ? (
-               <div className="bg-white p-12 text-center border border-gray-200/80 rounded-2xl shadow-sm">
-                 <p className="text-[14px] text-gray-500">No rooms sleep {adults} adults. Try reducing the guest count.</p>
                </div>
              ) : (
                visibleRoomTypes.map((rt) => {
@@ -750,15 +804,17 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
                 </div>
 
                 <div className="px-5 py-4 text-[12px] text-gray-800 border-b border-gray-100 font-medium">
-                   {cartTotalRooms > 0 ? `${cartTotalRooms} room, ${adults} adults, ${nights} night` : "No rooms selected"}
+                   {cartTotalRooms > 0 ? `${cartTotalRooms} room${cartTotalRooms !== 1 ? "s" : ""}, ${adults} adult${adults !== 1 ? "s" : ""}${children > 0 ? `, ${children} child${children !== 1 ? "ren" : ""}` : ""}, ${nights} night${nights !== 1 ? "s" : ""}` : "No rooms selected"}
                 </div>
+
+                {cartTotalRooms > 0 && !cartFitsParty && <div className="px-5 py-3 text-[11.5px] text-amber-700 bg-amber-50 border-b border-gray-100">Selected rooms sleep {cartCapacity}; your party has {partySize} guests. Add another room before continuing.</div>}
 
                 <div className="border-b border-gray-100">
                   {!showPromoInput ? (
-                    <button onClick={() => setShowPromoInput(true)}
+                    <button onClick={() => { setPromoCode(appliedPromoCode); setShowPromoInput(true); setPromoError(""); }}
                       className="w-full px-5 py-4 text-[12px] text-gray-800 flex items-center gap-2 hover:bg-gray-50 transition-colors group">
-                      <Tag size={14} className="text-gray-400 group-hover:text-gray-600 transition-colors" />
-                      <span className="group-hover:underline">{promoCode ? `Code: ${promoCode}` : "Promo / Corporate Code"}</span>
+                      <Tag size={14} className={cn("transition-colors", appliedPromoCode ? "text-[rgb(var(--be-accent))]" : "text-gray-400 group-hover:text-gray-600")} />
+                      <span className="group-hover:underline">{appliedPromoCode ? `Code applied: ${appliedPromoCode}` : "Promo / Corporate Code"}</span>
                     </button>
                   ) : (
                     <div className="px-5 py-4">
@@ -768,19 +824,21 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
                           type="text"
                           value={promoCode}
                           onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                          onKeyDown={(e) => { if (e.key === "Enter") setShowPromoInput(false); if (e.key === "Escape") setShowPromoInput(false); }}
+                          onKeyDown={(e) => { if (e.key === "Enter") void applyPromoCode(); if (e.key === "Escape") setShowPromoInput(false); }}
                           placeholder="Enter code"
                           className="flex-1 h-9 rounded-lg border border-gray-200 px-3 text-[12.5px] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-gray-400 transition-colors"
                         />
-                        <button onClick={() => setShowPromoInput(false)}
-                          className="h-9 px-3.5 rounded-lg bg-gray-900 text-white text-[12px] font-semibold hover:bg-gray-800 transition-colors shrink-0">
-                          Apply
+                        <button onClick={() => void applyPromoCode()} disabled={applyingPromo}
+                          className="h-9 px-3.5 rounded-lg bg-gray-900 text-white text-[12px] font-semibold hover:bg-gray-800 transition-colors shrink-0 disabled:opacity-50">
+                          {applyingPromo ? "Checking…" : "Apply"}
                         </button>
                       </div>
-                      <p className="text-[11px] text-gray-400 mt-2">Code will be verified at checkout</p>
+                      {promoError ? <p className="text-[11px] text-rose-600 mt-2">{promoError}</p> : <p className="text-[11px] text-gray-400 mt-2">Code is checked securely before its rate is shown.</p>}
                     </div>
                   )}
                 </div>
+
+                {promoMessage && <div className="px-5 py-2.5 text-[11px] font-medium text-[rgb(var(--be-accent))] bg-[rgb(var(--be-accent-soft))] border-b border-gray-100">{promoMessage}</div>}
 
                 <div className="px-5 py-5 border-b border-gray-100 flex items-center justify-between">
                    <span className="text-[14px] text-gray-900">Total</span>
@@ -788,7 +846,7 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
                 </div>
 
                 <div className="p-4 bg-gray-50/50">
-                   <button disabled={cartTotalRooms === 0} onClick={() => navigate(`/reserve?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}`)}
+                   <button disabled={cartTotalRooms === 0 || !cartFitsParty} onClick={() => navigate(`/reserve?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}&children=${children}`)}
                      className="w-full py-3 bg-[rgb(var(--be-accent))] text-white font-bold text-[13px] rounded-lg hover:bg-[rgb(var(--be-accent-dark))] transition-all disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed shadow-sm">
                      Continue &gt;
                    </button>

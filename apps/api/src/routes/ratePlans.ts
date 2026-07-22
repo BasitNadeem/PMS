@@ -7,6 +7,8 @@ import {
   createRatePlanSchema,
   updateRatePlanSchema,
   suggestRateSchema,
+  createRatePlanCodeSchema,
+  updateRatePlanCodeSchema,
 } from "../schemas/ratePlans";
 import { RatePlanService } from "../services/RatePlanService";
 import { checkFeatureAccess } from "../lib/subscription";
@@ -72,6 +74,42 @@ router.patch("/:id/activate", requirePermission("RATE_UPDATE"), async (req, res)
     req.user!.hotelId,
     req.params.id as string,
     req.user!
+  );
+  res.status(204).send();
+});
+
+// POST /api/rate-plans/:id/codes — public Booking Engine promo/corporate access code
+router.post("/:id/codes", requirePermission("RATE_UPDATE"), async (req, res) => {
+  await checkFeatureAccess(req.user!.hotelId, "ratePlans");
+  const body = createRatePlanCodeSchema.parse(req.body);
+  const code = await RatePlanService.createRatePlanCode(req.withTenant, req.user!.hotelId, req.params.id as string, body, req.user!);
+  res.status(201).json({ data: code });
+});
+
+// PATCH /api/rate-plans/:id/codes/:codeId
+router.patch("/:id/codes/:codeId", requirePermission("RATE_UPDATE"), async (req, res) => {
+  await checkFeatureAccess(req.user!.hotelId, "ratePlans");
+  const body = updateRatePlanCodeSchema.parse(req.body);
+  const code = await RatePlanService.updateRatePlanCode(
+    req.withTenant,
+    req.user!.hotelId,
+    req.params.id as string,
+    req.params.codeId as string,
+    body,
+    req.user!,
+  );
+  res.json({ data: code });
+});
+
+// DELETE /api/rate-plans/:id/codes/:codeId — soft-deactivates code history
+router.delete("/:id/codes/:codeId", requirePermission("RATE_UPDATE"), async (req, res) => {
+  await checkFeatureAccess(req.user!.hotelId, "ratePlans");
+  await RatePlanService.deactivateRatePlanCode(
+    req.withTenant,
+    req.user!.hotelId,
+    req.params.id as string,
+    req.params.codeId as string,
+    req.user!,
   );
   res.status(204).send();
 });

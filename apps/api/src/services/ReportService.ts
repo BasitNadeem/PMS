@@ -1192,6 +1192,14 @@ export const ReportService = {
     const dateFilter = startDate && endDate ? utcRange(startDate, endDate) : null;
     const REVENUE_EXCLUDED_STATUSES = new Set(["CANCELLED", "NO_SHOW"]);
 
+    // Dates in this report are grouped by the hotel's operating day (PKT),
+    // rather than the server's UTC date. This keeps a booking made shortly
+    // after midnight in Pakistan on the correct day in the trend chart.
+    const pktDateKey = (date: Date) => {
+      const pkt = new Date(date.getTime() + 5 * 60 * 60 * 1000);
+      return `${pkt.getUTCFullYear()}-${String(pkt.getUTCMonth() + 1).padStart(2, "0")}-${String(pkt.getUTCDate()).padStart(2, "0")}`;
+    };
+
     return withTenant(async (db) => {
       const reservations = await db.reservation.findMany({
         where: {
@@ -1208,12 +1216,10 @@ export const ReportService = {
       });
 
       const byStatus: Record<string, number> = {};
-      let multiRoomCount = 0;
       let totalEstimatedRevenue = 0;
 
       for (const r of reservations) {
         byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
-        if (r.groupId) multiRoomCount += 1;
         if (!REVENUE_EXCLUDED_STATUSES.has(r.status)) {
           totalEstimatedRevenue += r.quotedRate * Math.max(diffDays(r.checkInDate, r.checkOutDate), 0);
         }
@@ -1232,16 +1238,22 @@ export const ReportService = {
         roomCount:    number;
         statuses:     Set<string>;
         createdAt:    Date;
+        estimatedRevenue: number;
       }
       const byGroup = new Map<string, BookingEntry>();
       const standalone: BookingEntry[] = [];
 
       for (const r of reservations) {
+        const estimatedRevenue = REVENUE_EXCLUDED_STATUSES.has(r.status)
+          ? 0
+          : r.quotedRate * Math.max(diffDays(r.checkInDate, r.checkOutDate), 0);
+
         if (r.groupId) {
           const existing = byGroup.get(r.groupId);
           if (existing) {
             existing.roomCount += 1;
             existing.statuses.add(r.status);
+            existing.estimatedRevenue += estimatedRevenue;
             if (r.createdAt < existing.createdAt) existing.createdAt = r.createdAt;
           } else {
             byGroup.set(r.groupId, {
@@ -1254,6 +1266,7 @@ export const ReportService = {
               roomCount:    1,
               statuses:     new Set([r.status]),
               createdAt:    r.createdAt,
+              estimatedRevenue,
             });
           }
         } else {
@@ -1267,6 +1280,7 @@ export const ReportService = {
             roomCount:    1,
             statuses:     new Set([r.status]),
             createdAt:    r.createdAt,
+            estimatedRevenue,
           });
         }
       }
@@ -1274,12 +1288,61 @@ export const ReportService = {
       const bookings = [...byGroup.values(), ...standalone]
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
+      const daily = new Map<string, { bookings: number; estimatedRevenue: number }>();
+      let pendingCount = 0;
+      let confirmedCount = 0;
+      let totalRoomNights = 0;
+      let totalLeadTimeDays = 0;
+
+      for (const booking of bookings) {
+        const day = pktDateKey(booking.createdAt);
+        const existing = daily.get(day) ?? { bookings: 0, estimatedRevenue: 0 };
+        existing.bookings += 1;
+        existing.estimatedRevenue += booking.estimatedRevenue;
+        daily.set(day, existing);
+
+        if (booking.statuses.has("ENQUIRY")) pendingCount += 1;
+        if (booking.statuses.has("CONFIRMED") || booking.statuses.has("CHECKED_IN") || booking.statuses.has("CHECKED_OUT")) {
+          confirmedCount += 1;
+        }
+        totalLeadTimeDays += Math.max(
+          0,
+          Math.round((booking.checkInDate.getTime() - booking.createdAt.getTime()) / 86_400_000),
+        );
+      }
+
+      for (const reservation of reservations) {
+        totalRoomNights += Math.max(diffDays(reservation.checkInDate, reservation.checkOutDate), 0);
+      }
+
+      // The default Hub view is range-based. Keep quiet days in that chart so
+      // a gap means zero direct bookings, rather than an omitted data point.
+      if (startDate && endDate) {
+        const cursor = new Date(`${startDate}T00:00:00.000Z`);
+        const lastDay = new Date(`${endDate}T00:00:00.000Z`);
+        while (cursor <= lastDay) {
+          const date = cursor.toISOString().slice(0, 10);
+          if (!daily.has(date)) daily.set(date, { bookings: 0, estimatedRevenue: 0 });
+          cursor.setUTCDate(cursor.getUTCDate() + 1);
+        }
+      }
+
       return {
-        totalCount:            reservations.length,
+        // A multi-room cart creates one reservation per room. Present booking
+        // counts at the cart level, while retaining the raw room count below.
+        totalCount:            bookings.length,
+        roomReservationCount:  reservations.length,
         byStatus,
-        multiRoomCount,
-        singleRoomCount:       reservations.length - multiRoomCount,
+        multiRoomCount:        byGroup.size,
+        singleRoomCount:       standalone.length,
+        pendingCount,
+        confirmedCount,
+        totalRoomNights,
+        avgLeadTimeDays:       bookings.length > 0 ? Math.round((totalLeadTimeDays / bookings.length) * 10) / 10 : 0,
         totalEstimatedRevenue,
+        daily: [...daily.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([date, values]) => ({ date, ...values })),
         recent: bookings.slice(0, 10).map((b) => ({
           id:                 b.id,
           isGroup:            b.isGroup,

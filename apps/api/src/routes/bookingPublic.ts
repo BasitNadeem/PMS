@@ -20,6 +20,7 @@ import { notifyHotelDataChanged } from "../lib/realtime";
 import {
   bookingAvailabilitySchema,
   publicSuggestRateSchema,
+  publicPromoCodeSchema,
   createBookingRequestSchema,
   bookMultiSchema,
 } from "../schemas/bookingPublic";
@@ -154,14 +155,26 @@ router.get("/:hotelSlug/suggest-rate", async (req, res) => {
     checkIn:        query.checkIn,
     checkOut:       query.checkOut,
     bookingContext: "SINGLE",
+    promoCode:      query.promoCode,
   });
 
   res.json({
     data: {
       suggestedRate: result.suggestedRate / 100, // paisas → PKR
       matchedPlan:   result.matchedPlan,
+      appliedCode:   result.appliedCode,
     },
   });
+});
+
+// GET /api/public/booking/:hotelSlug/promo-code?code&checkIn&checkOut
+router.get("/:hotelSlug/promo-code", async (req, res) => {
+  const hotel = await resolveAndGate(req.params.hotelSlug as string);
+  if (!hotel) { res.status(404).json({ error: "Hotel not found" }); return; }
+
+  const query = publicPromoCodeSchema.parse(req.query);
+  const data = await RatePlanService.validateAccessCodePublic(hotel.id, query.code, query.checkIn, query.checkOut);
+  res.json({ data });
 });
 
 // POST /api/public/booking/:hotelSlug/book — submit a booking request (ENQUIRY)
@@ -178,12 +191,24 @@ router.post("/:hotelSlug/book", bookSubmitLimit, async (req, res) => {
     checkIn:        dto.checkInDate,
     checkOut:       dto.checkOutDate,
     bookingContext: "SINGLE",
+    promoCode:      dto.promoCode,
   });
+  const baseRateResult = dto.promoCode
+    ? await RatePlanService.suggestRatePublic(hotel.id, {
+      roomTypeId: dto.roomTypeId,
+      checkIn: dto.checkInDate,
+      checkOut: dto.checkOutDate,
+      bookingContext: "SINGLE",
+    })
+    : null;
   const ratePerNight = rateResult.suggestedRate; // in paisas
   const nights       = Math.ceil(
     (new Date(dto.checkOutDate).getTime() - new Date(dto.checkInDate).getTime()) / (1000 * 60 * 60 * 24)
   );
   const totalAmount = ratePerNight * nights;
+  const discountAmount = baseRateResult
+    ? Math.max(0, baseRateResult.suggestedRate - ratePerNight) * nights
+    : 0;
 
   // Single transaction: re-verify availability + guest upsert + reservation + audit + notify
   const reservation = await wt(async (db) => {
@@ -269,6 +294,9 @@ router.post("/:hotelSlug/book", bookSubmitLimit, async (req, res) => {
         specialRequests: dto.specialRequests ?? null,
         quotedRate:      ratePerNight,
         totalAmount,
+        discountAmount,
+        appliedRatePlanName: rateResult.matchedPlan?.name ?? null,
+        promoCode:        rateResult.appliedCode,
         balanceDue:      totalAmount,
         rooms: {
           create: {
@@ -339,7 +367,12 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
   );
 
   // Fetch suggested rates for each room type (read-only, outside transaction)
-  const rateMap = new Map<string, number>();
+  const rateMap = new Map<string, {
+    ratePerNight: number;
+    baseRatePerNight: number;
+    appliedRatePlanName: string | null;
+    appliedCode: string | null;
+  }>();
   const roomTypeNameMap = new Map<string, string>();
   await Promise.all(dto.items.map(async (item) => {
     const rr = await RatePlanService.suggestRatePublic(hotel.id, {
@@ -347,16 +380,31 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
       checkIn:        dto.checkInDate,
       checkOut:       dto.checkOutDate,
       bookingContext: "SINGLE",
+      promoCode:      dto.promoCode,
     });
-    rateMap.set(item.roomTypeId, rr.suggestedRate);
+    const baseRate = dto.promoCode
+      ? await RatePlanService.suggestRatePublic(hotel.id, {
+        roomTypeId: item.roomTypeId,
+        checkIn: dto.checkInDate,
+        checkOut: dto.checkOutDate,
+        bookingContext: "SINGLE",
+      })
+      : null;
+    rateMap.set(item.roomTypeId, {
+      ratePerNight: rr.suggestedRate,
+      baseRatePerNight: baseRate?.suggestedRate ?? rr.suggestedRate,
+      appliedRatePlanName: rr.matchedPlan?.name ?? null,
+      appliedCode: rr.appliedCode,
+    });
   }));
 
   const result = await wt(async (db) => {
     // 1. Verify availability for every requested room type + quantity (atomic)
+    const allocationSlots: Array<{ roomTypeId: string; capacity: number }> = [];
     for (const item of dto.items) {
       const allRooms = await db.room.findMany({
         where:  { roomTypeId: item.roomTypeId, isActive: true },
-        select: { id: true, roomType: { select: { name: true } } },
+        select: { id: true, roomType: { select: { name: true, maxOccupancy: true } } },
       });
       if (allRooms.length === 0) {
         throw new AppError(409, `No rooms of the requested type exist at this hotel.`);
@@ -376,6 +424,30 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
       if (freeRooms.length < item.quantity) {
         throw new AppError(409, `Only ${freeRooms.length} room(s) available for ${allRooms[0].roomType.name} (${item.quantity} requested).`);
       }
+      for (let index = 0; index < item.quantity; index += 1) {
+        allocationSlots.push({ roomTypeId: item.roomTypeId, capacity: allRooms[0].roomType.maxOccupancy });
+      }
+    }
+
+    const totalCapacity = allocationSlots.reduce((sum, slot) => sum + slot.capacity, 0);
+    if (dto.adults + dto.children > totalCapacity) {
+      throw new AppError(400, "The selected rooms do not have enough capacity for all guests.");
+    }
+
+    // The public cart carries one party total. Spread it across the individual
+    // reservations so a four-adult/two-room booking does not incorrectly write
+    // four adults on every room record.
+    let adultsRemaining = dto.adults;
+    let childrenRemaining = dto.children ?? 0;
+    const allocationsByRoomType = new Map<string, Array<{ adults: number; children: number }>>();
+    for (const slot of allocationSlots) {
+      const adults = Math.min(slot.capacity, adultsRemaining);
+      adultsRemaining -= adults;
+      const children = Math.min(slot.capacity - adults, childrenRemaining);
+      childrenRemaining -= children;
+      const existing = allocationsByRoomType.get(slot.roomTypeId) ?? [];
+      existing.push({ adults, children });
+      allocationsByRoomType.set(slot.roomTypeId, existing);
     }
 
     // 2. Guest upsert (same logic as /book)
@@ -446,12 +518,18 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
       });
       const bookedSet = new Set(bookedIds.map((r) => r.roomId));
       const freeRooms = allRooms.filter((r) => !bookedSet.has(r.id));
-      const ratePerNight = rateMap.get(item.roomTypeId) ?? 0;
+      const rateInfo = rateMap.get(item.roomTypeId);
+      const ratePerNight = rateInfo?.ratePerNight ?? 0;
       const totalAmount  = ratePerNight * nights;
+      const discountAmount = rateInfo
+        ? Math.max(0, rateInfo.baseRatePerNight - ratePerNight) * nights
+        : 0;
 
       for (let q = 0; q < item.quantity; q++) {
         const freeRoom = freeRooms[q];
         if (!freeRoom) throw new AppError(409, `Availability changed mid-transaction — please try again.`);
+        const guestAllocation = allocationsByRoomType.get(item.roomTypeId)?.shift();
+        if (!guestAllocation) throw new AppError(500, "Unable to allocate guests to selected rooms.");
         const newRes = await db.reservation.create({
           data: {
             hotelId:            hotel.id,
@@ -462,11 +540,14 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
             bookingContactName,
             checkInDate:     new Date(dto.checkInDate),
             checkOutDate:    new Date(dto.checkOutDate),
-            adults:          dto.adults,
-            children:        dto.children,
+            adults:          guestAllocation.adults,
+            children:        guestAllocation.children,
             specialRequests: dto.specialRequests ?? null,
             quotedRate:      ratePerNight,
             totalAmount,
+            discountAmount,
+            appliedRatePlanName: rateInfo?.appliedRatePlanName ?? null,
+            promoCode:        rateInfo?.appliedCode ?? null,
             balanceDue:      totalAmount,
             ...(groupId ? { groupId } : {}),
             rooms: {

@@ -39,6 +39,14 @@ export interface AvailabilityResult {
 export interface SuggestRateResult {
   suggestedRate: number; // PKR
   matchedPlan: { id: string; name: string; type: string } | null;
+  appliedCode: string | null;
+}
+
+export interface PromoCodeValidation {
+  code: string;
+  label: string | null;
+  ratePlanName: string;
+  ratePlanType: string;
 }
 
 export interface BookingRequest {
@@ -51,6 +59,7 @@ export interface BookingRequest {
   adults: number;
   children?: number;
   specialRequests?: string;
+  promoCode?: string;
 }
 
 export interface BookingConfirmation {
@@ -78,6 +87,7 @@ export interface BookMultiRequest {
   adults: number;
   children?: number;
   specialRequests?: string;
+  promoCode?: string;
 }
 
 export interface BookMultiConfirmation {
@@ -107,11 +117,16 @@ export const bookingEngineService = {
     return res.data.data as AvailabilityResult[];
   },
 
-  async suggestRate(slug: string, roomTypeId: string, checkIn: string, checkOut: string): Promise<SuggestRateResult> {
+  async suggestRate(slug: string, roomTypeId: string, checkIn: string, checkOut: string, promoCode?: string): Promise<SuggestRateResult> {
     const res = await publicApi.get(`${base(slug)}/suggest-rate`, {
-      params: { roomTypeId, checkIn, checkOut },
+      params: { roomTypeId, checkIn, checkOut, promoCode },
     });
     return res.data.data as SuggestRateResult;
+  },
+
+  async validatePromoCode(slug: string, code: string, checkIn: string, checkOut: string): Promise<PromoCodeValidation> {
+    const res = await publicApi.get(`${base(slug)}/promo-code`, { params: { code, checkIn, checkOut } });
+    return res.data.data as PromoCodeValidation;
   },
 
   async book(slug: string, dto: BookingRequest): Promise<BookingConfirmation> {

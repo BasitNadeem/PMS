@@ -11,6 +11,7 @@ import { cn } from "@/lib/cn";
 import { getPhoneErrorMessage, getEmailErrorMessage } from "@/lib/validation";
 
 const CART_KEY = (slug: string) => `be_cart_${slug}`;
+const PROMO_KEY = (slug: string) => `be_promo_${slug}`;
 
 const fmt = (pkr: number) =>
   new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR", maximumFractionDigits: 0 }).format(pkr);
@@ -114,9 +115,9 @@ function Stepper({ value, min = 0, max = 99, onChange, accentColor }: {
 
 // ── Booking Summary ───────────────────────────────────────────────────────────
 
-function SummaryCard({ cart, checkIn, checkOut, nights, accentColor }: {
+function SummaryCard({ cart, checkIn, checkOut, nights, adults, children, promoCode, accentColor }: {
   cart: CartItem[]; checkIn: string; checkOut: string;
-  nights: number; accentColor: string;
+  nights: number; adults: number; children: number; promoCode: string; accentColor: string;
 }) {
   const nightlyTotal = cart.reduce((s, c) => s + (c.ratePerNight ?? c.defaultRate) * c.quantity, 0);
   const grandTotal   = nightlyTotal * nights;
@@ -161,6 +162,13 @@ function SummaryCard({ cart, checkIn, checkOut, nights, accentColor }: {
         })}
       </div>
 
+      <div className="px-5 py-3 border-b border-gray-50 text-[12px] text-gray-500 flex items-center justify-between gap-3">
+        <span>{adults} adult{adults !== 1 ? "s" : ""}{children > 0 ? ` · ${children} child${children !== 1 ? "ren" : ""}` : ""}</span>
+        <span>{cart.reduce((sum, item) => sum + item.quantity, 0)} room{cart.reduce((sum, item) => sum + item.quantity, 0) !== 1 ? "s" : ""}</span>
+      </div>
+
+      {promoCode && <div className="px-5 py-3 border-b border-gray-50 text-[12px] font-semibold" style={{ color: accentColor }}>Promo / corporate code: {promoCode}</div>}
+
       {/* Total */}
       <div className="px-5 py-4">
         <div className="flex items-baseline justify-between mb-3">
@@ -183,9 +191,9 @@ function SummaryCard({ cart, checkIn, checkOut, nights, accentColor }: {
 
 // ── Compact mobile summary ────────────────────────────────────────────────────
 
-function CompactSummary({ cart, checkIn, checkOut, nights, accentColor }: {
+function CompactSummary({ cart, checkIn, checkOut, nights, adults, children, promoCode, accentColor }: {
   cart: CartItem[]; checkIn: string; checkOut: string;
-  nights: number; accentColor: string;
+  nights: number; adults: number; children: number; promoCode: string; accentColor: string;
 }) {
   const grandTotal = cart.reduce((s, c) => s + (c.ratePerNight ?? c.defaultRate) * c.quantity, 0) * nights;
 
@@ -196,6 +204,7 @@ function CompactSummary({ cart, checkIn, checkOut, nights, accentColor }: {
           {cart.map((c) => `${c.quantity > 1 ? `${c.quantity}× ` : ""}${c.roomTypeName}`).join(" + ")}
           {" · "}{nights} night{nights !== 1 ? "s" : ""}
         </p>
+        <p className="text-[12px] text-gray-500">{adults} adult{adults !== 1 ? "s" : ""}{children > 0 ? ` · ${children} child${children !== 1 ? "ren" : ""}` : ""}{promoCode ? ` · ${promoCode}` : ""}</p>
         <p className="text-[15px] font-bold text-gray-900">{fmt(grandTotal)}</p>
       </div>
       <Link to={`/?checkIn=${checkIn}&checkOut=${checkOut}`}
@@ -320,9 +329,11 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
   const maxOccupancy = cart.reduce((s, c) => s + c.maxOccupancy * c.quantity, 0);
 
   const adultsFromUrl = Math.max(1, parseInt(searchParams.get("adults") ?? "1", 10) || 1);
+  const childrenFromUrl = Math.max(0, parseInt(searchParams.get("children") ?? "0", 10) || 0);
+  const [promoCode] = useState(() => sessionStorage.getItem(PROMO_KEY(hotelSlug)) ?? "");
   const [form, setForm] = useState({
     guestName: "", guestPhone: "", guestEmail: "",
-    adults: adultsFromUrl, children: 0, specialRequests: "",
+    adults: adultsFromUrl, children: childrenFromUrl, specialRequests: "",
   });
   const [phoneError,  setPhoneError]  = useState<string | null>(null);
   const [emailError,  setEmailError]  = useState<string | null>(null);
@@ -355,8 +366,10 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
         adults:          form.adults,
         children:        form.children || undefined,
         specialRequests: form.specialRequests.trim() || undefined,
+        promoCode:       promoCode || undefined,
       });
       sessionStorage.removeItem(CART_KEY(hotelSlug));
+      sessionStorage.removeItem(PROMO_KEY(hotelSlug));
       setConfirmation(result);
     } catch (err) {
       const msg = getErrorMessage(err);
@@ -404,7 +417,7 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
       <div className="lg:hidden sticky top-14 z-30 bg-white border-b border-gray-100 shadow-sm">
         <CompactSummary
           cart={cart} checkIn={checkIn} checkOut={checkOut}
-          nights={nights} accentColor={accentColor}
+          nights={nights} adults={form.adults} children={form.children} promoCode={promoCode} accentColor={accentColor}
         />
       </div>
 
@@ -418,7 +431,8 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
 
               {/* Form header */}
               <div className="px-6 pt-6 pb-5 border-b border-gray-50">
-                <h1 className="be-serif text-[26px] font-semibold text-gray-900 leading-tight">Your Details</h1>
+                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[rgb(var(--be-accent))] mb-2"><span className="grid place-items-center h-5 w-5 rounded-full bg-[rgb(var(--be-accent-soft))]">2</span> Final step</div>
+                <h1 className="be-serif text-[26px] font-semibold text-gray-900 leading-tight">Review &amp; request booking</h1>
                 <p className="text-[13px] text-gray-400 mt-1">
                   Submit a request — the hotel will confirm your booking shortly.
                 </p>
@@ -540,7 +554,7 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
           <div className="hidden lg:block w-72 xl:w-80 shrink-0">
             <SummaryCard
               cart={cart} checkIn={checkIn} checkOut={checkOut}
-              nights={nights} accentColor={accentColor}
+              nights={nights} adults={form.adults} children={form.children} promoCode={promoCode} accentColor={accentColor}
             />
           </div>
         </div>

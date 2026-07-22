@@ -126,6 +126,7 @@ SELECT enable_hotel_rls('inventory_transactions');
 SELECT enable_hotel_rls('conversations');
 SELECT enable_hotel_rls('messages');
 SELECT enable_hotel_rls('rate_plans');
+SELECT enable_hotel_rls('rate_plan_codes');
 SELECT enable_hotel_rls('channel_configs');
 SELECT enable_hotel_rls('staff');
 SELECT enable_hotel_rls('shift_reports');

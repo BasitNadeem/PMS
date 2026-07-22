@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Tag, Plus, Pencil, PowerOff, Power, X, Check, ChevronDown } from "lucide-react";
+import { Tag, Plus, Pencil, PowerOff, Power, X, Check, ChevronDown, KeyRound } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getErrorMessage } from "@/lib/api";
-import { ratePlansService, type RatePlan, type RatePlanType, type CreateRatePlanDto } from "@/services/ratePlans";
+import { ratePlansService, type RatePlan, type RatePlanCode, type RatePlanType, type CreateRatePlanDto } from "@/services/ratePlans";
 import { roomsService } from "@/services/rooms";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Card } from "@/components/ui/Card";
@@ -62,6 +62,7 @@ function RatePlanModal({ plan, onClose, onSuccess }: RatePlanModalProps) {
   const [validTo, setTo]        = useState(plan?.validTo   ? plan.validTo.slice(0, 10)   : "");
   const [daysOfWeek, setDays]   = useState<number[]>(plan?.daysOfWeek ?? []);
   const [minLos, setMinLos]     = useState(plan?.minLos ?? 1);
+  const [codeRequired, setCodeRequired] = useState(plan?.codeRequired ?? false);
   const [priority, setPriority] = useState(plan?.priority ?? 0);
   const [items, setItems]       = useState<{ roomTypeId: string; rate: number }[]>(
     plan?.items.map((i) => ({ roomTypeId: i.roomTypeId, rate: Math.round(i.rate / 100) })) ?? []
@@ -122,6 +123,7 @@ function RatePlanModal({ plan, onClose, onSuccess }: RatePlanModalProps) {
       validTo:     validTo   || undefined,
       daysOfWeek,
       minLos,
+      codeRequired,
       priority,
       items: items.map((i) => ({ roomTypeId: i.roomTypeId, rate: i.rate * 100 })),
     };
@@ -161,7 +163,7 @@ function RatePlanModal({ plan, onClose, onSuccess }: RatePlanModalProps) {
 
           {/* Name + Type */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
+          <div className="col-span-2">
               <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Summer Seasonal Rate" className={inputCls} />
             </div>
@@ -184,6 +186,18 @@ function RatePlanModal({ plan, onClose, onSuccess }: RatePlanModalProps) {
               <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Description <span className="text-ink-faint font-normal">(optional)</span></label>
               <input type="text" value={description} onChange={(e) => setDesc(e.target.value)} placeholder="Internal notes about this rate…" className={inputCls} />
             </div>
+            <label className="col-span-2 flex items-start gap-3 rounded-xl border border-line bg-mist px-4 py-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={codeRequired}
+                onChange={(e) => setCodeRequired(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-[rgb(var(--color-accent))]"
+              />
+              <span>
+                <span className="block text-[13px] font-semibold text-ink">Require a promo / corporate code in the Booking Engine</span>
+                <span className="block text-[12px] text-ink-mute mt-0.5">Public guests can only receive this plan's rate with an active access code. Add codes after saving the rate plan.</span>
+              </span>
+            </label>
           </div>
 
           {/* Room type rates */}
@@ -315,6 +329,119 @@ function RatePlanModal({ plan, onClose, onSuccess }: RatePlanModalProps) {
   );
 }
 
+// ── Booking Engine access codes ───────────────────────────────────────────────
+
+function RatePlanCodesModal({ plan, onClose }: { plan: RatePlan; onClose: () => void }) {
+  useEscapeKey(onClose);
+  const qc = useQueryClient();
+  const [codes, setCodes] = useState<RatePlanCode[]>(plan.codes);
+  const [editing, setEditing] = useState<RatePlanCode | null>(null);
+  const [code, setCode] = useState("");
+  const [label, setLabel] = useState("");
+  const [validFrom, setValidFrom] = useState("");
+  const [validTo, setValidTo] = useState("");
+  const [error, setError] = useState("");
+
+  const saveMutation = useMutation({
+    mutationFn: () => editing
+      ? ratePlansService.updateCode(plan.id, editing.id, {
+        code: code.trim().toUpperCase(), label: label.trim() || null,
+        validFrom: validFrom || null, validTo: validTo || null,
+      })
+      : ratePlansService.createCode(plan.id, {
+        code: code.trim().toUpperCase(), label: label.trim() || undefined,
+        validFrom: validFrom || undefined, validTo: validTo || undefined,
+      }),
+    onSuccess: (saved) => {
+      setCodes((current) => editing
+        ? current.map((item) => item.id === saved.id ? saved : item)
+        : [saved, ...current]);
+      qc.invalidateQueries({ queryKey: ["rate-plans"] });
+      resetForm();
+    },
+    onError: (err) => setError(getErrorMessage(err)),
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: (codeId: string) => ratePlansService.deactivateCode(plan.id, codeId),
+    onSuccess: (_, codeId) => {
+      setCodes((current) => current.map((item) => item.id === codeId ? { ...item, isActive: false } : item));
+      qc.invalidateQueries({ queryKey: ["rate-plans"] });
+    },
+    onError: (err) => setError(getErrorMessage(err)),
+  });
+
+  function resetForm() {
+    setEditing(null); setCode(""); setLabel(""); setValidFrom(""); setValidTo(""); setError("");
+  }
+
+  function startEdit(accessCode: RatePlanCode) {
+    setEditing(accessCode);
+    setCode(accessCode.code);
+    setLabel(accessCode.label ?? "");
+    setValidFrom(accessCode.validFrom?.slice(0, 10) ?? "");
+    setValidTo(accessCode.validTo?.slice(0, 10) ?? "");
+    setError("");
+  }
+
+  function save() {
+    if (!/^[A-Z0-9][A-Z0-9-]{2,31}$/.test(code.trim().toUpperCase())) {
+      setError("Use 3–32 letters, numbers, or hyphens for the code.");
+      return;
+    }
+    if (validFrom && validTo && validTo < validFrom) {
+      setError("Code end date must be on or after its start date.");
+      return;
+    }
+    setError("");
+    saveMutation.mutate();
+  }
+
+  return (
+    <div className="fixed inset-0 bg-ink/35 backdrop-blur-[3px] z-[60] grid place-items-center p-4 sm:p-6 anim-fade-in" onMouseDown={onClose}>
+      <div className="w-full max-w-2xl max-h-[92vh] flex flex-col bg-card rounded-[1.75rem] shadow-float anim-scale-in" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-3.5 px-6 pt-6 pb-4 border-b border-line-soft">
+          <div className="grid place-items-center h-11 w-11 rounded-xl bg-coral-soft text-coral-deep shrink-0"><KeyRound size={20} /></div>
+          <div className="flex-1"><h3 className="serif text-[22px] leading-tight text-ink">Booking Engine access codes</h3><p className="text-[12.5px] text-ink-mute mt-0.5">{plan.name}</p></div>
+          <button onClick={onClose} className="grid place-items-center h-9 w-9 rounded-full hover:bg-line-soft text-ink-mute transition-colors"><X size={18} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto scroll-area px-6 py-5 space-y-5">
+          <div className="rounded-xl border border-coral/20 bg-coral-tint px-4 py-3 text-[12.5px] text-ink-soft leading-relaxed">
+            An active code gives guests this rate plan's price. The rate plan controls eligible stay dates and rooms; a code's dates control when it may be redeemed.
+          </div>
+
+          <div className="space-y-2">
+            {codes.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-line py-7 text-center text-[13px] text-ink-mute">No access codes yet</div>
+            ) : codes.map((accessCode) => (
+              <div key={accessCode.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-line-soft px-4 py-3">
+                <div className={cn("h-2 w-2 rounded-full", accessCode.isActive ? "bg-pine" : "bg-ink-faint")} />
+                <div className="flex-1 min-w-[150px]"><p className="font-mono text-[14px] font-bold text-ink">{accessCode.code}</p><p className="text-[11.5px] text-ink-mute mt-0.5">{accessCode.label || "No label"}{accessCode.validFrom || accessCode.validTo ? ` · ${fmtDate(accessCode.validFrom)} – ${fmtDate(accessCode.validTo)}` : " · Always redeemable"}</p></div>
+                <span className={cn("text-[10.5px] font-bold uppercase tracking-wide px-2 py-1 rounded-full", accessCode.isActive ? "bg-pine-soft text-pine" : "bg-line text-ink-mute")}>{accessCode.isActive ? "Active" : "Inactive"}</span>
+                <button onClick={() => startEdit(accessCode)} className="text-[12px] font-semibold text-coral hover:text-coral-dark">Edit</button>
+                {accessCode.isActive && <button onClick={() => deactivateMutation.mutate(accessCode.id)} disabled={deactivateMutation.isPending} className="text-[12px] font-semibold text-clay hover:opacity-70 disabled:opacity-40">Deactivate</button>}
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-line-soft pt-5">
+            <div className="flex items-center justify-between gap-3 mb-3"><h4 className="text-[14px] font-bold text-ink">{editing ? `Edit ${editing.code}` : "Add access code"}</h4>{editing && <button onClick={resetForm} className="text-[12px] font-semibold text-ink-mute hover:text-ink">Cancel edit</button>}</div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div><label className="mb-1.5 block text-[12px] font-semibold text-ink-soft">Code</label><input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="SUMMER26" className={inputCls} /></div>
+              <div><label className="mb-1.5 block text-[12px] font-semibold text-ink-soft">Label <span className="font-normal text-ink-faint">(internal)</span></label><input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Summer campaign" className={inputCls} /></div>
+              <div><label className="mb-1.5 block text-[12px] font-semibold text-ink-soft">Redeem from <span className="font-normal text-ink-faint">(optional)</span></label><div className="flex gap-1"><DatePicker value={validFrom} onChange={setValidFrom} max={validTo || undefined} className="flex-1" />{validFrom && <button onClick={() => setValidFrom("")} className="h-10 w-10 rounded-xl border border-line text-ink-faint hover:bg-line-soft"><X size={14} /></button>}</div></div>
+              <div><label className="mb-1.5 block text-[12px] font-semibold text-ink-soft">Redeem to <span className="font-normal text-ink-faint">(optional)</span></label><div className="flex gap-1"><DatePicker value={validTo} onChange={setValidTo} min={validFrom || undefined} className="flex-1" />{validTo && <button onClick={() => setValidTo("")} className="h-10 w-10 rounded-xl border border-line text-ink-faint hover:bg-line-soft"><X size={14} /></button>}</div></div>
+            </div>
+            {error && <p className="mt-3 text-[12.5px] font-medium text-clay">{error}</p>}
+            <button onClick={save} disabled={saveMutation.isPending} className="mt-4 inline-flex items-center gap-2 h-10 px-4 rounded-full bg-coral text-white text-[13px] font-semibold hover:bg-coral-dark disabled:opacity-40"><Check size={15} />{saveMutation.isPending ? "Saving…" : editing ? "Save code" : "Add code"}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── RatePlansPage ─────────────────────────────────────────────────────────────
 
 export default function RatePlansPage() {
@@ -326,6 +453,7 @@ export default function RatePlansPage() {
   const qc = useQueryClient();
   const [showActive, setShowActive] = useState<boolean | undefined>(true);
   const [modalPlan, setModalPlan]   = useState<RatePlan | undefined>(undefined);
+  const [codesPlan, setCodesPlan]   = useState<RatePlan | undefined>(undefined);
   const [showModal, setShowModal]   = useState(false);
   const [actionError, setActionError] = useState("");
 
@@ -419,6 +547,7 @@ export default function RatePlansPage() {
                   <th className="px-4 py-3 text-left font-semibold text-ink-mute">Date Range</th>
                   <th className="px-4 py-3 text-left font-semibold text-ink-mute">Days</th>
                   <th className="px-4 py-3 text-left font-semibold text-ink-mute">Min Stay</th>
+                  <th className="px-4 py-3 text-left font-semibold text-ink-mute">Booking Engine</th>
                   <th className="px-4 py-3 text-left font-semibold text-ink-mute">Status</th>
                   <th className="px-4 py-3" />
                 </tr>
@@ -464,6 +593,13 @@ export default function RatePlansPage() {
                     </td>
                     <td className="px-4 py-3.5 text-ink-soft tnum">{plan.minLos}n</td>
                     <td className="px-4 py-3.5">
+                      {plan.codeRequired ? (
+                        <button onClick={() => setCodesPlan(plan)} className="inline-flex items-center gap-1.5 text-[11px] font-bold text-coral hover:text-coral-dark">
+                          <KeyRound size={13} /> {plan.codes.filter((code) => code.isActive).length} active code{plan.codes.filter((code) => code.isActive).length === 1 ? "" : "s"}
+                        </button>
+                      ) : <span className="text-ink-faint">Public</span>}
+                    </td>
+                    <td className="px-4 py-3.5">
                       <span className={cn(
                         "inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-bold uppercase tracking-wide",
                         plan.isActive
@@ -482,6 +618,15 @@ export default function RatePlansPage() {
                             title="Edit"
                           >
                             <Pencil size={14} />
+                          </button>
+                        )}
+                        {canUpdate && plan.codeRequired && (
+                          <button
+                            onClick={() => setCodesPlan(plan)}
+                            className="grid place-items-center h-8 w-8 rounded-lg text-ink-faint hover:bg-coral-soft hover:text-coral transition-colors"
+                            title="Manage access codes"
+                          >
+                            <KeyRound size={14} />
                           </button>
                         )}
                         {canDelete && plan.isActive && (
@@ -528,6 +673,7 @@ export default function RatePlansPage() {
           onSuccess={closeModal}
         />
       )}
+      {codesPlan && <RatePlanCodesModal plan={codesPlan} onClose={() => setCodesPlan(undefined)} />}
     </div>
   );
 }

@@ -14,10 +14,20 @@ export interface BookingEngineRecentBooking {
 
 export interface BookingEngineInsights {
   totalCount:            number;
+  roomReservationCount:  number;
   byStatus:               Record<string, number>;
   multiRoomCount:         number;
   singleRoomCount:        number;
+  pendingCount:           number;
+  confirmedCount:         number;
+  totalRoomNights:        number;
+  avgLeadTimeDays:        number;
   totalEstimatedRevenue:  number;
+  daily: Array<{
+    date: string;
+    bookings: number;
+    estimatedRevenue: number;
+  }>;
   recent:                 BookingEngineRecentBooking[];
 }
 

@@ -5,12 +5,15 @@ import type {
   CreateRatePlanDto,
   UpdateRatePlanDto,
   SuggestRateQuery,
+  CreateRatePlanCodeDto,
+  UpdateRatePlanCodeDto,
 } from "../schemas/ratePlans";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
 import { getEffectiveLimits } from "../lib/subscription";
 import { publicWithTenant } from "../lib/publicTenant";
 import { notifyHotelDataChanged } from "../lib/realtime";
+import { getCurrentPKTDate } from "../lib/timezone";
 
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
 
@@ -27,15 +30,48 @@ function getEligibleTypes(ctx: BookingContext | undefined): string[] {
   return ELIGIBLE_TYPES[ctx ?? "SINGLE"];
 }
 
+type RatePlanEligibility = {
+  isActive: boolean;
+  validFrom: Date | null;
+  validTo: Date | null;
+  daysOfWeek: number[];
+  minLos: number;
+};
+
+function planAppliesToStay(plan: RatePlanEligibility, checkIn: Date, checkOut: Date, nights: number): boolean {
+  if (!plan.isActive || plan.minLos > nights) return false;
+  if (plan.validFrom && plan.validFrom > checkOut) return false;
+  if (plan.validTo && plan.validTo < checkIn) return false;
+  if (plan.daysOfWeek.length === 0) return true;
+
+  for (let index = 0; index < nights; index += 1) {
+    const night = new Date(checkIn);
+    night.setDate(night.getDate() + index);
+    if (!plan.daysOfWeek.includes(night.getDay())) return false;
+  }
+  return true;
+}
+
+function codeIsAvailableToday(code: { validFrom: Date | null; validTo: Date | null }): boolean {
+  const today = new Date(`${getCurrentPKTDate()}T00:00:00.000Z`);
+  return (!code.validFrom || code.validFrom <= today) && (!code.validTo || code.validTo >= today);
+}
+
 // Extracted core — callable with any WithTenantFn (authenticated or public).
 async function suggestRateCore(wt: WithTenantFn, query: SuggestRateQuery, hotelId: string) {
   const { features } = await getEffectiveLimits(hotelId);
   if (!features.ratePlans) {
+    if (query.promoCode) throw new AppError(400, "Promo or corporate code is invalid or unavailable");
     const roomType = await wt((db) =>
       db.roomType.findUnique({ where: { id: query.roomTypeId }, select: { defaultRate: true } })
     );
     if (!roomType) throw new AppError(404, "Room type not found");
-    return { suggestedRate: roomType.defaultRate, matchedPlan: null, allMatchingPlans: [] as { id: string; name: string; rate: number }[] };
+    return {
+      suggestedRate: roomType.defaultRate,
+      matchedPlan: null,
+      allMatchingPlans: [] as { id: string; name: string; rate: number }[],
+      appliedCode: null,
+    };
   }
 
   const checkIn  = new Date(query.checkIn);
@@ -78,18 +114,13 @@ async function suggestRateCore(wt: WithTenantFn, query: SuggestRateQuery, hotelI
     return b.createdAt.getTime() - a.createdAt.getTime();
   });
 
-  const datePlans = sorted.filter((plan) => {
-    if (plan.daysOfWeek.length === 0) return true;
-    for (let i = 0; i < nights; i++) {
-      const night = new Date(checkIn);
-      night.setDate(night.getDate() + i);
-      if (!plan.daysOfWeek.includes(night.getDay())) return false;
-    }
-    return true;
-  });
+  const datePlans = sorted.filter((plan) => planAppliesToStay(plan, checkIn, checkOut, nights));
 
-  // Type-eligibility gate: only surface plans appropriate for this booking context.
-  const eligible = datePlans.filter((p) => getEligibleTypes(query.bookingContext).includes(p.type));
+  // Public, no-code bookings must never pick a rate that was configured as
+  // restricted. A valid access code below can select its linked plan instead.
+  const eligible = datePlans.filter((p) =>
+    getEligibleTypes(query.bookingContext).includes(p.type) && !p.codeRequired
+  );
 
   const roomType = await wt((db) =>
     db.roomType.findUnique({ where: { id: query.roomTypeId }, select: { defaultRate: true } })
@@ -105,6 +136,44 @@ async function suggestRateCore(wt: WithTenantFn, query: SuggestRateQuery, hotelI
     }
   }
 
+  if (query.promoCode) {
+    const accessCode = await wt((db) =>
+      db.ratePlanCode.findFirst({
+        where: {
+          hotelId,
+          code: query.promoCode,
+          isActive: true,
+          ratePlan: { isActive: true, codeRequired: true },
+        },
+        include: {
+          ratePlan: {
+            include: {
+              items: {
+                where: { roomTypeId: query.roomTypeId },
+                select: { rate: true },
+              },
+            },
+          },
+        },
+      })
+    );
+
+    if (!accessCode || !codeIsAvailableToday(accessCode) || !planAppliesToStay(accessCode.ratePlan, checkIn, checkOut, nights)) {
+      throw new AppError(400, "Promo or corporate code is invalid or unavailable");
+    }
+
+    const codeRate = accessCode.ratePlan.items[0]?.rate;
+    if (codeRate !== undefined) {
+      return {
+        suggestedRate: codeRate,
+        matchedPlan: { id: accessCode.ratePlan.id, name: accessCode.ratePlan.name, type: accessCode.ratePlan.type },
+        allMatchingPlans: [{ id: accessCode.ratePlan.id, name: accessCode.ratePlan.name, rate: codeRate }],
+        noDedicatedRateHint: null,
+        appliedCode: accessCode.code,
+      };
+    }
+  }
+
   const bestPlan      = eligible[0];
   const suggestedRate = bestPlan ? bestPlan.items[0].rate : roomType.defaultRate;
 
@@ -113,6 +182,7 @@ async function suggestRateCore(wt: WithTenantFn, query: SuggestRateQuery, hotelI
     matchedPlan:        bestPlan ? { id: bestPlan.id, name: bestPlan.name, type: bestPlan.type } : null,
     allMatchingPlans:   eligible.map((p) => ({ id: p.id, name: p.name, rate: p.items[0].rate })),
     noDedicatedRateHint,
+    appliedCode:        null,
   };
 }
 
@@ -132,6 +202,9 @@ export const RatePlanService = {
             items: {
               include: { roomType: { select: { id: true, name: true } } },
             },
+            codes: {
+              orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+            },
           },
         }),
         db.ratePlan.count({ where }),
@@ -148,6 +221,9 @@ export const RatePlanService = {
         include: {
           items: {
             include: { roomType: { select: { id: true, name: true } } },
+          },
+          codes: {
+            orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
           },
         },
       })
@@ -173,6 +249,7 @@ export const RatePlanService = {
           validTo:     data.validTo   ? new Date(data.validTo)   : null,
           daysOfWeek:  data.daysOfWeek,
           minLos:      data.minLos,
+          codeRequired:data.codeRequired,
           priority:    data.priority,
           items: {
             create: data.items.map((item) => ({
@@ -234,6 +311,7 @@ export const RatePlanService = {
           ...(data.validTo     !== undefined && { validTo:     data.validTo   ? new Date(data.validTo)   : null }),
           ...(data.daysOfWeek  !== undefined && { daysOfWeek:  data.daysOfWeek }),
           ...(data.minLos      !== undefined && { minLos:      data.minLos }),
+          ...(data.codeRequired !== undefined && { codeRequired: data.codeRequired }),
           ...(data.priority    !== undefined && { priority:    data.priority }),
           ...(data.items && {
             items: {
@@ -329,5 +407,137 @@ export const RatePlanService = {
 
   async suggestRatePublic(hotelId: string, query: SuggestRateQuery) {
     return suggestRateCore(publicWithTenant(hotelId), query, hotelId);
+  },
+
+  async validateAccessCodePublic(hotelId: string, code: string, checkIn: string, checkOut: string) {
+    const { features } = await getEffectiveLimits(hotelId);
+    if (!features.ratePlans) throw new AppError(400, "Promo or corporate code is invalid or unavailable");
+    const accessCode = await publicWithTenant(hotelId)((db) =>
+      db.ratePlanCode.findFirst({
+        where: {
+          hotelId,
+          code,
+          isActive: true,
+          ratePlan: { isActive: true, codeRequired: true },
+        },
+        include: { ratePlan: true },
+      })
+    );
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    const nights = Math.round((end.getTime() - start.getTime()) / 86_400_000);
+
+    if (!accessCode || !codeIsAvailableToday(accessCode) || !planAppliesToStay(accessCode.ratePlan, start, end, nights)) {
+      throw new AppError(400, "Promo or corporate code is invalid or unavailable");
+    }
+
+    return {
+      code: accessCode.code,
+      label: accessCode.label,
+      ratePlanName: accessCode.ratePlan.name,
+      ratePlanType: accessCode.ratePlan.type,
+    };
+  },
+
+  async createRatePlanCode(
+    withTenant: WithTenantFn,
+    hotelId: string,
+    ratePlanId: string,
+    data: CreateRatePlanCodeDto,
+    actor: JwtPayload,
+  ) {
+    return withTenant(async (db) => {
+      const plan = await db.ratePlan.findFirst({ where: { id: ratePlanId, hotelId } });
+      if (!plan) throw new AppError(404, "Rate plan not found");
+      if (!plan.codeRequired) throw new AppError(400, "Enable code-required access on this rate plan before adding codes");
+
+      try {
+        const accessCode = await db.ratePlanCode.create({
+          data: {
+            hotelId,
+            ratePlanId,
+            code: data.code,
+            label: data.label || null,
+            validFrom: data.validFrom ? new Date(data.validFrom) : null,
+            validTo: data.validTo ? new Date(data.validTo) : null,
+          },
+        });
+        await db.auditLog.create({
+          data: {
+            hotelId,
+            userId: actor.userId,
+            action: "RATE_PLAN_CODE_CREATE",
+            entity: "ratePlanCode",
+            entityId: accessCode.id,
+            after: JSON.parse(JSON.stringify({ ratePlanId, code: accessCode.code })),
+          },
+        });
+        return accessCode;
+      } catch (error) {
+        if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
+          throw new AppError(409, "That access code is already in use at this hotel");
+        }
+        throw error;
+      }
+    }).then((result) => {
+      notifyHotelDataChanged(hotelId);
+      return result;
+    });
+  },
+
+  async updateRatePlanCode(
+    withTenant: WithTenantFn,
+    hotelId: string,
+    ratePlanId: string,
+    codeId: string,
+    data: UpdateRatePlanCodeDto,
+    actor: JwtPayload,
+  ) {
+    return withTenant(async (db) => {
+      const existing = await db.ratePlanCode.findFirst({ where: { id: codeId, ratePlanId, hotelId } });
+      if (!existing) throw new AppError(404, "Access code not found");
+
+      try {
+        const accessCode = await db.ratePlanCode.update({
+          where: { id: codeId },
+          data: {
+            ...(data.code !== undefined && { code: data.code }),
+            ...(data.label !== undefined && { label: data.label || null }),
+            ...(data.validFrom !== undefined && { validFrom: data.validFrom ? new Date(data.validFrom) : null }),
+            ...(data.validTo !== undefined && { validTo: data.validTo ? new Date(data.validTo) : null }),
+            ...(data.isActive !== undefined && { isActive: data.isActive }),
+          },
+        });
+        await db.auditLog.create({
+          data: {
+            hotelId,
+            userId: actor.userId,
+            action: "RATE_PLAN_CODE_UPDATE",
+            entity: "ratePlanCode",
+            entityId: codeId,
+            after: JSON.parse(JSON.stringify({ code: accessCode.code, isActive: accessCode.isActive })),
+          },
+        });
+        return accessCode;
+      } catch (error) {
+        if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
+          throw new AppError(409, "That access code is already in use at this hotel");
+        }
+        throw error;
+      }
+    }).then((result) => {
+      notifyHotelDataChanged(hotelId);
+      return result;
+    });
+  },
+
+  async deactivateRatePlanCode(
+    withTenant: WithTenantFn,
+    hotelId: string,
+    ratePlanId: string,
+    codeId: string,
+    actor: JwtPayload,
+  ) {
+    await this.updateRatePlanCode(withTenant, hotelId, ratePlanId, codeId, { isActive: false }, actor);
   },
 };

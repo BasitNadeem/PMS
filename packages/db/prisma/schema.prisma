@@ -398,6 +398,7 @@ model Hotel {
   posItems              PosItem[]
   posOrders             PosOrder[]
   ratePlans             RatePlan[]
+  ratePlanCodes         RatePlanCode[]
   channels              ChannelConfig[]
   inventoryItems        InventoryItem[]
   inventoryTransactions InventoryTransaction[]
@@ -700,6 +701,8 @@ model Reservation {
   quotedRate          Int               @default(0) @map("quoted_rate")
   totalAmount         Int               @default(0) @map("total_amount")
   discountAmount      Int               @default(0) @map("discount_amount")
+  appliedRatePlanName String?           @map("applied_rate_plan_name")
+  promoCode           String?           @map("promo_code")
   advancePaid         Int               @default(0) @map("advance_paid")
   balanceDue          Int               @default(0) @map("balance_due")
 
@@ -1314,6 +1317,7 @@ model RatePlan {
   modifierValue   Int          @default(0) @map("modifier_value")
 
   isActive        Boolean      @default(true) @map("is_active")
+  codeRequired    Boolean      @default(false) @map("code_required")
   priority        Int          @default(0)
 
   createdAt       DateTime     @default(now()) @map("created_at")
@@ -1321,12 +1325,38 @@ model RatePlan {
 
   hotel Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   items RatePlanItem[]
+  codes RatePlanCode[]
 
   @@index([hotelId])
   @@index([hotelId, isActive])
   @@index([hotelId, type])
   @@index([hotelId, validFrom, validTo])
   @@map("rate_plans")
+}
+
+// Public booking-engine access codes deliberately live separately from a rate
+// plan: a hotel can issue several corporate/promo codes for the same rate while
+// activating, expiring, or revoking each one independently. `code` is stored
+// normalized uppercase and is unique within a hotel.
+model RatePlanCode {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String    @db.Uuid @map("hotel_id")
+  ratePlanId  String    @db.Uuid @map("rate_plan_id")
+  code        String
+  label       String?
+  validFrom   DateTime? @db.Date @map("valid_from")
+  validTo     DateTime? @db.Date @map("valid_to")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  hotel    Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  ratePlan RatePlan @relation(fields: [ratePlanId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, code])
+  @@index([hotelId, isActive])
+  @@index([ratePlanId])
+  @@map("rate_plan_codes")
 }
 
 model RatePlanItem {

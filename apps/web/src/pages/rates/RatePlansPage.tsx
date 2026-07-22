@@ -260,16 +260,17 @@ function RatePlanModal({ plan, onClose, onSuccess }: RatePlanModalProps) {
             </div>
           </div>
 
-          {/* Date range */}
+          {/* Stay-date range */}
           <div>
-            <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Date range <span className="text-ink-faint font-normal">(optional — leave blank for always active)</span></label>
+            <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Eligible stay dates <span className="text-ink-faint font-normal">(optional — leave blank for all stays)</span></label>
+            <p className="mb-2 text-[11.5px] text-ink-mute">This controls when guests may stay at this rate. Access codes can separately limit when a specific code may be redeemed.</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <span className="text-[11px] text-ink-faint mb-1 block">From</span>
+                <span className="text-[11px] text-ink-faint mb-1 block">Stay from</span>
                 <DatePicker value={validFrom} onChange={setFrom} className="w-full" />
               </div>
               <div>
-                <span className="text-[11px] text-ink-faint mb-1 block">To</span>
+                <span className="text-[11px] text-ink-faint mb-1 block">Stay to</span>
                 <DatePicker value={validTo} min={validFrom || undefined} onChange={setTo} className="w-full" />
               </div>
             </div>
@@ -427,6 +428,7 @@ function RatePlanCodesModal({ plan, onClose }: { plan: RatePlan; onClose: () => 
 
           <div className="border-t border-line-soft pt-5">
             <div className="flex items-center justify-between gap-3 mb-3"><h4 className="text-[14px] font-bold text-ink">{editing ? `Edit ${editing.code}` : "Add access code"}</h4>{editing && <button onClick={resetForm} className="text-[12px] font-semibold text-ink-mute hover:text-ink">Cancel edit</button>}</div>
+            <p className="mb-3 text-[11.5px] text-ink-mute">Code redemption dates are optional. Use them only when this individual code should be redeemable for a shorter campaign window than the rate plan's eligible stay dates.</p>
             <div className="grid sm:grid-cols-2 gap-3">
               <div><label className="mb-1.5 block text-[12px] font-semibold text-ink-soft">Code</label><input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="SUMMER26" className={inputCls} /></div>
               <div><label className="mb-1.5 block text-[12px] font-semibold text-ink-soft">Label <span className="font-normal text-ink-faint">(internal)</span></label><input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Summer campaign" className={inputCls} /></div>

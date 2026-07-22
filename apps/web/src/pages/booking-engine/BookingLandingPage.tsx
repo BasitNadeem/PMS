@@ -526,7 +526,20 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
           } catch { return [rt.id, null] as const; }
         })
       );
-      if (!cancelled) setRates(Object.fromEntries(entries));
+      if (cancelled) return;
+
+      const nextRates = Object.fromEntries(entries);
+      setRates(nextRates);
+
+      // Cart items keep a price snapshot so the reservation review can render
+      // without another lookup. When stay dates or an access code change, the
+      // server has just returned the authoritative new rates: refresh every
+      // existing cart item as well, so its total and /reserve never lag behind
+      // the room-card price.
+      setCart((current) => current.map((item) => {
+        const nextRate = nextRates[item.roomTypeId];
+        return typeof nextRate === "number" ? { ...item, ratePerNight: nextRate } : item;
+      }));
     })();
     return () => { cancelled = true; };
   }, [datesSelected, hotelSlug, checkIn, checkOut, roomTypes, appliedPromoCode]);

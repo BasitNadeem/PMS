@@ -192,8 +192,8 @@ export default function GuestMenuPage() {
 
       {/* Headline + category tabs — normal flow, not sticky */}
       <div className="px-5 pt-5 pb-1">
-        <h2 className="serif text-[26px] leading-tight" style={{ color: "rgb(var(--qr-ink))" }}>Room Dining</h2>
-        <p className="text-[13px] mt-1" style={{ color: "rgb(var(--qr-ink-mute))" }}>Savor exquisite flavors from the comfort of your suite.</p>
+        <h2 className="serif text-[26px] leading-tight" style={{ color: "rgb(var(--qr-ink))" }}>Order from the kitchen</h2>
+        <p className="text-[13px] mt-1" style={{ color: "rgb(var(--qr-ink-mute))" }}>For your room, your table, or collection at your convenience.</p>
 
         {/* Category tabs — plain pills, soft sage fill for the active one */}
         {visibleCategories.length > 1 && (

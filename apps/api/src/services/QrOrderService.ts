@@ -231,6 +231,13 @@ export const QrOrderService = {
       }
     }
 
+    // A room charge is only valid against a real, checked-in reservation. A
+    // non-empty room string is not proof of a folio: without this guard an
+    // order could be labelled charge-to-room yet never be collectable.
+    if (dto.paymentPreference === "charge_to_room" && (!roomVerified || !reservationId)) {
+      throw new AppError(400, "Select a verified checked-in room to charge this order to a folio");
+    }
+
     // 3. Atomically assign a sequential order number and insert the order.
     //    pg_advisory_xact_lock serialises concurrent order-number generation
     //    per hotel without a dedicated counter table.

@@ -31,6 +31,10 @@ export const placeOrderSchema = z
   .refine(
     (d) => !(d.deliveryType === "room_delivery" || d.paymentPreference === "charge_to_room") || !!d.roomNumber,
     { message: "Room number is required", path: ["roomNumber"] },
+  )
+  .refine(
+    (d) => d.deliveryType !== "room_delivery" || d.paymentPreference === "charge_to_room",
+    { message: "Room delivery orders must be charged to a room", path: ["paymentPreference"] },
   );
 export type PlaceOrderDto = z.infer<typeof placeOrderSchema>;
 

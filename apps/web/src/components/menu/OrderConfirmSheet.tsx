@@ -41,10 +41,8 @@ const inputStyle = { background: "rgb(var(--qr-bg-deep))", border: "none", color
 const sectionLabelCls = "text-[11px] font-bold uppercase tracking-widest mb-2 block";
 const cardStyle = { border: "1px solid rgb(var(--qr-line-soft))", boxShadow: "0 10px 28px -10px rgb(41 26 18 / 0.12)" };
 
-// Room delivery (or a matched reservation) defaults to charge-to-room; pickup/dine-in
-// with no matched room defaults to pay-on-spot. The guest can still override either way.
-function defaultPaymentPreference(deliveryType: DeliveryType, hasRoom: boolean): PaymentPreference {
-  return deliveryType === "room_delivery" || hasRoom ? "charge_to_room" : "pay_now";
+function defaultPaymentPreference(deliveryType: DeliveryType): PaymentPreference {
+  return deliveryType === "room_delivery" ? "charge_to_room" : "pay_now";
 }
 
 export function OrderConfirmSheet({
@@ -128,31 +126,40 @@ export function OrderConfirmSheet({
     setConfirmedRoom(match);
     setGuestName(match.guestName);
     setGuestPhone(match.guestPhone ?? "");
-    setPaymentPreference(defaultPaymentPreference(deliveryType, true));
+    setPaymentPreference("charge_to_room");
     setRoomMatch(null); // hide dropdown
   }
 
   function clearRoom() {
     setConfirmedRoom(null);
     setRoomQuery("");
-    setGuestName("");
-    setGuestPhone("");
-    setPaymentPreference(defaultPaymentPreference(deliveryType, false));
+    if (deliveryType !== "room_delivery") setPaymentPreference("pay_now");
     setNoMatch(false);
   }
 
   function selectDeliveryType(t: DeliveryType) {
     setDeliveryType(t);
-    setPaymentPreference(defaultPaymentPreference(t, !!confirmedRoom));
+    setPaymentPreference(defaultPaymentPreference(t));
+    if (t !== "room_delivery") {
+      setConfirmedRoom(null);
+      setRoomQuery("");
+      setRoomMatch(null);
+      setNoMatch(false);
+    }
   }
 
-  // Effective room number to submit — prefer confirmed match, fall back to raw query
-  const effectiveRoom = confirmedRoom?.roomNumber ?? roomQuery.trim();
-  const roomRequired = deliveryType === "room_delivery" || paymentPreference === "charge_to_room";
+  // Never submit a raw room string as proof of a room charge. The API repeats
+  // this verification independently before it creates the order.
+  const effectiveRoom = confirmedRoom?.roomNumber;
+  const isRoomCharge = paymentPreference === "charge_to_room";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (isRoomCharge && !confirmedRoom) {
+      setError("Select a verified checked-in room before charging this order to a room.");
+      return;
+    }
     const phoneErr = getPhoneErrorMessage(guestPhone);
     if (phoneErr) { setError(phoneErr); return; }
     setLoading(true);
@@ -287,10 +294,10 @@ export function OrderConfirmSheet({
               </div>
             </div>
 
-            {/* ── Room number with live reservation search ── */}
-            <div>
+            {/* Room search appears only when a folio charge was explicitly chosen. */}
+            {isRoomCharge && <div>
               <label className={sectionLabelCls} style={{ color: "rgb(var(--qr-ink-faint))" }}>
-                Room number {roomRequired && <span style={{ color: "rgb(var(--qr-accent))" }}>*</span>}
+                {deliveryType === "room_delivery" ? "Deliver to your room" : "Charge to your room"} <span style={{ color: "rgb(var(--qr-accent))" }}>*</span>
               </label>
 
               {/* Confirmed room chip */}
@@ -315,7 +322,6 @@ export function OrderConfirmSheet({
                       placeholder="e.g. 101"
                       value={roomQuery}
                       onChange={(e) => handleRoomQueryChange(e.target.value)}
-                      required={roomRequired}
                     />
                     {verifying && (
                       <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin pointer-events-none" style={{ color: "rgb(var(--qr-ink-faint))" }} />
@@ -339,45 +345,41 @@ export function OrderConfirmSheet({
 
                   {noMatch && roomQuery.trim().length > 0 && !verifying && (
                     <p className="mt-1 text-[12px]" style={{ color: "rgb(var(--qr-ink-faint))" }}>
-                      No active reservation found — you can still place an order
+                      No checked-in room found. Room charges are only available to checked-in guests.
                     </p>
                   )}
                 </>
               )}
-            </div>
+            </div>}
 
-            {/* Payment preference — always choosable, defaults based on delivery type / matched room */}
+            {/* Payment follows the delivery method. There is no online payment:
+                pay_now is collected by staff when the order is handed over. */}
             <div>
-              <label className={sectionLabelCls} style={{ color: "rgb(var(--qr-ink-faint))" }}>How would you like to pay?</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPaymentPreference("charge_to_room")}
-                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-[13px] font-semibold transition-colors"
-                  style={paymentPreference === "charge_to_room"
-                    ? { background: "rgb(var(--qr-accent))", color: "#fff" }
-                    : { background: "rgb(var(--qr-card) / 0.6)", color: "rgb(var(--qr-ink-soft))", border: "1px solid rgb(var(--qr-line))" }}
-                >
-                  <BedDouble className="w-4 h-4 flex-shrink-0" />
-                  Pay at checkout
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentPreference("pay_now")}
-                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-[13px] font-semibold transition-colors"
-                  style={paymentPreference === "pay_now"
-                    ? { background: "rgb(var(--qr-accent))", color: "#fff" }
-                    : { background: "rgb(var(--qr-card) / 0.6)", color: "rgb(var(--qr-ink-soft))", border: "1px solid rgb(var(--qr-line))" }}
-                >
-                  <Wallet className="w-4 h-4 flex-shrink-0" />
-                  Pay on spot
-                </button>
-              </div>
-              {paymentPreference === "charge_to_room" && (
-                <p className="mt-1.5 text-[12px]" style={{ color: "rgb(var(--qr-ink-faint))" }}>
-                  Added to your room bill and settled at checkout.
-                </p>
-              )}
+              {deliveryType === "room_delivery" ? <>
+                <label className={sectionLabelCls} style={{ color: "rgb(var(--qr-ink-faint))" }}>Payment</label>
+                <div className="flex items-center gap-2.5 rounded-xl px-3.5 py-3" style={{ background: "rgb(var(--qr-accent-soft))", border: "1px solid rgb(var(--qr-accent) / 0.16)" }}>
+                  <BedDouble className="w-4 h-4" style={{ color: "rgb(var(--qr-accent))" }} />
+                  <span className="text-[13px] font-semibold" style={{ color: "rgb(var(--qr-ink))" }}>Charge to verified room</span>
+                </div>
+                <p className="mt-1.5 text-[12px]" style={{ color: "rgb(var(--qr-ink-faint))" }}>Added to your room bill and settled at checkout.</p>
+              </> : <>
+                <label className={sectionLabelCls} style={{ color: "rgb(var(--qr-ink-faint))" }}>Payment</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setPaymentPreference("pay_now")}
+                    className="flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-xl text-[12px] font-semibold transition-colors"
+                    style={paymentPreference === "pay_now" ? { background: "rgb(var(--qr-teal-soft))", color: "rgb(var(--qr-teal))" } : { background: "rgb(var(--qr-card) / 0.6)", color: "rgb(var(--qr-ink-soft))", border: "1px solid rgb(var(--qr-line))" }}>
+                    <Wallet className="w-4 h-4" />
+                    {deliveryType === "pickup" ? "Pay on collection" : "Pay at table"}
+                  </button>
+                  <button type="button" onClick={() => setPaymentPreference("charge_to_room")}
+                    className="flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-xl text-[12px] font-semibold transition-colors"
+                    style={isRoomCharge ? { background: "rgb(var(--qr-accent))", color: "#fff" } : { background: "rgb(var(--qr-card) / 0.6)", color: "rgb(var(--qr-ink-soft))", border: "1px solid rgb(var(--qr-line))" }}>
+                    <BedDouble className="w-4 h-4" />
+                    Charge to room
+                  </button>
+                </div>
+                <p className="mt-1.5 text-[12px]" style={{ color: "rgb(var(--qr-ink-faint))" }}>{isRoomCharge ? "Choose a verified room above; the charge will be added to its folio." : "A member of staff will collect payment when your order is ready."}</p>
+              </>}
             </div>
           </div>
 
@@ -429,9 +431,9 @@ export function OrderConfirmSheet({
           style={{ background: "rgb(var(--qr-accent))" }}
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-          {paymentPreference === "charge_to_room" && effectiveRoom
-            ? `Charge to Room ${effectiveRoom}`
-            : "Place order"}{" "}
+          {isRoomCharge && effectiveRoom
+            ? `Charge Room ${effectiveRoom}`
+            : deliveryType === "pickup" ? "Place pickup order" : deliveryType === "dine_in" ? "Place dine-in order" : "Place order"}{" "}
           · PKR {Math.floor(total / 100).toLocaleString("en-PK")}
         </button>
       </div>

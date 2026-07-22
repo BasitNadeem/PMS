@@ -31,7 +31,7 @@ export interface PublicMenuResponse {
 export interface PlaceOrderDto {
   guestName:           string;
   guestPhone:          string;
-  roomNumber:          string;
+  roomNumber?:         string;
   deliveryType:        "room_delivery" | "pickup" | "dine_in";
   paymentPreference:   "charge_to_room" | "pay_now";
   specialInstructions?: string;

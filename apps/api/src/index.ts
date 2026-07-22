@@ -78,7 +78,12 @@ app.use(cors({
   },
 }));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
-app.use(compression());
+// Never gzip the SSE stream — compression buffers chunks internally before flushing,
+// which silently delays every res.write() in routes/realtime.ts by seconds and defeats
+// the whole point of a push channel. Everything else still gets compressed as normal.
+app.use(compression({
+  filter: (req, res) => req.path === "/api/realtime/events" ? false : compression.filter(req, res),
+}));
 app.use(express.json());
 app.use(morgan(env.NODE_ENV === "development" ? "dev" : "combined"));
 

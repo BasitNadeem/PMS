@@ -238,7 +238,7 @@ export default function GroupDetailPage() {
     queryKey: ["group", id],
     queryFn: () => groupsService.getGroup(id!),
     enabled: !!id,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const invalidate = () => {

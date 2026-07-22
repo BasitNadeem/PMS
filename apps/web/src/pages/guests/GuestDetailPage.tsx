@@ -81,7 +81,7 @@ export default function GuestDetailPage() {
     queryKey: ["guest", id],
     queryFn: () => guestsService.getGuest(id!),
     enabled: !!id,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   if (isLoading) {

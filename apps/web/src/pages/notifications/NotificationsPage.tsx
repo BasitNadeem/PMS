@@ -65,7 +65,7 @@ export default function NotificationsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["notifications-all", page],
     queryFn:  () => notificationsService.getAllNotifications(page),
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const markAllMutation = useMutation({

@@ -94,7 +94,7 @@ export default function GuestsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["guests", { search: debouncedSearch, page, onlyBlacklisted }],
     queryFn: () => guestsService.getGuests({ search: debouncedSearch || undefined, page, limit: 20, blacklisted: onlyBlacklisted || undefined }),
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const guests     = data?.data ?? [];

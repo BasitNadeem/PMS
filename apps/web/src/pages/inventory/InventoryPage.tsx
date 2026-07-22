@@ -123,7 +123,7 @@ export default function InventoryPage() {
     queryKey: ["inventory", "summary"],
     queryFn:  inventoryService.getSummary,
     staleTime: 60_000,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const { data: listData, isLoading } = useQuery({
@@ -136,7 +136,7 @@ export default function InventoryPage() {
       limit: 50,
     }),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const items = listData?.data ?? [];

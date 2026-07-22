@@ -79,7 +79,7 @@ export default function FolioPage() {
     queryKey: ["folio", reservationId],
     queryFn: () => folioService.getFolio(reservationId!),
     enabled: !!reservationId,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const voidMutation = useMutation({

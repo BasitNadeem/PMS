@@ -335,7 +335,7 @@ export default function RatePlansPage() {
     queryKey: ["rate-plans", showActive],
     queryFn: () => ratePlansService.list({ isActive: showActive }),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
   const plans = data?.data ?? [];
 

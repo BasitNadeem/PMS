@@ -169,7 +169,7 @@ function OccupancyMini() {
   const { data: dash } = useQuery({
     queryKey:       ["dashboard"],
     queryFn:        dashboardService.getDashboard,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
     staleTime:       30_000,
   });
 

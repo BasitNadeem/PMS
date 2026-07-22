@@ -213,7 +213,7 @@ function FrontDeskNotes() {
   const { data: notes = [] } = useQuery({
     queryKey: ["front-desk-notes"],
     queryFn:  notesService.getNotes,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const [noteError, setNoteError] = useState<string | null>(null);
@@ -869,7 +869,7 @@ export default function DashboardPage() {
     queryFn: dashboardService.getDashboard,
     // SSE (useRealtimeDashboard) pushes instant invalidation on real changes —
     // this interval is just a fallback in case the connection drops.
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const { data: hotel } = useQuery<{ id: string; name: string; city?: string }>({

@@ -229,13 +229,13 @@ export default function HousekeepingPage() {
     queryKey: ["housekeeping-summary"],
     queryFn:  housekeepingService.getSummary,
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const { data: tasksData, isLoading } = useQuery({
     queryKey: ["housekeeping", { status: activeTab === "ALL" ? undefined : activeTab }],
     queryFn: () => housekeepingService.getTasks({ status: activeTab === "ALL" ? undefined : activeTab, limit: 100 }),
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const statusMutation = useMutation({

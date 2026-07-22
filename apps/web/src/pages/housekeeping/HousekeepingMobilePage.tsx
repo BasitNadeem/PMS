@@ -486,7 +486,7 @@ export default function HousekeepingMobilePage() {
       const cached = readCache();
       return cached.length > 0 ? { data: cached, meta: { total: cached.length, page: 1, limit: 100, totalPages: 1 } } : undefined;
     },
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const allTasks = tasksResult?.data ?? [];
@@ -501,7 +501,7 @@ export default function HousekeepingMobilePage() {
   const { data: unreadCount } = useQuery({
     queryKey: ["notifications-count"],
     queryFn: notificationsService.getUnreadCount,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const counts = useMemo(() => ({

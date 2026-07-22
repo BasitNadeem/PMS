@@ -129,14 +129,14 @@ export default function ExpensesPage() {
       page,
       limit: 20,
     }),
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const { data: summary } = useQuery({
     queryKey: ["expenses-summary", appliedStart, appliedEnd],
     queryFn: () => expensesService.getExpenseSummary(appliedStart, appliedEnd),
     staleTime: 60_000,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const deleteMutation = useMutation({

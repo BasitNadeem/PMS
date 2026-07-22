@@ -256,13 +256,13 @@ export default function MaintenanceTicketsPage() {
     queryKey: ["maintenance-summary"],
     queryFn:  maintenanceService.getSummary,
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const { data: ticketsData, isLoading } = useQuery({
     queryKey: ["maintenance", "all"],
     queryFn:  () => maintenanceService.getTickets({ limit: 100 }),
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const statusMutation = useMutation({

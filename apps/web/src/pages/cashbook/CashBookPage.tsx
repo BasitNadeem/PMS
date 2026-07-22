@@ -167,7 +167,7 @@ export default function CashBookPage() {
     queryKey: ["cashbook", "summary", { startDate, endDate }],
     queryFn:  () => cashbookService.getSummary({ startDate, endDate }),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const { data: ledgerData, isLoading } = useQuery({
@@ -179,7 +179,7 @@ export default function CashBookPage() {
       page,
       limit: PAGE_SIZE,
     }),
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const entries = ledgerData?.data ?? [];

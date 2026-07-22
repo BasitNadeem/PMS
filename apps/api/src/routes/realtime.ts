@@ -28,6 +28,10 @@ router.get("/events", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
+  // Tells an Nginx (or similar) reverse proxy in front of this API not to buffer the
+  // response — proxy buffering holds onto SSE chunks until a threshold fills, which
+  // silently delays every event by seconds regardless of how fast the server writes.
+  res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
   res.write(": connected\n\n");
 

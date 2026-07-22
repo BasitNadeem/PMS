@@ -91,7 +91,7 @@ export default function QrOrdersPage() {
     placeholderData: keepPreviousData,
     staleTime:       30_000,
     retry:           1, // fail fast — don't spin for 30+ seconds on API errors
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const { mutate: advanceStatus, isPending: advancing } = useMutation({

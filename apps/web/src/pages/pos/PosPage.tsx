@@ -85,21 +85,21 @@ export default function PosPage() {
     queryKey: ["pos-categories"],
     queryFn:  posService.getCategories,
     enabled:  tab === "terminal",
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const { data: adminCats = [] } = useQuery<PosCategory[]>({
     queryKey: ["pos-categories-admin"],
     queryFn:  posService.getCategoriesAdmin,
     enabled:  tab === "menu",
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const { data: ordersData } = useQuery({
     queryKey: ["pos-orders", ordersPage],
     queryFn:  () => posService.getOrders({ page: ordersPage, limit: 20 }),
     enabled:  tab === "orders",
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const cancelMutation = useMutation({

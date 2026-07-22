@@ -120,13 +120,13 @@ export default function BillingPage() {
     queryKey: ["billing-summary"],
     queryFn: folioService.getSummary,
     staleTime: 60_000,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const { data, isLoading } = useQuery({
     queryKey: ["billing-folios", { page, statusFilter, sortBy, sortDir }],
     queryFn: () => folioService.listFolios({ page, limit: 25, statusFilter, sortBy, sortDir }),
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const folios     = data?.data ?? [];

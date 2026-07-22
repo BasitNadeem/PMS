@@ -285,7 +285,7 @@ export default function ReservationsPage() {
     }),
     // SSE (useRealtimeSync) pushes instant invalidation on real changes —
     // this interval is just a fallback in case the connection drops.
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const { data: counts } = useQuery({

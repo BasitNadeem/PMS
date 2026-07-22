@@ -98,14 +98,14 @@ export default function GroupsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["groups", { status }],
     queryFn: () => groupsService.getGroups({ status, limit: 50 }),
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const { data: summary } = useQuery({
     queryKey: ["groups-summary"],
     queryFn: groupsService.getSummary,
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const groups = data?.data ?? [];

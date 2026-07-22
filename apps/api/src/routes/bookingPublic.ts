@@ -16,6 +16,7 @@ import { RoomService } from "../services/RoomService";
 import { RatePlanService } from "../services/RatePlanService";
 import { NotificationService } from "../services/NotificationService";
 import { generateGroupRef } from "../services/GroupService";
+import { notifyHotelDataChanged } from "../lib/realtime";
 import {
   bookingAvailabilitySchema,
   publicSuggestRateSchema,
@@ -303,6 +304,8 @@ router.post("/:hotelSlug/book", bookSubmitLimit, async (req, res) => {
     return newReservation;
   });
 
+  notifyHotelDataChanged(hotel.id, "reservation_created");
+
   res.status(201).json({
     data: {
       confirmationNumber: reservation.confirmationNumber,
@@ -501,6 +504,8 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
 
     return { createdReservations, groupId, groupRef: groupRefResult };
   });
+
+  notifyHotelDataChanged(hotel.id, "reservation_created");
 
   const confirmationReference = useGroup
     ? (result.groupRef ?? result.createdReservations[0]?.confirmationNumber)

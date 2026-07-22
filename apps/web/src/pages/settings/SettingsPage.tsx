@@ -479,7 +479,13 @@ export default function SettingsPage() {
 
   const updateMutation = useMutation({
     mutationFn: settingsService.updateSettings,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["settings"] });
+      // AppLayout/DashboardPage/ReceiptView all cache the hotel independently
+      // under this key — without this, a theme (or any settings) change stays
+      // stale there until the 5-minute staleTime lapses or a hard refresh.
+      qc.invalidateQueries({ queryKey: ["hotel"] });
+    },
   });
 
   async function saveProfile() {

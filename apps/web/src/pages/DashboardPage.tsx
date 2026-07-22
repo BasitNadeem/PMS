@@ -27,8 +27,6 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { getCurrentUserName } from "@/lib/jwt";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
-import { useBookingAlerts } from "@/hooks/useBookingAlerts";
-import { BookingAlertStack } from "@/components/ui/BookingAlertStack";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -666,14 +664,17 @@ function ArrivalsPanel({ reservations }: { reservations: DashboardRecentReservat
   const inHouse = reservations.filter((r) => r.status === "CHECKED_IN");
   const rawList = tab === "arrivals" ? arrivals : inHouse;
 
-  // Collapse group reservations: show one row per groupId
+  // Arrivals collapses each group into one row (checking in a whole group is one front-desk
+  // action). In-house does NOT collapse — staff need to see every room/guest currently staying,
+  // and the tab's count badge always reflects individual reservations, not groups.
+  const collapseGroups = tab === "arrivals";
   const groupRoomCounts: Record<string, number> = {};
   rawList.forEach((r) => {
     if (r.groupId) groupRoomCounts[r.groupId] = (groupRoomCounts[r.groupId] ?? 0) + 1;
   });
-  const list = rawList.filter((r, _, arr) =>
-    !r.groupId || arr.findIndex((x) => x.groupId === r.groupId) === arr.indexOf(r),
-  );
+  const list = collapseGroups
+    ? rawList.filter((r, _, arr) => !r.groupId || arr.findIndex((x) => x.groupId === r.groupId) === arr.indexOf(r))
+    : rawList;
 
   return (
     <div>
@@ -701,13 +702,14 @@ function ArrivalsPanel({ reservations }: { reservations: DashboardRecentReservat
         ) : (
           list.slice(0, 6).map((r) => {
             const isGroup = !!r.groupId;
-            const roomCount = isGroup ? (groupRoomCounts[r.groupId!] ?? 1) : 0;
+            const showAsGroup = isGroup && collapseGroups;
+            const roomCount = showAsGroup ? (groupRoomCounts[r.groupId!] ?? 1) : 0;
             const statusLabel = STATUS_LABEL[r.status] ?? r.status;
             const guestName = r.guestName;
             return (
               <div
-                key={isGroup ? r.groupId : r.id}
-                onClick={() => isGroup ? navigate(`/groups/${r.groupId}`) : navigate(`/reservations/${r.id}`)}
+                key={showAsGroup ? r.groupId : r.id}
+                onClick={() => showAsGroup ? navigate(`/groups/${r.groupId}`) : navigate(`/reservations/${r.id}`)}
                 className="group flex items-center gap-3.5 rounded-xl px-3 py-3 hover:bg-line-soft cursor-pointer transition-colors"
               >
                 <Avatar name={guestName} size={42} />
@@ -719,7 +721,7 @@ function ArrivalsPanel({ reservations }: { reservations: DashboardRecentReservat
                         <Star size={10} className="fill-amber" /> VIP
                       </span>
                     )}
-                    {!isGroup && (
+                    {!showAsGroup && (
                       <span className="text-[12px] text-ink-faint tnum">{r.confirmationNumber}</span>
                     )}
                     {isGroup && (
@@ -729,13 +731,13 @@ function ArrivalsPanel({ reservations }: { reservations: DashboardRecentReservat
                     )}
                   </div>
                   <div className="text-[12.5px] text-ink-mute">
-                    {isGroup ? `${roomCount} room${roomCount !== 1 ? "s" : ""}` : r.roomNumber ? `Room ${r.roomNumber}` : "—"}
+                    {showAsGroup ? `${roomCount} room${roomCount !== 1 ? "s" : ""}` : r.roomNumber ? `Room ${r.roomNumber}` : "—"}
                   </div>
                 </div>
                 <div className="hidden sm:flex flex-col items-end gap-1">
                   <StatusBadge status={statusLabel} size="sm" />
                 </div>
-                {!isGroup && r.status === "CONFIRMED" ? (
+                {!showAsGroup && r.status === "CONFIRMED" ? (
                   <div className="ml-1 flex items-center gap-1 rounded-full bg-pine-soft text-pine-deep px-2.5 h-8 text-[13px] font-semibold">
                     <LogIn size={14} /> Check in
                   </div>
@@ -860,8 +862,7 @@ function ArrivalsReadiness({ scheduleEvents }: { scheduleEvents: DashboardSchedu
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { alerts, addAlert, removeAlert } = useBookingAlerts();
-  useRealtimeSync(() => addAlert("New booking request received — check Reservations"));
+  useRealtimeSync();
 
   const { data: dash, isLoading } = useQuery({
     queryKey: ["dashboard"],
@@ -1147,7 +1148,6 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
-      <BookingAlertStack alerts={alerts} onDismiss={removeAlert} />
     </div>
   );
 }

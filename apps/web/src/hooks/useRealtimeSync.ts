@@ -25,16 +25,22 @@ export function useRealtimeSync(onBookingCreated?: () => void): void {
   onBookingCreatedRef.current = onBookingCreated;
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
-
     let source: EventSource | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let stopped = false;
 
     function connect() {
       if (stopped) return;
-      source = new EventSource(`${BASE_URL}/api/realtime/events?token=${encodeURIComponent(token!)}`);
+      // Re-read on every (re)connect attempt — axios silently rotates this
+      // token on 401 via refresh, so a token captured once at mount would
+      // go stale and the SSE connection would 401-loop forever with no
+      // visible error.
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        retryTimer = setTimeout(connect, retryDelay.current);
+        return;
+      }
+      source = new EventSource(`${BASE_URL}/api/realtime/events?token=${encodeURIComponent(token)}`);
 
       source.addEventListener("change", (e) => {
         retryDelay.current = 2000;

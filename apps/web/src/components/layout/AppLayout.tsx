@@ -17,6 +17,10 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { getCurrentUserName, getCurrentUserRole, formatRoleLabel, getInitials } from "@/lib/jwt";
 import { applyTheme } from "@/lib/theme";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+import { useBookingAlerts } from "@/hooks/useBookingAlerts";
+import { BookingAlertStack } from "@/components/ui/BookingAlertStack";
+import { playNotificationSound } from "@/lib/notificationSound";
 
 function useOnlineStatus() {
   return useSyncExternalStore(
@@ -633,6 +637,14 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("sidebarCollapsed") === "true",
   );
+
+  // Mounted once here (not per-page) so a Booking Engine reservation pops
+  // up with a sound no matter which page the front desk is currently on.
+  const { alerts, addAlert, removeAlert } = useBookingAlerts();
+  useRealtimeSync(() => {
+    playNotificationSound();
+    addAlert("New booking request received — check Reservations");
+  });
   const { data: hotel } = useQuery<Hotel>({
     queryKey: ["hotel"],
     queryFn: () => api.get("/api/hotels/me").then((r) => r.data.data),
@@ -710,6 +722,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           </div>
         </main>
       </div>
+      <BookingAlertStack alerts={alerts} onDismiss={removeAlert} />
     </div>
   );
 }

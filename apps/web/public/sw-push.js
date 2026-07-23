@@ -1,5 +1,10 @@
 self.addEventListener("push", (event) => {
-  const data = event.data?.json() ?? {};
+  let data = {};
+  try {
+    data = event.data?.json() ?? {};
+  } catch {
+    data = { title: "InnFlo", body: event.data?.text() ?? "You have a new update." };
+  }
   const title = data.title ?? "Hotel PMS";
   const options = {
     body: data.body ?? "",
@@ -7,7 +12,9 @@ self.addEventListener("push", (event) => {
     badge: "/icon-192.png",
     data: { url: data.url ?? "/housekeeping/mobile" },
     vibrate: [200, 100, 200],
-    requireInteraction: false,
+    requireInteraction: true,
+    tag: data.url ? `innflo:${data.url}` : "innflo:operations",
+    renotify: true,
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });

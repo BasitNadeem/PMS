@@ -293,7 +293,7 @@ function SlideOutMenu({
   canViewAll: boolean;
   onSignOut: () => void;
 }) {
-  const { permission, subscribed, subscribe, unsubscribe } = usePushNotifications();
+  const { permission, subscribed, syncing, subscribe, unsubscribe } = usePushNotifications();
   const userName = getCurrentUserName();
   const userRole = formatRoleLabel(decodeToken()?.role ?? null);
 
@@ -359,12 +359,12 @@ function SlideOutMenu({
             <div>
               <div className="text-[14px] font-semibold text-ink">Push Notifications</div>
               <div className="text-[12px] text-ink-mute">
-                {permission === "denied" ? "Blocked in browser" : subscribed ? "On" : "Off"}
+                {permission === "denied" ? "Blocked in browser" : syncing ? "Checking…" : subscribed ? "On" : "Off"}
               </div>
             </div>
             <button
               onClick={togglePush}
-              disabled={permission === "denied"}
+              disabled={permission === "denied" || syncing}
               className={cn(
                 "w-12 h-7 rounded-full transition-colors relative shrink-0 disabled:opacity-40",
                 subscribed ? "bg-coral" : "bg-line",

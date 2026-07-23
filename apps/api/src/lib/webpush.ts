@@ -28,6 +28,13 @@ export async function sendPushNotification(
         keys: { p256dh: subscription.p256dh, auth: subscription.auth },
       },
       JSON.stringify(payload),
+      {
+        // Housekeeping and operational alerts lose their value quickly.
+        // High urgency improves delivery through Android power management;
+        // the short TTL prevents stale alerts surfacing much later.
+        TTL: 5 * 60,
+        urgency: "high",
+      },
     );
     // Permanent — the only other outcomes (failure, or never attempted) are
     // both logged too, so log-reading can always tell which of the three

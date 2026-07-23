@@ -27,8 +27,10 @@ router.post("/subscribe", async (req, res) => {
       auth:     body.auth,
     },
     update: {
-      p256dh: body.p256dh,
-      auth:   body.auth,
+      hotelId: req.user!.hotelId,
+      userId:  req.user!.userId,
+      p256dh:  body.p256dh,
+      auth:    body.auth,
     },
   });
 

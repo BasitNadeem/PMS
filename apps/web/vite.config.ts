@@ -10,9 +10,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico"],
       devOptions: { enabled: true },
-      // sw-push.js (push/notificationclick handling) is registered separately
-      // from this Workbox-generated service worker.
       manifest: {
+        id: "/housekeeping/mobile",
         name: "Hotel PMS Housekeeping",
         short_name: "Housekeeping",
         description: "Housekeeping task management",
@@ -28,6 +27,10 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Push and offline caching must share one root-scoped registration.
+        // Registering sw-push.js separately at "/" caused it and Workbox's
+        // sw.js to repeatedly replace each other on mobile devices.
+        importScripts: ["/sw-push.js"],
         runtimeCaching: [
           // Housekeeping: longer cache + faster fallback (field staff go offline often)
           {

@@ -15,6 +15,10 @@ self.addEventListener("push", (event) => {
     requireInteraction: true,
     tag: data.url ? `innflo:${data.url}` : "innflo:operations",
     renotify: true,
+    // Ask the platform to alert explicitly instead of leaving sound/vibration
+    // to its default convention. Android's notification channel can still
+    // override this, but the web notification itself is never marked silent.
+    silent: false,
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });

@@ -709,6 +709,7 @@ model Reservation {
   balanceDue          Int               @default(0) @map("balance_due")
 
   bookingContactName  String? @map("booking_contact_name")
+  bookingContactEmail String? @map("booking_contact_email")
 
   specialRequests     String? @map("special_requests")
   internalNotes       String? @map("internal_notes")

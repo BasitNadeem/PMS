@@ -17,26 +17,46 @@ export const briefingQueue = new Queue<BriefingJobData, Record<string, unknown>,
   },
 });
 
-export interface BookingConfirmationEmailJobData {
+export type ReservationEmailKind = "REQUEST_RECEIVED" | "CONFIRMED" | "CANCELLED";
+
+export interface ReservationEmailRoom {
+  name:        string;
+  description: string | null;
+  quantity:    number;
+  amount:      number;
+  photoUrls:   string[];
+  amenities:   string[];
+}
+
+export interface ReservationEmailJobData {
+  kind:                ReservationEmailKind;
   guestEmail:          string;
   guestName:           string;
   hotelName:           string;
   hotelLogoUrl:        string | null;
   hotelAddress:        string | null;
+  hotelCity:           string | null;
   hotelPhone:          string | null;
+  hotelWhatsapp:       string | null;
+  hotelEmail:          string | null;
+  hotelWebsite:        string | null;
+  hotelAmenities:      string[];
+  accentColor:         string;
   confirmationNumber:  string;
   checkInDate:         string;
   checkOutDate:        string;
   nights:              number;
-  roomTypeName:        string;
-  roomPhotoUrl:        string | null;
+  rooms:               ReservationEmailRoom[];
   adults:              number;
   children:            number;
   totalAmount:         number;
   specialRequests:     string | null;
+  promoCode:           string | null;
+  cancellationPolicy:  string | null;
+  bookingPaymentTerms: string | null;
 }
 
-export const emailQueue = new Queue<BookingConfirmationEmailJobData, Record<string, unknown>, string>("email", {
+export const emailQueue = new Queue<ReservationEmailJobData, Record<string, unknown>, string>("email", {
   connection: redisConnectionOptions,
   defaultJobOptions: {
     attempts: 3,

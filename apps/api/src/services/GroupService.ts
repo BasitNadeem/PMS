@@ -6,6 +6,7 @@ import { NotificationService } from "./NotificationService";
 import { ReservationService, formatRoomConflictMessage } from "./ReservationService";
 import { assertNoDuplicateGuest } from "../utils/guestDuplicate";
 import { notifyHotelDataChanged } from "../lib/realtime";
+import { enqueueReservationEmail } from "../lib/reservationEmails";
 import {
   GROUP_STATUSES,
   type ListGroupsQuery,
@@ -500,8 +501,21 @@ export const GroupService = {
       });
 
       return GroupService.getGroup(async (fn) => fn(db), groupId);
-    }).then((result) => {
+    }).then(async (result) => {
       notifyHotelDataChanged(actor.hotelId);
+      if (newStatus === "CONFIRMED" || newStatus === "CANCELLED") {
+        try {
+          const reservationIds = await withTenant((db) =>
+            db.reservation.findMany({
+              where: { groupId },
+              select: { id: true },
+            }).then((rows) => rows.map((row) => row.id))
+          );
+          await enqueueReservationEmail(newStatus, reservationIds);
+        } catch (err) {
+          console.error(`Failed to enqueue group ${newStatus.toLowerCase()} email:`, err);
+        }
+      }
       return result;
     });
   },

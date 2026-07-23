@@ -12,6 +12,7 @@ import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
 import { NotificationService } from "./NotificationService";
 import { notifyHotelDataChanged } from "../lib/realtime";
+import { enqueueReservationEmail } from "../lib/reservationEmails";
 
 function shortDate(d: Date) {
   return d.toLocaleDateString("en-PK", { day: "numeric", month: "short" });
@@ -550,8 +551,15 @@ export const ReservationService = {
       } catch { /* notifications are non-critical */ }
 
       return updated;
-    }).then((updated) => {
+    }).then(async (updated) => {
       notifyHotelDataChanged(actor.hotelId);
+      if (newStatus === "CONFIRMED" || newStatus === "CANCELLED") {
+        try {
+          await enqueueReservationEmail(newStatus, [id]);
+        } catch (err) {
+          console.error(`Failed to enqueue reservation ${newStatus.toLowerCase()} email:`, err);
+        }
+      }
       return updated;
     });
   },

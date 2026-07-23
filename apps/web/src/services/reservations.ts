@@ -101,6 +101,7 @@ export interface ReservationSummary {
   totalAmount: number;
   specialRequests: string | null;
   bookingContactName: string | null;
+  bookingContactEmail: string | null;
   groupId: string | null;
   group: { groupRef: string; payerType: string; name: string } | null;
   createdAt: string;
@@ -112,6 +113,7 @@ export interface ReservationSummary {
 export interface ReservationDetail extends Omit<ReservationSummary, "guest" | "rooms"> {
   balanceDue: number;
   bookingContactName: string | null;
+  bookingContactEmail: string | null;
   cancelledAt: string | null;
   actualCheckIn: string | null;
   actualCheckOut: string | null;

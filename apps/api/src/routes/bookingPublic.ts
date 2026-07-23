@@ -17,6 +17,7 @@ import { RatePlanService } from "../services/RatePlanService";
 import { NotificationService } from "../services/NotificationService";
 import { generateGroupRef } from "../services/GroupService";
 import { notifyHotelDataChanged } from "../lib/realtime";
+import { emailQueue } from "../jobs/queues";
 import {
   bookingAvailabilitySchema,
   publicSuggestRateSchema,
@@ -345,6 +346,40 @@ router.post("/:hotelSlug/book", bookSubmitLimit, async (req, res) => {
       });
     } catch { /* notifications are non-critical — never block booking creation */ }
 
+    // 6. Enqueue guest booking-confirmation email (skipped when no email was given)
+    if (dto.guestEmail) {
+      try {
+        const bookedRoomType = await db.roomType.findUnique({
+          where:  { id: dto.roomTypeId },
+          select: { name: true, photoUrls: true },
+        });
+        const settings     = (hotel.settings ?? {}) as Record<string, unknown>;
+        const hotelLogoUrl = (settings.logoUrl as string | undefined) ?? null;
+
+        await emailQueue.add("send-booking-confirmation-email", {
+          guestEmail:         dto.guestEmail,
+          guestName:          dto.guestName,
+          hotelName:          hotel.name,
+          hotelLogoUrl,
+          hotelAddress:       hotel.address ?? null,
+          hotelPhone:         hotel.phone ?? null,
+          confirmationNumber: newReservation.confirmationNumber,
+          checkInDate:        dto.checkInDate,
+          checkOutDate:       dto.checkOutDate,
+          nights,
+          roomTypeName:       bookedRoomType?.name ?? "Room",
+          roomPhotoUrl:       bookedRoomType?.photoUrls?.[0] ?? null,
+          adults:             dto.adults,
+          children:           dto.children ?? 0,
+          totalAmount:        totalAmount / 100, // paisas → PKR
+          specialRequests:    dto.specialRequests ?? null,
+        });
+      } catch (err) {
+        console.error("Failed to enqueue booking confirmation email:", err);
+        // never rethrow — booking already succeeded
+      }
+    }
+
     return newReservation;
   });
 
@@ -388,6 +423,7 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
     appliedCode: string | null;
   }>();
   const roomTypeNameMap = new Map<string, string>();
+  const roomTypePhotoMap = new Map<string, string | null>();
   await Promise.all(dto.items.map(async (item) => {
     const rr = await RatePlanService.suggestRatePublic(hotel.id, {
       roomTypeId:     item.roomTypeId,
@@ -418,12 +454,13 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
     for (const item of dto.items) {
       const allRooms = await db.room.findMany({
         where:  { roomTypeId: item.roomTypeId, isActive: true },
-        select: { id: true, roomType: { select: { name: true, maxOccupancy: true } } },
+        select: { id: true, roomType: { select: { name: true, maxOccupancy: true, photoUrls: true } } },
       });
       if (allRooms.length === 0) {
         throw new AppError(409, `No rooms of the requested type exist at this hotel.`);
       }
       roomTypeNameMap.set(item.roomTypeId, allRooms[0].roomType.name);
+      roomTypePhotoMap.set(item.roomTypeId, allRooms[0].roomType.photoUrls?.[0] ?? null);
       const bookedIds = await db.reservationRoom.findMany({
         where: {
           roomId:      { in: allRooms.map((r) => r.id) },
@@ -515,6 +552,7 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
 
     // 4. Create all reservations
     const createdReservations: { id: string; confirmationNumber: string; roomTypeName: string }[] = [];
+    let orderTotalAmount = 0;
     for (const item of dto.items) {
       // Re-fetch available rooms (still within the same transaction)
       const allRooms = await db.room.findMany({
@@ -584,6 +622,7 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
           confirmationNumber: newRes.confirmationNumber,
           roomTypeName:       roomTypeNameMap.get(item.roomTypeId) ?? "Room",
         });
+        orderTotalAmount += totalAmount;
         await db.auditLog.create({
           data: {
             hotelId:  hotel.id,
@@ -611,6 +650,40 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
         userId:     null,
       });
     } catch { /* non-critical */ }
+
+    // 6. Enqueue guest booking-confirmation email (skipped when no email was given)
+    if (dto.guestEmail) {
+      try {
+        const firstItem     = dto.items[0];
+        const settings      = (hotel.settings ?? {}) as Record<string, unknown>;
+        const hotelLogoUrl  = (settings.logoUrl as string | undefined) ?? null;
+        const confirmationRef = useGroup
+          ? (groupRefResult ?? createdReservations[0]?.confirmationNumber ?? "")
+          : (createdReservations[0]?.confirmationNumber ?? "");
+
+        await emailQueue.add("send-booking-confirmation-email", {
+          guestEmail:         dto.guestEmail,
+          guestName:          dto.guestName,
+          hotelName:          hotel.name,
+          hotelLogoUrl,
+          hotelAddress:       hotel.address ?? null,
+          hotelPhone:         hotel.phone ?? null,
+          confirmationNumber: confirmationRef,
+          checkInDate:        dto.checkInDate,
+          checkOutDate:       dto.checkOutDate,
+          nights,
+          roomTypeName:       roomTypeNameMap.get(firstItem.roomTypeId) ?? "Room",
+          roomPhotoUrl:       roomTypePhotoMap.get(firstItem.roomTypeId) ?? null,
+          adults:             dto.adults,
+          children:           dto.children ?? 0,
+          totalAmount:        orderTotalAmount / 100, // paisas → PKR
+          specialRequests:    dto.specialRequests ?? null,
+        });
+      } catch (err) {
+        console.error("Failed to enqueue booking confirmation email:", err);
+        // never rethrow — booking already succeeded
+      }
+    }
 
     return { createdReservations, groupId, groupRef: groupRefResult };
   });

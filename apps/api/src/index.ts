@@ -49,6 +49,7 @@ import ratePlansRouter from "./routes/ratePlans";
 import bookingEngineHubRouter from "./routes/bookingEngineHub";
 import { briefingWorker } from "./jobs/briefingWorker";
 import { scheduleBriefings } from "./jobs/briefingScheduler";
+import { emailWorker } from "./jobs/sendBookingConfirmationEmail";
 
 const app = express();
 
@@ -140,6 +141,7 @@ if (env.NODE_ENV !== "test") {
 process.on("SIGTERM", async () => {
   console.log("SIGTERM received — shutting down gracefully");
   await briefingWorker.close();
+  await emailWorker.close();
   process.exit(0);
 });
 

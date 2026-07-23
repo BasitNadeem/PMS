@@ -41,6 +41,10 @@ const envSchema = z.object({
   CLOUDINARY_API_SECRET:   z.string().optional(),
   // ── Vision API (Google Vision — swap to ANTHROPIC_API_KEY when migrating) ───
   GOOGLE_VISION_API_KEY:   z.string().optional(),
+  // ── Transactional email (Brevo) ──────────────────────────────────────────
+  BREVO_API_KEY:           z.string(),
+  BREVO_FROM_EMAIL:        z.string().email(),
+  BREVO_FROM_NAME:         z.string(),
 }).superRefine((val, ctx) => {
   if (val.NODE_ENV === "production" && !val.API_PUBLIC_URL) {
     ctx.addIssue({

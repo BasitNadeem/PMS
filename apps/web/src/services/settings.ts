@@ -16,6 +16,8 @@ export interface HotelSettings {
   isActive: boolean;
   description: string | null;
   amenities: string[];
+  cancellationPolicy: string | null;
+  bookingPaymentTerms: string | null;
   settings: Record<string, unknown>;
 }
 
@@ -51,6 +53,8 @@ export interface UpdateSettingsDto {
   logoUrl?: string | null;
   onboardingStep?: number;
   amenities?: string[];
+  cancellationPolicy?: string | null;
+  bookingPaymentTerms?: string | null;
 }
 
 export interface TestBriefingResult {

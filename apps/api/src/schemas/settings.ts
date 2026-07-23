@@ -13,6 +13,8 @@ export const updateSettingsSchema = z.object({
   address:      z.string().trim().optional(),
   city:         z.string().trim().optional(),
   country:      z.string().trim().optional(),
+  cancellationPolicy:  z.string().trim().max(5000).nullable().optional(),
+  bookingPaymentTerms: z.string().trim().max(10000).nullable().optional(),
   // settings JSON fields — stored in hotel.settings
   starRating:        z.number().int().min(1).max(5).nullable().optional(),
   timezone:          z.string().trim().optional(),

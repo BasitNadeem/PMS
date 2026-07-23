@@ -43,6 +43,7 @@ export const createBookingRequestSchema = z.object({
   children:        z.number().int().min(0).default(0),
   specialRequests: z.string().trim().optional(),
   promoCode:       bookingCodeSchema.optional(),
+  termsAccepted:   z.boolean().default(false),
 }).refine(
   (d) => new Date(d.checkOutDate) > new Date(d.checkInDate),
   { message: "checkOutDate must be after checkInDate", path: ["checkOutDate"] }
@@ -63,6 +64,7 @@ export const bookMultiSchema = z.object({
   children:        z.number().int().min(0).default(0),
   specialRequests: z.string().trim().optional(),
   promoCode:       bookingCodeSchema.optional(),
+  termsAccepted:   z.boolean().default(false),
 }).refine(
   (d) => new Date(d.checkOutDate) > new Date(d.checkInDate),
   { message: "checkOutDate must be after checkInDate", path: ["checkOutDate"] }

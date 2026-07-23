@@ -47,6 +47,7 @@ async function resolveAndGate(slug: string) {
       id: true, name: true, description: true, amenities: true,
       city: true, address: true, phone: true, whatsappNumber: true,
       propertyType: true, settings: true, isActive: true,
+      cancellationPolicy: true, bookingPaymentTerms: true,
     },
   });
   if (!hotel?.isActive) return null;
@@ -79,6 +80,8 @@ router.get("/:hotelSlug", async (req, res) => {
       propertyType:   hotel.propertyType,
       logoUrl:        (s.logoUrl as string | undefined) ?? null,
       themeKey,
+      cancellationPolicy:  hotel.cancellationPolicy,
+      bookingPaymentTerms: hotel.bookingPaymentTerms,
     },
   });
 });
@@ -183,6 +186,10 @@ router.post("/:hotelSlug/book", bookSubmitLimit, async (req, res) => {
   if (!hotel) { res.status(404).json({ error: "Hotel not found" }); return; }
 
   const dto = createBookingRequestSchema.parse(req.body);
+  const hasBookingTerms = Boolean(hotel.cancellationPolicy || hotel.bookingPaymentTerms);
+  if (hasBookingTerms && !dto.termsAccepted) {
+    throw new AppError(400, "Please accept the cancellation policy and booking terms before submitting.");
+  }
   const wt  = publicWithTenant(hotel.id);
 
   // Fetch suggested rate before the transaction (read-only, no atomicity needed).
@@ -297,6 +304,9 @@ router.post("/:hotelSlug/book", bookSubmitLimit, async (req, res) => {
         discountAmount,
         appliedRatePlanName: rateResult.matchedPlan?.name ?? null,
         promoCode:        rateResult.appliedCode,
+        cancellationPolicySnapshot:  hotel.cancellationPolicy,
+        bookingPaymentTermsSnapshot: hotel.bookingPaymentTerms,
+        termsAcceptedAt: hasBookingTerms ? new Date() : null,
         balanceDue:      totalAmount,
         rooms: {
           create: {
@@ -357,6 +367,10 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
   if (!hotel) { res.status(404).json({ error: "Hotel not found" }); return; }
 
   const dto = bookMultiSchema.parse(req.body);
+  const hasBookingTerms = Boolean(hotel.cancellationPolicy || hotel.bookingPaymentTerms);
+  if (hasBookingTerms && !dto.termsAccepted) {
+    throw new AppError(400, "Please accept the cancellation policy and booking terms before submitting.");
+  }
   const wt  = publicWithTenant(hotel.id);
 
   // Compute total number of reservations to decide whether to create a GroupBooking
@@ -548,6 +562,9 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
             discountAmount,
             appliedRatePlanName: rateInfo?.appliedRatePlanName ?? null,
             promoCode:        rateInfo?.appliedCode ?? null,
+            cancellationPolicySnapshot:  hotel.cancellationPolicy,
+            bookingPaymentTermsSnapshot: hotel.bookingPaymentTerms,
+            termsAcceptedAt: hasBookingTerms ? new Date() : null,
             balanceDue:      totalAmount,
             ...(groupId ? { groupId } : {}),
             rooms: {

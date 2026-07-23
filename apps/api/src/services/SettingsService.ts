@@ -18,6 +18,7 @@ const HOTEL_MODEL_KEYS = [
   "name", "propertyType", "description", "amenities",
   "phone", "email", "website",
   "address", "city", "country", "onboardingStep",
+  "cancellationPolicy", "bookingPaymentTerms",
 ] as const;
 
 export const SettingsService = {
@@ -30,6 +31,7 @@ export const SettingsService = {
           description: true, amenities: true,
           phone: true, email: true, website: true,
           address: true, city: true, country: true,
+          cancellationPolicy: true, bookingPaymentTerms: true,
           settings: true,
           isActive: true,
         },
@@ -71,6 +73,7 @@ export const SettingsService = {
           description: true, amenities: true,
           phone: true, email: true, website: true,
           address: true, city: true, country: true,
+          cancellationPolicy: true, bookingPaymentTerms: true,
           settings: true,
           isActive: true,
         },

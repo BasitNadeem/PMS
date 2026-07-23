@@ -368,6 +368,8 @@ model Hotel {
   fbrPosId         String? @map("fbr_pos_id")
 
   settings         Json         @default("{}")
+  cancellationPolicy   String?  @db.Text @map("cancellation_policy")
+  bookingPaymentTerms  String?  @db.Text @map("booking_payment_terms")
 
   isActive         Boolean      @default(true) @map("is_active")
   isTrialAccount   Boolean      @default(true) @map("is_trial_account")
@@ -719,6 +721,9 @@ model Reservation {
   cancelledAt         DateTime? @map("cancelled_at")
   cancelledBy         String?           @db.Uuid @map("cancelled_by")
   cancellationFee     Int               @default(0) @map("cancellation_fee")
+  cancellationPolicySnapshot  String?   @db.Text @map("cancellation_policy_snapshot")
+  bookingPaymentTermsSnapshot String?   @db.Text @map("booking_payment_terms_snapshot")
+  termsAcceptedAt             DateTime? @map("terms_accepted_at")
 
   isWalkIn            Boolean           @default(false) @map("is_walk_in")
   requiresPickup      Boolean           @default(false) @map("requires_pickup")

@@ -16,6 +16,8 @@ export interface PublicHotel {
   propertyType: string;
   logoUrl: string | null;
   themeKey: string;
+  cancellationPolicy: string | null;
+  bookingPaymentTerms: string | null;
 }
 
 export interface PublicRoomType {
@@ -60,6 +62,7 @@ export interface BookingRequest {
   children?: number;
   specialRequests?: string;
   promoCode?: string;
+  termsAccepted?: boolean;
 }
 
 export interface BookingConfirmation {
@@ -88,6 +91,7 @@ export interface BookMultiRequest {
   children?: number;
   specialRequests?: string;
   promoCode?: string;
+  termsAccepted?: boolean;
 }
 
 export interface BookMultiConfirmation {

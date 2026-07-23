@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ElementType, ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ExternalLink, Building2, Palette, BedDouble, Tag, ArrowRight, AlertTriangle,
   CheckCircle2, Clock3, ImagePlus, Network, Radio, TrendingUp, UsersRound,
-  CalendarDays,
+  CalendarDays, FileText, Save,
 } from "lucide-react";
 import {
   Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -193,9 +193,13 @@ function BookingPerformanceChart({ insights }: { insights: BookingEngineInsights
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function BookingEngineHubPage() {
+  const queryClient = useQueryClient();
   const [range, setRange] = useState<RangeOption>("30d");
   const [startDate, setStartDate] = useState(() => pktDaysAgo(29));
   const [endDate, setEndDate] = useState(pktToday);
+  const [cancellationPolicy, setCancellationPolicy] = useState("");
+  const [bookingPaymentTerms, setBookingPaymentTerms] = useState("");
+  const [policySaveState, setPolicySaveState] = useState<"idle" | "saved" | "error">("idle");
 
   const { data: plan, isLoading: planLoading } = useQuery({
     queryKey: ["settings", "plan"],
@@ -219,6 +223,24 @@ export default function BookingEngineHubPage() {
     enabled: bookingEngineEnabled,
   });
 
+  useEffect(() => {
+    if (!settings) return;
+    setCancellationPolicy(settings.cancellationPolicy ?? "");
+    setBookingPaymentTerms(settings.bookingPaymentTerms ?? "");
+  }, [settings]);
+
+  const savePoliciesMutation = useMutation({
+    mutationFn: () => settingsService.updateSettings({
+      cancellationPolicy: cancellationPolicy.trim() || null,
+      bookingPaymentTerms: bookingPaymentTerms.trim() || null,
+    }),
+    onSuccess: async () => {
+      setPolicySaveState("saved");
+      await queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: () => setPolicySaveState("error"),
+  });
+
   const roomTypes = roomTypesResp?.data ?? [];
   const ratePlans = ratePlansResp?.data ?? [];
   const roomTypesWithPhotos = roomTypes.filter((rt) => rt.photoUrls.length > 0).length;
@@ -227,7 +249,8 @@ export default function BookingEngineHubPage() {
   const publicUrl = hotelSlug ? `https://${hotelSlug}.innflo.co` : "";
   const logoUrl = (settings?.settings?.logoUrl as string | undefined) ?? null;
   const themeKey = (settings?.settings?.themeKey as string | undefined) ?? "WARM_CLAY";
-  const presentationChecks = [Boolean(settings?.description), Boolean(logoUrl), roomTypes.length > 0, roomTypesWithoutPhotos === 0 && roomTypes.length > 0];
+  const policiesReady = Boolean(settings?.cancellationPolicy && settings?.bookingPaymentTerms);
+  const presentationChecks = [Boolean(settings?.description), Boolean(logoUrl), roomTypes.length > 0, roomTypesWithoutPhotos === 0 && roomTypes.length > 0, policiesReady];
   const presentationReady = presentationChecks.filter(Boolean).length;
 
   function selectRange(nextRange: Exclude<RangeOption, "custom">) {
@@ -366,13 +389,71 @@ export default function BookingEngineHubPage() {
           </section>
 
           <section>
-            <div className="flex items-end justify-between gap-3 mb-3"><div><h2 className="text-[13px] font-bold uppercase tracking-wide text-ink-faint">Guest-facing presentation</h2><p className="text-[12.5px] text-ink-mute mt-1">{presentationReady} of 4 booking-site essentials ready.</p></div><span className={cn("text-[12px] font-bold px-2.5 py-1 rounded-full", presentationReady === 4 ? "bg-pine-soft text-pine" : "bg-amber-soft text-amber")}>{presentationReady === 4 ? "Ready to share" : "A few improvements left"}</span></div>
+            <div className="flex items-end justify-between gap-3 mb-3"><div><h2 className="text-[13px] font-bold uppercase tracking-wide text-ink-faint">Guest-facing presentation</h2><p className="text-[12.5px] text-ink-mute mt-1">{presentationReady} of 5 booking-site essentials ready.</p></div><span className={cn("text-[12px] font-bold px-2.5 py-1 rounded-full", presentationReady === 5 ? "bg-pine-soft text-pine" : "bg-amber-soft text-amber")}>{presentationReady === 5 ? "Ready to share" : "A few improvements left"}</span></div>
             <Card pad={false} className="anim-fade-up divide-y divide-line-soft overflow-hidden">
               <PresentationRow icon={Building2} title="Hotel name, description & amenities" value={settings?.name ?? "—"} note={!settings?.description ? "No description set — guests see a generic tagline instead" : settings.amenities.length === 0 ? "No amenities listed" : `${settings.amenities.length} amenities listed`} noteTone={!settings?.description || settings?.amenities.length === 0 ? "amber" : "neutral"} to="/settings" />
               <PresentationRow icon={ImagePlus} title="Logo" value={logoUrl ? "Uploaded" : "Not set"} note={!logoUrl ? "Falls back to your hotel name as text" : undefined} noteTone="amber" to="/settings" />
               <PresentationRow icon={Palette} title="Theme color" value={THEME_LABEL[themeKey] ?? themeKey} to="/settings" />
               <PresentationRow icon={BedDouble} title="Room types" value={`${roomTypes.length} room type${roomTypes.length === 1 ? "" : "s"}`} note={roomTypes.length === 0 ? "No room types yet — guests won't see anything to book" : roomTypesWithoutPhotos > 0 ? `${roomTypesWithPhotos} have photos, ${roomTypesWithoutPhotos} don't` : "All room types have photos"} noteTone={roomTypes.length === 0 || roomTypesWithoutPhotos > 0 ? "amber" : "neutral"} to="/rooms" />
               <PresentationRow icon={Tag} title="Rate plans" value={`${ratePlans.length} active rate plan${ratePlans.length === 1 ? "" : "s"}`} note={ratePlans.length === 0 ? "Guests will see each room type's base rate only" : undefined} noteTone="amber" to="/rate-plans" />
+              <div className="flex items-center gap-4 px-5 py-4">
+                <span className="grid place-items-center h-10 w-10 rounded-xl bg-mist text-ink-mute shrink-0"><FileText size={18} /></span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13.5px] font-semibold text-ink">Cancellation policy &amp; booking terms</div>
+                  <div className="text-[13px] text-ink-mute mt-0.5">{policiesReady ? "Both policies are shown before guests submit" : "Add both policies so guests know the terms before booking"}</div>
+                </div>
+                <a href="#booking-policies" className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-coral hover:text-coral-dark transition-colors shrink-0">Edit <ArrowRight size={13} /></a>
+              </div>
+            </Card>
+          </section>
+
+          <section id="booking-policies" className="scroll-mt-24">
+            <div className="mb-3">
+              <h2 className="text-[13px] font-bold uppercase tracking-wide text-ink-faint">Policies shown to guests</h2>
+              <p className="text-[12.5px] text-ink-mute mt-1">Guests see these on the final reserve page and must acknowledge them before submitting.</p>
+            </div>
+            <Card className="anim-fade-up">
+              <div className="grid lg:grid-cols-2 gap-5">
+                <label className="block">
+                  <span className="text-[13px] font-bold text-ink">Cancellation policy</span>
+                  <span className="block text-[12px] text-ink-mute mt-1 mb-2">State cancellation deadlines, refund eligibility, fees, and no-show treatment.</span>
+                  <textarea
+                    value={cancellationPolicy}
+                    onChange={(event) => { setCancellationPolicy(event.target.value); setPolicySaveState("idle"); }}
+                    maxLength={5000}
+                    rows={9}
+                    placeholder="Example: Free cancellation up to 72 hours before arrival. Later cancellations and no-shows are charged one night's stay."
+                    className="w-full rounded-xl border border-line bg-white px-4 py-3 text-[13.5px] leading-relaxed text-ink outline-none resize-y focus:border-coral focus:ring-2 focus:ring-coral/10"
+                  />
+                  <span className="block text-right text-[11px] text-ink-faint mt-1">{cancellationPolicy.length}/5,000</span>
+                </label>
+                <label className="block">
+                  <span className="text-[13px] font-bold text-ink">Booking &amp; payment terms</span>
+                  <span className="block text-[12px] text-ink-mute mt-1 mb-2">Explain confirmation, deposits, payment timing, refunds, taxes, and early checkout.</span>
+                  <textarea
+                    value={bookingPaymentTerms}
+                    onChange={(event) => { setBookingPaymentTerms(event.target.value); setPolicySaveState("idle"); }}
+                    maxLength={10000}
+                    rows={9}
+                    placeholder="Example: This submission is a booking request. The hotel will contact the guest to confirm availability and any required deposit."
+                    className="w-full rounded-xl border border-line bg-white px-4 py-3 text-[13.5px] leading-relaxed text-ink outline-none resize-y focus:border-coral focus:ring-2 focus:ring-coral/10"
+                  />
+                  <span className="block text-right text-[11px] text-ink-faint mt-1">{bookingPaymentTerms.length}/10,000</span>
+                </label>
+              </div>
+              <div className="mt-5 pt-4 border-t border-line-soft flex flex-wrap items-center justify-between gap-3">
+                <p className={cn("text-[12.5px]", policySaveState === "error" ? "text-red-600" : policySaveState === "saved" ? "text-pine font-semibold" : "text-ink-mute")}>
+                  {policySaveState === "error" ? "Policies could not be saved. Please try again." : policySaveState === "saved" ? "Policies saved and live on the booking page." : "Line breaks are preserved. Plain text only."}
+                </p>
+                <button
+                  type="button"
+                  disabled={savePoliciesMutation.isPending}
+                  onClick={() => { setPolicySaveState("idle"); savePoliciesMutation.mutate(); }}
+                  className="inline-flex h-10 items-center gap-2 rounded-full bg-coral px-4 text-[13px] font-bold text-white shadow-pop transition-colors hover:bg-coral-dark disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Save size={15} /> {savePoliciesMutation.isPending ? "Saving…" : "Save policies"}
+                </button>
+              </div>
             </Card>
           </section>
         </div>

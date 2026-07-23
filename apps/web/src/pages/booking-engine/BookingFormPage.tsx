@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle2, AlertTriangle, Minus, Plus, ChevronLeft, Lock, Calendar } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Minus, Plus, ChevronLeft, Lock, Calendar, FileText, ShieldCheck } from "lucide-react";
 import {
   bookingEngineService,
   type BookMultiConfirmation,
@@ -115,9 +115,10 @@ function Stepper({ value, min = 0, max = 99, onChange, accentColor }: {
 
 // ── Booking Summary ───────────────────────────────────────────────────────────
 
-function SummaryCard({ cart, checkIn, checkOut, nights, adults, children, promoCode, accentColor }: {
+function SummaryCard({ cart, checkIn, checkOut, nights, adults, children, promoCode, accentColor, cancellationPolicy }: {
   cart: CartItem[]; checkIn: string; checkOut: string;
   nights: number; adults: number; children: number; promoCode: string; accentColor: string;
+  cancellationPolicy: string | null;
 }) {
   const nightlyTotal = cart.reduce((s, c) => s + (c.ratePerNight ?? c.defaultRate) * c.quantity, 0);
   const grandTotal   = nightlyTotal * nights;
@@ -168,6 +169,17 @@ function SummaryCard({ cart, checkIn, checkOut, nights, adults, children, promoC
       </div>
 
       {promoCode && <div className="px-5 py-3 border-b border-gray-50 text-[12px] font-semibold" style={{ color: accentColor }}>Promo / corporate code: {promoCode}</div>}
+
+      {cancellationPolicy && (
+        <div className="px-5 py-4 border-b border-gray-50">
+          <div className="flex items-center gap-2 mb-2">
+            <ShieldCheck size={14} style={{ color: accentColor }} />
+            <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-gray-500">Cancellation policy</p>
+          </div>
+          <p className="text-[12px] leading-relaxed text-gray-600 whitespace-pre-line line-clamp-5">{cancellationPolicy}</p>
+          <a href="#booking-terms" className="inline-block mt-2 text-[11.5px] font-semibold hover:opacity-70" style={{ color: accentColor }}>Read full policy</a>
+        </div>
+      )}
 
       {/* Total */}
       <div className="px-5 py-4">
@@ -340,6 +352,8 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
   const [submitting,  setSubmitting]  = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<BookMultiConfirmation | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const hasBookingTerms = Boolean(hotel?.cancellationPolicy || hotel?.bookingPaymentTerms);
 
   if (confirmation) {
     return <SuccessScreen confirmation={confirmation} themeKey={themeKey} />;
@@ -367,6 +381,7 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
         children:        form.children || undefined,
         specialRequests: form.specialRequests.trim() || undefined,
         promoCode:       promoCode || undefined,
+        termsAccepted,
       });
       sessionStorage.removeItem(CART_KEY(hotelSlug));
       sessionStorage.removeItem(PROMO_KEY(hotelSlug));
@@ -529,13 +544,56 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
                   />
                 </Field>
 
+                {hasBookingTerms && (
+                  <section id="booking-terms" className="scroll-mt-36 rounded-2xl border border-gray-200 bg-gray-50/70 overflow-hidden">
+                    <div className="px-5 py-4 border-b border-gray-200 bg-white flex items-start gap-3">
+                      <span className="grid place-items-center h-9 w-9 rounded-xl bg-[rgb(var(--be-accent-soft))] shrink-0">
+                        <FileText size={17} className="text-[rgb(var(--be-accent))]" />
+                      </span>
+                      <div>
+                        <h2 className="text-[15px] font-bold text-gray-900">Policies &amp; booking terms</h2>
+                        <p className="text-[12px] text-gray-500 mt-0.5">Please review the hotel’s terms before submitting.</p>
+                      </div>
+                    </div>
+                    <div className="px-5 py-5 space-y-5">
+                      {hotel?.cancellationPolicy && (
+                        <div>
+                          <h3 className="text-[13px] font-bold text-gray-800 mb-2">Cancellation policy</h3>
+                          <p className="text-[13px] leading-6 text-gray-600 whitespace-pre-line">{hotel.cancellationPolicy}</p>
+                        </div>
+                      )}
+                      {hotel?.bookingPaymentTerms && (
+                        <div className={hotel.cancellationPolicy ? "pt-5 border-t border-gray-200" : ""}>
+                          <h3 className="text-[13px] font-bold text-gray-800 mb-2">Booking &amp; payment terms</h3>
+                          <p className="text-[13px] leading-6 text-gray-600 whitespace-pre-line">{hotel.bookingPaymentTerms}</p>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                )}
+
+                {hasBookingTerms && (
+                  <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-4 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      required
+                      checked={termsAccepted}
+                      onChange={(event) => setTermsAccepted(event.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-[rgb(var(--be-accent))]"
+                    />
+                    <span className="text-[13px] leading-relaxed text-gray-600">
+                      I have read and agree to this hotel’s cancellation policy and booking &amp; payment terms.
+                    </span>
+                  </label>
+                )}
+
                 {/* Submit */}
                 <div className="pt-1">
                   <button
-                    type="submit" disabled={submitting}
+                    type="submit" disabled={submitting || (hasBookingTerms && !termsAccepted)}
                     className={cn(
                       "w-full py-4 rounded-xl text-white font-semibold text-[16px] transition-all",
-                      submitting ? "opacity-60 cursor-not-allowed" : "hover:opacity-90 active:scale-[0.99]"
+                      submitting || (hasBookingTerms && !termsAccepted) ? "opacity-60 cursor-not-allowed" : "hover:opacity-90 active:scale-[0.99]"
                     )}
                     style={{ background: "rgb(var(--be-accent))" }}
                   >
@@ -555,6 +613,7 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
             <SummaryCard
               cart={cart} checkIn={checkIn} checkOut={checkOut}
               nights={nights} adults={form.adults} children={form.children} promoCode={promoCode} accentColor={accentColor}
+              cancellationPolicy={hotel?.cancellationPolicy ?? null}
             />
           </div>
         </div>

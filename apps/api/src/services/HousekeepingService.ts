@@ -55,7 +55,7 @@ function mapTask<T extends { priority: number }>(task: T): Omit<T, "priority"> &
 // housekeeping — needs to actually learn a new task exists. Excluding the
 // actor there previously meant a single-staff hotel got zero notifications
 // whenever that one person created their own task.
-async function notifyHousekeepingStaff(
+export async function notifyHousekeepingStaff(
   hotelId: string,
   excludeUserId: string | null,
   payload: { title: string; body: string; url: string },

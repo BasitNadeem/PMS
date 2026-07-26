@@ -11,6 +11,7 @@ import type {
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
 import { NotificationService } from "./NotificationService";
+import { notifyHousekeepingStaff } from "./HousekeepingService";
 import { notifyHotelDataChanged } from "../lib/realtime";
 import { enqueueReservationEmail } from "../lib/reservationEmails";
 
@@ -305,6 +306,8 @@ export const ReservationService = {
     id: string,
     newStatus: ReservationStatus,
   ) {
+    let checkoutCleanRoomNumber: string | null = null;
+
     return withTenant(async (db) => {
       const existing = await db.reservation.findUnique({
         where: { id },
@@ -515,6 +518,7 @@ export const ReservationService = {
             notes:         `Checkout clean — ${existing.guest.fullName} checked out`,
           },
         });
+        checkoutCleanRoomNumber = reservationRoom.room.number;
       }
 
       await db.auditLog.create({
@@ -553,6 +557,13 @@ export const ReservationService = {
       return updated;
     }).then(async (updated) => {
       notifyHotelDataChanged(actor.hotelId);
+      if (newStatus === "CHECKED_OUT" && checkoutCleanRoomNumber) {
+        await notifyHousekeepingStaff(actor.hotelId, null, {
+          title: "🧹 Checkout Cleaning Required",
+          body:  `Room ${checkoutCleanRoomNumber} needs cleaning`,
+          url:   "/housekeeping/mobile",
+        });
+      }
       if (newStatus === "CONFIRMED" || newStatus === "CANCELLED") {
         try {
           await enqueueReservationEmail(newStatus, [id]);

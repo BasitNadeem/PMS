@@ -10,12 +10,14 @@ export interface CartItem {
 
 interface CartBarProps {
   items:   CartItem[];
+  taxRate: number;
   onClick: () => void;
 }
 
-export function CartBar({ items, onClick }: CartBarProps) {
+export function CartBar({ items, taxRate, onClick }: CartBarProps) {
   const count = items.reduce((s, i) => s + i.quantity, 0);
-  const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const total = subtotal + Math.round(subtotal * taxRate / 100);
 
   if (count === 0) return null;
 

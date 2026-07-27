@@ -260,8 +260,8 @@ export default function QrOrdersPage() {
             unitPrice: i.item_price,
             lineTotal: i.subtotal,
           }))}
-          subtotal={receiptOrder.total_amount}
-          taxAmount={0}
+          subtotal={receiptOrder.subtotal_amount}
+          taxAmount={receiptOrder.tax_amount}
           discountAmount={0}
           total={receiptOrder.total_amount}
           paymentStatus={

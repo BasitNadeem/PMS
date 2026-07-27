@@ -20,6 +20,8 @@ import {
 import { Avatar } from "@/components/ui/Avatar";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { settingsService } from "@/services/settings";
+import { calculateAccommodationCharges } from "@/lib/accommodationCharges";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -311,6 +313,11 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
   const createGroupMutation = useMutation({
     mutationFn: (dto: CreateGroupDto) => groupsService.createGroup(dto),
   });
+  const { data: hotelSettings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: settingsService.getSettings,
+    staleTime: 60_000,
+  });
 
   const addMemberMutation = useMutation({
     mutationFn: ({ groupId, guestId }: { groupId: string; guestId: string }) =>
@@ -322,7 +329,12 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
   // ── Derived values ─────────────────────────────────────────────────────────
   const nights      = nightsBetween(form.checkIn, form.checkOut);
   const totalRooms  = form.rooms.reduce((sum, r) => sum + r.quantity, 0);
-  const estTotal    = form.rooms.reduce((sum, r) => sum + r.ratePerNight * r.quantity * nights, 0);
+  const enteredTotal = form.rooms.reduce((sum, r) => sum + r.ratePerNight * r.quantity * nights, 0);
+  const estimatedCharges = calculateAccommodationCharges(
+    enteredTotal,
+    (hotelSettings?.settings ?? {}) as Record<string, unknown>,
+  );
+  const estTotal = estimatedCharges.totalAmount;
   const today       = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
   const showAdvance = form.paymentTerms === "ADVANCE_50" || form.paymentTerms === "ADVANCE_100" || form.paymentTerms === "ADVANCE_CUSTOM";
   const showAdvancePercent = form.paymentTerms === "ADVANCE_CUSTOM";
@@ -702,6 +714,11 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
                   <div>
                     <div className="text-[11px] font-bold uppercase text-ink-faint tracking-wider">Est. total</div>
                     <div className="serif text-[22px] text-coral mt-0.5 tnum">{fmtPkr(estTotal)}</div>
+                    {estimatedCharges.taxAmount > 0 && (
+                      <div className="text-[10px] text-ink-faint">
+                        Tax {estimatedCharges.taxInclusive ? "included" : "added"}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

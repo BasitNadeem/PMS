@@ -9,6 +9,7 @@ interface OrderConfirmSheetProps {
   hotelSlug:   string;
   hotelName:   string;
   items:       CartItem[];
+  taxRate:     number;
   onClose:     () => void;
   onSuccess:   (orderNumber: string) => void;
   onUpdateQty: (menuItemId: string, qty: number) => void;
@@ -49,6 +50,7 @@ export function OrderConfirmSheet({
   hotelSlug,
   hotelName,
   items,
+  taxRate,
   onClose,
   onSuccess,
   onUpdateQty,
@@ -72,7 +74,9 @@ export function OrderConfirmSheet({
   const [error,              setError]              = useState("");
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const taxAmount = Math.round(subtotal * taxRate / 100);
+  const total = subtotal + taxAmount;
 
   // Debounced room lookup — triggers 500ms after typing stops
   useEffect(() => {
@@ -256,6 +260,18 @@ export function OrderConfirmSheet({
           )}
 
           <div className="h-px my-3.5" style={{ background: "rgb(var(--qr-line-soft))" }} />
+          {taxAmount > 0 && (
+            <div className="space-y-1.5 mb-3 text-[13px]" style={{ color: "rgb(var(--qr-ink-soft))" }}>
+              <div className="flex items-center justify-between">
+                <span>Subtotal</span>
+                <span className="tnum">PKR {Math.floor(subtotal / 100).toLocaleString("en-PK")}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>POS &amp; F&amp;B tax ({taxRate}%)</span>
+                <span className="tnum">PKR {Math.floor(taxAmount / 100).toLocaleString("en-PK")}</span>
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="serif text-[18px]" style={{ color: "rgb(var(--qr-ink))" }}>Total</span>
             <span className="serif text-[22px] tnum" style={{ color: "rgb(var(--qr-accent))" }}>

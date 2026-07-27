@@ -701,6 +701,10 @@ model Reservation {
   infants             Int               @default(0)
 
   quotedRate          Int               @default(0) @map("quoted_rate")
+  subtotalAmount      Int               @default(0) @map("subtotal_amount")
+  taxAmount           Int               @default(0) @map("tax_amount")
+  taxInclusive        Boolean           @default(false) @map("tax_inclusive")
+  taxBreakdown        Json?             @map("tax_breakdown")
   totalAmount         Int               @default(0) @map("total_amount")
   discountAmount      Int               @default(0) @map("discount_amount")
   appliedRatePlanName String?           @map("applied_rate_plan_name")

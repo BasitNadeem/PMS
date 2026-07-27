@@ -24,12 +24,13 @@ function dateOnly(date: Date): string {
 export async function enqueueReservationEmail(
   kind: ReservationEmailKind,
   reservationIds: string[],
+  hotelId: string,
 ): Promise<boolean> {
   const ids = unique(reservationIds).sort();
   if (ids.length === 0) return false;
 
   const reservations = await adminPrisma.reservation.findMany({
-    where: { id: { in: ids }, source: "BOOKING_ENGINE" },
+    where: { id: { in: ids }, hotelId },
     include: {
       guest: { select: { fullName: true, email: true } },
       group: { select: { id: true, groupRef: true } },

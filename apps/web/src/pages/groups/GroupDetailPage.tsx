@@ -287,12 +287,22 @@ export default function GroupDetailPage() {
       const key = r.room.roomType.id;
       acc[key] ??= { name: r.room.roomType.name, rooms: 0, amount: 0 };
       acc[key].rooms += 1;
-      acc[key].amount += r.totalAmount;
+      acc[key].amount += r.subtotalAmount || r.totalAmount;
       return acc;
     }, {})
   );
   const rateSubtotal = roomTypeLines.reduce((sum, l) => sum + l.amount, 0);
-  const rateTax = Math.round(rateSubtotal * 0.05);
+  const rateTotal = group.reservations.reduce((sum, reservation) => sum + reservation.totalAmount, 0);
+  const taxLines = Object.values(
+    group.reservations.reduce<Record<string, { label: string; rate: number; amount: number; inclusive: boolean }>>((acc, reservation) => {
+      for (const tax of reservation.taxBreakdown ?? []) {
+        const key = `${tax.key}:${tax.rate}`;
+        acc[key] ??= { label: tax.label, rate: tax.rate, amount: 0, inclusive: reservation.taxInclusive };
+        acc[key].amount += tax.amount;
+      }
+      return acc;
+    }, {}),
+  );
 
   return (
     <div className="anim-fade-in">
@@ -542,13 +552,17 @@ export default function GroupDetailPage() {
                     <span className="font-semibold text-ink tnum">{fmtPkr(line.amount)}</span>
                   </div>
                 ))}
-                <div className="flex items-center justify-between text-[13px] pt-2 border-t border-line-soft">
-                  <span className="text-ink-mute">Service tax (5%)</span>
-                  <span className="font-semibold text-ink tnum">{fmtPkr(rateTax)}</span>
-                </div>
+                {taxLines.map((tax) => (
+                  <div key={`${tax.label}:${tax.rate}`} className="flex items-center justify-between text-[13px] pt-2 border-t border-line-soft">
+                    <span className="text-ink-mute">
+                      {tax.label} ({tax.rate}%){tax.inclusive ? " · included" : ""}
+                    </span>
+                    <span className="font-semibold text-ink tnum">{fmtPkr(tax.amount)}</span>
+                  </div>
+                ))}
                 <div className="flex items-center justify-between text-[13px] pt-2 border-t border-line-soft">
                   <span className="font-semibold text-ink-soft">Total</span>
-                  <span className="font-bold text-ink tnum">{fmtPkr(rateSubtotal + rateTax)}</span>
+                  <span className="font-bold text-ink tnum">{fmtPkr(rateTotal)}</span>
                 </div>
               </div>
             </Card>

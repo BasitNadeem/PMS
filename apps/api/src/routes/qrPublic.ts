@@ -19,8 +19,16 @@ const router: Router = Router();
 async function resolveHotel(slug: string) {
   return adminPrisma.hotel.findUnique({
     where:  { slug },
-    select: { id: true, name: true, isActive: true },
+    select: { id: true, name: true, isActive: true, settings: true },
   });
+}
+
+function getPosTaxRate(settings: unknown): number {
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) return 0;
+  const rate = (settings as Record<string, unknown>).posTaxRate;
+  return typeof rate === "number" && Number.isFinite(rate)
+    ? Math.max(0, Math.min(100, rate))
+    : 0;
 }
 
 // GET /api/qr-public/:hotelSlug/menu
@@ -33,7 +41,10 @@ router.get("/:hotelSlug/menu", async (req, res) => {
     return;
   }
   const categories = await QrMenuService.getPublicMenu(hotel.id);
-  res.json({ data: categories, hotel: { name: hotel.name } });
+  res.json({
+    data: categories,
+    hotel: { name: hotel.name, posTaxRate: getPosTaxRate(hotel.settings) },
+  });
 });
 
 // GET /api/qr-public/:hotelSlug/verify-room?q=204

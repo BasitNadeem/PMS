@@ -1,4 +1,4 @@
-import type { TenantTx } from "@pms/db";
+import { Prisma, type TenantTx } from "@pms/db";
 import type { JwtPayload } from "../middleware/auth";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
@@ -7,6 +7,7 @@ import { ReservationService, formatRoomConflictMessage } from "./ReservationServ
 import { assertNoDuplicateGuest } from "../utils/guestDuplicate";
 import { notifyHotelDataChanged } from "../lib/realtime";
 import { enqueueReservationEmail } from "../lib/reservationEmails";
+import { calculateAccommodationCharges } from "../lib/accommodationCharges";
 import {
   GROUP_STATUSES,
   type ListGroupsQuery,
@@ -212,6 +213,10 @@ export const GroupService = {
       status:             r.status,
       checkInDate:        r.checkInDate,
       checkOutDate:       r.checkOutDate,
+      subtotalAmount:     r.subtotalAmount,
+      taxAmount:          r.taxAmount,
+      taxInclusive:       r.taxInclusive,
+      taxBreakdown:       r.taxBreakdown,
       totalAmount:        r.totalAmount,
       guest:              r.guest,
       room: r.rooms[0]
@@ -316,6 +321,11 @@ export const GroupService = {
       // ── Reservations + folios ────────────────────────────────────────────
       const usedRoomIds = new Set<string>();
       let createdRooms = 0;
+      const hotel = await db.hotel.findUniqueOrThrow({
+        where: { id: actor.hotelId },
+        select: { settings: true },
+      });
+      const hotelSettings = (hotel.settings ?? {}) as Record<string, unknown>;
 
       for (const roomSpec of dto.rooms) {
         const roomType = await db.roomType.findUnique({ where: { id: roomSpec.roomTypeId } });
@@ -330,7 +340,8 @@ export const GroupService = {
         }
 
         const ratePerNight = roomSpec.ratePerNight ?? roomType.defaultRate;
-        const totalAmount  = ratePerNight * nights;
+        const charges = calculateAccommodationCharges(ratePerNight * nights, hotelSettings);
+        const totalAmount = charges.totalAmount;
         const checkInDate  = new Date(dto.checkInDate);
         const checkOutDate = new Date(dto.checkOutDate);
 
@@ -366,6 +377,10 @@ export const GroupService = {
               checkOutDate,
               adults:             1,
               quotedRate:         ratePerNight,
+              subtotalAmount:     charges.subtotalAmount,
+              taxAmount:          charges.taxAmount,
+              taxInclusive:       charges.taxInclusive,
+              taxBreakdown:       charges.taxBreakdown as unknown as Prisma.InputJsonValue,
               totalAmount,
               balanceDue:         totalAmount,
               rooms: {
@@ -511,7 +526,7 @@ export const GroupService = {
               select: { id: true },
             }).then((rows) => rows.map((row) => row.id))
           );
-          await enqueueReservationEmail(newStatus, reservationIds);
+          await enqueueReservationEmail(newStatus, reservationIds, actor.hotelId);
         } catch (err) {
           console.error(`Failed to enqueue group ${newStatus.toLowerCase()} email:`, err);
         }

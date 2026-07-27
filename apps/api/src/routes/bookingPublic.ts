@@ -9,7 +9,7 @@
 
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { adminPrisma } from "@pms/db";
+import { adminPrisma, Prisma } from "@pms/db";
 import { publicWithTenant } from "../lib/publicTenant";
 import { checkFeatureAccess } from "../lib/subscription";
 import { RoomService } from "../services/RoomService";
@@ -18,6 +18,7 @@ import { NotificationService } from "../services/NotificationService";
 import { generateGroupRef } from "../services/GroupService";
 import { notifyHotelDataChanged } from "../lib/realtime";
 import { enqueueReservationEmail } from "../lib/reservationEmails";
+import { calculateAccommodationCharges } from "../lib/accommodationCharges";
 import {
   bookingAvailabilitySchema,
   publicSuggestRateSchema,
@@ -83,6 +84,13 @@ router.get("/:hotelSlug", async (req, res) => {
       themeKey,
       cancellationPolicy:  hotel.cancellationPolicy,
       bookingPaymentTerms: hotel.bookingPaymentTerms,
+      accommodationTax: {
+        gstEnabled:   s.gstEnabled === true,
+        gstRate:      typeof s.gstRate === "number" ? s.gstRate : 0,
+        pstEnabled:   s.pstEnabled === true,
+        pstRate:      typeof s.pstRate === "number" ? s.pstRate : 0,
+        taxInclusive: s.taxInclusive === true,
+      },
     },
   });
 });
@@ -213,7 +221,11 @@ router.post("/:hotelSlug/book", bookSubmitLimit, async (req, res) => {
   const nights       = Math.ceil(
     (new Date(dto.checkOutDate).getTime() - new Date(dto.checkInDate).getTime()) / (1000 * 60 * 60 * 24)
   );
-  const totalAmount = ratePerNight * nights;
+  const charges = calculateAccommodationCharges(
+    ratePerNight * nights,
+    (hotel.settings ?? {}) as Record<string, unknown>,
+  );
+  const totalAmount = charges.totalAmount;
   const discountAmount = baseRateResult
     ? Math.max(0, baseRateResult.suggestedRate - ratePerNight) * nights
     : 0;
@@ -302,6 +314,10 @@ router.post("/:hotelSlug/book", bookSubmitLimit, async (req, res) => {
         children:        dto.children,
         specialRequests: dto.specialRequests ?? null,
         quotedRate:      ratePerNight,
+        subtotalAmount:  charges.subtotalAmount,
+        taxAmount:       charges.taxAmount,
+        taxInclusive:    charges.taxInclusive,
+        taxBreakdown:    charges.taxBreakdown as unknown as Prisma.InputJsonValue,
         totalAmount,
         discountAmount,
         appliedRatePlanName: rateResult.matchedPlan?.name ?? null,
@@ -352,7 +368,7 @@ router.post("/:hotelSlug/book", bookSubmitLimit, async (req, res) => {
 
   if (dto.guestEmail) {
     try {
-      await enqueueReservationEmail("REQUEST_RECEIVED", [reservation.id]);
+      await enqueueReservationEmail("REQUEST_RECEIVED", [reservation.id], hotel.id);
     } catch (err) {
       console.error("Failed to enqueue booking request email:", err);
     }
@@ -544,7 +560,11 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
       const freeRooms = allRooms.filter((r) => !bookedSet.has(r.id));
       const rateInfo = rateMap.get(item.roomTypeId);
       const ratePerNight = rateInfo?.ratePerNight ?? 0;
-      const totalAmount  = ratePerNight * nights;
+      const charges = calculateAccommodationCharges(
+        ratePerNight * nights,
+        (hotel.settings ?? {}) as Record<string, unknown>,
+      );
+      const totalAmount = charges.totalAmount;
       const discountAmount = rateInfo
         ? Math.max(0, rateInfo.baseRatePerNight - ratePerNight) * nights
         : 0;
@@ -569,6 +589,10 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
             children:        guestAllocation.children,
             specialRequests: dto.specialRequests ?? null,
             quotedRate:      ratePerNight,
+            subtotalAmount:  charges.subtotalAmount,
+            taxAmount:       charges.taxAmount,
+            taxInclusive:    charges.taxInclusive,
+            taxBreakdown:    charges.taxBreakdown as unknown as Prisma.InputJsonValue,
             totalAmount,
             discountAmount,
             appliedRatePlanName: rateInfo?.appliedRatePlanName ?? null,
@@ -631,6 +655,7 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
       await enqueueReservationEmail(
         "REQUEST_RECEIVED",
         result.createdReservations.map((reservation) => reservation.id),
+        hotel.id,
       );
     } catch (err) {
       console.error("Failed to enqueue multi-room booking request email:", err);

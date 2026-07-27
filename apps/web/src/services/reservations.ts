@@ -98,6 +98,10 @@ export interface ReservationSummary {
   adults: number;
   children: number;
   quotedRate: number;
+  subtotalAmount: number;
+  taxAmount: number;
+  taxInclusive: boolean;
+  taxBreakdown: Array<{ key: "GST" | "PST"; label: string; rate: number; amount: number }> | null;
   totalAmount: number;
   specialRequests: string | null;
   bookingContactName: string | null;

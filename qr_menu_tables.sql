@@ -96,6 +96,8 @@ CREATE TABLE IF NOT EXISTS qr_orders (
   special_instructions  TEXT,
   status                TEXT        NOT NULL DEFAULT 'pending'
                           CHECK (status IN ('pending','confirmed','preparing','ready','delivered','cancelled')),
+  subtotal_amount       BIGINT      NOT NULL DEFAULT 0 CHECK (subtotal_amount >= 0),
+  tax_amount            BIGINT      NOT NULL DEFAULT 0 CHECK (tax_amount >= 0),
   total_amount          BIGINT      NOT NULL CHECK (total_amount >= 0),
   folio_id              UUID,
   payment_preference    TEXT        NOT NULL DEFAULT 'charge_to_room'
@@ -112,7 +114,9 @@ CREATE TABLE IF NOT EXISTS qr_orders (
 ALTER TABLE qr_orders
   ADD COLUMN IF NOT EXISTS payment_preference    TEXT    NOT NULL DEFAULT 'charge_to_room'
                              CHECK (payment_preference IN ('charge_to_room', 'pay_now')),
-  ADD COLUMN IF NOT EXISTS requires_folio_review BOOLEAN NOT NULL DEFAULT false;
+  ADD COLUMN IF NOT EXISTS requires_folio_review BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS subtotal_amount       BIGINT  NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS tax_amount            BIGINT  NOT NULL DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS idx_qr_orders_hotel_status
   ON qr_orders(hotel_id, status, created_at DESC);

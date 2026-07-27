@@ -25,7 +25,7 @@ export interface MenuCategory {
 
 export interface PublicMenuResponse {
   data:  MenuCategory[];
-  hotel: { name: string };
+  hotel: { name: string; posTaxRate: number };
 }
 
 export interface PlaceOrderDto {
@@ -62,6 +62,8 @@ export const qrMenuService = {
     deliveryType:        string;
     specialInstructions: string | null;
     createdAt:           string;
+    subtotalAmount:      number;
+    taxAmount:           number;
     totalAmount:         number;
     paymentPreference:   string;
     roomNumber:          string;

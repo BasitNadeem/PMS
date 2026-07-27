@@ -168,7 +168,10 @@ const MODULE_ACTIONS: Record<string, string[]> = {
 };
 
 function formatLabel(s: string): string {
-  return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return s
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function PermissionToggle({ label, enabled, justSaved, onToggle }: { label: string; enabled: boolean; justSaved: boolean; onToggle: () => void }) {
@@ -279,8 +282,8 @@ export default function SettingsPage() {
 
   // ── Tax form ────────────────────────────────────────────────────────────────
   const [tax, setTax] = useState({
-    gstEnabled: false, gstRate: "16",
-    pstEnabled: false, pstRate: "5",
+    gstEnabled: false, gstRate: "0",
+    pstEnabled: false, pstRate: "0",
     taxInclusive: false, fbrEnabled: false,
     invoicePrefix: "INV",
     posTaxRate: "0",
@@ -466,9 +469,9 @@ export default function SettingsPage() {
     });
     setTax({
       gstEnabled:   Boolean(s.gstEnabled),
-      gstRate:      String(s.gstRate    ?? "16"),
+      gstRate:      String(s.gstRate    ?? "0"),
       pstEnabled:   Boolean(s.pstEnabled),
-      pstRate:      String(s.pstRate    ?? "5"),
+      pstRate:      String(s.pstRate    ?? "0"),
       taxInclusive: Boolean(s.taxInclusive),
       fbrEnabled:   false,
       invoicePrefix: String(s.invoicePrefix ?? "INV"),
@@ -1025,6 +1028,7 @@ export default function SettingsPage() {
                       onChange={(e) => setOps((o) => ({ ...o, lateCheckoutFee: e.target.value }))}
                       placeholder="0"
                     />
+                    <p className="mt-1 text-[12px] text-ink-faint">Automatically added to the open folio when check-out happens after the configured time. Set to 0 to disable.</p>
                   </div>
                   <div>
                     <label className={labelCls}>Early check-in fee (PKR)</label>
@@ -1033,6 +1037,7 @@ export default function SettingsPage() {
                       onChange={(e) => setOps((o) => ({ ...o, earlyCheckinFee: e.target.value }))}
                       placeholder="0"
                     />
+                    <p className="mt-1 text-[12px] text-ink-faint">Automatically added to the folio when check-in happens before the configured time. Set to 0 to disable.</p>
                   </div>
                 </div>
                 <div>
@@ -1144,7 +1149,7 @@ export default function SettingsPage() {
                                 <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 pb-2 border-b border-gray-100 mb-3">
                                   {formatLabel(module)}
                                 </div>
-                                <div className="flex gap-6">
+                                <div className="flex flex-wrap gap-6">
                                   {sorted.map((perm) => (
                                     <PermissionToggle
                                       key={perm.key}
@@ -1185,7 +1190,7 @@ export default function SettingsPage() {
                     checked={tax.gstEnabled}
                     onChange={(v) => setTax((t) => ({ ...t, gstEnabled: v }))}
                     label="GST"
-                    subtext="General Sales Tax"
+                    subtext="Applied to room reservations, Booking Engine totals, and room folios"
                   />
                   {tax.gstEnabled && (
                     <div className="pt-3">
@@ -1194,7 +1199,7 @@ export default function SettingsPage() {
                         type="number" min="0" max="100" step="0.5" className={inputCls}
                         value={tax.gstRate}
                         onChange={(e) => setTax((t) => ({ ...t, gstRate: e.target.value }))}
-                        placeholder="16"
+                        placeholder="0"
                       />
                     </div>
                   )}
@@ -1202,7 +1207,7 @@ export default function SettingsPage() {
                     checked={tax.pstEnabled}
                     onChange={(v) => setTax((t) => ({ ...t, pstEnabled: v }))}
                     label="PST / PRA"
-                    subtext="Provincial Sales Tax"
+                    subtext="Applied to room reservations, Booking Engine totals, and room folios"
                   />
                   {tax.pstEnabled && (
                     <div className="pt-3">
@@ -1211,7 +1216,7 @@ export default function SettingsPage() {
                         type="number" min="0" max="100" step="0.5" className={inputCls}
                         value={tax.pstRate}
                         onChange={(e) => setTax((t) => ({ ...t, pstRate: e.target.value }))}
-                        placeholder="5"
+                        placeholder="0"
                       />
                     </div>
                   )}
@@ -1219,7 +1224,7 @@ export default function SettingsPage() {
                     checked={tax.taxInclusive}
                     onChange={(v) => setTax((t) => ({ ...t, taxInclusive: v }))}
                     label="Prices include tax"
-                    subtext="When on, displayed prices already include tax"
+                    subtext="Room rates are treated as tax-inclusive; when off, enabled accommodation taxes are added on top"
                   />
                   <div className="pt-2 flex items-center justify-between">
                     <div>
@@ -1252,7 +1257,7 @@ export default function SettingsPage() {
                     placeholder="INV"
                   />
                   <p className="mt-1 text-[12px] text-ink-faint">
-                    Appears on all generated invoices e.g. {tax.invoicePrefix || "INV"}-0001
+                    Reserved for generated invoice numbering e.g. {tax.invoicePrefix || "INV"}-0001
                   </p>
                 </div>
               </div>

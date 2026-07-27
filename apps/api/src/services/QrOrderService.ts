@@ -33,6 +33,8 @@ export interface QrOrderRow {
   delivery_type:        string;
   special_instructions: string | null;
   status:               string;
+  subtotal_amount:      bigint;
+  tax_amount:           bigint;
   total_amount:         bigint;
   folio_id:                string | null;
   requires_folio_review:   boolean;
@@ -54,11 +56,20 @@ export interface QrOrderItemRow {
   created_at:    Date;
 }
 
-type SerializedOrder     = Omit<QrOrderRow, "total_amount"> & { total_amount: number };
+type SerializedOrder = Omit<QrOrderRow, "subtotal_amount" | "tax_amount" | "total_amount"> & {
+  subtotal_amount: number;
+  tax_amount: number;
+  total_amount: number;
+};
 type SerializedOrderItem = Omit<QrOrderItemRow, "item_price" | "subtotal"> & { item_price: number; subtotal: number };
 
 function serializeOrder(row: QrOrderRow): SerializedOrder {
-  return { ...row, total_amount: Number(row.total_amount) };
+  return {
+    ...row,
+    subtotal_amount: Number(row.subtotal_amount),
+    tax_amount: Number(row.tax_amount),
+    total_amount: Number(row.total_amount),
+  };
 }
 
 function serializeOrderItem(row: QrOrderItemRow): SerializedOrderItem {
@@ -82,6 +93,7 @@ async function recalcFolioTotals(folioId: string): Promise<void> {
     else if (item.type === FolioItemType.DISCOUNT) discounts += item.amount;
     else                                           charges   += item.amount;
   }
+
   const paymentsAgg = await adminPrisma.payment.aggregate({
     where: { folioId, status: "COMPLETED", isRefund: false },
     _sum:  { amount: true },
@@ -128,6 +140,27 @@ async function autoPostToFolio(
         quantity:    item.quantity,
         amount:      Number(item.subtotal),
         netAmount:   Number(item.subtotal),
+      },
+    });
+  }
+
+  const [order] = await adminPrisma.$queryRaw<Array<{ tax_amount: bigint }>>`
+    SELECT tax_amount FROM qr_orders
+    WHERE id = ${orderId}::uuid AND hotel_id = ${hotelId}::uuid
+  `;
+  const taxAmount = Number(order?.tax_amount ?? 0);
+  if (taxAmount > 0) {
+    await adminPrisma.folioItem.create({
+      data: {
+        hotelId,
+        folioId: folio.id,
+        type: FolioItemType.TAX,
+        description: `POS & F&B tax (QR Order ${orderNumber})`,
+        unitAmount: taxAmount,
+        quantity: 1,
+        amount: taxAmount,
+        taxAmount,
+        netAmount: taxAmount,
       },
     });
   }
@@ -204,10 +237,20 @@ export const QrOrderService = {
   ): Promise<{ orderNumber: string; estimatedMinutes: number }> {
     // 1. Validate items and build price map
     const itemMap = await fetchAndValidateItems(hotelId, dto.items);
-    const total   = dto.items.reduce(
+    const subtotal = dto.items.reduce(
       (sum, oi) => sum + (itemMap.get(oi.menuItemId)!.price * oi.quantity),
       0,
     );
+    const hotel = await adminPrisma.hotel.findUnique({
+      where: { id: hotelId },
+      select: { settings: true },
+    });
+    const settings = (hotel?.settings ?? {}) as Record<string, unknown>;
+    const taxRate = typeof settings.posTaxRate === "number"
+      ? Math.max(0, Math.min(100, settings.posTaxRate))
+      : 0;
+    const taxAmount = Math.round(subtotal * taxRate / 100);
+    const total = subtotal + taxAmount;
 
     // 2. Verify room (non-fatal — order proceeds even if verification fails or throws)
     let roomVerified   = false;
@@ -261,13 +304,13 @@ export const QrOrderService = {
         INSERT INTO qr_orders
           (hotel_id, order_number, guest_name, guest_phone, room_number,
            room_verified, reservation_id, delivery_type, special_instructions,
-           payment_preference, status, total_amount)
+           payment_preference, status, subtotal_amount, tax_amount, total_amount)
         VALUES
           (${hotelId}::uuid, ${orderNumber}, ${dto.guestName}, ${dto.guestPhone},
            ${dto.roomNumber ?? null}, ${roomVerified}, ${resIdSql},
            ${dto.deliveryType}, ${dto.specialInstructions ?? null},
            ${dto.paymentPreference ?? "charge_to_room"},
-           'pending', ${total}::bigint)
+           'pending', ${subtotal}::bigint, ${taxAmount}::bigint, ${total}::bigint)
         RETURNING *
       `);
 
@@ -591,6 +634,8 @@ export const QrOrderService = {
     if (order.status === "delivered") throw new AppError(400, "Cannot edit a delivered order");
 
     // Re-fetch menu item prices — never trust client-sent prices
+    let newSubtotal: number | undefined;
+    let newTaxAmount: number | undefined;
     let newTotal: number | undefined;
     const itemMap = new Map<string, { name: string; price: number }>();
 
@@ -601,10 +646,20 @@ export const QrOrderService = {
         throw new AppError(400, "One or more menu items not found");
       }
       for (const m of menuItems) itemMap.set(m.id, { name: m.name, price: m.price });
-      newTotal = dto.items.reduce(
+      newSubtotal = dto.items.reduce(
         (sum, oi) => sum + (itemMap.get(oi.menuItemId)!.price * oi.quantity),
         0,
       );
+      const hotel = await adminPrisma.hotel.findUnique({
+        where: { id: hotelId },
+        select: { settings: true },
+      });
+      const settings = (hotel?.settings ?? {}) as Record<string, unknown>;
+      const taxRate = typeof settings.posTaxRate === "number"
+        ? Math.max(0, Math.min(100, settings.posTaxRate))
+        : 0;
+      newTaxAmount = Math.round(newSubtotal * taxRate / 100);
+      newTotal = newSubtotal + newTaxAmount;
     }
 
     // flag folio review if already posted
@@ -629,6 +684,8 @@ export const QrOrderService = {
       }
 
       const sets: Prisma.Sql[] = [];
+      if (newSubtotal        !== undefined) sets.push(Prisma.sql`subtotal_amount        = ${newSubtotal}::bigint`);
+      if (newTaxAmount       !== undefined) sets.push(Prisma.sql`tax_amount             = ${newTaxAmount}::bigint`);
       if (newTotal           !== undefined) sets.push(Prisma.sql`total_amount           = ${newTotal}::bigint`);
       if (dto.deliveryType   !== undefined) sets.push(Prisma.sql`delivery_type          = ${dto.deliveryType}`);
       if (dto.specialInstructions !== undefined) sets.push(Prisma.sql`special_instructions = ${dto.specialInstructions ?? null}`);
@@ -712,7 +769,8 @@ export const QrOrderService = {
 
   async trackOrder(hotelId: string, orderNumber: string) {
     const rows = await adminPrisma.$queryRaw<QrOrderRow[]>`
-      SELECT id, order_number, status, delivery_type, special_instructions, created_at, total_amount, payment_preference, room_number
+      SELECT id, order_number, status, delivery_type, special_instructions, created_at,
+             subtotal_amount, tax_amount, total_amount, payment_preference, room_number
       FROM   qr_orders
       WHERE  hotel_id     = ${hotelId}::uuid
         AND  order_number ILIKE '%' || ${orderNumber}
@@ -735,6 +793,8 @@ export const QrOrderService = {
       deliveryType:        order.delivery_type,
       specialInstructions: order.special_instructions,
       createdAt:           order.created_at,
+      subtotalAmount:      Number(order.subtotal_amount),
+      taxAmount:           Number(order.tax_amount),
       totalAmount:         Number(order.total_amount),
       paymentPreference:   order.payment_preference,
       roomNumber:          order.room_number,

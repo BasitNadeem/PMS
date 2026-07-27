@@ -18,6 +18,13 @@ export interface PublicHotel {
   themeKey: string;
   cancellationPolicy: string | null;
   bookingPaymentTerms: string | null;
+  accommodationTax: {
+    gstEnabled: boolean;
+    gstRate: number;
+    pstEnabled: boolean;
+    pstRate: number;
+    taxInclusive: boolean;
+  };
 }
 
 export interface PublicRoomType {

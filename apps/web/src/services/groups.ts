@@ -60,6 +60,10 @@ export interface GroupReservation {
   status: ReservationStatus;
   checkInDate: string;
   checkOutDate: string;
+  subtotalAmount: number;
+  taxAmount: number;
+  taxInclusive: boolean;
+  taxBreakdown: Array<{ key: "GST" | "PST"; label: string; rate: number; amount: number }> | null;
   totalAmount: number;
   guest: GroupReservationGuest;
   room: GroupReservationRoom | null;

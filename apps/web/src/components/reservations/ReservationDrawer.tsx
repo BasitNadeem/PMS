@@ -290,23 +290,34 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
                   </div>
                   <div className="rounded-xl2 border border-line bg-card p-4 space-y-2.5">
                     {(() => {
-                      const nights = nightsBetween(reservation.checkInDate, reservation.checkOutDate);
                       const rate = reservation.rooms[0].ratePerNight;
-                      const subtotal = rate * nights;
-                      const tax = Math.round(subtotal * 0.05);
+                      const nights = nightsBetween(reservation.checkInDate, reservation.checkOutDate);
+                      const enteredAmount = rate * nights;
+                      const subtotal = reservation.subtotalAmount || enteredAmount;
+                      const taxBreakdown = reservation.taxBreakdown ?? [];
                       return (
                         <>
                           <div className="flex items-center justify-between text-[14px]">
                             <span className="text-ink-mute">{fmtPkr(rate)} × {nights} nights</span>
-                            <span className="font-semibold text-ink tnum">{fmtPkr(subtotal)}</span>
+                            <span className="font-semibold text-ink tnum">{fmtPkr(enteredAmount)}</span>
                           </div>
-                          <div className="flex items-center justify-between text-[14px]">
-                            <span className="text-ink-mute">Service tax (5%)</span>
-                            <span className="font-semibold text-ink tnum">{fmtPkr(tax)}</span>
-                          </div>
+                          {taxBreakdown.map((tax) => (
+                            <div key={tax.key} className="flex items-center justify-between text-[14px]">
+                              <span className="text-ink-mute">
+                                {tax.label} ({tax.rate}%){reservation.taxInclusive ? " · included" : ""}
+                              </span>
+                              <span className="font-semibold text-ink tnum">{fmtPkr(tax.amount)}</span>
+                            </div>
+                          ))}
+                          {reservation.taxInclusive && reservation.taxAmount > 0 && (
+                            <div className="flex items-center justify-between text-[12px] text-ink-faint">
+                              <span>Net before included tax</span>
+                              <span className="tnum">{fmtPkr(subtotal)}</span>
+                            </div>
+                          )}
                           <div className="border-t border-line-soft pt-2.5 flex items-center justify-between">
                             <span className="text-[15px] font-bold text-ink">Total</span>
-                            <span className="serif text-[22px] text-ink tnum">{fmtPkr(subtotal + tax)}</span>
+                            <span className="serif text-[22px] text-ink tnum">{fmtPkr(reservation.totalAmount)}</span>
                           </div>
                         </>
                       );

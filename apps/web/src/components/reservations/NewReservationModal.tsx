@@ -16,6 +16,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { TONE } from "@/components/ui/StatusBadge";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { settingsService } from "@/services/settings";
+import { calculateAccommodationCharges } from "@/lib/accommodationCharges";
 
 interface SuggestResult {
   suggestedRate: number;
@@ -357,6 +359,11 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
 
 
   const createGuestMutation = useMutation({ mutationFn: guestsService.createGuest });
+  const { data: hotelSettings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: settingsService.getSettings,
+    staleTime: 60_000,
+  });
 
   const createReservationMutation = useMutation({
     mutationFn: (dto: CreateReservationDto) => reservationsService.createReservation(dto),
@@ -369,9 +376,13 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
   });
 
   const nights   = nightsBetween(form.checkIn, form.checkOut);
-  const subtotal = form.ratePerNight * nights;
-  const tax          = Math.round(subtotal * 0.05);
-  const totalAmount  = subtotal + tax;
+  const enteredAmount = form.ratePerNight * nights;
+  const charges = calculateAccommodationCharges(
+    enteredAmount,
+    (hotelSettings?.settings ?? {}) as Record<string, unknown>,
+  );
+  const subtotal = charges.subtotalAmount;
+  const totalAmount = charges.totalAmount;
   const maxOccupancy = selectedRoom?.roomType.maxOccupancy ?? 10;
   const today        = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
   const isPending    = createGuestMutation.isPending || createReservationMutation.isPending;
@@ -923,12 +934,22 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                 </div>
                 <div className="flex items-center justify-between text-[14px] border-t border-line-soft pt-3">
                   <span className="text-ink-mute">{fmtPkr(form.ratePerNight)} × {nights} nights</span>
-                  <span className="font-semibold text-ink tnum">{fmtPkr(subtotal)}</span>
+                  <span className="font-semibold text-ink tnum">{fmtPkr(enteredAmount)}</span>
                 </div>
-                <div className="flex items-center justify-between text-[14px]">
-                  <span className="text-ink-mute">Service tax (5%)</span>
-                  <span className="font-semibold text-ink tnum">{fmtPkr(tax)}</span>
-                </div>
+                {charges.taxBreakdown.map((tax) => (
+                  <div key={tax.key} className="flex items-center justify-between text-[14px]">
+                    <span className="text-ink-mute">
+                      {tax.label} ({tax.rate}%){charges.taxInclusive ? " · included" : ""}
+                    </span>
+                    <span className="font-semibold text-ink tnum">{fmtPkr(tax.amount)}</span>
+                  </div>
+                ))}
+                {charges.taxInclusive && charges.taxAmount > 0 && (
+                  <div className="flex items-center justify-between text-[12px] text-ink-faint">
+                    <span>Net room amount before included tax</span>
+                    <span className="tnum">{fmtPkr(subtotal)}</span>
+                  </div>
+                )}
                 <div className="border-t border-line-soft pt-3 flex items-center justify-between">
                   <span className="text-[15px] font-bold text-ink">Total due</span>
                   <span className="serif text-[26px] text-ink tnum">{fmtPkr(totalAmount)}</span>

@@ -24,6 +24,8 @@ export interface QrOrder {
   delivery_type:        "room_delivery" | "pickup" | "dine_in";
   special_instructions: string | null;
   status:               "pending" | "confirmed" | "preparing" | "ready" | "delivered" | "cancelled";
+  subtotal_amount:      number;
+  tax_amount:           number;
   total_amount:         number;
   folio_id:               string | null;
   requires_folio_review:  boolean;

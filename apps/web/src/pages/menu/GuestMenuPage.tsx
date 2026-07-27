@@ -55,6 +55,7 @@ export default function GuestMenuPage() {
 
   const categories: MenuCategory[] = data?.data ?? [];
   const hotelName = data?.hotel.name ?? "";
+  const posTaxRate = data?.hotel.posTaxRate ?? 0;
 
   function addToCart(item: MenuItem) {
     setCart((prev) => {
@@ -317,7 +318,7 @@ export default function GuestMenuPage() {
       </div>
 
       {/* Floating cart bar */}
-      <CartBar items={cart} onClick={() => setShowSheet(true)} />
+      <CartBar items={cart} taxRate={posTaxRate} onClick={() => setShowSheet(true)} />
 
       {/* Order confirmation bottom sheet */}
       {showSheet && (
@@ -325,6 +326,7 @@ export default function GuestMenuPage() {
           hotelSlug={hotelSlug!}
           hotelName={hotelName}
           items={cart}
+          taxRate={posTaxRate}
           onClose={() => setShowSheet(false)}
           onSuccess={handleSuccess}
           onUpdateQty={updateQty}
@@ -579,6 +581,18 @@ function TrackOrderView({
                     </div>
                   ))}
                 </div>
+                {order.taxAmount > 0 && (
+                  <div className="space-y-1.5 mt-3 pt-3 text-[13px]" style={{ borderTop: "1px solid rgb(var(--qr-line-soft))", color: "rgb(var(--qr-ink-soft))" }}>
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span className="tnum">PKR {Math.floor(order.subtotalAmount / 100).toLocaleString("en-PK")}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>POS &amp; F&amp;B tax</span>
+                      <span className="tnum">PKR {Math.floor(order.taxAmount / 100).toLocaleString("en-PK")}</span>
+                    </div>
+                  </div>
+                )}
                 <div className="flex justify-between items-center mt-3 pt-3 font-bold text-[15px]" style={{ borderTop: "1px solid rgb(var(--qr-line-soft))" }}>
                   <span style={{ color: "rgb(var(--qr-ink))" }}>Total</span>
                   <span className="tnum" style={{ color: "rgb(var(--qr-accent))" }}>

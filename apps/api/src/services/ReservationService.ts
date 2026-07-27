@@ -1,5 +1,5 @@
 import type { TenantTx } from "@pms/db";
-import { ReservationStatus, FolioItemType, RoomStatus, MaintenanceStatus } from "@pms/db";
+import { ReservationStatus, FolioItemType, RoomStatus, MaintenanceStatus, Prisma } from "@pms/db";
 import type { JwtPayload } from "../middleware/auth";
 import { recalculateFolioTotals } from "../utils/folioTotals";
 import { createLedgerEntryFromPayment } from "./CashBookService";
@@ -14,6 +14,11 @@ import { NotificationService } from "./NotificationService";
 import { notifyHousekeepingStaff } from "./HousekeepingService";
 import { notifyHotelDataChanged } from "../lib/realtime";
 import { enqueueReservationEmail } from "../lib/reservationEmails";
+import {
+  calculateAccommodationCharges,
+  parseAccommodationTaxBreakdown,
+} from "../lib/accommodationCharges";
+import { postStayFeeIfNeeded } from "../lib/stayFees";
 
 function shortDate(d: Date) {
   return d.toLocaleDateString("en-PK", { day: "numeric", month: "short" });
@@ -197,7 +202,15 @@ export const ReservationService = {
         (new Date(dto.checkOutDate).getTime() - new Date(dto.checkInDate).getTime()) /
         (1000 * 60 * 60 * 24)
       );
-      const totalAmount = dto.ratePerNight * nights;
+      const hotel = await db.hotel.findUniqueOrThrow({
+        where: { id: actor.hotelId },
+        select: { settings: true },
+      });
+      const charges = calculateAccommodationCharges(
+        dto.ratePerNight * nights,
+        (hotel.settings ?? {}) as Record<string, unknown>,
+      );
+      const totalAmount = charges.totalAmount;
       const advancePaid = dto.advancePayment ?? 0;
       if (advancePaid > totalAmount) {
         throw new AppError(400, "Advance payment cannot exceed the reservation total");
@@ -224,6 +237,10 @@ export const ReservationService = {
           source:             dto.source,
           specialRequests:    dto.specialRequests,
           quotedRate:         dto.ratePerNight,
+          subtotalAmount:     charges.subtotalAmount,
+          taxAmount:          charges.taxAmount,
+          taxInclusive:       charges.taxInclusive,
+          taxBreakdown:       charges.taxBreakdown as unknown as Prisma.InputJsonValue,
           totalAmount,
           advancePaid,
           balanceDue,
@@ -296,6 +313,12 @@ export const ReservationService = {
       ).catch(() => { /* already logged inside */ });
     }
 
+    try {
+      await enqueueReservationEmail("CONFIRMED", [reservation.id], actor.hotelId);
+    } catch (err) {
+      console.error("Failed to enqueue staff-created reservation confirmation email:", err);
+    }
+
     notifyHotelDataChanged(actor.hotelId);
     return reservation;
   },
@@ -307,6 +330,43 @@ export const ReservationService = {
     newStatus: ReservationStatus,
   ) {
     let checkoutCleanRoomNumber: string | null = null;
+
+    // A late fee must exist on the folio before the balance guard below runs.
+    // This preflight is deliberately a separate committed tenant transaction:
+    // if it adds a fee, checkout is blocked until staff settle that new balance.
+    if (newStatus === "CHECKED_OUT") {
+      await withTenant(async (db) => {
+        const reservation = await db.reservation.findUnique({
+          where: { id },
+          include: { folio: { select: { id: true, isOpen: true } } },
+        });
+        if (!reservation || reservation.status !== "CHECKED_IN") return;
+
+        let folio = reservation.folio;
+        if (!folio && reservation.groupId) {
+          const master = await db.reservation.findFirst({
+            where: { groupId: reservation.groupId, folio: { isNot: null } },
+            include: { folio: { select: { id: true, isOpen: true } } },
+          });
+          folio = master?.folio ?? null;
+        }
+        if (!folio?.isOpen) return;
+
+        const hotel = await db.hotel.findUniqueOrThrow({
+          where: { id: actor.hotelId },
+          select: { settings: true },
+        });
+        await postStayFeeIfNeeded(db, {
+          hotelId: actor.hotelId,
+          reservationId: id,
+          folioId: folio.id,
+          kind: "LATE_CHECKOUT",
+          now: new Date(),
+          stayDate: reservation.checkOutDate,
+          settings: (hotel.settings ?? {}) as Record<string, unknown>,
+        });
+      });
+    }
 
     return withTenant(async (db) => {
       const existing = await db.reservation.findUnique({
@@ -450,8 +510,7 @@ export const ReservationService = {
         const description =
           `Room charge – Room ${reservationRoom.room.number} · ` +
           `${fmtDate(existing.checkInDate)} to ${fmtDate(existing.checkOutDate)}`;
-        const unitAmount = reservationRoom.ratePerNight;
-        const amount     = unitAmount * nights;
+        const amount = existing.subtotalAmount;
 
         await db.folioItem.create({
           data: {
@@ -459,11 +518,42 @@ export const ReservationService = {
             folioId:     existing.folio.id,
             type:        FolioItemType.ROOM_CHARGE,
             description,
-            unitAmount,
-            quantity:    nights,
+            unitAmount:  amount,
+            quantity:    1,
             amount,
             netAmount:   amount,
           },
+        });
+
+        for (const tax of parseAccommodationTaxBreakdown(existing.taxBreakdown)) {
+          if (tax.amount <= 0) continue;
+          await db.folioItem.create({
+            data: {
+              hotelId: actor.hotelId,
+              folioId: existing.folio.id,
+              type: FolioItemType.TAX,
+              description: `${tax.label} (${tax.rate}%)`,
+              unitAmount: tax.amount,
+              quantity: 1,
+              amount: tax.amount,
+              taxAmount: tax.amount,
+              netAmount: tax.amount,
+            },
+          });
+        }
+
+        const hotel = await db.hotel.findUniqueOrThrow({
+          where: { id: actor.hotelId },
+          select: { settings: true },
+        });
+        await postStayFeeIfNeeded(db, {
+          hotelId: actor.hotelId,
+          reservationId: id,
+          folioId: existing.folio.id,
+          kind: "EARLY_CHECKIN",
+          now,
+          stayDate: existing.checkInDate,
+          settings: (hotel.settings ?? {}) as Record<string, unknown>,
         });
 
         await recalculateFolioTotals(db, existing.folio.id);
@@ -566,7 +656,7 @@ export const ReservationService = {
       }
       if (newStatus === "CONFIRMED" || newStatus === "CANCELLED") {
         try {
-          await enqueueReservationEmail(newStatus, [id]);
+          await enqueueReservationEmail(newStatus, [id], actor.hotelId);
         } catch (err) {
           console.error(`Failed to enqueue reservation ${newStatus.toLowerCase()} email:`, err);
         }

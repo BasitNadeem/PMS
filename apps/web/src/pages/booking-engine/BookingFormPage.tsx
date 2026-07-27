@@ -9,6 +9,8 @@ import {
 } from "@/services/bookingEngine";
 import { cn } from "@/lib/cn";
 import { getPhoneErrorMessage, getEmailErrorMessage } from "@/lib/validation";
+import { calculateAccommodationCharges } from "@/lib/accommodationCharges";
+import type { PublicHotel } from "@/services/bookingEngine";
 
 const CART_KEY = (slug: string) => `be_cart_${slug}`;
 const PROMO_KEY = (slug: string) => `be_promo_${slug}`;
@@ -115,13 +117,17 @@ function Stepper({ value, min = 0, max = 99, onChange, accentColor }: {
 
 // ── Booking Summary ───────────────────────────────────────────────────────────
 
-function SummaryCard({ cart, checkIn, checkOut, nights, adults, children, promoCode, accentColor, cancellationPolicy }: {
+function SummaryCard({ cart, checkIn, checkOut, nights, adults, children, promoCode, accentColor, cancellationPolicy, taxSettings }: {
   cart: CartItem[]; checkIn: string; checkOut: string;
   nights: number; adults: number; children: number; promoCode: string; accentColor: string;
   cancellationPolicy: string | null;
+  taxSettings: PublicHotel["accommodationTax"];
 }) {
   const nightlyTotal = cart.reduce((s, c) => s + (c.ratePerNight ?? c.defaultRate) * c.quantity, 0);
-  const grandTotal   = nightlyTotal * nights;
+  const charges = calculateAccommodationCharges(
+    nightlyTotal * nights,
+    taxSettings as unknown as Record<string, unknown>,
+  );
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.05)] overflow-hidden sticky top-24">
@@ -183,9 +189,15 @@ function SummaryCard({ cart, checkIn, checkOut, nights, adults, children, promoC
 
       {/* Total */}
       <div className="px-5 py-4">
+        {charges.taxBreakdown.map((tax) => (
+          <div key={tax.key} className="mb-2 flex items-center justify-between text-[12px] text-gray-500">
+            <span>{tax.label} ({tax.rate}%){charges.taxInclusive ? " · included" : ""}</span>
+            <span>{fmt(tax.amount)}</span>
+          </div>
+        ))}
         <div className="flex items-baseline justify-between mb-3">
           <span className="text-[13px] font-medium text-gray-500">Estimated total</span>
-          <span className="text-[24px] font-bold text-gray-900 leading-none">{fmt(grandTotal)}</span>
+          <span className="text-[24px] font-bold text-gray-900 leading-none">{fmt(charges.totalAmount)}</span>
         </div>
         <div className="flex items-center gap-2 text-[11.5px] text-gray-400 mb-4">
           <Lock size={11} />
@@ -203,11 +215,15 @@ function SummaryCard({ cart, checkIn, checkOut, nights, adults, children, promoC
 
 // ── Compact mobile summary ────────────────────────────────────────────────────
 
-function CompactSummary({ cart, checkIn, checkOut, nights, adults, children, promoCode, accentColor }: {
+function CompactSummary({ cart, checkIn, checkOut, nights, adults, children, promoCode, accentColor, taxSettings }: {
   cart: CartItem[]; checkIn: string; checkOut: string;
   nights: number; adults: number; children: number; promoCode: string; accentColor: string;
+  taxSettings: PublicHotel["accommodationTax"];
 }) {
-  const grandTotal = cart.reduce((s, c) => s + (c.ratePerNight ?? c.defaultRate) * c.quantity, 0) * nights;
+  const charges = calculateAccommodationCharges(
+    cart.reduce((s, c) => s + (c.ratePerNight ?? c.defaultRate) * c.quantity, 0) * nights,
+    taxSettings as unknown as Record<string, unknown>,
+  );
 
   return (
     <div className="flex items-center justify-between gap-3 px-5 py-3">
@@ -217,7 +233,14 @@ function CompactSummary({ cart, checkIn, checkOut, nights, adults, children, pro
           {" · "}{nights} night{nights !== 1 ? "s" : ""}
         </p>
         <p className="text-[12px] text-gray-500">{adults} adult{adults !== 1 ? "s" : ""}{children > 0 ? ` · ${children} child${children !== 1 ? "ren" : ""}` : ""}{promoCode ? ` · ${promoCode}` : ""}</p>
-        <p className="text-[15px] font-bold text-gray-900">{fmt(grandTotal)}</p>
+        <p className="text-[15px] font-bold text-gray-900">
+          {fmt(charges.totalAmount)}
+          {charges.taxAmount > 0 && (
+            <span className="ml-1 text-[10px] font-medium text-gray-400">
+              tax {charges.taxInclusive ? "included" : "added"}
+            </span>
+          )}
+        </p>
       </div>
       <Link to={`/?checkIn=${checkIn}&checkOut=${checkOut}`}
         className="text-[12px] font-semibold shrink-0 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
@@ -433,6 +456,7 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
         <CompactSummary
           cart={cart} checkIn={checkIn} checkOut={checkOut}
           nights={nights} adults={form.adults} children={form.children} promoCode={promoCode} accentColor={accentColor}
+          taxSettings={hotel?.accommodationTax ?? { gstEnabled: false, gstRate: 0, pstEnabled: false, pstRate: 0, taxInclusive: false }}
         />
       </div>
 
@@ -614,6 +638,7 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
               cart={cart} checkIn={checkIn} checkOut={checkOut}
               nights={nights} adults={form.adults} children={form.children} promoCode={promoCode} accentColor={accentColor}
               cancellationPolicy={hotel?.cancellationPolicy ?? null}
+              taxSettings={hotel?.accommodationTax ?? { gstEnabled: false, gstRate: 0, pstEnabled: false, pstRate: 0, taxInclusive: false }}
             />
           </div>
         </div>

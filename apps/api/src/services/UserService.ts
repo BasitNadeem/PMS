@@ -46,8 +46,12 @@ export const UserService = {
     const userCount = await adminPrisma.hotelUser.count({ where: { hotelId: actor.hotelId } });
     await checkUserLimit(actor.hotelId, userCount);
 
-    // Resolve role from global roles table (system roles have hotelId = null)
-    const role = await adminPrisma.role.findFirst({ where: { id: dto.roleId } });
+    const role = await adminPrisma.role.findFirst({
+      where: {
+        id: dto.roleId,
+        OR: [{ hotelId: null }, { hotelId: actor.hotelId }],
+      },
+    });
     if (!role) throw new AppError(400, "Invalid role");
 
     const existingUser = await adminPrisma.user.findUnique({ where: { email: dto.email } });
@@ -147,7 +151,12 @@ export const UserService = {
       // Resolve new role if changing
       let newRole: { id: string; name: string } | null = null;
       if (dto.roleId) {
-        newRole = await adminPrisma.role.findFirst({ where: { id: dto.roleId } });
+        newRole = await adminPrisma.role.findFirst({
+          where: {
+            id: dto.roleId,
+            OR: [{ hotelId: null }, { hotelId: actor.hotelId }],
+          },
+        });
         if (!newRole) throw new AppError(400, "Invalid role");
       }
 
@@ -224,11 +233,22 @@ export const UserService = {
     );
   },
 
-  async listRoles() {
-    return adminPrisma.role.findMany({
-      where:   { isSystem: true, hotelId: null },
-      select:  { id: true, name: true, displayName: true, description: true, color: true, sortOrder: true },
-      orderBy: { sortOrder: "asc" },
+  async listRoles(hotelId: string) {
+    const roles = await adminPrisma.role.findMany({
+      where: {
+        OR: [
+          { isSystem: true, hotelId: null },
+          { hotelId },
+        ],
+      },
+      select:  { id: true, hotelId: true, name: true, displayName: true, description: true, color: true, sortOrder: true },
+      orderBy: [{ sortOrder: "asc" }, { hotelId: "desc" }],
     });
+    const effective = new Map<string, (typeof roles)[number]>();
+    for (const role of roles) {
+      const existing = effective.get(role.name);
+      if (!existing || role.hotelId === hotelId) effective.set(role.name, role);
+    }
+    return [...effective.values()].sort((a, b) => a.sortOrder - b.sortOrder);
   },
 };

@@ -83,8 +83,8 @@ router.post("/test-briefing", async (req, res) => {
 
 // GET /api/settings/permissions
 // Returns every non-OWNER system role with its full permission matrix.
-router.get("/permissions", async (_req, res) => {
-  const data = await PermissionsService.getRolePermissions();
+router.get("/permissions", async (req, res) => {
+  const data = await PermissionsService.getRolePermissions(req.user!.hotelId);
   res.json({ data });
 });
 
@@ -95,7 +95,11 @@ router.patch("/permissions/:roleId", async (req, res) => {
     throw new AppError(403, "Only owners can manage role permissions");
   }
   const dto = updateRolePermissionsSchema.parse(req.body);
-  const result = await PermissionsService.updateRolePermissions(req.params.roleId as string, dto);
+  const result = await PermissionsService.updateRolePermissions(
+    req.user!.hotelId,
+    req.params.roleId as string,
+    dto,
+  );
   res.json(result);
 });
 

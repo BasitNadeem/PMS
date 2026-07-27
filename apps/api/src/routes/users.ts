@@ -11,7 +11,7 @@ router.use(authenticate, tenantMiddleware);
 
 // GET /api/users/roles — BEFORE /:id
 router.get("/roles", requirePermission("USER_READ"), async (req, res) => {
-  const roles = await UserService.listRoles();
+  const roles = await UserService.listRoles(req.user!.hotelId);
   res.json({ data: roles });
 });
 

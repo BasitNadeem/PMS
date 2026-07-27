@@ -652,21 +652,28 @@ function LiveScheduleHero({
 
 // ── Arrivals/departures panel ─────────────────────────────────────────────────
 
-function ArrivalsPanel({ reservations }: { reservations: DashboardRecentReservation[] }) {
+function formatUpcomingDate(checkInDate: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Karachi",
+  }).format(new Date(checkInDate));
+}
+
+function ArrivalsPanel({ reservations, upcoming }: { reservations: DashboardRecentReservation[]; upcoming: DashboardRecentReservation[] }) {
   const navigate = useNavigate();
-  const [tab, setTab] = React.useState<"arrivals" | "inhouse">("arrivals");
+  const [tab, setTab] = React.useState<"arrivals" | "inhouse" | "upcoming">("arrivals");
 
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
   const arrivals = reservations.filter(
     (r) => r.checkInDate?.slice(0, 10) === today && r.status !== "CANCELLED",
   );
   const inHouse = reservations.filter((r) => r.status === "CHECKED_IN");
-  const rawList = tab === "arrivals" ? arrivals : inHouse;
+  const rawList = tab === "arrivals" ? arrivals : tab === "inhouse" ? inHouse : upcoming;
 
-  // Arrivals collapses each group into one row (checking in a whole group is one front-desk
-  // action). In-house does NOT collapse — staff need to see every room/guest currently staying,
-  // and the tab's count badge always reflects individual reservations, not groups.
-  const collapseGroups = tab === "arrivals";
+  // Arrivals and Upcoming collapse each group into one row (checking in a whole group is one
+  // front-desk action). In-house does NOT collapse — staff need to see every room/guest
+  // currently staying, and the tab's count badge always reflects individual reservations,
+  // not groups.
+  const collapseGroups = tab === "arrivals" || tab === "upcoming";
   const groupRoomCounts: Record<string, number> = {};
   rawList.forEach((r) => {
     if (r.groupId) groupRoomCounts[r.groupId] = (groupRoomCounts[r.groupId] ?? 0) + 1;
@@ -680,8 +687,12 @@ function ArrivalsPanel({ reservations }: { reservations: DashboardRecentReservat
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-4">
         <h3 className="serif text-[20px] text-ink">Front desk today</h3>
         <div className="inline-flex items-center gap-0.5 rounded-full bg-line-soft p-1">
-          {(["arrivals", "inhouse"] as const).map((v) => {
-            const labels = { arrivals: `Arrivals ${arrivals.length}`, inhouse: `In-house ${inHouse.length}` };
+          {(["arrivals", "inhouse", "upcoming"] as const).map((v) => {
+            const labels = {
+              arrivals: `Arrivals ${arrivals.length}`,
+              inhouse:  `In-house ${inHouse.length}`,
+              upcoming: `Upcoming ${upcoming.length}`,
+            };
             const on = tab === v;
             return (
               <button
@@ -697,7 +708,9 @@ function ArrivalsPanel({ reservations }: { reservations: DashboardRecentReservat
       </div>
       <div className="px-2 pb-3">
         {list.length === 0 ? (
-          <div className="px-3 py-10 text-center text-sm text-ink-mute">Nothing scheduled.</div>
+          <div className="px-3 py-10 text-center text-sm text-ink-mute">
+            {tab === "upcoming" ? "No arrivals in the next 7 days." : "Nothing scheduled."}
+          </div>
         ) : (
           list.slice(0, 6).map((r) => {
             const isGroup = !!r.groupId;
@@ -731,12 +744,13 @@ function ArrivalsPanel({ reservations }: { reservations: DashboardRecentReservat
                   </div>
                   <div className="text-[12.5px] text-ink-mute">
                     {showAsGroup ? `${roomCount} room${roomCount !== 1 ? "s" : ""}` : r.roomNumber ? `Room ${r.roomNumber}` : "—"}
+                    {tab === "upcoming" && ` · ${formatUpcomingDate(r.checkInDate)}`}
                   </div>
                 </div>
                 <div className="hidden sm:flex flex-col items-end gap-1">
                   <StatusBadge status={statusLabel} size="sm" />
                 </div>
-                {!showAsGroup && r.status === "CONFIRMED" ? (
+                {!showAsGroup && r.status === "CONFIRMED" && tab !== "upcoming" ? (
                   <div className="ml-1 flex items-center gap-1 rounded-full bg-pine-soft text-pine-deep px-2.5 h-8 text-[13px] font-semibold">
                     <LogIn size={14} /> Check in
                   </div>
@@ -902,6 +916,7 @@ export default function DashboardPage() {
   const mnt = dash?.maintenance;
   const inv = dash?.inventory;
   const recent = dash?.recentReservations ?? [];
+  const upcoming = dash?.upcomingReservations ?? [];
 
   const totalRooms = occ?.totalRooms ?? 1;
   const collectCount = dash?.departuresToCollect?.items.length ?? 0;
@@ -1085,7 +1100,7 @@ export default function DashboardPage() {
       {/* Front desk arrivals + housekeeping */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mt-5">
         <Card className="xl:col-span-2 anim-fade-up" style={{ animationDelay: "240ms" }} pad={false}>
-          <ArrivalsPanel reservations={recent} />
+          <ArrivalsPanel reservations={recent} upcoming={upcoming} />
         </Card>
 
         <div className="flex flex-col gap-5">

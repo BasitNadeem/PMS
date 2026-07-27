@@ -100,6 +100,7 @@ export interface DashboardData {
   maintenance:         DashboardMaintenance;
   inventory:           DashboardInventory;
   recentReservations:  DashboardRecentReservation[];
+  upcomingReservations: DashboardRecentReservation[];
   departuresToCollect: DashboardDeparturesToCollect;
   schedule:            DashboardScheduleEvent[];
 }

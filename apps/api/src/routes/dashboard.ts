@@ -18,6 +18,13 @@ router.get("/", async (req, res) => {
   const yesterdayEnd = new Date(todayEnd);
   yesterdayEnd.setUTCDate(yesterdayEnd.getUTCDate() - 1);
 
+  // "Upcoming" window for the front-desk card's third tab — the 7 days AFTER today,
+  // starting tomorrow so it never overlaps with the "Arrivals" (today) tab.
+  const upcomingStart = new Date(todayStart);
+  upcomingStart.setUTCDate(upcomingStart.getUTCDate() + 1);
+  const upcomingEnd = new Date(todayEnd);
+  upcomingEnd.setUTCDate(upcomingEnd.getUTCDate() + 7);
+
   const data = await req.withTenant(async (db) => {
     const [
       totalRooms,
@@ -37,6 +44,7 @@ router.get("/", async (req, res) => {
       checkoutCleansPending,
       openMaintenanceTickets,
       recentReservations,
+      upcomingReservations,
       invLowStockRows,
       invOutOfStockRows,
       arrivalsYesterday,
@@ -111,6 +119,22 @@ router.get("/", async (req, res) => {
       db.reservation.findMany({
         take: 5,
         orderBy: { createdAt: "desc" },
+        include: {
+          guest: { select: { fullName: true } },
+          rooms: {
+            take: 1,
+            include: { room: { select: { number: true } } },
+          },
+        },
+      }),
+      // Front-desk card's "Upcoming" tab — next 7 days of arrivals, earliest first.
+      db.reservation.findMany({
+        where: {
+          checkInDate: { gte: upcomingStart, lte: upcomingEnd },
+          status: { notIn: ["CANCELLED", "NO_SHOW"] },
+        },
+        take: 20,
+        orderBy: { checkInDate: "asc" },
         include: {
           guest: { select: { fullName: true } },
           rooms: {
@@ -300,6 +324,17 @@ router.get("/", async (req, res) => {
         outOfStockCount: Number(invOutOfStockRows[0]?.count ?? 0),
       },
       recentReservations: recentReservations.map((r) => ({
+        id:                 r.id,
+        confirmationNumber: r.confirmationNumber,
+        status:             r.status,
+        checkInDate:        r.checkInDate,
+        checkOutDate:       r.checkOutDate,
+        guestName:          r.guest.fullName,
+        roomNumber:         r.rooms[0]?.room.number ?? null,
+        groupId:            r.groupId,
+        isVip:              r.isVip,
+      })),
+      upcomingReservations: upcomingReservations.map((r) => ({
         id:                 r.id,
         confirmationNumber: r.confirmationNumber,
         status:             r.status,

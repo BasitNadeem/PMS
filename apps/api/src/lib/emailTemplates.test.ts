@@ -56,6 +56,9 @@ test("request email uses accurate enquiry language and renders grouped rooms", (
   assert.match(html, /2 × Deluxe Room/);
   assert.match(html, /Family Suite/);
   assert.match(html, /3 rooms · 2 nights/);
+  assert.match(html, /Main Bazaar, Hunza/);
+  assert.match(html, /Get directions/);
+  assert.match(html, /google\.com\/maps\/dir\/\?api=1&amp;destination=/);
   assert.doesNotMatch(html, /Your reservation is confirmed/);
 });
 
@@ -67,11 +70,20 @@ test("customer and hotel content is HTML escaped", () => {
   assert.doesNotMatch(html, /<script>alert/);
 });
 
-test("cancellation email has cancellation copy and omits amenity promotion", () => {
+test("cancellation email is a focused acknowledgement with hotel support details", () => {
   const html = reservationLifecycleEmail({ ...baseData, kind: "CANCELLED" });
   assert.match(html, /Reservation cancelled/);
   assert.match(html, /has been cancelled/);
-  assert.match(html, /Original booking total/);
+  assert.match(html, /Cancellation reference/);
+  assert.match(html, /\+92 300 1234567/);
+  assert.match(html, /Free cancellation up to 72 hours before arrival/);
+  assert.doesNotMatch(html, /Hotel location/);
+  assert.doesNotMatch(html, /Get directions/);
+  assert.doesNotMatch(html, /Check-in/);
+  assert.doesNotMatch(html, /Check-out/);
+  assert.doesNotMatch(html, /Original booking total/);
+  assert.doesNotMatch(html, /cdn\.example\.com\/deluxe-1\.jpg/);
+  assert.doesNotMatch(html, /Deluxe Room/);
   assert.doesNotMatch(html, /A few things to look forward to/);
   assert.doesNotMatch(html, /Booking &amp; payment terms/);
 });

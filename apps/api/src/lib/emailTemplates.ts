@@ -84,6 +84,30 @@ function hotelLocation(data: ReservationEmailData): string | null {
   return parts.length > 0 ? [...new Set(parts)].join(", ") : null;
 }
 
+function directionsCard(data: ReservationEmailData): string {
+  const location = hotelLocation(data);
+  if (!location) return "";
+  const destination = `${data.hotelName}, ${location}`;
+  const directionsUrl = escapeHtml(
+    `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&dir_action=navigate`,
+  );
+
+  return `
+    <div style="background:#f4f2ee; border:1px solid #e5e0d8; border-radius:14px; padding:18px 20px; text-align:left;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="vertical-align:middle; padding-right:14px;">
+            <div style="color:${data.accentColor}; font-size:11px; font-weight:bold; letter-spacing:1.3px; text-transform:uppercase;">Hotel location</div>
+            <div style="margin-top:5px; color:#293330; font-size:14px; line-height:21px;">${escapeHtml(location)}</div>
+          </td>
+          <td style="vertical-align:middle; text-align:right; white-space:nowrap;">
+            <a href="${directionsUrl}" target="_blank" style="display:inline-block; background:${data.accentColor}; border-radius:999px; padding:11px 17px; color:#ffffff; text-decoration:none; font-size:12px; font-weight:bold;">Get directions&nbsp;&nbsp;→</a>
+          </td>
+        </tr>
+      </table>
+    </div>`;
+}
+
 function contactLink(label: string, href: string): string {
   return `<a href="${href}" style="display:inline-block; color:#ffffff; text-decoration:none; font-size:13px; line-height:20px; margin:3px 10px;">${escapeHtml(label)}</a>`;
 }
@@ -185,7 +209,112 @@ function policySection(data: ReservationEmailData): string {
     </tr>`;
 }
 
+function cancellationEmail(data: ReservationEmailData): string {
+  const year = new Date().getFullYear();
+  const logoUrl = safeImageUrl(data.hotelLogoUrl);
+  const location = hotelLocation(data);
+  const website = safeLink(data.hotelWebsite);
+  const supportNumber = data.hotelPhone ?? data.hotelWhatsapp;
+  const supportDigits = supportNumber?.replace(/[^\d+]/g, "") ?? "";
+  const phoneHref = supportDigits ? `tel:${escapeHtml(supportDigits)}` : null;
+  const whatsappDigits = data.hotelWhatsapp?.replace(/\D/g, "") ?? "";
+  const whatsappHref = whatsappDigits ? `https://wa.me/${escapeHtml(whatsappDigits)}` : null;
+  const preheader = `Reservation cancelled · ${data.confirmationNumber} · ${data.hotelName}`;
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <style>
+    @media only screen and (max-width: 640px) {
+      .shell { width:100% !important; }
+      .pad { padding-left:22px !important; padding-right:22px !important; }
+      .cancel-title { font-size:38px !important; line-height:43px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0; padding:0; background:#efede9; -webkit-font-smoothing:antialiased;">
+  <div style="display:none; max-height:0; overflow:hidden; opacity:0;">${escapeHtml(preheader)}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#efede9;">
+    <tr>
+      <td align="center" style="padding:24px 10px;">
+        <table role="presentation" class="shell" width="640" cellpadding="0" cellspacing="0" style="width:640px; max-width:640px; background:#ffffff; border-radius:22px; overflow:hidden; font-family:Arial, Helvetica, sans-serif; box-shadow:0 10px 35px rgba(27,34,31,0.08);">
+          <tr>
+            <td class="pad" style="padding:28px 38px 22px; border-bottom:1px solid #e6e3dd; text-align:center;">
+              ${logoUrl
+                ? `<img src="${logoUrl}" alt="${escapeHtml(data.hotelName)}" style="display:inline-block; max-height:58px; max-width:190px; width:auto;">`
+                : `<div style="font-family:Georgia, 'Times New Roman', serif; color:#17211e; font-size:25px; font-weight:bold;">${escapeHtml(data.hotelName)}</div>`}
+            </td>
+          </tr>
+
+          <tr>
+            <td class="pad" style="padding:46px 38px 34px;">
+              <p style="margin:0 0 14px; color:${data.accentColor}; font-size:11px; font-weight:bold; letter-spacing:1.8px; text-transform:uppercase;">Reservation cancelled</p>
+              <h1 class="cancel-title" style="margin:0; max-width:500px; color:#183b38; font-family:Georgia, 'Times New Roman', serif; font-size:48px; line-height:54px; font-weight:normal;">Your reservation has been cancelled.</h1>
+              <p style="margin:28px 0 0; color:#293330; font-size:16px; line-height:26px;">Hello ${escapeHtml(data.guestName)},</p>
+              <p style="margin:12px 0 0; color:#59615e; font-size:15px; line-height:24px;">
+                This email confirms that your reservation at ${escapeHtml(data.hotelName)} has been cancelled.
+                If this was unexpected, please contact the hotel and we’ll be happy to help.
+              </p>
+              <div style="margin-top:28px; border-top:1px solid #d9d5ce; border-bottom:1px solid #d9d5ce; padding:17px 0; color:#626967; font-size:13px;">
+                Cancellation reference
+                <strong style="display:block; color:${data.accentColor}; font-size:21px; margin-top:5px;">${escapeHtml(data.confirmationNumber)}</strong>
+              </div>
+              ${data.cancellationPolicy ? `
+                <div style="margin-top:24px; background:#f4f2ee; border-radius:14px; padding:20px 22px;">
+                  <p style="margin:0 0 6px; color:#17211e; font-size:13px; font-weight:bold;">Cancellation policy</p>
+                  <p style="margin:0; color:#626967; font-size:12px; line-height:19px;">${multiline(data.cancellationPolicy)}</p>
+                </div>` : ""}
+            </td>
+          </tr>
+
+          <tr>
+            <td class="pad" style="padding:0 38px 46px; text-align:center;">
+              <div style="border-top:1px solid #d9d5ce; padding-top:36px;">
+                <h2 style="margin:0; color:#183b38; font-family:Georgia, 'Times New Roman', serif; font-size:30px; font-weight:normal;">We’re always ready to help.</h2>
+                <p style="margin:14px auto 20px; max-width:480px; color:#626967; font-size:14px; line-height:22px;">
+                  If you have any questions, reply to this email or contact the hotel directly.
+                </p>
+                ${phoneHref ? `
+                  <a href="${phoneHref}" style="display:inline-block; border:1px solid #183b38; border-radius:999px; padding:12px 22px; color:#183b38; text-decoration:none; font-size:15px; font-weight:bold;">
+                    &#9742;&nbsp;&nbsp;${escapeHtml(supportNumber ?? "Call hotel")}
+                  </a>` : data.hotelEmail ? `
+                  <a href="mailto:${escapeHtml(data.hotelEmail)}" style="display:inline-block; border:1px solid #183b38; border-radius:999px; padding:12px 22px; color:#183b38; text-decoration:none; font-size:14px; font-weight:bold;">
+                    ${escapeHtml(data.hotelEmail)}
+                  </a>` : ""}
+                <p style="margin:28px 0 0; color:#59615e; font-family:Georgia, 'Times New Roman', serif; font-size:18px; font-style:italic;">We hope to welcome you in the future.</p>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background:#183b38; padding:34px 28px; text-align:center;">
+              <p style="margin:0; color:#ffffff; font-family:Georgia, 'Times New Roman', serif; font-size:22px; font-style:italic;">Plans change. Our welcome will still be here.</p>
+              <p style="margin:12px auto 18px; max-width:430px; color:#b8cbc7; font-size:12px; line-height:19px;">
+                ${location ? escapeHtml(location) : escapeHtml(data.hotelName)}
+              </p>
+              <div>
+                ${phoneHref ? contactLink(supportNumber ?? "Call hotel", phoneHref) : ""}
+                ${whatsappHref ? contactLink("WhatsApp", whatsappHref) : ""}
+                ${data.hotelEmail ? contactLink(data.hotelEmail, `mailto:${escapeHtml(data.hotelEmail)}`) : ""}
+                ${website ? contactLink("Visit website", website) : ""}
+              </div>
+              <div style="height:1px; background:#31524f; margin:24px auto 18px; max-width:450px;"></div>
+              <p style="margin:0; color:#8fb4ae; font-size:11px;">© ${year} ${escapeHtml(data.hotelName)} &nbsp;·&nbsp; <a href="https://innflo.co" style="color:#b8cbc7; text-decoration:none;">Powered by InnFlo</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
 export function reservationLifecycleEmail(data: ReservationEmailData): string {
+  if (data.kind === "CANCELLED") return cancellationEmail(data);
+
   const copy = COPY[data.kind];
   const year = new Date().getFullYear();
   const logoUrl = safeImageUrl(data.hotelLogoUrl);
@@ -226,7 +355,7 @@ export function reservationLifecycleEmail(data: ReservationEmailData): string {
                       : `<div style="font-family:Georgia, 'Times New Roman', serif; color:#17211e; font-size:23px; font-weight:bold;">${escapeHtml(data.hotelName)}</div>`}
                   </td>
                   <td style="text-align:right; vertical-align:middle;">
-                    <span style="display:inline-block; background:${data.kind === "CANCELLED" ? "#f7e7e3" : "#edf4ef"}; color:${data.kind === "CANCELLED" ? "#9f3c2d" : "#2f7256"}; border-radius:999px; padding:7px 11px; font-size:11px; font-weight:bold;">${escapeHtml(copy.status)}</span>
+                    <span style="display:inline-block; background:#edf4ef; color:#2f7256; border-radius:999px; padding:7px 11px; font-size:11px; font-weight:bold;">${escapeHtml(copy.status)}</span>
                   </td>
                 </tr>
               </table>
@@ -275,7 +404,7 @@ export function reservationLifecycleEmail(data: ReservationEmailData): string {
                 </tr>
                 ${data.promoCode ? `<tr><td style="padding:6px 0; color:#6b716f; font-size:13px;">Promo / corporate code</td><td style="padding:6px 0; color:${data.accentColor}; font-size:13px; font-weight:bold; text-align:right;">${escapeHtml(data.promoCode)}</td></tr>` : ""}
                 <tr>
-                  <td style="padding:18px 0 0; border-top:1px solid #d8d3cb; color:#17211e; font-size:14px; font-weight:bold;">${data.kind === "CANCELLED" ? "Original booking total" : "Estimated total"}</td>
+                  <td style="padding:18px 0 0; border-top:1px solid #d8d3cb; color:#17211e; font-size:14px; font-weight:bold;">Estimated total</td>
                   <td style="padding:18px 0 0; border-top:1px solid #d8d3cb; color:#17211e; font-family:Georgia, 'Times New Roman', serif; font-size:24px; text-align:right;">${formatPKR(data.totalAmount)}</td>
                 </tr>
               </table>
@@ -283,7 +412,13 @@ export function reservationLifecycleEmail(data: ReservationEmailData): string {
             </td>
           </tr>
 
-          ${data.kind !== "CANCELLED" ? amenityGrid(data) : ""}
+          ${amenityGrid(data)}
+          ${hotelLocation(data) ? `
+            <tr>
+              <td class="pad" style="padding:0 34px 30px;">
+                ${directionsCard(data)}
+              </td>
+            </tr>` : ""}
           ${policySection(data)}
 
           <tr>

@@ -125,7 +125,13 @@ export default function StayTypeTemplate({ eyebrow, heading, image, intro, ctaLa
             </div>
             <Reveal variant="scale" delay={0.1}>
               <div className="rounded-3xl overflow-hidden shadow-float aspect-[4/3]">
-                <img src={image} alt={heading.join(" ")} className="w-full h-full object-cover" />
+                <img
+                  src={image}
+                  alt={heading.join(" ")}
+                  decoding="async"
+                  fetchPriority="high"
+                  className="h-full w-full object-cover"
+                />
               </div>
             </Reveal>
           </div>
@@ -204,7 +210,13 @@ export default function StayTypeTemplate({ eyebrow, heading, image, intro, ctaLa
                 <div className="h-full rounded-2xl bg-card border border-line overflow-hidden shadow-card hover:shadow-float transition-all duration-300 flex flex-col">
                   {item.image && (
                     <div className="w-full aspect-[4/3] overflow-hidden border-b border-line bg-[#EAE8E4]">
-                      <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                      <img
+                        src={item.image}
+                        alt={item.title}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-full w-full object-cover"
+                      />
                     </div>
                   )}
                   <div className="p-6 flex-1 flex flex-col">

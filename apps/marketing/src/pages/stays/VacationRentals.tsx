@@ -18,8 +18,8 @@ export default function VacationRentals() {
         tagline: "Benefits",
         heading: "Every unit, one clear picture.",
         items: [
-          { icon: LayoutDashboard, title: "Every unit, one system", body: "Rooms and rentable spaces at the property sit on the same calendar and dashboard.", image: "/images/benefits/vacation_dashboard.png" },
-          { icon: ShieldCheck, title: "Never double-booked", body: "Availability updates the instant a unit is booked, so the same dates can't be sold twice by mistake.", image: "/images/benefits/vacation_sync.png" },
+          { icon: LayoutDashboard, title: "Every unit, one system", body: "Rooms and rentable spaces at the property sit on the same calendar and dashboard.", image: "/images/benefits/vacation_dashboard.webp" },
+          { icon: ShieldCheck, title: "Never double-booked", body: "Availability updates the instant a unit is booked, so the same dates can't be sold twice by mistake.", image: "/images/benefits/vacation_sync.webp" },
           { icon: Wallet, title: "Payments without the chase", body: "Cash, card, bank transfer, JazzCash, EasyPaisa — ten payment methods across every unit's folio.", image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=600&q=80" },
           { icon: BarChart3, title: "Performance in context", body: "Occupancy, ADR and revenue sit beside the reservations and payments that produced them.", image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80" },
         ],

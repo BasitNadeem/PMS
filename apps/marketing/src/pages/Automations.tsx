@@ -280,6 +280,8 @@ function ReservationEmailAutomationMockup() {
                         <img
                           src="/images/hotels.webp"
                           alt="Mountain-view room at Central Inn"
+                          loading="lazy"
+                          decoding="async"
                           className="h-[180px] w-full rounded-2xl object-cover sm:h-[230px]"
                         />
                       </div>

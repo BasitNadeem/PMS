@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -18,6 +18,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import { preloadRoute, preloadRoutes } from "../lib/routePreload";
 
 const PRODUCT_LINKS = [
   {
@@ -68,11 +69,15 @@ export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopMenu, setDesktopMenu] = useState<DesktopMenu>(null);
+  const scrolledRef = useRef(false);
   const location = useLocation();
 
   useEffect(() => {
     function onScroll() {
-      setScrolled(window.scrollY > 36);
+      const nextScrolled = window.scrollY > 36;
+      if (nextScrolled === scrolledRef.current) return;
+      scrolledRef.current = nextScrolled;
+      setScrolled(nextScrolled);
     }
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -115,16 +120,16 @@ export default function Nav() {
   return (
     <header className="pointer-events-none fixed inset-x-0 top-0 z-50 px-3 sm:px-5">
       <div
-        className={`pointer-events-auto relative mx-auto transition-[max-width,margin,background-color,border-color,border-radius,box-shadow] duration-500 ease-[cubic-bezier(.16,1,.3,1)] ${
+        className={`pointer-events-auto relative mx-auto transform-gpu transition-[max-width,margin,background-color,border-color,border-radius] duration-[400ms] ease-[cubic-bezier(.16,1,.3,1)] ${
           mobileOpen
-            ? "mt-2 max-w-7xl rounded-[28px] border-line bg-[rgba(255,252,247,.96)] shadow-float backdrop-blur-xl"
+            ? "mt-2 max-w-7xl rounded-[28px] border-line bg-[#fffaf5] shadow-float"
             : scrolled
-              ? "mt-3 max-w-[980px] rounded-full border-white/10 bg-[rgba(28,25,22,.94)] shadow-[0_20px_60px_rgba(33,30,26,.24)] backdrop-blur-xl"
+              ? "mt-3 max-w-[980px] rounded-full border-white/10 bg-[#1c1916] shadow-[0_14px_36px_rgba(33,30,26,.2)]"
               : "mt-0 max-w-7xl rounded-none border-transparent bg-transparent shadow-none"
         } border`}
       >
         <div className={`flex items-center justify-between transition-[height,padding] duration-500 ${scrolled ? "h-[66px] px-3.5 sm:px-4" : "h-24 px-1 sm:px-2"}`}>
-          <Link to="/" className="group flex shrink-0 items-center gap-2.5" aria-label="InnFlo home">
+          <Link to="/" onPointerEnter={() => void preloadRoute("/")} onFocus={() => void preloadRoute("/")} className="group flex shrink-0 items-center gap-2.5" aria-label="InnFlo home">
             <span className={`grid h-9 w-9 place-items-center rounded-[13px] transition-colors ${darkMode ? "bg-coral text-white" : "bg-ink text-white"}`}>
               <DoorOpen className="h-[18px] w-[18px]" strokeWidth={2.2} />
             </span>
@@ -143,7 +148,10 @@ export default function Nav() {
           >
             <div
               className="static"
-              onMouseEnter={() => setDesktopMenu("product")}
+              onMouseEnter={() => {
+                setDesktopMenu("product");
+                preloadRoutes([...PRODUCT_LINKS, ...MODULE_LINKS].map((item) => item.to));
+              }}
               onMouseLeave={() => setDesktopMenu(null)}
             >
               <button
@@ -165,7 +173,7 @@ export default function Nav() {
                     transition={{ duration: 0.22, ease: EASE }}
                     className="absolute left-1/2 top-full -ml-[450px] pt-4"
                   >
-                    <div className="w-[900px] overflow-hidden rounded-[26px] border border-line bg-[rgba(255,253,250,.98)] p-3 shadow-[0_24px_70px_rgba(42,30,23,.18)] backdrop-blur-xl">
+                    <div className="w-[900px] overflow-hidden rounded-[26px] border border-line bg-[#fffdfa] p-3 shadow-[0_24px_70px_rgba(42,30,23,.18)]">
                       <div className="rounded-[22px] border border-[#e6d8cc] bg-[#f1e5dc] p-3.5">
                         <p className="px-1 pb-3 text-[9.5px] font-black uppercase tracking-[.15em] text-ink">Core products</p>
                         <div className="grid grid-cols-3 gap-3">
@@ -175,6 +183,8 @@ export default function Nav() {
                               <Link
                                 key={item.to}
                                 to={item.to}
+                                onPointerEnter={() => void preloadRoute(item.to)}
+                                onFocus={() => void preloadRoute(item.to)}
                                 className={`group flex min-h-[205px] flex-col rounded-[19px] border p-5 transition-[border-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 ${
                                   active
                                     ? "border-coral/25 shadow-[0_8px_24px_rgba(193,67,35,.08)]"
@@ -222,6 +232,8 @@ export default function Nav() {
                               <Link
                                 key={item.to}
                                 to={item.to}
+                                onPointerEnter={() => void preloadRoute(item.to)}
+                                onFocus={() => void preloadRoute(item.to)}
                                 className={`flex min-h-11 items-center gap-2.5 rounded-xl border px-3 text-[10px] font-bold transition-[background-color,border-color,color] ${
                                   active
                                     ? "border-coral/20 bg-coral-soft/65 text-coral-dark"
@@ -245,7 +257,10 @@ export default function Nav() {
 
             <div
               className="static"
-              onMouseEnter={() => setDesktopMenu("stays")}
+              onMouseEnter={() => {
+                setDesktopMenu("stays");
+                preloadRoutes(STAY_LINKS.map((item) => item.to));
+              }}
               onMouseLeave={() => setDesktopMenu(null)}
             >
               <button
@@ -267,12 +282,18 @@ export default function Nav() {
                     transition={{ duration: 0.22, ease: EASE }}
                     className="absolute left-1/2 top-full -ml-[250px] pt-4"
                   >
-                    <div className="w-[500px] rounded-[24px] border border-line bg-[rgba(255,253,250,.97)] p-3 shadow-[0_28px_80px_rgba(42,30,23,.2)] backdrop-blur-xl">
+                    <div className="w-[500px] rounded-[24px] border border-line bg-[#fffdfa] p-3 shadow-[0_28px_80px_rgba(42,30,23,.2)]">
                       <div className="grid grid-cols-2 gap-1.5">
                         {STAY_LINKS.map((item) => {
                           const active = location.pathname.startsWith(item.to);
                           return (
-                            <Link key={item.to} to={item.to} className={`flex items-start gap-3 rounded-2xl p-3.5 transition-colors ${active ? "bg-coral-soft" : "hover:bg-mist"}`}>
+                            <Link
+                              key={item.to}
+                              to={item.to}
+                              onPointerEnter={() => void preloadRoute(item.to)}
+                              onFocus={() => void preloadRoute(item.to)}
+                              className={`flex items-start gap-3 rounded-2xl p-3.5 transition-colors ${active ? "bg-coral-soft" : "hover:bg-mist"}`}
+                            >
                               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-coral-soft text-coral-dark">
                                 <item.icon className="h-4 w-4" />
                               </span>
@@ -290,8 +311,8 @@ export default function Nav() {
               </AnimatePresence>
             </div>
 
-            <NavLink to="/pricing" className={({ isActive }) => desktopLinkClass(isActive)}>Pricing</NavLink>
-            <NavLink to="/about" className={({ isActive }) => desktopLinkClass(isActive)}>About</NavLink>
+            <NavLink to="/pricing" onPointerEnter={() => void preloadRoute("/pricing")} onFocus={() => void preloadRoute("/pricing")} className={({ isActive }) => desktopLinkClass(isActive)}>Pricing</NavLink>
+            <NavLink to="/about" onPointerEnter={() => void preloadRoute("/about")} onFocus={() => void preloadRoute("/about")} className={({ isActive }) => desktopLinkClass(isActive)}>About</NavLink>
           </nav>
 
           <div className="hidden shrink-0 items-center gap-2 lg:flex">

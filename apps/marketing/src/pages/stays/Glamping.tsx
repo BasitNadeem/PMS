@@ -18,10 +18,10 @@ export default function Glamping() {
         tagline: "Benefits",
         heading: "Wild outside. Effortless behind the scenes.",
         items: [
-          { icon: LayoutDashboard, title: "One system for every dome", body: "Cabins, pods, domes, and tents all booked, tracked, and billed on the same calendar — nothing needs its own separate setup.", image: "/images/benefits/glamping_dashboard.png" },
-          { icon: Sparkles, title: "Ready between guests", body: "Turnover creates its own cleaning task the moment a stay ends — no relying on someone to remember a remote unit.", image: "/images/benefits/glamping_ready.png" },
-          { icon: UtensilsCrossed, title: "Extras without extra staff", body: "A QR code at the site lets guests order food or add-ons directly — no one has to walk out to take the order.", image: "/images/benefits/glamping_extras.png" },
-          { icon: Wallet, title: "Runs without steady Wi-Fi", body: "Housekeeping works offline-first, syncing the moment a signal returns — built for sites where connectivity isn't guaranteed.", image: "/images/benefits/glamping_wifi.png" },
+          { icon: LayoutDashboard, title: "One system for every dome", body: "Cabins, pods, domes, and tents all booked, tracked, and billed on the same calendar — nothing needs its own separate setup.", image: "/images/benefits/glamping_dashboard.webp" },
+          { icon: Sparkles, title: "Ready between guests", body: "Turnover creates its own cleaning task the moment a stay ends — no relying on someone to remember a remote unit.", image: "/images/benefits/glamping_ready.webp" },
+          { icon: UtensilsCrossed, title: "Extras without extra staff", body: "A QR code at the site lets guests order food or add-ons directly — no one has to walk out to take the order.", image: "/images/benefits/glamping_extras.webp" },
+          { icon: Wallet, title: "Runs without steady Wi-Fi", body: "Housekeeping works offline-first, syncing the moment a signal returns — built for sites where connectivity isn't guaranteed.", image: "/images/benefits/glamping_wifi.webp" },
         ],
       }}
       faqs={[

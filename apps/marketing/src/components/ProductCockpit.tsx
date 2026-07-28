@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useInView, useReducedMotion } from "framer-motion";
 import {
   BedDouble,
   Bell,
@@ -374,18 +374,21 @@ function AppCanvas({ scene }: { scene: number }) {
 
 export default function ProductCockpit() {
   const reduceMotion = useReducedMotion();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const isVisible = useInView(rootRef, { amount: 0.12, margin: "120px" });
   const [scene, setScene] = useState(0);
   const [playing, setPlaying] = useState(!reduceMotion);
   const [cycle, setCycle] = useState(0);
+  const shouldAnimate = playing && !reduceMotion && isVisible;
 
   useEffect(() => {
-    if (!playing || reduceMotion) return;
+    if (!shouldAnimate) return;
     const timer = window.setTimeout(() => {
       setScene((current) => (current + 1) % SCENES.length);
       setCycle((current) => current + 1);
     }, SCENE_DURATION);
     return () => window.clearTimeout(timer);
-  }, [scene, playing, reduceMotion, cycle]);
+  }, [scene, shouldAnimate, cycle]);
 
   function selectScene(nextScene: number) {
     setScene(nextScene);
@@ -400,13 +403,17 @@ export default function ProductCockpit() {
 
   return (
     <motion.div
+      ref={rootRef}
       initial={{ opacity: 0, y: 28, rotateX: 4 }}
       animate={{ opacity: 1, y: 0, rotateX: 0 }}
       transition={{ duration: 0.9, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
       className="relative"
       style={{ perspective: 1500 }}
     >
-      <div className="absolute -inset-8 rounded-[3rem] bg-coral/12 blur-3xl" />
+      <div
+        className="absolute -inset-8 rounded-[3rem]"
+        style={{ background: "radial-gradient(ellipse at center, rgba(224,83,43,.13), transparent 70%)" }}
+      />
       <div className="relative overflow-hidden rounded-[24px] border border-white/80 bg-white shadow-hero">
         <div className="flex h-10 items-center justify-between border-b border-line bg-mist px-4">
           <div className="flex gap-1.5">
@@ -453,8 +460,8 @@ export default function ProductCockpit() {
                     <motion.span
                       key={`${scene}-${cycle}-${playing}`}
                       initial={{ width: 0 }}
-                      animate={{ width: playing && !reduceMotion ? "100%" : "22%" }}
-                      transition={{ duration: playing && !reduceMotion ? SCENE_DURATION / 1000 : 0.2, ease: "linear" }}
+                      animate={{ width: shouldAnimate ? "100%" : "22%" }}
+                      transition={{ duration: shouldAnimate ? SCENE_DURATION / 1000 : 0.2, ease: "linear" }}
                       className="block h-full rounded-full bg-coral"
                     />
                   )}
@@ -466,9 +473,9 @@ export default function ProductCockpit() {
       </div>
 
       <motion.div
-        animate={{ y: [0, -7, 0] }}
-        transition={{ duration: 4.6, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute -bottom-5 -left-5 hidden items-center gap-2 rounded-2xl border border-line bg-paper/95 px-3 py-2.5 shadow-float backdrop-blur sm:flex"
+        animate={shouldAnimate ? { y: [0, -7, 0] } : { y: 0 }}
+        transition={shouldAnimate ? { duration: 4.6, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
+        className="absolute -bottom-5 -left-5 hidden items-center gap-2 rounded-2xl border border-line bg-paper px-3 py-2.5 shadow-float sm:flex"
       >
         <div className="grid h-7 w-7 place-items-center rounded-xl bg-[#E8F4EF]"><CheckCircle2 className="h-3.5 w-3.5 text-[#2F7256]" /></div>
         <div><p className="text-[7px] font-extrabold text-ink">One event. Every team updated.</p><p className="text-[5px] text-ink-mute">Watch the full hotel flow</p></div>

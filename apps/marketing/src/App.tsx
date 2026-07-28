@@ -2,25 +2,68 @@ import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Link, Routes, Route, useLocation } from "react-router-dom";
 import Nav    from "./components/Nav";
 import Footer from "./components/Footer";
+import {
+  loadAbout,
+  loadAutomations,
+  loadBookingEngine,
+  loadChannelManager,
+  loadContact,
+  loadFeatures,
+  loadFinancials,
+  loadGlamping,
+  loadGuestHouses,
+  loadHome,
+  loadHotels,
+  loadPointOfSale,
+  loadPricing,
+  loadStatistics,
+  loadVacationRentals,
+  preloadRoute,
+  ROUTE_PREFETCH_ORDER,
+} from "./lib/routePreload";
 
-// Every page is lazy-loaded so the initial bundle only contains the shell
-// (Nav/Footer/router) — matches the same convention already used in
-// apps/web (see apps/web/src/App.tsx).
-const Home              = lazy(() => import("./pages/Home"));
-const Features          = lazy(() => import("./pages/Features"));
-const BookingEngine     = lazy(() => import("./pages/BookingEngine"));
-const ChannelManager     = lazy(() => import("./pages/ChannelManager"));
-const Financials         = lazy(() => import("./pages/Financials"));
-const PointOfSale        = lazy(() => import("./pages/PointOfSale"));
-const Automations        = lazy(() => import("./pages/Automations"));
-const Statistics         = lazy(() => import("./pages/Statistics"));
-const Pricing            = lazy(() => import("./pages/Pricing"));
-const About              = lazy(() => import("./pages/About"));
-const Contact            = lazy(() => import("./pages/Contact"));
-const Hotels             = lazy(() => import("./pages/stays/Hotels"));
-const GuestHouses        = lazy(() => import("./pages/stays/GuestHouses"));
-const VacationRentals    = lazy(() => import("./pages/stays/VacationRentals"));
-const Glamping           = lazy(() => import("./pages/stays/Glamping"));
+const Home = lazy(loadHome);
+const Features = lazy(loadFeatures);
+const BookingEngine = lazy(loadBookingEngine);
+const ChannelManager = lazy(loadChannelManager);
+const Financials = lazy(loadFinancials);
+const PointOfSale = lazy(loadPointOfSale);
+const Automations = lazy(loadAutomations);
+const Statistics = lazy(loadStatistics);
+const Pricing = lazy(loadPricing);
+const About = lazy(loadAbout);
+const Contact = lazy(loadContact);
+const Hotels = lazy(loadHotels);
+const GuestHouses = lazy(loadGuestHouses);
+const VacationRentals = lazy(loadVacationRentals);
+const Glamping = lazy(loadGlamping);
+
+function RoutePreloader() {
+  useEffect(() => {
+    const timers: number[] = [];
+
+    function beginPrefetch() {
+      ROUTE_PREFETCH_ORDER.forEach((path, index) => {
+        timers.push(window.setTimeout(() => {
+          void preloadRoute(path);
+        }, 350 + index * 180));
+      });
+    }
+
+    if (document.readyState === "complete") {
+      beginPrefetch();
+    } else {
+      window.addEventListener("load", beginPrefetch, { once: true });
+    }
+
+    return () => {
+      window.removeEventListener("load", beginPrefetch);
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, []);
+
+  return null;
+}
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -60,8 +103,12 @@ function ScrollToTop() {
 
 function RouteFallback() {
   return (
-    <div className="flex items-center justify-center min-h-screen text-[14px] text-ink-soft">
-      Loading…
+    <div className="min-h-[72vh] bg-grid px-6 pt-32" aria-busy="true" aria-label="Loading page">
+      <div className="mx-auto max-w-7xl animate-pulse">
+        <div className="h-3 w-24 rounded-full bg-coral/15" />
+        <div className="mt-6 h-12 max-w-xl rounded-2xl bg-ink/[.055]" />
+        <div className="mt-4 h-4 max-w-md rounded-full bg-ink/[.045]" />
+      </div>
     </div>
   );
 }
@@ -84,8 +131,9 @@ function NotFound() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true }}>
       <ScrollToTop />
+      <RoutePreloader />
       <Nav />
       <main>
         <Suspense fallback={<RouteFallback />}>

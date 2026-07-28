@@ -10,12 +10,14 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   Clock3,
   Copy,
   CreditCard,
   Mail,
   MapPin,
+  Package,
   Palette,
   Plus,
   ReceiptText,
@@ -92,8 +94,21 @@ const LAUNCH_OUTCOMES: { icon: LucideIcon; title: string; copy: string }[] = [
   { icon: ReceiptText, title: "Billing with the right defaults", copy: "Your hotel’s times and tax behavior are configured from day one." },
 ];
 
+const COMPLETION_LINES = [
+  "Packing your property details",
+  "Adding rooms and operating rules",
+  "Connecting the right staff access",
+  "InnFlo is ready for your first shift",
+];
+
+const PACKING_ICONS: LucideIcon[] = [Building2, BedDouble, Users, CreditCard, Sparkles];
+
 const inputCls =
   "w-full rounded-xl border border-line bg-white px-3.5 py-3 text-[14px] text-ink placeholder:text-ink-faint outline-none transition focus:border-coral/60 focus:ring-2 focus:ring-coral/15";
+const selectCls = cn(
+  inputCls,
+  "h-12 cursor-pointer appearance-none py-0 pr-10 leading-[1.25] [-webkit-appearance:none]",
+);
 const labelCls = "mb-1.5 block text-[12px] font-bold text-ink-soft";
 const primaryButton =
   "inline-flex w-full items-center justify-center rounded-xl bg-coral px-5 py-3.5 text-[14px] font-bold text-white shadow-pop transition hover:bg-coral-dark disabled:cursor-not-allowed disabled:opacity-60";
@@ -426,9 +441,12 @@ function StepHotelProfile({ onBack, onNext }: { onBack: () => void; onNext: () =
               <input className={cn(inputCls, "mt-1.5")} value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Mountain View Hotel" />
             </label>
             <label className={labelCls}>Property type
-              <select className={cn(inputCls, "mt-1.5 cursor-pointer")} value={form.propertyType} onChange={(event) => setForm((current) => ({ ...current, propertyType: event.target.value }))}>
-                {PROPERTY_TYPES.map((type) => <option key={type} value={type}>{PROPERTY_LABELS[type] ?? type}</option>)}
-              </select>
+              <div className="relative mt-1.5">
+                <select className={selectCls} value={form.propertyType} onChange={(event) => setForm((current) => ({ ...current, propertyType: event.target.value }))}>
+                  {PROPERTY_TYPES.map((type) => <option key={type} value={type}>{PROPERTY_LABELS[type] ?? type}</option>)}
+                </select>
+                <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-mute" />
+              </div>
             </label>
             <label className={labelCls}>City *
               <div className="relative mt-1.5"><MapPin className="absolute left-3 top-3.5 h-4 w-4 text-ink-faint" /><input className={cn(inputCls, "pl-9")} value={form.city} onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))} placeholder="Hunza" /></div>
@@ -452,10 +470,16 @@ function StepHotelProfile({ onBack, onNext }: { onBack: () => void; onNext: () =
           </div>
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-2">
-          <div className="rounded-2xl border border-line bg-card p-5">
-            <div className="mb-5 flex items-center gap-3"><Clock3 className="h-4 w-4 text-coral-dark" /><p className="text-[13px] font-bold">Operating day</p></div>
-            <div className="grid grid-cols-2 gap-3">
+        <div className="grid items-stretch gap-5 xl:grid-cols-2">
+          <div className="flex h-full flex-col rounded-2xl border border-line bg-card p-5">
+            <div className="mb-4 flex min-h-[48px] items-start gap-3">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-coral-soft"><Clock3 className="h-4 w-4 text-coral-dark" /></div>
+              <div>
+                <p className="text-[13px] font-bold">Operating day</p>
+                <p className="text-[10px] text-ink-mute">Guest arrival and departure defaults</p>
+              </div>
+            </div>
+            <div className="mt-auto grid grid-cols-2 gap-3">
               <label className={labelCls}>Check-in
                 <input type="time" className={cn(inputCls, "mt-1.5")} value={form.checkInTime} onChange={(event) => setForm((current) => ({ ...current, checkInTime: event.target.value }))} />
               </label>
@@ -465,23 +489,26 @@ function StepHotelProfile({ onBack, onNext }: { onBack: () => void; onNext: () =
             </div>
           </div>
 
-          <div className="rounded-2xl border border-line bg-card p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3"><ReceiptText className="h-4 w-4 text-coral-dark" /><div><p className="text-[13px] font-bold">Taxes</p><p className="text-[10px] text-ink-mute">Optional—fine-tune later</p></div></div>
-              <label className="flex cursor-pointer items-center gap-2 text-[10px] font-bold text-ink-mute">
-                <input type="checkbox" checked={form.taxInclusive} onChange={(event) => setForm((current) => ({ ...current, taxInclusive: event.target.checked }))} className="accent-coral" />
+          <div className="flex h-full flex-col rounded-2xl border border-line bg-card p-5">
+            <div className="mb-4 flex min-h-[48px] items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-coral-soft"><ReceiptText className="h-4 w-4 text-coral-dark" /></div>
+                <div><p className="text-[13px] font-bold">Taxes</p><p className="text-[10px] text-ink-mute">Optional—fine-tune later</p></div>
+              </div>
+              <label className="flex cursor-pointer items-center gap-2 pt-2 text-[10px] font-bold text-ink-mute">
+                <input type="checkbox" checked={form.taxInclusive} onChange={(event) => setForm((current) => ({ ...current, taxInclusive: event.target.checked }))} className="h-4 w-4 shrink-0 accent-coral" />
                 Prices include tax
               </label>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="mt-auto grid grid-cols-2 gap-3">
               {([
                 ["GST", "gstEnabled", "gstRate"],
                 ["PST", "pstEnabled", "pstRate"],
               ] as const).map(([label, enabledKey, rateKey]) => (
-                <div key={label} className={cn("rounded-xl border p-3 transition", form[enabledKey] ? "border-coral/30 bg-coral-soft/40" : "border-line bg-mist")}>
+                <div key={label} className={cn("flex min-h-[76px] flex-col justify-center rounded-xl border p-3 transition", form[enabledKey] ? "border-coral/30 bg-coral-soft/40" : "border-line bg-mist")}>
                   <label className="flex cursor-pointer items-center justify-between text-[11px] font-bold">
                     {label}
-                    <input type="checkbox" checked={form[enabledKey]} onChange={(event) => setForm((current) => ({ ...current, [enabledKey]: event.target.checked }))} className="accent-coral" />
+                    <input type="checkbox" checked={form[enabledKey]} onChange={(event) => setForm((current) => ({ ...current, [enabledKey]: event.target.checked }))} className="h-4 w-4 shrink-0 accent-coral" />
                   </label>
                   {form[enabledKey] && (
                     <div className="relative mt-2"><input type="number" min="0" max="100" step="0.01" value={form[rateKey]} onChange={(event) => setForm((current) => ({ ...current, [rateKey]: event.target.value }))} className={cn(inputCls, "py-2 pr-8")} /><span className="absolute right-3 top-2.5 text-[11px] text-ink-mute">%</span></div>
@@ -659,9 +686,12 @@ function StepRooms({ onBack, onNext }: { onBack: () => void; onNext: () => void 
                 <input className={cn(inputCls, "mt-1.5")} value={roomTypeForm.name} onChange={(event) => setRoomTypeForm((current) => ({ ...current, name: event.target.value }))} placeholder="Deluxe Room" />
               </label>
               <label className={labelCls}>Bed / unit type
-                <select className={cn(inputCls, "mt-1.5 cursor-pointer")} value={roomTypeForm.bedType} onChange={(event) => setRoomTypeForm((current) => ({ ...current, bedType: event.target.value as RoomTypeName }))}>
-                  {BED_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
-                </select>
+                <div className="relative mt-1.5">
+                  <select className={selectCls} value={roomTypeForm.bedType} onChange={(event) => setRoomTypeForm((current) => ({ ...current, bedType: event.target.value as RoomTypeName }))}>
+                    {BED_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+                  </select>
+                  <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-mute" />
+                </div>
               </label>
               <label className={labelCls}>Base nightly rate (PKR)
                 <input type="number" min="0" className={cn(inputCls, "mt-1.5")} value={roomTypeForm.baseRate} onChange={(event) => setRoomTypeForm((current) => ({ ...current, baseRate: event.target.value }))} placeholder="8000" />
@@ -783,10 +813,13 @@ function StepTeam({ onBack, onNext }: { onBack: () => void; onNext: () => void }
             <input type="email" className={cn(inputCls, "mt-1.5")} value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder="ayesha@hotel.com" />
           </label>
           <label className={cn(labelCls, "sm:col-span-2")}>Role
-            <select className={cn(inputCls, "mt-1.5 cursor-pointer")} value={form.roleId} onChange={(event) => setForm((current) => ({ ...current, roleId: event.target.value }))}>
-              <option value="">Select the staff role…</option>
-              {teamRoleOptions.map((role) => <option key={role.roleId} value={role.roleId}>{role.label}</option>)}
-            </select>
+            <div className="relative mt-1.5">
+              <select className={selectCls} value={form.roleId} onChange={(event) => setForm((current) => ({ ...current, roleId: event.target.value }))}>
+                <option value="">Select the staff role…</option>
+                {teamRoleOptions.map((role) => <option key={role.roleId} value={role.roleId}>{role.label}</option>)}
+              </select>
+              <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-mute" />
+            </div>
           </label>
         </div>
         <button onClick={addMember} disabled={saving} className={cn(secondaryButton, "mt-5 w-full border-coral/40 text-coral-dark")}>
@@ -880,20 +913,83 @@ function StepTheme({ onBack, onFinish }: { onBack: () => void; onFinish: () => v
 }
 
 function CompletionOverlay({ onDone }: { onDone: () => void }) {
+  const [lineIndex, setLineIndex] = useState(0);
+
   useEffect(() => {
-    const timer = window.setTimeout(onDone, 2600);
-    return () => window.clearTimeout(timer);
+    const lineTimer = window.setInterval(() => {
+      setLineIndex((current) => Math.min(current + 1, COMPLETION_LINES.length - 1));
+    }, 950);
+    const doneTimer = window.setTimeout(onDone, 4400);
+    return () => {
+      window.clearInterval(lineTimer);
+      window.clearTimeout(doneTimer);
+    };
   }, [onDone]);
 
   return (
     <motion.div className="fixed inset-0 z-50 grid place-items-center overflow-hidden bg-ink px-6 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-      <motion.div initial={{ opacity: 0, y: 22, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: 0.15, duration: 0.55, ease: "easeOut" }}>
-        <motion.div className="mx-auto grid h-20 w-20 place-items-center rounded-[26px] bg-coral text-white shadow-pop" animate={{ rotate: [0, -4, 4, 0] }} transition={{ delay: 0.7, duration: 0.6 }}>
-          <Rocket className="h-9 w-9" />
-        </motion.div>
-        <p className="mt-7 text-[10px] font-bold uppercase tracking-[.22em] text-coral">Property ready</p>
-        <h2 className="mt-3 font-display text-[clamp(36px,6vw,58px)] font-semibold text-white">Your command center is open.</h2>
-        <p className="mx-auto mt-4 max-w-md text-[13px] leading-relaxed text-white/50">Rooms, rules and staff access are connected. Let’s run the first shift.</p>
+      <div className="absolute inset-0 opacity-[0.08] [background-image:radial-gradient(circle_at_center,white_1px,transparent_1px)] [background-size:24px_24px]" />
+      <motion.div className="relative w-full max-w-lg" initial={{ opacity: 0, y: 22, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: 0.1, duration: 0.5, ease: "easeOut" }}>
+        <div className="relative mx-auto h-36 w-52">
+          {PACKING_ICONS.map((Icon, index) => {
+            const angle = (index / PACKING_ICONS.length) * Math.PI * 2 - Math.PI / 2;
+            const startX = Math.cos(angle) * 82;
+            const startY = Math.sin(angle) * 52;
+            return (
+              <motion.div
+                key={Icon.displayName ?? index}
+                className="absolute left-1/2 top-[42%] grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-xl border border-white/15 bg-white/10 text-white backdrop-blur-sm"
+                initial={{ x: startX, y: startY, opacity: 0, scale: 0.75 }}
+                animate={{ x: [startX, startX, 0], y: [startY, startY, 32], opacity: [0, 1, 0], scale: [0.75, 1, 0.55] }}
+                transition={{ delay: 0.18 + index * 0.09, duration: 1.55, times: [0, 0.48, 1], ease: "easeInOut" }}
+              >
+                <Icon className="h-4 w-4" />
+              </motion.div>
+            );
+          })}
+          <motion.div
+            className="absolute bottom-0 left-1/2 grid h-24 w-24 -translate-x-1/2 place-items-center rounded-[26px] bg-coral text-white shadow-pop"
+            initial={{ opacity: 0, scale: 0.55, rotate: -7 }}
+            animate={{ opacity: 1, scale: [0.55, 1.08, 1], rotate: [-7, 3, 0] }}
+            transition={{ delay: 1.25, duration: 0.7, ease: "easeOut" }}
+          >
+            <Package className="h-11 w-11" />
+            <motion.span
+              className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-full bg-pine text-white"
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 2.25, type: "spring", stiffness: 360, damping: 18 }}
+            >
+              <Check className="h-4 w-4" />
+            </motion.span>
+          </motion.div>
+        </div>
+
+        <p className="mt-7 text-[10px] font-bold uppercase tracking-[.22em] text-coral">Putting everything together</p>
+        <div className="mt-3 min-h-[52px]">
+          <AnimatePresence mode="wait">
+            <motion.h2
+              key={lineIndex}
+              className="font-display text-[clamp(30px,5vw,46px)] font-semibold text-white"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.24 }}
+            >
+              {COMPLETION_LINES[lineIndex]}
+            </motion.h2>
+          </AnimatePresence>
+        </div>
+
+        <div className="mx-auto mt-7 flex max-w-xs gap-1.5">
+          {COMPLETION_LINES.map((_, index) => (
+            <motion.span
+              key={index}
+              className={cn("h-1 flex-1 rounded-full", index <= lineIndex ? "bg-coral" : "bg-white/15")}
+              layout
+            />
+          ))}
+        </div>
       </motion.div>
     </motion.div>
   );

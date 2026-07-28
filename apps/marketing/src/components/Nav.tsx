@@ -1,444 +1,383 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { Building2, RefreshCcw, Wallet, Sparkles, BarChart3, ChevronDown, UtensilsCrossed, Coffee, Palmtree, Tent } from "lucide-react";
-import MagneticButton from "./motion/MagneticButton";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  ArrowRight,
+  BarChart3,
+  Building2,
+  ChevronDown,
+  Coffee,
+  DoorOpen,
+  Globe2,
+  Menu,
+  Palmtree,
+  RefreshCcw,
+  Sparkles,
+  Tent,
+  UtensilsCrossed,
+  Wallet,
+  X,
+} from "lucide-react";
 
-// PMS is the core platform — featured on its own above the modules below it.
-const PMS_ITEM = {
-  to: "/pms",
-  label: "Property Management System (PMS)",
-  description: "Explore the Operating System your property runs on.",
-  icon: Building2,
-};
-
-// Extend this list as new platform modules ship — these live inside PMS.
-// Revenue-facing modules first (Financials, POS), distribution last (Channel Manager).
-const PLATFORM_MODULES = [
+const PRODUCT_LINKS = [
   {
-    to: "/financials",
-    label: "Financials",
-    description: "Folios, expenses, and a balance book that logs itself.",
-    icon: Wallet,
+    to: "/pms",
+    label: "Property Management System",
+    short: "The operating system for your property. Reservations, billing, housekeeping, you name it.",
+    icon: Building2,
+    status: "Live",
+    cornerGlow: "rgba(229, 78, 39, .16)",
   },
   {
-    to: "/pos",
-    label: "Point of Sale",
-    description: "QR ordering, kitchen board, and folio posting.",
-    icon: UtensilsCrossed,
+    to: "/booking-engine",
+    label: "Booking Engine",
+    short: "Your direct booking channel, live and commission-free.",
+    icon: Globe2,
+    status: "Live",
+    cornerGlow: "rgba(35, 151, 112, .14)",
   },
   {
     to: "/channel-manager",
     label: "Channel Manager",
-    description: "Sync every channel into one calendar, in development.",
+    short: "Bring OTA availability into one calendar. In development.",
     icon: RefreshCcw,
+    status: "Roadmap",
+    cornerGlow: "rgba(202, 128, 48, .16)",
   },
 ];
 
-const PLATFORM_ITEMS = [PMS_ITEM, ...PLATFORM_MODULES];
-
-// Extend this list as new "more" pages ship.
-const MORE_ITEMS = [
-  {
-    to: "/automations",
-    label: "Automations",
-    description: "The parts of running a property that happen without you.",
-    icon: Sparkles,
-  },
-  {
-    to: "/statistics",
-    label: "Statistics",
-    description: "Every number your accountant expects, already calculated.",
-    icon: BarChart3,
-  },
+const MODULE_LINKS = [
+  { to: "/financials", label: "Financials", icon: Wallet },
+  { to: "/pos", label: "POS & QR dining", icon: UtensilsCrossed },
+  { to: "/automations", label: "Automations", icon: Sparkles },
+  { to: "/statistics", label: "Reports", icon: BarChart3 },
 ];
 
-// Extend this list as new accommodation-type pages ship.
-const ACCOMMODATION_ITEMS = [
-  {
-    to: "/stays/hotels",
-    label: "Hotels",
-    description: "Boutiques, motels, resorts, and multi-site brands.",
-    icon: Building2,
-  },
-  {
-    to: "/stays/guesthouses",
-    label: "B&Bs and guesthouses",
-    description: "Intimate stays with a personal touch.",
-    icon: Coffee,
-  },
-  {
-    to: "/stays/vacation-rentals",
-    label: "Vacation rentals",
-    description: "Single homes to multi-unit portfolios.",
-    icon: Palmtree,
-  },
-  {
-    to: "/stays/glamping",
-    label: "Glamping sites",
-    description: "Cabins, pods, domes, tents, and yurts.",
-    icon: Tent,
-  },
+const STAY_LINKS = [
+  { to: "/stays/hotels", label: "Hotels", copy: "Boutiques, resorts and independent hotels.", icon: Building2 },
+  { to: "/stays/guesthouses", label: "B&Bs & guesthouses", copy: "Personal stays with lean teams.", icon: Coffee },
+  { to: "/stays/vacation-rentals", label: "Vacation rentals", copy: "Serviced homes and independent units.", icon: Palmtree },
+  { to: "/stays/glamping", label: "Glamping sites", copy: "Cabins, pods, domes and camps.", icon: Tent },
 ];
 
-const DROPDOWN_ITEMS = [...PLATFORM_ITEMS, ...MORE_ITEMS];
+type DesktopMenu = "product" | "stays" | null;
 
-const LINKS = [
-  { to: "/pricing", label: "Pricing" },
-  { to: "/about",   label: "About"   },
-  { to: "/contact", label: "Contact" },
-];
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 export default function Nav() {
-  const [solid, setSolid] = useState(false);
-  const [open, setOpen]   = useState(false);
-  const [platformOpen, setPlatformOpen] = useState(false);
-  const [mobilePlatformOpen, setMobilePlatformOpen] = useState(false);
-  const [accomOpen, setAccomOpen] = useState(false);
-  const [mobileAccomOpen, setMobileAccomOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopMenu, setDesktopMenu] = useState<DesktopMenu>(null);
   const location = useLocation();
 
   useEffect(() => {
-    function onScroll() { setSolid(window.scrollY > 40); }
+    function onScroll() {
+      setScrolled(window.scrollY > 36);
+    }
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   useEffect(() => {
-    setOpen(false);
-    setMobilePlatformOpen(false);
-    setMobileAccomOpen(false);
+    setMobileOpen(false);
+    setDesktopMenu(null);
   }, [location.pathname]);
 
-  const platformActive = DROPDOWN_ITEMS.some(item => location.pathname.startsWith(item.to));
-  const accomActive = ACCOMMODATION_ITEMS.some(item => location.pathname.startsWith(item.to));
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMobileOpen(false);
+        setDesktopMenu(null);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const productActive = [...PRODUCT_LINKS, ...MODULE_LINKS].some((item) => location.pathname.startsWith(item.to));
+  const staysActive = STAY_LINKS.some((item) => location.pathname.startsWith(item.to));
+  const darkMode = scrolled && !mobileOpen;
+
+  const desktopLinkClass = (active: boolean) =>
+    `relative rounded-full font-bold transition-all ${
+      darkMode
+        ? `px-3.5 py-2 text-[13px] xl:px-4 ${
+            active
+          ? "bg-white text-ink shadow-[0_2px_10px_rgba(0,0,0,.18)]"
+          : "text-white/80 hover:bg-white/10 hover:text-white"
+          }`
+        : `px-4 py-2 text-[14px] xl:px-[18px] ${
+            active ? "text-coral-dark" : "text-ink-soft hover:bg-white/60 hover:text-ink"
+          }`
+    }`;
 
   return (
-    <header
-      className="fixed top-0 inset-x-0 z-50 transition-all duration-300"
-      style={{
-        background: solid || open || platformOpen || accomOpen ? "rgba(246,243,238,0.92)" : "transparent",
-        backdropFilter: solid || open || platformOpen || accomOpen ? "blur(14px)" : "none",
-        borderBottom: solid || open || platformOpen || accomOpen ? "1px solid #EAE4DB" : "1px solid transparent",
-      }}
-    >
-      <div className="mx-auto max-w-7xl px-6 h-24 flex items-center justify-between">
-        <Link to="/" className="font-display italic text-[26px] font-medium text-ink tracking-tight">
-          InnFlo
-        </Link>
+    <header className="pointer-events-none fixed inset-x-0 top-0 z-50 px-3 sm:px-5">
+      <div
+        className={`pointer-events-auto relative mx-auto transition-[max-width,margin,background-color,border-color,border-radius,box-shadow] duration-500 ease-[cubic-bezier(.16,1,.3,1)] ${
+          mobileOpen
+            ? "mt-2 max-w-7xl rounded-[28px] border-line bg-[rgba(255,252,247,.96)] shadow-float backdrop-blur-xl"
+            : scrolled
+              ? "mt-3 max-w-[980px] rounded-full border-white/10 bg-[rgba(28,25,22,.94)] shadow-[0_20px_60px_rgba(33,30,26,.24)] backdrop-blur-xl"
+              : "mt-0 max-w-7xl rounded-none border-transparent bg-transparent shadow-none"
+        } border`}
+      >
+        <div className={`flex items-center justify-between transition-[height,padding] duration-500 ${scrolled ? "h-[66px] px-3.5 sm:px-4" : "h-24 px-1 sm:px-2"}`}>
+          <Link to="/" className="group flex shrink-0 items-center gap-2.5" aria-label="InnFlo home">
+            <span className={`grid h-9 w-9 place-items-center rounded-[13px] transition-colors ${darkMode ? "bg-coral text-white" : "bg-ink text-white"}`}>
+              <DoorOpen className="h-[18px] w-[18px]" strokeWidth={2.2} />
+            </span>
+            <span className={`font-display text-[24px] font-medium italic tracking-[-.025em] transition-colors ${darkMode ? "text-white" : "text-ink"}`}>
+              InnFlo
+            </span>
+          </Link>
 
-        <nav className="hidden md:flex items-center gap-1.5">
-          <div
-            className="relative"
-            onMouseEnter={() => setPlatformOpen(true)}
-            onMouseLeave={() => setPlatformOpen(false)}
-          >
-            <button
-              className={`group relative px-4 py-2 text-[15.5px] font-bold font-body transition-colors flex items-center gap-1 ${
-                platformActive ? "text-coral-dark" : "text-ink-soft hover:text-ink"
-              }`}
-            >
-              Platform
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${platformOpen ? "rotate-180" : ""}`} />
-              <span
-                className="absolute left-4 right-4 -bottom-0.5 h-[1.5px] bg-coral origin-left transition-transform duration-300"
-                style={{ transform: platformActive ? "scaleX(1)" : "scaleX(0)" }}
-              />
-            </button>
-
-            {platformOpen && (
-              <div className="absolute top-full left-0 pt-3">
-                <div className="relative w-[760px] rounded-2xl bg-card border border-line shadow-float p-6 grid grid-cols-2 gap-0 items-start">
-                  <div className="absolute top-6 bottom-6 left-1/2 w-px bg-line-soft" />
-                  {(() => {
-                    const pmsActive = location.pathname.startsWith(PMS_ITEM.to);
-                    return (
-                      <Link to={PMS_ITEM.to} className="group block pr-6">
-                        <div
-                          className={`rounded-2xl overflow-hidden transition-all ${
-                            pmsActive ? "ring-2 ring-coral" : "ring-1 ring-line group-hover:ring-2 group-hover:ring-coral"
-                          }`}
-                        >
-                          <img src="/images/nav/pms-preview.webp" alt="InnFlo reservation timeline" className="w-full h-auto object-cover" />
-                        </div>
-                        <div className="pt-3">
-                          <p className={`text-[15px] font-bold font-body leading-snug ${pmsActive ? "text-coral-dark" : "text-ink"}`}>{PMS_ITEM.label}</p>
-                          <p className="text-[12px] text-ink-soft font-body leading-snug mt-2">{PMS_ITEM.description}</p>
-                        </div>
-                      </Link>
-                    );
-                  })()}
-
-                  <div className="flex flex-col pl-6">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-ink-faint mb-2 px-1">Included in PMS</p>
-                      <div className="space-y-1">
-                        {PLATFORM_MODULES.map(item => {
-                          const active = location.pathname.startsWith(item.to);
-                          return (
-                            <Link
-                              key={item.to}
-                              to={item.to}
-                              className={`flex items-start gap-3 p-3 rounded-xl transition-colors ${active ? "bg-coral-soft" : "hover:bg-mist"}`}
-                            >
-                              <div className="h-9 w-9 rounded-lg bg-coral-soft grid place-items-center shrink-0">
-                                <item.icon className="h-4 w-4 text-coral-dark" strokeWidth={2.25} />
-                              </div>
-                              <div>
-                                <p className={`text-[14px] font-bold font-body ${active ? "text-coral-dark" : "text-ink"}`}>{item.label}</p>
-                                <p className="text-[12.5px] text-ink-soft font-body leading-snug">{item.description}</p>
-                              </div>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="my-4 border-t border-line-soft" />
-
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-ink-faint mb-2 px-1">Insights</p>
-                      <div className="space-y-1">
-                        {MORE_ITEMS.map(item => {
-                          const active = location.pathname.startsWith(item.to);
-                          return (
-                            <Link
-                              key={item.to}
-                              to={item.to}
-                              className={`flex items-start gap-3 p-3 rounded-xl transition-colors ${active ? "bg-coral-soft" : "hover:bg-mist"}`}
-                            >
-                              <div className="h-9 w-9 rounded-lg bg-coral-soft grid place-items-center shrink-0">
-                                <item.icon className="h-4 w-4 text-coral-dark" strokeWidth={2.25} />
-                              </div>
-                              <div>
-                                <p className={`text-[14px] font-bold font-body ${active ? "text-coral-dark" : "text-ink"}`}>{item.label}</p>
-                                <p className="text-[12.5px] text-ink-soft font-body leading-snug">{item.description}</p>
-                              </div>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div
-            className="relative"
-            onMouseEnter={() => setAccomOpen(true)}
-            onMouseLeave={() => setAccomOpen(false)}
-          >
-            <button
-              className={`group relative px-4 py-2 text-[15.5px] font-bold font-body transition-colors flex items-center gap-1 ${
-                accomActive ? "text-coral-dark" : "text-ink-soft hover:text-ink"
-              }`}
-            >
-              Accommodation Types
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${accomOpen ? "rotate-180" : ""}`} />
-              <span
-                className="absolute left-4 right-4 -bottom-0.5 h-[1.5px] bg-coral origin-left transition-transform duration-300"
-                style={{ transform: accomActive ? "scaleX(1)" : "scaleX(0)" }}
-              />
-            </button>
-
-            {accomOpen && (
-              <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3">
-                <div className="w-[300px] rounded-2xl bg-card border border-line shadow-float p-3">
-                  {ACCOMMODATION_ITEMS.map(item => {
-                    const active = location.pathname.startsWith(item.to);
-                    return (
-                      <Link
-                        key={item.to}
-                        to={item.to}
-                        className={`flex items-start gap-3 p-3 rounded-xl transition-colors ${active ? "bg-coral-soft" : "hover:bg-mist"}`}
-                      >
-                        <div className="h-9 w-9 rounded-lg bg-coral-soft grid place-items-center shrink-0">
-                          <item.icon className="h-4 w-4 text-coral-dark" strokeWidth={2.25} />
-                        </div>
-                        <div>
-                          <p className={`text-[14px] font-bold font-body ${active ? "text-coral-dark" : "text-ink"}`}>{item.label}</p>
-                          <p className="text-[12.5px] text-ink-soft font-body leading-snug">{item.description}</p>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {LINKS.map(l => (
-            <NavLink
-              key={l.to}
-              to={l.to}
-              className={({ isActive }) =>
-                `group relative px-4 py-2 text-[15.5px] font-bold font-body transition-colors ${
-                  isActive ? "text-coral-dark" : "text-ink-soft hover:text-ink"
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  {l.label}
-                  <span
-                    className="absolute left-4 right-4 -bottom-0.5 h-[1.5px] bg-coral origin-left transition-transform duration-300"
-                    style={{ transform: isActive ? "scaleX(1)" : "scaleX(0)" }}
-                  />
-                  <span
-                    className="absolute left-4 right-4 -bottom-0.5 h-[1.5px] bg-ink-faint origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300"
-                    style={{ opacity: isActive ? 0 : 1 }}
-                  />
-                </>
-              )}
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="hidden md:flex items-center gap-3">
-          <a
-            href="https://app.innflo.co/login"
-            className="h-11 px-7 rounded-full border border-ink text-[15px] font-bold font-body text-ink hover:bg-ink hover:text-white transition-colors flex items-center"
-          >
-            Login
-          </a>
-          <MagneticButton strength={0.4}>
-            <Link
-              to="/contact"
-              className="h-11 px-7 rounded-full bg-coral text-[15px] font-bold font-body text-white shadow-pop hover:bg-coral-dark transition-colors flex items-center"
-            >
-              Request access
-            </Link>
-          </MagneticButton>
-        </div>
-
-        <button
-          onClick={() => setOpen(v => !v)}
-          className="md:hidden flex flex-col gap-1.5 p-2 -mr-2"
-          aria-label="Menu"
-        >
-          <span className={`block w-5 h-[1.5px] bg-ink transition-transform duration-200 ${open ? "translate-y-[7px] rotate-45" : ""}`} />
-          <span className={`block w-5 h-[1.5px] bg-ink transition-opacity duration-200 ${open ? "opacity-0" : ""}`} />
-          <span className={`block w-5 h-[1.5px] bg-ink transition-transform duration-200 ${open ? "-translate-y-[7px] -rotate-45" : ""}`} />
-        </button>
-      </div>
-
-      {open && (
-        <div className="md:hidden px-6 pb-8 pt-2 flex flex-col gap-1 max-h-[calc(100vh-80px)] overflow-y-auto" style={{ borderTop: "1px solid #EAE4DB" }}>
-          <button
-            onClick={() => setMobilePlatformOpen(v => !v)}
-            className={`py-3 text-[17px] font-bold font-body border-b border-line-soft flex items-center justify-between ${
-              platformActive ? "text-coral-dark" : "text-ink-soft"
+          <nav
+            className={`relative hidden items-center rounded-full border transition-[gap,padding,background-color,border-color,box-shadow] duration-500 lg:flex ${
+              darkMode
+                ? "gap-0.5 border-white/15 bg-white/[.06] p-1.5"
+                : "gap-1 border-transparent bg-transparent p-0 xl:gap-3"
             }`}
+            aria-label="Primary navigation"
           >
-            Platform
-            <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${mobilePlatformOpen ? "rotate-180" : ""}`} />
-          </button>
-          {mobilePlatformOpen && (
-            <div className="flex flex-col gap-3 pl-4 border-b border-line-soft pb-4">
-              <div>
-                <p className="text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink-mute mb-1.5 mt-2">Platform</p>
-                {(() => {
-                  const pmsActive = location.pathname.startsWith(PMS_ITEM.to);
-                  return (
-                    <Link
-                      to={PMS_ITEM.to}
-                      className={`py-2 text-[16.5px] font-bold font-body flex items-center gap-2.5 ${pmsActive ? "text-coral-dark" : "text-ink"}`}
-                    >
-                      <PMS_ITEM.icon className="h-4.5 w-4.5 text-coral-dark" strokeWidth={2.25} />
-                      {PMS_ITEM.label}
-                    </Link>
-                  );
-                })()}
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-ink-faint mb-1 mt-3">Included in PMS</p>
-                {PLATFORM_MODULES.map(item => {
-                  const active = location.pathname.startsWith(item.to);
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      className={`py-2 text-[15.5px] font-semibold font-body flex items-center gap-2.5 ${active ? "text-coral-dark" : "text-ink-soft"}`}
-                    >
-                      <item.icon className="h-4 w-4 text-coral-dark" strokeWidth={2.25} />
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </div>
-              <div>
-                <p className="text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink-mute mb-1.5">Insights</p>
-                {MORE_ITEMS.map(item => {
-                  const active = location.pathname.startsWith(item.to);
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      className={`py-2 text-[15.5px] font-semibold font-body flex items-center gap-2.5 ${active ? "text-coral-dark" : "text-ink-soft"}`}
-                    >
-                      <item.icon className="h-4 w-4 text-coral-dark" strokeWidth={2.25} />
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+            <div
+              className="static"
+              onMouseEnter={() => setDesktopMenu("product")}
+              onMouseLeave={() => setDesktopMenu(null)}
+            >
+              <button
+                type="button"
+                onClick={() => setDesktopMenu((current) => current === "product" ? null : "product")}
+                className={`${desktopLinkClass(productActive)} flex items-center gap-1.5`}
+                aria-expanded={desktopMenu === "product"}
+              >
+                Product
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${desktopMenu === "product" ? "rotate-180" : ""}`} />
+              </button>
 
-          <button
-            onClick={() => setMobileAccomOpen(v => !v)}
-            className={`py-3 text-[17px] font-bold font-body border-b border-line-soft flex items-center justify-between ${
-              accomActive ? "text-coral-dark" : "text-ink-soft"
-            }`}
-          >
-            Accommodation Types
-            <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${mobileAccomOpen ? "rotate-180" : ""}`} />
-          </button>
-          {mobileAccomOpen && (
-            <div className="flex flex-col gap-2 pl-4 border-b border-line-soft pb-4">
-              {ACCOMMODATION_ITEMS.map(item => {
-                const active = location.pathname.startsWith(item.to);
-                return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    className={`py-2 text-[15.5px] font-semibold font-body flex items-center gap-2.5 ${active ? "text-coral-dark" : "text-ink-soft"}`}
+              <AnimatePresence>
+                {desktopMenu === "product" && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.985 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 5, scale: 0.99 }}
+                    transition={{ duration: 0.22, ease: EASE }}
+                    className="absolute left-1/2 top-full -ml-[450px] pt-4"
                   >
-                    <item.icon className="h-4 w-4 text-coral-dark" strokeWidth={2.25} />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
+                    <div className="w-[900px] overflow-hidden rounded-[26px] border border-line bg-[rgba(255,253,250,.98)] p-3 shadow-[0_24px_70px_rgba(42,30,23,.18)] backdrop-blur-xl">
+                      <div className="rounded-[22px] border border-[#e6d8cc] bg-[#f1e5dc] p-3.5">
+                        <p className="px-1 pb-3 text-[9.5px] font-black uppercase tracking-[.15em] text-ink">Core products</p>
+                        <div className="grid grid-cols-3 gap-3">
+                          {PRODUCT_LINKS.map((item) => {
+                            const active = location.pathname.startsWith(item.to);
+                            return (
+                              <Link
+                                key={item.to}
+                                to={item.to}
+                                className={`group flex min-h-[205px] flex-col rounded-[19px] border p-5 transition-[border-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 ${
+                                  active
+                                    ? "border-coral/25 shadow-[0_8px_24px_rgba(193,67,35,.08)]"
+                                    : "border-white/80 hover:border-coral/20 hover:shadow-[0_8px_24px_rgba(61,43,32,.07)]"
+                                }`}
+                                style={{
+                                  background: `radial-gradient(circle at 100% 0%, ${item.cornerGlow}, transparent 45%), radial-gradient(circle at 0% 100%, rgba(255,255,255,.72), transparent 38%), ${
+                                    active ? "rgba(253,236,226,.82)" : "rgba(255,252,248,.82)"
+                                  }`,
+                                }}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className={`grid h-10 w-10 place-items-center rounded-[13px] transition-colors ${
+                                    active ? "bg-coral text-white" : "bg-coral-soft text-coral-dark group-hover:bg-coral group-hover:text-white"
+                                  }`}>
+                                    <item.icon className="h-[18px] w-[18px]" />
+                                  </span>
+                                  <span className={`rounded-full px-2 py-1 text-[6.5px] font-black uppercase tracking-[.14em] ${
+                                    item.status === "Live"
+                                      ? "bg-emerald-50 text-emerald-700"
+                                      : "bg-white/80 text-coral-dark"
+                                  }`}>
+                                    {item.status}
+                                  </span>
+                                </div>
+                                <p className={`mt-auto flex items-start gap-1.5 pt-8 text-[13px] font-black leading-snug ${
+                                  active ? "text-coral-dark" : "text-ink group-hover:text-coral-dark"
+                                }`}>
+                                  {item.label}
+                                  <ArrowRight className="mt-0.5 h-3 w-3 shrink-0 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
+                                </p>
+                                <p className="mt-1.5 text-[9.5px] leading-relaxed text-ink-mute">{item.short}</p>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
 
-          {LINKS.map(l => (
-            <NavLink
-              key={l.to}
-              to={l.to}
-              className={({ isActive }) =>
-                `py-3 text-[17px] font-bold font-body border-b border-line-soft ${isActive ? "text-coral-dark" : "text-ink-soft"}`
-              }
+                      <div className="mt-2.5 rounded-[20px] border border-[#eee5dc] bg-[#fcf9f5] p-3">
+                        <p className="px-1 pb-2 text-[9.5px] font-black uppercase tracking-[.15em] text-ink">Connected modules</p>
+                        <div className="grid grid-cols-4 gap-2">
+                          {MODULE_LINKS.map((item) => {
+                            const active = location.pathname.startsWith(item.to);
+                            return (
+                              <Link
+                                key={item.to}
+                                to={item.to}
+                                className={`flex min-h-11 items-center gap-2.5 rounded-xl border px-3 text-[10px] font-bold transition-[background-color,border-color,color] ${
+                                  active
+                                    ? "border-coral/20 bg-coral-soft/65 text-coral-dark"
+                                    : "border-[#eee4da] bg-white/75 text-ink-soft hover:border-coral/15 hover:bg-white hover:text-ink"
+                                }`}
+                              >
+                                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-coral-soft text-coral-dark">
+                                  <item.icon className="h-3.5 w-3.5" />
+                                </span>
+                                {item.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div
+              className="static"
+              onMouseEnter={() => setDesktopMenu("stays")}
+              onMouseLeave={() => setDesktopMenu(null)}
             >
-              {l.label}
-            </NavLink>
-          ))}
-          <div className="mt-5 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setDesktopMenu((current) => current === "stays" ? null : "stays")}
+                className={`${desktopLinkClass(staysActive)} flex items-center gap-1.5`}
+                aria-expanded={desktopMenu === "stays"}
+              >
+                Who it&apos;s for
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${desktopMenu === "stays" ? "rotate-180" : ""}`} />
+              </button>
+
+              <AnimatePresence>
+                {desktopMenu === "stays" && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.985 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 5, scale: 0.99 }}
+                    transition={{ duration: 0.22, ease: EASE }}
+                    className="absolute left-1/2 top-full -ml-[250px] pt-4"
+                  >
+                    <div className="w-[500px] rounded-[24px] border border-line bg-[rgba(255,253,250,.97)] p-3 shadow-[0_28px_80px_rgba(42,30,23,.2)] backdrop-blur-xl">
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {STAY_LINKS.map((item) => {
+                          const active = location.pathname.startsWith(item.to);
+                          return (
+                            <Link key={item.to} to={item.to} className={`flex items-start gap-3 rounded-2xl p-3.5 transition-colors ${active ? "bg-coral-soft" : "hover:bg-mist"}`}>
+                              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-coral-soft text-coral-dark">
+                                <item.icon className="h-4 w-4" />
+                              </span>
+                              <span>
+                                <span className={`block text-[12px] font-black ${active ? "text-coral-dark" : "text-ink"}`}>{item.label}</span>
+                                <span className="mt-1 block text-[10px] leading-relaxed text-ink-mute">{item.copy}</span>
+                              </span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <NavLink to="/pricing" className={({ isActive }) => desktopLinkClass(isActive)}>Pricing</NavLink>
+            <NavLink to="/about" className={({ isActive }) => desktopLinkClass(isActive)}>About</NavLink>
+          </nav>
+
+          <div className="hidden shrink-0 items-center gap-2 lg:flex">
             <a
               href="https://app.innflo.co/login"
-              className="h-10 px-6 rounded-full border border-ink text-[13.5px] font-semibold font-body text-ink flex items-center"
+              className={`flex h-10 items-center rounded-full px-4 text-[12px] font-bold transition-colors ${
+                darkMode ? "text-white/80 hover:bg-white/10 hover:text-white" : "text-ink-soft hover:bg-white/70 hover:text-ink"
+              }`}
             >
-              Login
+              Log in
             </a>
-            <Link
-              to="/contact"
-              className="h-10 px-6 rounded-full bg-coral text-[13.5px] font-semibold font-body text-white flex items-center"
-            >
-              Request access
+            <Link to="/contact" className="group flex h-10 items-center gap-2 rounded-full bg-coral px-5 text-[12px] font-black text-white shadow-pop transition-all hover:-translate-y-0.5 hover:bg-coral-dark">
+              Book a walkthrough
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
             </Link>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setMobileOpen((current) => !current)}
+            className={`grid h-10 w-10 place-items-center rounded-full transition-colors lg:hidden ${
+              darkMode ? "bg-white/10 text-white" : "bg-ink text-white"
+            }`}
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileOpen}
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
-      )}
+
+        <AnimatePresence>
+          {mobileOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.28, ease: EASE }}
+              className="overflow-hidden lg:hidden"
+            >
+              <div className="mx-3 max-h-[calc(100vh-100px)] overflow-y-auto border-t border-line-soft px-1 pb-6 pt-4 sm:mx-5">
+                <p className="mb-2 px-2 text-[9px] font-black uppercase tracking-[.18em] text-ink-faint">Product</p>
+                <div className="grid gap-2 rounded-2xl border border-[#e6d8cc] bg-[#f1e5dc] p-2 sm:grid-cols-3">
+                  {PRODUCT_LINKS.map((item) => (
+                    <Link key={item.to} to={item.to} className="rounded-2xl border border-[#eadfd4] bg-[#fbf7f2] p-4 text-ink">
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-coral-soft text-coral-dark"><item.icon className="h-[18px] w-[18px]" /></span>
+                        <span className={`rounded-full px-2 py-1 text-[7px] font-black uppercase tracking-[.14em] ${item.status === "Live" ? "bg-emerald-50 text-emerald-700" : "bg-white text-coral-dark"}`}>{item.status}</span>
+                      </div>
+                      <p className="mt-3 text-[13px] font-black">{item.label}</p>
+                      <p className="mt-1 text-[10px] leading-relaxed text-ink-mute">{item.short}</p>
+                    </Link>
+                  ))}
+                </div>
+
+                <div className="mt-2 grid grid-cols-2 gap-2 rounded-2xl border border-[#eee5dc] bg-[#fcf9f5] p-2">
+                  {MODULE_LINKS.map((item) => (
+                    <Link key={item.to} to={item.to} className="flex items-center gap-2 rounded-xl border border-[#eee4da] bg-white/75 px-2 py-2.5 text-[11px] font-bold text-ink-soft hover:bg-white">
+                      <item.icon className="h-3.5 w-3.5 text-coral-dark" /> {item.label}
+                    </Link>
+                  ))}
+                </div>
+
+                <p className="mb-2 mt-5 px-2 text-[9px] font-black uppercase tracking-[.18em] text-ink-faint">Who it&apos;s for</p>
+                <div className="grid grid-cols-2 gap-1">
+                  {STAY_LINKS.map((item) => (
+                    <Link key={item.to} to={item.to} className="flex items-center gap-2 rounded-xl px-2 py-2.5 text-[11px] font-bold text-ink-soft hover:bg-mist">
+                      <item.icon className="h-3.5 w-3.5 text-coral-dark" /> {item.label}
+                    </Link>
+                  ))}
+                </div>
+
+                <div className="mt-5 grid grid-cols-3 border-y border-line-soft py-3">
+                  {[["Pricing", "/pricing"], ["About", "/about"], ["Contact", "/contact"]].map(([label, to]) => (
+                    <Link key={to} to={to} className="text-center text-[12px] font-black text-ink-soft">{label}</Link>
+                  ))}
+                </div>
+
+                <div className="mt-5 flex gap-2">
+                  <a href="https://app.innflo.co/login" className="flex h-11 flex-1 items-center justify-center rounded-full border border-ink text-[12px] font-black text-ink">Log in</a>
+                  <Link to="/contact" className="flex h-11 flex-[1.35] items-center justify-center rounded-full bg-coral text-[12px] font-black text-white">Book walkthrough</Link>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </header>
   );
 }

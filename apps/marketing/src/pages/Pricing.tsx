@@ -1,116 +1,125 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { Check, Plus } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  ArrowRight, Check, CheckCircle2, Minus, Plus, Sparkles,
+} from "lucide-react";
 import Reveal from "../components/motion/Reveal";
 import SplitHeading from "../components/motion/SplitHeading";
-import MagneticButton from "../components/motion/MagneticButton";
 
-const EASE = [0.16, 1, 0.3, 1] as const;
-
-interface Tier {
+type Tier = {
   name: string;
   price: string;
-  tagline: string;
-  popular?: boolean;
-  inheritsFrom?: string;
+  eyebrow: string;
+  description: string;
+  bestFor: string;
+  featured?: boolean;
   features: string[];
-}
+};
 
 const TIERS: Tier[] = [
   {
     name: "Essentials",
     price: "8,000",
-    tagline: "A single small property running day-to-day.",
+    eyebrow: "Run the desk",
+    description: "A dependable daily operating system for a small independent property.",
+    bestFor: "Guesthouses, lodges and small hotels moving off paper or spreadsheets.",
     features: [
-      "Reservations & timeline, with group bookings",
-      "Guest folios & billing — 10 payment methods, 14 charge categories",
-      "Housekeeping, with tasks auto-created on checkout",
-      "Guest profiles & stay history",
-      "Daily report",
-      "Email support",
+      "Reservation calendar and room availability",
+      "Guest profiles and stay history",
+      "Folios, payments and printable invoices",
+      "Room status and housekeeping workflow",
+      "Daily dashboard and operating report",
+      "Core staff roles and permissions",
     ],
   },
   {
     name: "Growth",
     price: "18,000",
-    tagline: "An owner who wants to see the numbers, not just run the desk.",
-    popular: true,
-    inheritsFrom: "Essentials",
+    eyebrow: "See the whole business",
+    description: "More control for the manager who runs operations and watches the numbers.",
+    bestFor: "Busy independent hotels with several departments and direct bookings.",
+    featured: true,
     features: [
-      "Expense tracking across 10 categories",
-      "Balance Book — a live, auto-logged cash & bank ledger",
-      "Monthly BI report & owner's dashboard",
-      "Nightly WhatsApp briefing",
-      "Priority support",
+      "Everything in Essentials",
+      "Public Booking Engine with multi-room cart",
+      "Rate plans and promotional codes",
+      "Groups, maintenance and shift handovers",
+      "Expenses, cash book and night audit",
+      "26+ performance and control reports",
+      "Audit log and custom role controls",
     ],
   },
   {
     name: "Complete",
     price: "32,000",
-    tagline: "F&B, multiple units, or more than one channel to watch.",
-    inheritsFrom: "Growth",
+    eyebrow: "Connect every department",
+    description: "The full InnFlo operating stack for properties with food, inventory and QR service.",
+    bestFor: "Hotels with a restaurant, kitchen, room service or stock operations.",
     features: [
-      "Point of Sale — QR ordering, kitchen board, menu & inventory linkage",
-      "Camera-scan inventory updates & low-stock alerts",
-      "Channel Manager — included the moment it goes live (in development today)",
-      "Full custom team roles & permissions",
-      "Multi-property portfolio view",
-      "Dedicated onboarding call",
+      "Everything in Growth",
+      "Point of Sale and direct folio posting",
+      "Guest QR menu and ordering",
+      "Kitchen display board",
+      "Inventory, recipes and stock movement",
+      "Housekeeping mobile PWA and push alerts",
+      "Guided onboarding and priority support",
     ],
   },
 ];
 
-const PRICING_FAQS = [
+const COMPARISON = [
+  { module: "Reservations, rooms & guests", values: [true, true, true] },
+  { module: "Folios, billing & payments", values: [true, true, true] },
+  { module: "Housekeeping operations", values: [true, true, true] },
+  { module: "Booking Engine", values: [false, true, true] },
+  { module: "Rate plans & promo codes", values: [false, true, true] },
+  { module: "Groups, maintenance & night audit", values: [false, true, true] },
+  { module: "Full report library & exports", values: [false, true, true] },
+  { module: "POS, QR ordering & kitchen display", values: [false, false, true] },
+  { module: "Inventory & recipe linkage", values: [false, false, true] },
+];
+
+const FAQS = [
   {
-    q: "Is pricing based on how many rooms I have?",
-    a: "Not for now — each plan is a flat monthly fee regardless of room count. If you're a much larger property, get in touch and we'll figure out what's fair together.",
+    q: "Is there a setup fee or a long contract?",
+    a: "No setup fee and no long-term lock-in. We help configure the hotel, then bill monthly. If InnFlo is not the right fit, you can leave without a cancellation penalty.",
   },
   {
-    q: "Can I pay yearly instead of monthly?",
-    a: "Not yet — every plan is billed monthly right now. Annual billing (with a discount) is something we're planning to add later.",
+    q: "Does InnFlo take commission on direct bookings?",
+    a: "No. Reservations made through your InnFlo Booking Engine belong to your hotel. InnFlo does not take a percentage of the booking value.",
   },
   {
-    q: "Is there a setup fee or minimum contract?",
-    a: "No — no setup fee, no minimum contract. Cancel any time.",
+    q: "What happens during the trial?",
+    a: "You get a real hotel account, guided setup, and enough time to run your own front-desk workflow. We do not ask for a card before the trial starts.",
   },
   {
-    q: "Can I switch plans later?",
-    a: "Yes — move up to Growth or Complete whenever your property needs more, or down if it doesn't. Nothing is locked in.",
+    q: "Are taxes and local payment methods supported?",
+    a: "Yes. Each hotel configures its own GST/PST behavior, tax-inclusive pricing, POS tax, and operational payment methods including cash, bank transfer, JazzCash and EasyPaisa.",
   },
   {
     q: "Is Channel Manager included?",
-    a: "It's part of Complete, but it's still in development — you won't be charged for a feature that isn't live, and it unlocks automatically once it ships.",
+    a: "Direct OTA synchronization is on the roadmap and is clearly marked as not live. It is not counted as part of the value in the plans shown above.",
   },
   {
-    q: "Do you offer a free trial?",
-    a: "Yes — 14 days, full features for your plan, no credit card required.",
+    q: "Can you price a larger or unusual property?",
+    a: "Yes. If your property has an unusual room count or operating model, contact us. We would rather quote a fair plan than force a poor fit.",
   },
 ];
 
-function FaqRow({ q, a, isOpen, isLast, onClick }: { q: string; a: string; isOpen: boolean; isLast: boolean; onClick: () => void }) {
+function Faq({ item, open, onToggle }: { item: (typeof FAQS)[number]; open: boolean; onToggle: () => void }) {
   return (
-    <div className={isLast ? "" : "border-b border-line-soft"}>
-      <button
-        onClick={onClick}
-        aria-expanded={isOpen}
-        className="w-full flex items-center justify-between gap-6 px-6 sm:px-8 py-5 text-left"
-      >
-        <span className="text-[16px] sm:text-[17px] font-bold font-body text-ink">{q}</span>
-        <span className={`shrink-0 h-5 w-5 rounded-md bg-coral shadow-pop grid place-items-center transition-transform duration-300 ${isOpen ? "rotate-45" : ""}`}>
-          <Plus className="h-2.5 w-2.5 text-white" strokeWidth={3} />
+    <div className="border-b border-line-soft last:border-0">
+      <button onClick={onToggle} className="flex w-full items-center justify-between gap-5 px-6 py-5 text-left sm:px-8">
+        <span className="font-body text-[16px] font-bold text-ink">{item.q}</span>
+        <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full bg-coral text-white transition-transform ${open ? "rotate-45" : ""}`}>
+          <Plus className="h-3 w-3" strokeWidth={3} />
         </span>
       </button>
       <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: EASE }}
-            className="overflow-hidden"
-          >
-            <p className="text-[14.5px] text-ink-soft font-body leading-relaxed text-justify px-6 sm:px-8 pb-6 pr-14">{a}</p>
+        {open && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            <p className="px-6 pb-6 pr-14 font-body text-[14px] leading-relaxed text-ink-soft sm:px-8">{item.a}</p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -119,156 +128,137 @@ function FaqRow({ q, a, isOpen, isLast, onClick }: { q: string; a: string; isOpe
 }
 
 export default function Pricing() {
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [openFaq, setOpenFaq] = useState(0);
 
   return (
     <div className="bg-paper text-ink">
-
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <section className="pt-40 pb-16 px-6 bg-grid relative overflow-hidden text-center">
-        <div
-          className="absolute pointer-events-none left-1/2 -translate-x-1/2"
-          style={{ top: "-15%", width: "70%", height: "60%", background: "radial-gradient(ellipse, rgba(224,83,43,0.09), transparent 65%)" }}
-        />
-        <div className="relative mx-auto max-w-2xl">
-          <Reveal variant="fade"><p className="eyebrow mb-6">Pricing</p></Reveal>
-          <h1 className="font-display text-[clamp(38px,6vw,64px)] font-medium leading-[1.05] text-ink">
-            <SplitHeading as="span" className="block">Flat monthly fee.</SplitHeading>
-            <SplitHeading as="span" delay={0.25} className="block italic text-coral-dark">No per-booking cuts.</SplitHeading>
+      <section className="relative overflow-hidden bg-grid px-6 pb-20 pt-40">
+        <div className="absolute left-1/2 top-0 h-[420px] w-[900px] -translate-x-1/2 rounded-full bg-coral/10 blur-3xl" />
+        <div className="relative mx-auto max-w-4xl text-center">
+          <Reveal><p className="eyebrow mb-6">Simple launch pricing</p></Reveal>
+          <h1 className="font-display text-[clamp(44px,7vw,76px)] font-medium leading-[.98]">
+            <SplitHeading as="span" className="block">Pay for the operation</SplitHeading>
+            <SplitHeading as="span" delay={0.2} className="block italic text-coral-dark">you actually run.</SplitHeading>
           </h1>
+          <Reveal delay={0.4}>
+            <p className="mx-auto mt-7 max-w-2xl font-body text-[17px] leading-relaxed text-ink-soft">
+              Flat monthly plans, no per-booking commission, and no invented value from features that are still on the roadmap.
+            </p>
+          </Reveal>
           <Reveal delay={0.5}>
-            <p className="text-[17px] text-ink-soft font-body leading-relaxed max-w-lg mx-auto mt-6">
-              Three plans, priced by what your property actually uses — pick the one that fits today, and grow into the next one when you're ready. Billed monthly, no yearly contract required.
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── Tiers ──────────────────────────────────────────────────────────── */}
-      <section className="pb-24 px-6">
-        <div className="mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            {TIERS.map((tier, i) => (
-              <Reveal key={tier.name} delay={i * 0.08} variant="rise">
-                <div
-                  className={`h-full rounded-3xl p-8 flex flex-col ${
-                    tier.popular
-                      ? "bg-ink text-paper shadow-float lg:-translate-y-3"
-                      : "bg-card border border-line shadow-card"
-                  }`}
-                >
-                  {tier.popular && (
-                    <span className="self-start text-[10px] font-bold uppercase tracking-wider text-coral bg-white/10 px-2.5 py-1 rounded-full mb-4">
-                      Most popular
-                    </span>
-                  )}
-                  <p className={`text-[19px] font-bold font-body mb-1 ${tier.popular ? "text-paper" : "text-ink"}`}>{tier.name}</p>
-                  <p className={`text-[13px] font-body leading-snug mb-6 ${tier.popular ? "opacity-70" : "text-ink-soft"}`} style={tier.popular ? { color: "rgba(245,235,228,0.7)" } : undefined}>
-                    {tier.tagline}
-                  </p>
-
-                  <div className="flex items-baseline gap-1.5 mb-7">
-                    <span className={`font-display text-[42px] font-medium leading-none ${tier.popular ? "text-white" : "text-ink"}`}>
-                      PKR {tier.price}
-                    </span>
-                    <span className={`text-[14px] font-body ${tier.popular ? "opacity-60" : "text-ink-mute"}`}>/month</span>
-                  </div>
-
-                  <MagneticButton className="mb-7">
-                    <Link
-                      to="/contact"
-                      className={`block w-full h-11 text-center leading-[44px] text-[15px] font-bold font-body rounded-full transition-colors ${
-                        tier.popular
-                          ? "bg-coral hover:bg-coral-dark text-white shadow-pop"
-                          : "bg-ink hover:bg-ink-soft text-white"
-                      }`}
-                    >
-                      Start free trial →
-                    </Link>
-                  </MagneticButton>
-
-                  {tier.inheritsFrom && (
-                    <p className={`text-[11.5px] font-bold uppercase tracking-wide mb-3 ${tier.popular ? "opacity-60" : "text-ink-faint"}`} style={tier.popular ? { color: "rgba(245,235,228,0.6)" } : undefined}>
-                      Everything in {tier.inheritsFrom}, plus
-                    </p>
-                  )}
-                  <ul className="space-y-3">
-                    {tier.features.map(f => (
-                      <li key={f} className="flex items-start gap-2.5 text-[13.5px] font-body leading-snug">
-                        <Check className={`h-4 w-4 mt-0.5 shrink-0 ${tier.popular ? "text-coral" : "text-coral-dark"}`} strokeWidth={2.5} />
-                        <span className={tier.popular ? "" : "text-ink-soft"} style={tier.popular ? { color: "rgba(245,235,228,0.85)" } : undefined}>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-
-          <Reveal delay={0.2} className="mt-10 text-center">
-            <p className="text-[13.5px] text-ink-mute font-body">
-              No setup fee · No minimum contract · Cancel any time · 14-day free trial, no card required
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── Trial CTA — footer background ───────────────────────────────────── */}
-      <section className="py-24 px-6 bg-ink">
-        <div className="mx-auto max-w-2xl text-center">
-          <Reveal>
-            <p className="eyebrow mb-5" style={{ color: "#E0532B" }}>Get in early</p>
-            <h2 className="font-display italic text-[clamp(30px,4vw,46px)] font-medium text-paper leading-tight mb-6">
-              Start your free 14-day trial.
-            </h2>
-            <p className="text-[16px] font-body leading-relaxed max-w-lg mx-auto mb-9" style={{ color: "rgba(245,235,228,0.68)" }}>
-              No card required, no obligation to continue — see which plan actually fits your property first.
-            </p>
-            <MagneticButton>
-              <Link
-                to="/contact"
-                className="inline-flex items-center h-12 px-9 rounded-full text-[16px] font-bold font-body bg-coral hover:bg-coral-dark text-white transition-colors shadow-pop"
-              >
-                Start your free 14-day trial →
-              </Link>
-            </MagneticButton>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── FAQ ────────────────────────────────────────────────────────────── */}
-      <section className="py-24 px-6 bg-paper">
-        <div className="mx-auto max-w-4xl">
-          <Reveal variant="fade" className="text-center mb-14">
-            <h2 className="font-display text-[clamp(30px,4vw,44px)] font-medium leading-tight text-ink">
-              Got a question?
-            </h2>
-          </Reveal>
-
-          <Reveal variant="rise">
-            <div className="rounded-3xl bg-card shadow-float overflow-hidden">
-              {PRICING_FAQS.map((item, i) => (
-                <FaqRow
-                  key={item.q}
-                  q={item.q}
-                  a={item.a}
-                  isLast={i === PRICING_FAQS.length - 1}
-                  isOpen={openFaq === i}
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                />
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] font-semibold text-ink-soft">
+              {["Guided trial account", "No card required", "No setup fee", "Cancel monthly"].map((item) => (
+                <span key={item} className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-[#2F7256]" />{item}</span>
               ))}
             </div>
           </Reveal>
         </div>
       </section>
 
-      {/* ── Honest note ────────────────────────────────────────────────────── */}
-      <section className="py-24 px-6 border-t border-line bg-mist">
-        <div className="mx-auto max-w-3xl">
+      <section className="px-6 pb-24">
+        <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-3 lg:items-start">
+          {TIERS.map((tier, index) => (
+            <Reveal key={tier.name} delay={index * 0.08}>
+              <article className={`relative flex min-h-[660px] flex-col overflow-hidden rounded-[28px] p-7 sm:p-8 ${
+                tier.featured ? "bg-ink text-white shadow-hero lg:-translate-y-3" : "border border-line bg-card shadow-card"
+              }`}>
+                {tier.featured && <div className="absolute right-0 top-0 rounded-bl-2xl bg-coral px-4 py-2 text-[10px] font-bold uppercase tracking-wider">Most popular</div>}
+                <p className={`text-[10px] font-bold uppercase tracking-[.18em] ${tier.featured ? "text-coral" : "text-coral-dark"}`}>{tier.eyebrow}</p>
+                <h2 className={`mt-3 font-display text-[34px] font-medium ${tier.featured ? "text-white" : "text-ink"}`}>{tier.name}</h2>
+                <p className={`mt-3 min-h-[66px] text-[14px] leading-relaxed ${tier.featured ? "text-white/65" : "text-ink-soft"}`}>{tier.description}</p>
+                <div className="mt-7 flex items-end gap-2">
+                  <span className={`font-display text-[43px] font-medium leading-none ${tier.featured ? "text-white" : "text-ink"}`}>PKR {tier.price}</span>
+                  <span className={`pb-1 text-[12px] ${tier.featured ? "text-white/50" : "text-ink-mute"}`}>/ month</span>
+                </div>
+                <Link
+                  to="/contact"
+                  className={`mt-7 flex h-12 items-center justify-center rounded-full text-[14px] font-bold transition-colors ${
+                    tier.featured ? "bg-coral text-white hover:bg-coral-dark" : "bg-ink text-white hover:bg-ink-soft"
+                  }`}
+                >
+                  Start with {tier.name} <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+                <div className={`my-7 h-px ${tier.featured ? "bg-white/12" : "bg-line"}`} />
+                <p className={`mb-4 text-[11px] font-bold uppercase tracking-wider ${tier.featured ? "text-white/45" : "text-ink-faint"}`}>What’s included</p>
+                <ul className="space-y-3">
+                  {tier.features.map((feature) => (
+                    <li key={feature} className={`flex gap-2.5 text-[13px] leading-relaxed ${tier.featured ? "text-white/78" : "text-ink-soft"}`}>
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-coral" strokeWidth={2.5} />{feature}
+                    </li>
+                  ))}
+                </ul>
+                <div className={`mt-auto rounded-2xl p-4 ${tier.featured ? "bg-white/[0.06]" : "bg-mist"}`}>
+                  <p className={`text-[10px] font-bold uppercase tracking-wider ${tier.featured ? "text-white/40" : "text-ink-faint"}`}>Best for</p>
+                  <p className={`mt-2 text-[12px] leading-relaxed ${tier.featured ? "text-white/68" : "text-ink-soft"}`}>{tier.bestFor}</p>
+                </div>
+              </article>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      <section className="bg-mist px-6 py-24">
+        <div className="mx-auto max-w-6xl">
+          <Reveal className="mb-12 max-w-2xl">
+            <p className="eyebrow mb-4">Compare plans</p>
+            <h2 className="font-display text-[clamp(34px,5vw,52px)] font-medium leading-tight">The useful detail, without the maze.</h2>
+          </Reveal>
           <Reveal>
-            <p className="font-display italic text-[clamp(20px,2.8vw,30px)] text-ink-soft leading-relaxed text-center">
-              "InnFlo is early-stage software. You won't get a polished enterprise demo or a 50-slide pitch. You'll get a conversation, a real look at what's built, and an honest answer on whether it fits your property."
-            </p>
+            <div className="overflow-x-auto rounded-3xl border border-line bg-white shadow-card">
+              <table className="w-full min-w-[700px] border-collapse">
+                <thead>
+                  <tr className="border-b border-line bg-paper">
+                    <th className="px-6 py-5 text-left text-[11px] uppercase tracking-wider text-ink-mute">Capability</th>
+                    {TIERS.map((tier) => <th key={tier.name} className="px-5 py-5 text-center font-display text-[21px] font-medium">{tier.name}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {COMPARISON.map((row) => (
+                    <tr key={row.module} className="border-b border-line-soft last:border-0">
+                      <td className="px-6 py-4 text-[13px] font-semibold text-ink-soft">{row.module}</td>
+                      {row.values.map((value, index) => (
+                        <td key={TIERS[index]?.name ?? String(index)} className="px-5 py-4 text-center">
+                          {value ? <Check className="mx-auto h-4 w-4 text-[#2F7256]" strokeWidth={3} /> : <Minus className="mx-auto h-4 w-4 text-ink-faint" />}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      <section className="px-6 py-24">
+        <Reveal className="mx-auto max-w-6xl">
+          <div className="grid gap-8 overflow-hidden rounded-[32px] bg-[#183B38] p-8 text-white sm:p-12 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div>
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-coral">
+                <Sparkles className="h-3.5 w-3.5" /> Roadmap stays separate
+              </div>
+              <h2 className="max-w-2xl font-display text-[clamp(30px,4vw,46px)] font-medium leading-tight">Channel Manager is coming—but you are not paying for a promise.</h2>
+              <p className="mt-4 max-w-2xl text-[14px] leading-relaxed text-white/65">
+                Direct OTA synchronization is in development. Today’s plans are priced around modules that are already built and usable.
+              </p>
+            </div>
+            <Link to="/channel-manager" className="inline-flex h-12 items-center justify-center rounded-full border border-white/25 px-6 text-[13px] font-bold text-white hover:bg-white/10">
+              View the roadmap <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </div>
+        </Reveal>
+      </section>
+
+      <section className="bg-paper px-6 pb-28">
+        <div className="mx-auto max-w-4xl">
+          <Reveal className="mb-10 text-center">
+            <p className="eyebrow mb-4">Questions before you commit</p>
+            <h2 className="font-display text-[clamp(34px,5vw,50px)] font-medium">Plain answers.</h2>
+          </Reveal>
+          <Reveal>
+            <div className="overflow-hidden rounded-3xl border border-line bg-card shadow-float">
+              {FAQS.map((item, index) => <Faq key={item.q} item={item} open={openFaq === index} onToggle={() => setOpenFaq(openFaq === index ? -1 : index)} />)}
+            </div>
           </Reveal>
         </div>
       </section>

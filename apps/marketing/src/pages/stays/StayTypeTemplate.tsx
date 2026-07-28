@@ -120,7 +120,7 @@ export default function StayTypeTemplate({ eyebrow, heading, image, intro, ctaLa
                     {ctaLabel}
                   </Link>
                 </MagneticButton>
-                <p className="text-[13px] text-ink-mute font-body mt-3">14-day free trial · no credit card required.</p>
+                <p className="text-[13px] text-ink-mute font-body mt-3">Guided trial · no credit card required.</p>
               </Reveal>
             </div>
             <Reveal variant="scale" delay={0.1}>
@@ -161,24 +161,29 @@ export default function StayTypeTemplate({ eyebrow, heading, image, intro, ctaLa
             heading: "Every guest, one glance away.",
             copy: "Arrivals, departures, and room status for the whole day — check someone in without leaving this screen.",
             mockup: <FrontDeskMockup />,
+            learnMoreTo: "/pms",
           },
           {
             label: "Automations",
             heading: "Keeps working when the Wi-Fi doesn't.",
             copy: "Staff mark rooms clean from their own phone, even offline — everything syncs the moment a signal comes back.",
             mockup: <HousekeepingMockup />,
+            learnMoreTo: "/automations",
           },
           {
             label: "Reports",
             heading: "The numbers, already done.",
             copy: "Occupancy, ADR, revenue, and profit — a finished report waiting for you, not a spreadsheet you have to build.",
             mockup: <ReportsSnapshotMockup />,
+            learnMoreTo: "/statistics",
           },
           {
             label: "Channel Manager",
             heading: "Coming soon.",
             copy: "Direct two-way sync with Booking.com, Expedia, Agoda, and Airbnb is in development — not live yet, so we're not going to pretend it is.",
             mockup: <ChannelManagerComingSoonMockup />,
+            learnMoreTo: "/channel-manager",
+            learnMoreLabel: "View the roadmap",
           },
         ]}
       />
@@ -254,7 +259,7 @@ export default function StayTypeTemplate({ eyebrow, heading, image, intro, ctaLa
           <Reveal>
             <p className="eyebrow mb-5" style={{ color: "#E0532B" }}>Get in early</p>
             <h2 className="font-display italic text-[clamp(30px,4vw,46px)] font-medium text-paper leading-tight mb-6">
-              Start your free 14-day trial.
+              Start with a guided InnFlo trial.
             </h2>
             <p className="text-[16px] font-body leading-relaxed max-w-lg mx-auto mb-9" style={{ color: "rgba(245,235,228,0.68)" }}>
               No card required, no obligation to continue — see if InnFlo fits your property first.
@@ -264,7 +269,7 @@ export default function StayTypeTemplate({ eyebrow, heading, image, intro, ctaLa
                 to="/contact"
                 className="inline-flex items-center h-12 px-9 rounded-full text-[16px] font-bold font-body bg-coral hover:bg-coral-dark text-white transition-colors shadow-pop"
               >
-                Start your free 14-day trial →
+                Book a guided trial →
               </Link>
             </MagneticButton>
           </Reveal>

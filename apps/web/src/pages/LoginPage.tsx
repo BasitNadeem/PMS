@@ -280,9 +280,15 @@ export default function LoginPage() {
           </button>
           </form>
 
-          <div className="mt-8 flex items-center justify-center gap-2 text-center text-[12px] text-ink-faint">
-            <ShieldCheck size={14} className="text-pine" />
-            Your property data is protected and tenant-isolated.
+          <div className="mt-8 flex flex-col items-center justify-center gap-2 text-center text-[12px] text-ink-faint sm:flex-row sm:gap-3">
+            <span className="flex items-center gap-2">
+              <ShieldCheck size={14} className="text-pine" />
+              Your property data is protected and tenant-isolated.
+            </span>
+            <span className="hidden h-3 w-px bg-line sm:block" />
+            <a href="mailto:support@innflo.co" className="font-semibold text-ink-mute transition-colors hover:text-coral">
+              Need help? support@innflo.co
+            </a>
           </div>
         </div>
       </section>

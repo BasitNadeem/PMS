@@ -1,95 +1,182 @@
 import { Link } from "react-router-dom";
+import {
+  ArrowRight,
+  BellRing,
+  CheckCircle2,
+  Cloud,
+  Hotel,
+  KeyRound,
+  MapPin,
+  MessageSquareText,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import Reveal from "../components/motion/Reveal";
 import SplitHeading from "../components/motion/SplitHeading";
-import MagneticButton from "../components/motion/MagneticButton";
+
+const PRINCIPLES = [
+  {
+    icon: Hotel,
+    title: "Manager-first",
+    copy: "The important question is not how many features fit in a menu. It is whether a manager can understand the property before the first cup of chai.",
+  },
+  {
+    icon: MessageSquareText,
+    title: "Familiar workflows",
+    copy: "InnFlo replaces the paper register, spreadsheet and WhatsApp guessing game without asking the team to become software experts.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Control without complexity",
+    copy: "Tenant isolation, role permissions and an audit trail sit underneath a product that still feels straightforward at the front desk.",
+  },
+];
+
+const FLOW = [
+  { time: "08:12", label: "Direct booking received", detail: "Reservation, rate and guest details arrive together.", icon: BellRing },
+  { time: "11:00", label: "Room turns over", detail: "Checkout moves the room into the housekeeping flow.", icon: KeyRound },
+  { time: "17:40", label: "Manager closes the loop", detail: "Folios, cash, reports and handover notes stay in one record.", icon: CheckCircle2 },
+];
 
 export default function About() {
   return (
     <div className="bg-paper text-ink">
+      <section className="relative overflow-hidden bg-grid px-6 pb-24 pt-40">
+        <div className="absolute -right-40 top-28 h-[430px] w-[430px] rounded-full bg-coral/10 blur-3xl" />
+        <div className="relative mx-auto grid max-w-6xl gap-14 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
+          <div>
+            <Reveal><p className="eyebrow mb-6">Why InnFlo exists</p></Reveal>
+            <h1 className="font-display text-[clamp(44px,6.5vw,76px)] font-medium leading-[.98]">
+              <SplitHeading as="span" className="block">Hotel software for</SplitHeading>
+              <SplitHeading as="span" delay={0.2} className="block italic text-coral-dark">the people on the floor.</SplitHeading>
+            </h1>
+            <Reveal delay={0.4}>
+              <p className="mt-7 max-w-xl font-body text-[17px] leading-relaxed text-ink-soft">
+                InnFlo is a manager-first operating system for independent hotels—starting with the properties that make Pakistan’s mountain tourism unforgettable.
+              </p>
+            </Reveal>
+            <Reveal delay={0.48}>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link to="/pms" className="inline-flex h-12 items-center rounded-full bg-coral px-7 text-[14px] font-bold text-white shadow-pop hover:bg-coral-dark">
+                  Explore the product <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+                <Link to="/contact" className="inline-flex h-12 items-center rounded-full border border-line bg-white px-7 text-[14px] font-bold text-ink hover:border-ink">
+                  Talk about your hotel
+                </Link>
+              </div>
+            </Reveal>
+          </div>
 
-      {/* ── Opener ─────────────────────────────────────────────────────────── */}
-      <section className="pt-40 pb-20 px-6 bg-grid">
-        <div className="mx-auto max-w-4xl">
-          <Reveal variant="fade"><p className="eyebrow mb-6">About</p></Reveal>
-          <h1 className="font-display text-[clamp(42px,6.5vw,72px)] font-medium leading-[1.0] text-ink">
-            <SplitHeading as="span" className="block">We built what</SplitHeading>
-            <SplitHeading as="span" delay={0.25} className="block italic text-coral-dark">we couldn't find.</SplitHeading>
-          </h1>
+          <Reveal delay={0.2}>
+            <div className="relative overflow-hidden rounded-[30px] bg-ink p-6 text-white shadow-hero sm:p-8">
+              <div className="mb-8 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[.16em] text-coral">A day in flow</p>
+                  <p className="mt-2 font-display text-[28px] font-medium">The hotel keeps moving.</p>
+                </div>
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10">
+                  <Sparkles className="h-5 w-5 text-coral" />
+                </div>
+              </div>
+              <div className="space-y-3">
+                {FLOW.map(({ time, label, detail, icon: Icon }, index) => (
+                  <div key={label} className="relative flex gap-4 rounded-2xl border border-white/10 bg-white/[.055] p-4">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-coral/15">
+                      <Icon className="h-4 w-4 text-coral" />
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <p className="text-[13px] font-bold text-white">{label}</p>
+                        <span className="text-[10px] font-semibold text-white/35">{time}</span>
+                      </div>
+                      <p className="mt-1 text-[12px] leading-relaxed text-white/55">{detail}</p>
+                    </div>
+                    {index < FLOW.length - 1 && <span className="absolute -bottom-3 left-9 h-3 w-px bg-white/20" />}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 flex items-center justify-between rounded-2xl bg-coral p-4">
+                <p className="text-[12px] font-bold">One source of truth. No group-chat archaeology.</p>
+                <ArrowRight className="h-4 w-4" />
+              </div>
+            </div>
+          </Reveal>
         </div>
       </section>
 
-      {/* ── Story ──────────────────────────────────────────────────────────── */}
-      <section className="py-20 px-6">
-        <div className="mx-auto max-w-4xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[60%_40%] gap-16">
-
-            <Reveal className="space-y-6 font-body text-[17.5px] text-ink-soft leading-[1.85]">
-              <p className="first-letter:font-display first-letter:text-[64px] first-letter:font-medium first-letter:text-coral-dark first-letter:mr-2 first-letter:float-left first-letter:leading-[0.85]">
-                The hotels we know in northern Pakistan — the ones in Hunza, Skardu, Naran, and the valleys in between — run on spreadsheets, WhatsApp groups, and paper notebooks. Not because their owners are behind the times, but because the software that exists was built for someone else.
-              </p>
-              <p>
-                Enterprise PMS systems are designed for large city hotels with dedicated IT staff, reliable internet, and budgets that include per-booking commission fees. A 12-room guesthouse at 3,000 meters can't afford a Mews subscription, doesn't have the bandwidth for a cloud-heavy app, and doesn't need a revenue management API.
-              </p>
-              <p>
-                InnFlo started from a simple question: what would a PMS look like if it was designed specifically for small, independently-run properties in markets like north Pakistan and the Gulf — where connectivity is variable, staff may not be particularly technical, and the owner is also the front desk?
-              </p>
-              <p>
-                The answer is what you see here. A system that works offline when the internet cuts out. A housekeeping app that runs on any Android phone. A nightly WhatsApp briefing because the owner is more likely to see it there than in a dashboard. Payment methods that include JazzCash and EasyPaisa because that's how guests actually pay. Booking sources that include Bookme.pk and Sastaticket.pk because that's where guests in this market actually book.
-              </p>
-              <p>
-                We haven't been running since 2015. We don't have 10,000 customers. We're not backed by a global SaaS fund. InnFlo is early-stage software built by people who know what these hotels need because we've spent time in them.
-              </p>
+      <section className="px-6 py-24">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid gap-14 lg:grid-cols-[.8fr_1.2fr] lg:items-start">
+            <Reveal>
+              <p className="eyebrow mb-5">The starting point</p>
+              <h2 className="font-display text-[clamp(34px,5vw,54px)] font-medium leading-[1.04]">Informal tools are flexible. They are also invisible.</h2>
             </Reveal>
-
-            <Reveal delay={0.1} className="space-y-8">
-              <div className="pt-8 border-t border-line">
-                <p className="eyebrow mb-3">What we are</p>
-                <ul className="space-y-2.5 font-body text-[15.5px] text-ink-soft">
-                  {["Early-stage, actively built", "Pakistan-first, expanding to the Gulf", "Built by hoteliers and engineers", "Honest about what's ready and what isn't"].map(f => (
-                    <li key={f} className="flex items-start gap-2.5">
-                      <span className="text-coral mt-0.5">—</span>{f}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="pt-8 border-t border-line">
-                <p className="eyebrow mb-3">What we're not</p>
-                <ul className="space-y-2.5 font-body text-[15.5px] text-ink-mute">
-                  {["A rebadged Western SaaS product", "Charging per-booking commission", "Hiding features behind upsell tiers", "Inflating customer counts or fake reviews"].map(f => (
-                    <li key={f} className="flex items-start gap-2.5">
-                      <span style={{ color: "#B8B1A6" }}>✗</span>{f}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="pt-8 border-t border-line">
-                <p className="eyebrow mb-3">Where we're building toward</p>
-                <p className="font-body text-[15.5px] text-ink-soft leading-relaxed">
-                  Channel Manager (OTA sync), guest messaging, email notifications, and a guest portal. These are on the roadmap — not vaporware, but not ready today.
-                </p>
-              </div>
+            <Reveal delay={0.1} className="space-y-6 font-body text-[17px] leading-[1.8] text-ink-soft">
+              <p>
+                Independent hotels are often held together by capable people using paper registers, spreadsheets, calls and WhatsApp. Those tools feel easy until availability changes, a payment is missed, a room is not cleaned, or the manager needs a reliable answer from yesterday.
+              </p>
+              <p>
+                Enterprise PMS products solve a different problem. They assume specialist teams, complex integrations and a software budget shaped around international chains. InnFlo sits between those worlds: serious operational control with a learning curve that respects a busy hotel team.
+              </p>
+              <p>
+                We are early, actively built, and honest about what is live. Channel distribution and deeper guest messaging are roadmap work; reservations, hotel operations, direct booking, financial control, POS, QR ordering, inventory and reporting are here today.
+              </p>
             </Reveal>
           </div>
         </div>
       </section>
 
-      {/* ── Closing statement ──────────────────────────────────────────────── */}
-      <section className="py-24 px-6 border-t border-line bg-mist">
-        <div className="mx-auto max-w-4xl">
+      <section className="bg-mist px-6 py-24">
+        <div className="mx-auto max-w-6xl">
+          <Reveal className="mb-12 max-w-2xl">
+            <p className="eyebrow mb-4">Product principles</p>
+            <h2 className="font-display text-[clamp(34px,5vw,54px)] font-medium leading-tight">Built around the shift, not the sales deck.</h2>
+          </Reveal>
+          <div className="grid gap-5 md:grid-cols-3">
+            {PRINCIPLES.map(({ icon: Icon, title, copy }, index) => (
+              <Reveal key={title} delay={index * 0.08}>
+                <article className="h-full rounded-[26px] border border-line bg-white p-7 shadow-card">
+                  <div className="grid h-11 w-11 place-items-center rounded-2xl bg-coral-soft">
+                    <Icon className="h-5 w-5 text-coral-dark" />
+                  </div>
+                  <h3 className="mt-7 font-display text-[27px] font-medium">{title}</h3>
+                  <p className="mt-3 text-[14px] leading-relaxed text-ink-soft">{copy}</p>
+                </article>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="px-6 py-24">
+        <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-2">
           <Reveal>
-            <p className="font-display text-[clamp(26px,3.6vw,46px)] font-medium leading-tight text-ink mb-9">
-              If you run a hotel in northern Pakistan or the Gulf region and you're tired of Excel, we'd genuinely like to talk.
-            </p>
-            <MagneticButton>
-              <Link
-                to="/contact"
-                className="inline-flex items-center h-12 px-8 rounded-full text-[16px] font-semibold font-body text-white bg-coral hover:bg-coral-dark transition-colors shadow-pop"
-              >
-                Get in touch →
-              </Link>
-            </MagneticButton>
+            <div className="h-full rounded-[30px] bg-[#183B38] p-8 text-white sm:p-10">
+              <Cloud className="h-7 w-7 text-coral" />
+              <h2 className="mt-8 font-display text-[38px] font-medium leading-tight">Cloud access. Property-level isolation.</h2>
+              <p className="mt-5 text-[14px] leading-relaxed text-white/65">
+                Staff sign in to their hotel account, roles control what each person can do, and tenant identity comes from authenticated access—not a browser hostname or a client-supplied hotel ID.
+              </p>
+              <div className="mt-8 grid grid-cols-2 gap-3 text-[12px] font-semibold">
+                {["Role permissions", "Audit history", "Hotel-scoped data", "Secure sign-in"].map((item) => (
+                  <span key={item} className="flex items-center gap-2 rounded-xl bg-white/[.07] px-3 py-3">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-coral" /> {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </Reveal>
+          <Reveal delay={0.08}>
+            <div className="h-full rounded-[30px] border border-line bg-card p-8 sm:p-10">
+              <MapPin className="h-7 w-7 text-coral-dark" />
+              <h2 className="mt-8 font-display text-[38px] font-medium leading-tight">Pakistan-first. Hospitality-minded.</h2>
+              <p className="mt-5 text-[14px] leading-relaxed text-ink-soft">
+                PKR, JazzCash, EasyPaisa, GST/PST settings and the realities of seasonal independent properties are part of the product context—not an afterthought in a global localization menu.
+              </p>
+              <p className="mt-7 border-t border-line pt-6 text-[13px] leading-relaxed text-ink-mute">
+                Starting in Hunza, Skardu, Naran and Swat, with city hotels and regional markets next.
+              </p>
+            </div>
           </Reveal>
         </div>
       </section>

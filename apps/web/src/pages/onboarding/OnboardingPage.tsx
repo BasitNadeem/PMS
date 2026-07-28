@@ -1,263 +1,313 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Check, ChevronLeft, Copy, Calendar, CreditCard, Smartphone,
-  Package, Sparkles, Bed, Users, Building2, type LucideIcon,
+  ArrowRight,
+  BedDouble,
+  BellRing,
+  Building2,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  Clock3,
+  Copy,
+  CreditCard,
+  Mail,
+  MapPin,
+  Palette,
+  Plus,
+  ReceiptText,
+  Rocket,
+  ShieldCheck,
+  Sparkles,
+  Users,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { hotelsService } from "@/services/hotels";
 import { authService } from "@/services/auth";
-import { settingsService, type UpdateSettingsDto, type ThemeKey } from "@/services/settings";
-import { roomsService, type RoomType, type RoomTypeName, type RoomStatus } from "@/services/rooms";
+import { settingsService, type ThemeKey, type UpdateSettingsDto } from "@/services/settings";
+import { roomsService, type RoomStatus, type RoomTypeName } from "@/services/rooms";
 import { usersService, type Role } from "@/services/users";
 import { applyTheme } from "@/lib/theme";
 import { pkrInWords } from "@/lib/numberToWords";
 import { ThemePicker } from "@/components/settings/ThemePicker";
 import { getPhoneErrorMessage } from "@/lib/validation";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const STEP_LABELS = ["Welcome", "Hotel Profile", "Add Rooms", "Your Team", "Appearance"];
-
+const STEP_LABELS = ["Welcome", "Property", "Rooms", "Team", "Finish"];
 const STEP_DESCRIPTIONS = [
-  "Let's get you familiar with what's waiting for you.",
-  "Basic details help your team and your reports look professional.",
-  "Rooms are the foundation. Add at least one to get started.",
-  "Your staff need access. Add them now or later.",
-  "Pick a color palette for the app. You can change this anytime in Settings.",
+  "A quick launch, focused on what the front desk needs first.",
+  "Identity, operating hours and optional tax defaults.",
+  "Create room categories, then add the physical rooms inside them.",
+  "Invite essential staff now, or do it later from Settings.",
+  "Choose the workspace look and open your command center.",
 ];
 
 const PROPERTY_TYPES = [
-  "HOTEL", "GUESTHOUSE", "RESORT", "LODGE",
-  "HOSTEL", "SERVICED_APARTMENT", "CAMPSITE",
+  "HOTEL",
+  "GUESTHOUSE",
+  "RESORT",
+  "LODGE",
+  "HOSTEL",
+  "SERVICED_APARTMENT",
+  "CAMPSITE",
 ];
+
 const PROPERTY_LABELS: Record<string, string> = {
-  HOTEL: "Hotel", GUESTHOUSE: "Guesthouse", RESORT: "Resort", LODGE: "Lodge",
-  HOSTEL: "Hostel", SERVICED_APARTMENT: "Serviced Apartment", CAMPSITE: "Campsite",
+  HOTEL: "Hotel",
+  GUESTHOUSE: "Guesthouse",
+  RESORT: "Resort",
+  LODGE: "Lodge",
+  HOSTEL: "Hostel",
+  SERVICED_APARTMENT: "Serviced Apartment",
+  CAMPSITE: "Campsite",
 };
 
-// Must mirror AddRoomTypeModal.tsx's TYPE_OPTIONS exactly — the Rooms page and
-// onboarding wizard need identical room type wording.
 const BED_TYPES: { label: string; value: RoomTypeName }[] = [
-  { label: "Single",        value: "SINGLE" },
-  { label: "Double",        value: "DOUBLE" },
-  { label: "Twin",          value: "TWIN" },
-  { label: "Triple",        value: "TRIPLE" },
-  { label: "Family",        value: "FAMILY" },
-  { label: "Suite",         value: "SUITE" },
-  { label: "Dormitory",     value: "DORMITORY" },
-  { label: "Cottage",       value: "COTTAGE" },
+  { label: "Single", value: "SINGLE" },
+  { label: "Double", value: "DOUBLE" },
+  { label: "Twin", value: "TWIN" },
+  { label: "Triple", value: "TRIPLE" },
+  { label: "Family", value: "FAMILY" },
+  { label: "Suite", value: "SUITE" },
+  { label: "Dormitory", value: "DORMITORY" },
+  { label: "Cottage", value: "COTTAGE" },
   { label: "Tent / Glamping", value: "TENT_GLAMPING" },
 ];
 
-const TEAM_ROLES: { name: string; label: string }[] = [
-  { name: "MANAGER",      label: "Manager" },
-  { name: "FRONT_DESK",   label: "Front Desk" },
+const TEAM_ROLES = [
+  { name: "MANAGER", label: "Manager" },
+  { name: "FRONT_DESK", label: "Front Desk" },
   { name: "HOUSEKEEPING", label: "Housekeeping" },
-  { name: "KITCHEN",      label: "Kitchen" },
-  { name: "MAINTENANCE",  label: "Maintenance" },
-  { name: "ACCOUNTANT",   label: "Accountant" },
+  { name: "KITCHEN", label: "Kitchen" },
+  { name: "MAINTENANCE", label: "Maintenance" },
+  { name: "ACCOUNTANT", label: "Accountant" },
 ];
 
-const FEATURES: { icon: LucideIcon; title: string; subtitle: string }[] = [
-  { icon: Calendar,    title: "Real-time reservations",   subtitle: "Manage bookings from any source in one place" },
-  { icon: CreditCard,  title: "Automatic billing",        subtitle: "Every payment tracked and reconciled instantly" },
-  { icon: Smartphone,  title: "Nightly WhatsApp briefing", subtitle: "Get a daily summary on your phone at 11 PM" },
+const LAUNCH_OUTCOMES: { icon: LucideIcon; title: string; copy: string }[] = [
+  { icon: CalendarDays, title: "A ready reservation desk", copy: "Rooms, rates and availability become one working calendar." },
+  { icon: BellRing, title: "Operations that reach the team", copy: "Booking alerts and housekeeping work stay visible to staff." },
+  { icon: ReceiptText, title: "Billing with the right defaults", copy: "Your hotel’s times and tax behavior are configured from day one." },
 ];
 
-// ── Completion celebration ───────────────────────────────────────────────────
+const inputCls =
+  "w-full rounded-xl border border-line bg-white px-3.5 py-3 text-[14px] text-ink placeholder:text-ink-faint outline-none transition focus:border-coral/60 focus:ring-2 focus:ring-coral/15";
+const labelCls = "mb-1.5 block text-[12px] font-bold text-ink-soft";
+const primaryButton =
+  "inline-flex w-full items-center justify-center rounded-xl bg-coral px-5 py-3.5 text-[14px] font-bold text-white shadow-pop transition hover:bg-coral-dark disabled:cursor-not-allowed disabled:opacity-60";
+const secondaryButton =
+  "inline-flex items-center justify-center rounded-xl border border-line bg-white px-4 py-3 text-[13px] font-bold text-ink-soft transition hover:border-coral/40 hover:text-coral-dark disabled:opacity-60";
 
-const CELEBRATION_LINES = [
-  "Packing up your hotel empire... \u{1F4E6}",
-  "Sprinkling a little magic ✨",
-  "Tidying the last few pixels...",
-  "You're all set. Let's go! \u{1F680}",
-];
-
-const CONVERGE_ICONS: LucideIcon[] = [Building2, Bed, Users, CreditCard, Sparkles];
-
-const CONFETTI_COLORS = ["bg-coral", "bg-pine", "bg-amber", "bg-slate", "bg-dusk"];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
+const stepVariants = {
+  initial: (direction: number) => ({ opacity: 0, x: direction > 0 ? 34 : -34 }),
+  animate: { opacity: 1, x: 0 },
+  exit: (direction: number) => ({ opacity: 0, x: direction > 0 ? -34 : 34 }),
+};
+const stepTransition = { duration: 0.28, ease: [0.22, 1, 0.36, 1] as const };
 
 function getCurrentUserId(): string | null {
   const token = localStorage.getItem("accessToken");
   if (!token) return null;
   try {
-    const payload = JSON.parse(atob(token.split(".")[1] ?? ""));
-    return (payload as { userId?: string }).userId ?? null;
-  } catch { return null; }
+    const payload = JSON.parse(atob(token.split(".")[1] ?? "")) as { userId?: string };
+    return payload.userId ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function generateTempPassword(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-  let pwd = "";
-  for (let i = 0; i < 10; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
-  return pwd;
+  let password = "";
+  for (let index = 0; index < 10; index += 1) {
+    password += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return password;
 }
 
-const inputCls = "w-full rounded-xl border border-line bg-mist px-3.5 py-2.5 text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors";
-const labelCls = "block text-[13px] font-semibold text-ink-soft mb-1.5";
+function numberSetting(value: unknown, fallback: number) {
+  const number = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
 
-const stepVariants = {
-  initial: (direction: number) => ({ opacity: 0, x: direction > 0 ? 56 : -56, scale: 0.96, rotateY: direction > 0 ? 8 : -8 }),
-  animate: { opacity: 1, x: 0, scale: 1, rotateY: 0 },
-  exit:    (direction: number) => ({ opacity: 0, x: direction > 0 ? -56 : 56, scale: 0.96, rotateY: direction > 0 ? -8 : 8 }),
-};
+function booleanSetting(value: unknown, fallback: boolean) {
+  return typeof value === "boolean" ? value : fallback;
+}
 
-const stepTransition = { duration: 0.35, ease: [0.22, 1, 0.36, 1] as const };
-
-// Diagonal color wipe that sweeps across the content area on every step change.
-const sweepVariants = {
-  initial: (direction: number) => ({ x: direction > 0 ? "-100%" : "100%", opacity: 0.35 }),
-  animate: (direction: number) => ({ x: direction > 0 ? "100%" : "-100%", opacity: 0 }),
-};
-
-// ── Left panel ────────────────────────────────────────────────────────────────
-
-function LeftPanel({ hotelName, currentStep, onSkip }: { hotelName?: string; currentStep: number; onSkip: () => void }) {
+function ErrorNotice({ message }: { message: string }) {
   return (
-    <div className="w-[28%] shrink-0 h-screen bg-coral-soft flex flex-col relative">
-      {/* Top section */}
-      <div className="pt-10 px-8">
-        <div className="text-xs font-medium tracking-widest uppercase text-ink opacity-70 truncate">
-          {hotelName ?? "Your Hotel"}
-        </div>
+    <div className="mb-5 rounded-xl border border-clay/20 bg-clay-soft px-4 py-3 text-[13px] font-semibold text-clay">
+      {message}
+    </div>
+  );
+}
 
-        <div className="mt-8">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentStep}
-              initial={{ opacity: 0, y: 14, scale: 0.92 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -14, scale: 0.92 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-            >
-              <div className="text-6xl font-bold text-ink opacity-10 leading-none">
-                {String(currentStep).padStart(2, "0")}
-              </div>
-              <h2 className="text-xl font-semibold text-ink mt-2">{STEP_LABELS[currentStep - 1]}</h2>
-              <p className="text-sm text-ink opacity-70 mt-2 leading-relaxed">{STEP_DESCRIPTIONS[currentStep - 1]}</p>
-            </motion.div>
-          </AnimatePresence>
-        </div>
+function DesktopRail({
+  hotelName,
+  currentStep,
+  onSkip,
+}: {
+  hotelName?: string;
+  currentStep: number;
+  onSkip: () => void;
+}) {
+  const progress = Math.round((currentStep / STEP_LABELS.length) * 100);
+
+  return (
+    <aside className="relative hidden min-h-screen w-[32%] max-w-[430px] shrink-0 overflow-hidden bg-ink px-9 py-9 text-white lg:flex lg:flex-col">
+      <div className="absolute -left-24 bottom-12 h-72 w-72 rounded-full bg-coral/20 blur-3xl" />
+      <div className="relative flex items-center justify-between">
+        <span className="font-display text-[27px] font-semibold italic">InnFlo</span>
+        <span className="rounded-full border border-white/10 bg-white/[.06] px-3 py-1.5 text-[9px] font-bold uppercase tracking-[.16em] text-white/60">
+          Property launch
+        </span>
       </div>
 
-      {/* Middle section — vertical stepper */}
-      <div className="mt-10 px-8 flex flex-col gap-y-5">
-        {STEP_LABELS.map((label, idx) => {
-          const stepNumber = idx + 1;
-          const isCompleted = stepNumber < currentStep;
-          const isCurrent   = stepNumber === currentStep;
+      <div className="relative mt-16">
+        <p className="text-[10px] font-bold uppercase tracking-[.18em] text-coral">Setting up</p>
+        <h2 className="mt-3 truncate font-display text-[34px] font-medium leading-tight">{hotelName || "Your hotel"}</h2>
+        <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-white/55">{STEP_DESCRIPTIONS[currentStep - 1]}</p>
+      </div>
+
+      <div className="relative mt-12 space-y-1">
+        {STEP_LABELS.map((label, index) => {
+          const step = index + 1;
+          const completed = step < currentStep;
+          const current = step === currentStep;
           return (
-            <div key={label} className="flex items-center gap-3 relative">
-              {idx < STEP_LABELS.length - 1 && (
-                <span
-                  className={cn(
-                    "absolute left-[13px] top-7 w-px h-5 transition-colors duration-300",
-                    isCompleted ? "bg-coral" : "bg-coral/20",
-                  )}
-                />
-              )}
-              <motion.span
-                className={cn(
-                  "relative z-10 grid place-items-center h-7 w-7 rounded-full text-[12px] font-bold shrink-0",
-                  isCompleted || isCurrent
-                    ? "bg-coral text-white"
-                    : "border-2 border-ink/20 text-ink/40",
-                )}
-                animate={isCurrent ? { scale: [1, 1.12, 1] } : { scale: 1 }}
-                transition={isCurrent ? { duration: 1.8, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
-              >
-                {isCompleted ? (
-                  <motion.span
-                    initial={{ scale: 0, rotate: -45 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                  >
-                    <Check size={14} />
-                  </motion.span>
-                ) : stepNumber}
-              </motion.span>
-              <span className={cn("text-sm transition-colors duration-300", isCurrent ? "font-medium text-ink" : "text-ink/50")}>
-                {label}
+            <div key={label} className={cn("flex items-center gap-3 rounded-2xl px-3 py-3 transition", current && "bg-white/[.07]")}>
+              <span className={cn(
+                "grid h-8 w-8 place-items-center rounded-xl border text-[11px] font-bold",
+                completed && "border-coral bg-coral text-white",
+                current && "border-white/25 bg-white/10 text-white",
+                !completed && !current && "border-white/10 text-white/35",
+              )}>
+                {completed ? <Check className="h-4 w-4" /> : step}
               </span>
+              <div>
+                <p className={cn("text-[13px] font-bold", current ? "text-white" : "text-white/45")}>{label}</p>
+                {current && <p className="mt-0.5 text-[10px] text-coral">{progress}% complete</p>}
+              </div>
             </div>
           );
         })}
       </div>
 
-      {/* Bottom section */}
-      <button
-        onClick={onSkip}
-        className="absolute bottom-8 left-8 text-xs text-ink opacity-50 hover:opacity-80 transition-opacity cursor-pointer underline-offset-2 hover:underline"
-      >
-        Skip setup
+      <div className="relative mt-auto rounded-2xl border border-white/10 bg-white/[.055] p-4">
+        <div className="flex items-center gap-2 text-[11px] font-bold text-white/75">
+          <ShieldCheck className="h-4 w-4 text-coral" /> Everything is hotel-specific
+        </div>
+        <p className="mt-2 text-[10px] leading-relaxed text-white/42">Rates, rooms, taxes and staff access are saved only to this property.</p>
+      </div>
+      <button onClick={onSkip} className="relative mt-5 text-left text-[11px] font-semibold text-white/40 hover:text-white/70">
+        Skip the guided setup
       </button>
+    </aside>
+  );
+}
+
+function MobileProgress({
+  hotelName,
+  currentStep,
+}: {
+  hotelName?: string;
+  currentStep: number;
+}) {
+  return (
+    <div className="sticky top-0 z-30 border-b border-line bg-paper/95 px-5 py-4 backdrop-blur lg:hidden">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-display text-[21px] font-semibold italic">InnFlo</p>
+          <p className="mt-0.5 max-w-[220px] truncate text-[10px] font-bold uppercase tracking-wider text-ink-mute">{hotelName || "Property setup"}</p>
+        </div>
+        <span className="text-[11px] font-bold text-coral-dark">{currentStep} / {STEP_LABELS.length}</span>
+      </div>
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-coral-soft">
+        <motion.div className="h-full rounded-full bg-coral" animate={{ width: `${(currentStep / STEP_LABELS.length) * 100}%` }} />
+      </div>
     </div>
   );
 }
 
-// ── Shared step header ───────────────────────────────────────────────────────
-
-function StepHeader({ title, subtitle, onBack }: { title: string; subtitle: string; onBack: () => void }) {
+function StepHeader({
+  eyebrow,
+  title,
+  subtitle,
+  onBack,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  onBack: () => void;
+}) {
   return (
-    <>
-      <button
-        onClick={onBack}
-        className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 cursor-pointer transition-colors mb-6"
-      >
-        <ChevronLeft size={16} />
-        Back
+    <div className="mb-8">
+      <button onClick={onBack} className="mb-6 inline-flex items-center gap-1 text-[12px] font-bold text-ink-mute hover:text-ink">
+        <ChevronLeft className="h-4 w-4" /> Back
       </button>
-      <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-      <p className="text-sm text-gray-500 mt-1.5 mb-8">{subtitle}</p>
-    </>
+      <p className="mb-3 text-[10px] font-bold uppercase tracking-[.18em] text-coral-dark">{eyebrow}</p>
+      <h1 className="font-display text-[clamp(32px,4vw,46px)] font-semibold leading-[1.04] text-ink">{title}</h1>
+      <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-ink-soft">{subtitle}</p>
+    </div>
   );
 }
-
-// ── Step 1 — Welcome ─────────────────────────────────────────────────────────
 
 function StepWelcome({ ownerName, onNext }: { ownerName: string; onNext: () => void }) {
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900">Welcome, {ownerName}</h1>
-      <p className="text-base text-gray-500 mt-2">
-        Your property management system is ready.
-        <br />
-        Let&apos;s complete setup in under 5 minutes.
+      <div className="inline-flex items-center gap-2 rounded-full bg-coral-soft px-3 py-2 text-[10px] font-bold uppercase tracking-[.15em] text-coral-dark">
+        <Sparkles className="h-3.5 w-3.5" /> About five useful minutes
+      </div>
+      <h1 className="mt-6 font-display text-[clamp(40px,6vw,64px)] font-semibold leading-[.98] text-ink">
+        Welcome, {ownerName}.<br /><span className="italic text-coral-dark">Let’s open the hotel.</span>
+      </h1>
+      <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-ink-soft">
+        We’ll configure the details that make reservations, receipts and staff workflows work properly. Everything else can wait until the first shift.
       </p>
 
-      <div className="mt-8 flex flex-col gap-3">
-        {FEATURES.map((f) => {
-          const Icon = f.icon;
-          return (
-            <div key={f.title} className="border border-gray-200 rounded-xl p-4 flex gap-4 items-start shadow-sm">
-              <div className="grid place-items-center h-10 w-10 rounded-lg bg-coral text-white shrink-0">
-                <Icon size={18} />
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-gray-900">{f.title}</div>
-                <div className="text-sm text-gray-500 mt-0.5">{f.subtitle}</div>
-              </div>
+      <div className="mt-9 grid gap-3">
+        {LAUNCH_OUTCOMES.map(({ icon: Icon, title, copy }, index) => (
+          <motion.div
+            key={title}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.12 + index * 0.07 }}
+            className="flex items-start gap-4 rounded-2xl border border-line bg-card p-4 shadow-card"
+          >
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-ink text-coral"><Icon className="h-4.5 w-4.5" /></div>
+            <div>
+              <p className="text-[13px] font-bold text-ink">{title}</p>
+              <p className="mt-1 text-[12px] leading-relaxed text-ink-mute">{copy}</p>
             </div>
-          );
-        })}
+          </motion.div>
+        ))}
       </div>
 
-      <button
-        onClick={onNext}
-        className="mt-10 w-full bg-coral hover:bg-coral-dark text-white font-medium rounded-xl py-3.5 text-base transition-colors"
-      >
-        Get Started →
+      <button onClick={onNext} className={cn(primaryButton, "mt-8")}>
+        Set up my property <ArrowRight className="ml-2 h-4 w-4" />
       </button>
     </div>
   );
 }
 
-// ── Step 2 — Hotel Profile ───────────────────────────────────────────────────
+type ProfileForm = {
+  name: string;
+  propertyType: string;
+  city: string;
+  address: string;
+  phone: string;
+  email: string;
+  checkInTime: string;
+  checkOutTime: string;
+  description: string;
+  gstEnabled: boolean;
+  gstRate: string;
+  pstEnabled: boolean;
+  pstRate: string;
+  taxInclusive: boolean;
+};
 
 function StepHotelProfile({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
   const { data: settings, isLoading } = useQuery({
@@ -265,10 +315,21 @@ function StepHotelProfile({ onBack, onNext }: { onBack: () => void; onNext: () =
     queryFn: settingsService.getSettings,
     staleTime: 30_000,
   });
-
-  const [form, setForm] = useState({
-    name: "", propertyType: "HOTEL", city: "", phone: "",
-    checkInTime: "14:00", checkOutTime: "12:00", description: "",
+  const [form, setForm] = useState<ProfileForm>({
+    name: "",
+    propertyType: "HOTEL",
+    city: "",
+    address: "",
+    phone: "",
+    email: "",
+    checkInTime: "14:00",
+    checkOutTime: "12:00",
+    description: "",
+    gstEnabled: false,
+    gstRate: "0",
+    pstEnabled: false,
+    pstRate: "0",
+    taxInclusive: false,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -276,359 +337,383 @@ function StepHotelProfile({ onBack, onNext }: { onBack: () => void; onNext: () =
 
   useEffect(() => {
     if (!settings) return;
-    const s = (settings.settings ?? {}) as Record<string, unknown>;
+    const values = settings.settings ?? {};
     setForm({
-      name:         settings.name ?? "",
+      name: settings.name ?? "",
       propertyType: settings.propertyType ?? "HOTEL",
-      city:         settings.city ?? "",
-      phone:        settings.phone ?? "",
-      checkInTime:  String(s.checkInTime ?? "14:00"),
-      checkOutTime: String(s.checkOutTime ?? "12:00"),
-      description:  String(s.description ?? ""),
+      city: settings.city ?? "",
+      address: settings.address ?? "",
+      phone: settings.phone ?? "",
+      email: settings.email ?? "",
+      checkInTime: String(values.checkInTime ?? "14:00"),
+      checkOutTime: String(values.checkOutTime ?? "12:00"),
+      description: settings.description ?? "",
+      gstEnabled: booleanSetting(values.gstEnabled, false),
+      gstRate: String(numberSetting(values.gstRate, 0)),
+      pstEnabled: booleanSetting(values.pstEnabled, false),
+      pstRate: String(numberSetting(values.pstRate, 0)),
+      taxInclusive: booleanSetting(values.taxInclusive, false),
     });
   }, [settings]);
 
   async function handleSave() {
     if (!form.name.trim() || !form.city.trim()) {
-      setError("Hotel name and city are required");
+      setError("Hotel name and city are required.");
       return;
     }
-    if (form.phone.trim()) {
-      const pErr = getPhoneErrorMessage(form.phone);
-      if (pErr) { setPhoneError(pErr); return; }
+    const nextPhoneError = form.phone.trim() ? getPhoneErrorMessage(form.phone) : null;
+    if (nextPhoneError) {
+      setPhoneError(nextPhoneError);
+      return;
     }
-    setPhoneError(null);
+    const gstRate = numberSetting(form.gstRate, 0);
+    const pstRate = numberSetting(form.pstRate, 0);
+    if ((form.gstEnabled && (gstRate < 0 || gstRate > 100)) || (form.pstEnabled && (pstRate < 0 || pstRate > 100))) {
+      setError("Tax rates must be between 0 and 100.");
+      return;
+    }
+
     setError(null);
+    setPhoneError(null);
     setSaving(true);
     try {
       const dto: UpdateSettingsDto = {
-        name: form.name,
+        name: form.name.trim(),
         propertyType: form.propertyType,
-        city: form.city,
-        phone: form.phone,
+        city: form.city.trim(),
+        address: form.address.trim(),
+        phone: form.phone.trim(),
+        email: form.email.trim(),
         checkInTime: form.checkInTime,
         checkOutTime: form.checkOutTime,
-        description: form.description,
+        description: form.description.trim(),
+        gstEnabled: form.gstEnabled,
+        gstRate: form.gstEnabled ? gstRate : 0,
+        pstEnabled: form.pstEnabled,
+        pstRate: form.pstEnabled ? pstRate : 0,
+        taxInclusive: form.taxInclusive,
         onboardingStep: 2,
       };
       await settingsService.updateSettings(dto);
       onNext();
     } catch {
-      setError("Failed to save hotel profile");
+      setError("We couldn’t save the property profile. Please try again.");
     } finally {
       setSaving(false);
     }
   }
 
-  if (isLoading) {
-    return <div className="h-64 bg-line-soft rounded-xl2 animate-pulse" />;
-  }
+  if (isLoading) return <div className="h-[520px] animate-pulse rounded-3xl bg-line-soft" />;
 
   return (
     <div>
       <StepHeader
-        title="Tell us about your property"
-        subtitle="This information appears on receipts and reports"
+        eyebrow="Property essentials"
+        title="Make every guest-facing detail yours."
+        subtitle="These details power receipts, confirmation emails, hotel policies and day-to-day operating rules."
         onBack={onBack}
       />
+      {error && <ErrorNotice message={error} />}
 
-      {error && (
-        <div className="mb-4 p-3 bg-clay-soft border border-clay/20 rounded-lg text-sm text-clay">
-          {error}
+      <div className="space-y-5">
+        <div className="rounded-2xl border border-line bg-card p-5">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-coral-soft"><Building2 className="h-4 w-4 text-coral-dark" /></div>
+            <div><p className="text-[13px] font-bold">Hotel identity</p><p className="text-[11px] text-ink-mute">Shown to guests and staff</p></div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className={labelCls}>Hotel name *
+              <input className={cn(inputCls, "mt-1.5")} value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Mountain View Hotel" />
+            </label>
+            <label className={labelCls}>Property type
+              <select className={cn(inputCls, "mt-1.5 cursor-pointer")} value={form.propertyType} onChange={(event) => setForm((current) => ({ ...current, propertyType: event.target.value }))}>
+                {PROPERTY_TYPES.map((type) => <option key={type} value={type}>{PROPERTY_LABELS[type] ?? type}</option>)}
+              </select>
+            </label>
+            <label className={labelCls}>City *
+              <div className="relative mt-1.5"><MapPin className="absolute left-3 top-3.5 h-4 w-4 text-ink-faint" /><input className={cn(inputCls, "pl-9")} value={form.city} onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))} placeholder="Hunza" /></div>
+            </label>
+            <label className={labelCls}>Street address
+              <input className={cn(inputCls, "mt-1.5")} value={form.address} onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))} placeholder="Karimabad Road, Hunza" />
+            </label>
+            <label className={labelCls}>Hotel phone
+              <input
+                className={cn(inputCls, "mt-1.5", phoneError && "border-clay")}
+                value={form.phone}
+                onChange={(event) => { setForm((current) => ({ ...current, phone: event.target.value })); setPhoneError(null); }}
+                onBlur={() => setPhoneError(form.phone.trim() ? getPhoneErrorMessage(form.phone) : null)}
+                placeholder="03XX XXXXXXX"
+              />
+              {phoneError && <span className="mt-1 block text-[11px] text-clay">{phoneError}</span>}
+            </label>
+            <label className={labelCls}>Hotel email
+              <div className="relative mt-1.5"><Mail className="absolute left-3 top-3.5 h-4 w-4 text-ink-faint" /><input type="email" className={cn(inputCls, "pl-9")} value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder="stay@hotel.com" /></div>
+            </label>
+          </div>
         </div>
-      )}
 
-      <div className="space-y-4">
-        <div>
-          <label className={labelCls}>Hotel name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
-          <input
-            className={inputCls} value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>Property type</label>
-            <select
-              className={cn(inputCls, "cursor-pointer")}
-              value={form.propertyType}
-              onChange={(e) => setForm((f) => ({ ...f, propertyType: e.target.value }))}
-            >
-              {PROPERTY_TYPES.map((t) => (
-                <option key={t} value={t}>{PROPERTY_LABELS[t] ?? t}</option>
+        <div className="grid gap-5 xl:grid-cols-2">
+          <div className="rounded-2xl border border-line bg-card p-5">
+            <div className="mb-5 flex items-center gap-3"><Clock3 className="h-4 w-4 text-coral-dark" /><p className="text-[13px] font-bold">Operating day</p></div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className={labelCls}>Check-in
+                <input type="time" className={cn(inputCls, "mt-1.5")} value={form.checkInTime} onChange={(event) => setForm((current) => ({ ...current, checkInTime: event.target.value }))} />
+              </label>
+              <label className={labelCls}>Check-out
+                <input type="time" className={cn(inputCls, "mt-1.5")} value={form.checkOutTime} onChange={(event) => setForm((current) => ({ ...current, checkOutTime: event.target.value }))} />
+              </label>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-line bg-card p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3"><ReceiptText className="h-4 w-4 text-coral-dark" /><div><p className="text-[13px] font-bold">Taxes</p><p className="text-[10px] text-ink-mute">Optional—fine-tune later</p></div></div>
+              <label className="flex cursor-pointer items-center gap-2 text-[10px] font-bold text-ink-mute">
+                <input type="checkbox" checked={form.taxInclusive} onChange={(event) => setForm((current) => ({ ...current, taxInclusive: event.target.checked }))} className="accent-coral" />
+                Prices include tax
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                ["GST", "gstEnabled", "gstRate"],
+                ["PST", "pstEnabled", "pstRate"],
+              ] as const).map(([label, enabledKey, rateKey]) => (
+                <div key={label} className={cn("rounded-xl border p-3 transition", form[enabledKey] ? "border-coral/30 bg-coral-soft/40" : "border-line bg-mist")}>
+                  <label className="flex cursor-pointer items-center justify-between text-[11px] font-bold">
+                    {label}
+                    <input type="checkbox" checked={form[enabledKey]} onChange={(event) => setForm((current) => ({ ...current, [enabledKey]: event.target.checked }))} className="accent-coral" />
+                  </label>
+                  {form[enabledKey] && (
+                    <div className="relative mt-2"><input type="number" min="0" max="100" step="0.01" value={form[rateKey]} onChange={(event) => setForm((current) => ({ ...current, [rateKey]: event.target.value }))} className={cn(inputCls, "py-2 pr-8")} /><span className="absolute right-3 top-2.5 text-[11px] text-ink-mute">%</span></div>
+                  )}
+                </div>
               ))}
-            </select>
-          </div>
-          <div>
-            <label className={labelCls}>City <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
-            <input
-              className={inputCls} value={form.city}
-              onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-            />
+            </div>
           </div>
         </div>
-        <div>
-          <label className={labelCls}>Phone number</label>
-          <input
-            className={cn(inputCls, phoneError && "border-clay")}
-            value={form.phone}
-            onChange={(e) => { setForm((f) => ({ ...f, phone: e.target.value })); setPhoneError(null); }}
-            onBlur={() => setPhoneError(form.phone.trim() ? getPhoneErrorMessage(form.phone) : null)}
-            placeholder="03XX XXXXXXX"
-          />
-          {phoneError && <p className="mt-1 text-[12px] text-clay">{phoneError}</p>}
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>Check-in time</label>
-            <input
-              type="time" className={inputCls} value={form.checkInTime}
-              onChange={(e) => setForm((f) => ({ ...f, checkInTime: e.target.value }))}
-            />
-          </div>
-          <div>
-            <label className={labelCls}>Check-out time</label>
-            <input
-              type="time" className={inputCls} value={form.checkOutTime}
-              onChange={(e) => setForm((f) => ({ ...f, checkOutTime: e.target.value }))}
-            />
-          </div>
-        </div>
-        <div>
-          <label className={labelCls}>Brief description</label>
-          <textarea
-            className={cn(inputCls, "resize-none h-20")}
-            rows={3}
-            value={form.description}
-            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            placeholder="A short description of the property…"
-          />
-        </div>
+
+        <label className={labelCls}>Short property description
+          <textarea className={cn(inputCls, "mt-1.5 h-20 resize-none")} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder="A warm introduction for your Booking Engine and confirmation emails." />
+        </label>
       </div>
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="mt-8 w-full bg-coral hover:bg-coral-dark disabled:opacity-60 text-white font-semibold rounded-xl py-4 text-[15px] transition-colors"
-      >
-        {saving ? "Saving…" : "Save & Continue →"}
+      <button onClick={handleSave} disabled={saving} className={cn(primaryButton, "mt-7")}>
+        {saving ? "Saving property…" : "Save & build rooms"} {!saving && <ArrowRight className="ml-2 h-4 w-4" />}
       </button>
     </div>
   );
 }
 
-// ── Step 3 — Add Rooms ───────────────────────────────────────────────────────
-
 function StepRooms({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
-  const { data: roomTypesRes, isLoading, refetch } = useQuery({
-    queryKey: ["onboarding-room-types"],
-    queryFn: roomsService.getRoomTypes,
-  });
+  const {
+    data: roomTypesResponse,
+    isLoading: roomTypesLoading,
+    refetch: refetchRoomTypes,
+  } = useQuery({ queryKey: ["onboarding-room-types"], queryFn: roomsService.getRoomTypes });
+  const {
+    data: roomsResponse,
+    isLoading: roomsLoading,
+    refetch: refetchRooms,
+  } = useQuery({ queryKey: ["onboarding-rooms"], queryFn: () => roomsService.getRooms() });
 
-  const [createdRoomType, setCreatedRoomType] = useState<RoomType | null>(null);
+  const roomTypes = roomTypesResponse?.data ?? [];
+  const roomCount = roomsResponse?.meta.total ?? roomsResponse?.data.length ?? 0;
+  const [selectedRoomTypeId, setSelectedRoomTypeId] = useState("");
+  const [showTypeForm, setShowTypeForm] = useState(false);
   const [roomTypeForm, setRoomTypeForm] = useState({ name: "", baseRate: "", maxOccupancy: "2", bedType: "DOUBLE" as RoomTypeName });
   const [roomForm, setRoomForm] = useState({ number: "", floor: "" });
-  const [lastAddedRoom, setLastAddedRoom] = useState<string | null>(null);
-  const [roomsAdded, setRoomsAdded] = useState(0);
-  const [saving, setSaving] = useState(false);
+  const [recentRooms, setRecentRooms] = useState<string[]>([]);
+  const [saving, setSaving] = useState<"type" | "room" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (roomTypesRes?.data?.length && !createdRoomType) {
-      setCreatedRoomType(roomTypesRes.data[0]);
-    }
-  }, [roomTypesRes, createdRoomType]);
-
-  async function handleAddRoomType() {
-    if (!roomTypeForm.name.trim() || !roomTypeForm.baseRate || !roomTypeForm.maxOccupancy) {
-      setError("Please fill in all room type fields");
+    if (roomTypes.length === 0) {
+      setShowTypeForm(true);
       return;
     }
+    if (!roomTypes.some((roomType) => roomType.id === selectedRoomTypeId)) {
+      setSelectedRoomTypeId(roomTypes[0]?.id ?? "");
+    }
+  }, [roomTypes, selectedRoomTypeId]);
+
+  const selectedRoomType = roomTypes.find((roomType) => roomType.id === selectedRoomTypeId);
+
+  async function addRoomType() {
+    if (!roomTypeForm.name.trim() || !roomTypeForm.baseRate || !roomTypeForm.maxOccupancy) {
+      setError("Name, base rate and occupancy are required for a room type.");
+      return;
+    }
+    const baseRate = Number(roomTypeForm.baseRate);
+    const maxOccupancy = Number(roomTypeForm.maxOccupancy);
+    if (!Number.isFinite(baseRate) || baseRate < 0 || !Number.isInteger(maxOccupancy) || maxOccupancy < 1) {
+      setError("Enter a valid non-negative rate and an occupancy of at least one.");
+      return;
+    }
+
     setError(null);
-    setSaving(true);
+    setSaving("type");
     try {
-      const roomType = await roomsService.createRoomType({
-        name: roomTypeForm.name,
+      const created = await roomsService.createRoomType({
+        name: roomTypeForm.name.trim(),
         typeName: roomTypeForm.bedType,
-        maxOccupancy: parseInt(roomTypeForm.maxOccupancy, 10),
-        defaultRate: Math.round(parseFloat(roomTypeForm.baseRate) * 100),
+        maxOccupancy,
+        defaultRate: Math.round(baseRate * 100),
       });
-      setCreatedRoomType(roomType);
-      await refetch();
+      setSelectedRoomTypeId(created.id);
+      setRoomTypeForm({ name: "", baseRate: "", maxOccupancy: "2", bedType: "DOUBLE" });
+      setShowTypeForm(false);
+      await refetchRoomTypes();
     } catch {
-      setError("Failed to create room type");
+      setError("We couldn’t create that room type. Check the details and try again.");
     } finally {
-      setSaving(false);
+      setSaving(null);
     }
   }
 
-  async function handleAddRoom() {
-    if (!roomForm.number.trim() || !createdRoomType) {
-      setError("Room number is required");
+  async function addRoom() {
+    if (!roomForm.number.trim() || !selectedRoomType) {
+      setError("Choose a room type and enter a room number.");
       return;
     }
+    const floor = roomForm.floor.trim() ? Number(roomForm.floor) : undefined;
+    if (floor !== undefined && !Number.isInteger(floor)) {
+      setError("Floor must be a whole number.");
+      return;
+    }
+
     setError(null);
-    setSaving(true);
+    setSaving("room");
     try {
       const room = await roomsService.createRoom({
-        number: roomForm.number,
-        floor: roomForm.floor ? parseInt(roomForm.floor, 10) : undefined,
-        roomTypeId: createdRoomType.id,
+        number: roomForm.number.trim(),
+        floor,
+        roomTypeId: selectedRoomType.id,
         status: "VACANT_CLEAN" as RoomStatus,
       });
-      setLastAddedRoom(room.number);
-      setRoomsAdded((n) => n + 1);
+      setRecentRooms((current) => [`${room.number} · ${selectedRoomType.name}`, ...current].slice(0, 4));
       setRoomForm({ number: "", floor: "" });
+      await refetchRooms();
     } catch {
-      setError("Failed to add room");
+      setError("We couldn’t add that room. The room number may already exist.");
     } finally {
-      setSaving(false);
+      setSaving(null);
     }
   }
 
-  if (isLoading) {
-    return <div className="h-64 bg-line-soft rounded-xl2 animate-pulse" />;
-  }
+  if (roomTypesLoading || roomsLoading) return <div className="h-[500px] animate-pulse rounded-3xl bg-line-soft" />;
 
   return (
     <div>
       <StepHeader
-        title="Set up your rooms"
-        subtitle="Add at least one room to start taking reservations"
+        eyebrow="Rooms & rates"
+        title="Build the hotel guests can book."
+        subtitle="Create as many room categories as you need, select one, then add the physical rooms that belong to it."
         onBack={onBack}
       />
+      {error && <ErrorNotice message={error} />}
 
-      {error && (
-        <div className="mb-4 p-3 bg-clay-soft border border-clay/20 rounded-lg text-sm text-clay">
-          {error}
-        </div>
-      )}
-
-      {!createdRoomType ? (
-        <div className="space-y-4">
+      <div className="rounded-2xl border border-line bg-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <label className={labelCls}>Room type name</label>
-            <input
-              className={inputCls} value={roomTypeForm.name}
-              onChange={(e) => setRoomTypeForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Deluxe Room"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>Base rate per night (PKR)</label>
-              <input
-                type="number" min="0" className={inputCls} value={roomTypeForm.baseRate}
-                onChange={(e) => setRoomTypeForm((f) => ({ ...f, baseRate: e.target.value }))}
-                placeholder="8000"
-              />
-              {roomTypeForm.baseRate && Number(roomTypeForm.baseRate) > 0 && (
-                <p className="mt-1 text-[12.5px] text-ink-mute italic">
-                  {pkrInWords(Number(roomTypeForm.baseRate))}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className={labelCls}>Max occupancy</label>
-              <input
-                type="number" min="1" className={inputCls} value={roomTypeForm.maxOccupancy}
-                onChange={(e) => setRoomTypeForm((f) => ({ ...f, maxOccupancy: e.target.value }))}
-              />
-            </div>
-          </div>
-          <div>
-            <label className={labelCls}>Bed type</label>
-            <select
-              className={cn(inputCls, "cursor-pointer")}
-              value={roomTypeForm.bedType}
-              onChange={(e) => setRoomTypeForm((f) => ({ ...f, bedType: e.target.value as RoomTypeName }))}
-            >
-              {BED_TYPES.map((b) => (
-                <option key={b.label} value={b.value}>{b.label}</option>
-              ))}
-            </select>
+            <p className="text-[13px] font-bold">Room categories</p>
+            <p className="mt-1 text-[11px] text-ink-mute">{roomTypes.length} configured · {roomCount} rooms in this hotel</p>
           </div>
           <button
-            onClick={handleAddRoomType}
-            disabled={saving}
-            className="w-full bg-coral hover:bg-coral-dark disabled:opacity-60 text-white font-semibold rounded-xl py-4 text-[15px] transition-colors"
+            onClick={() => { setShowTypeForm(true); setError(null); }}
+            className={secondaryButton}
           >
-            {saving ? "Adding…" : "Add Room Type"}
+            <Plus className="mr-1.5 h-4 w-4 text-coral-dark" /> New room type
           </button>
         </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 text-pine font-semibold text-[14px]">
-            <Check size={16} />
-            Room type &apos;{createdRoomType.name}&apos; created
+
+        {roomTypes.length > 0 && (
+          <div className="mt-5 flex flex-wrap gap-2">
+            {roomTypes.map((roomType) => (
+              <button
+                key={roomType.id}
+                onClick={() => { setSelectedRoomTypeId(roomType.id); setShowTypeForm(false); }}
+                className={cn(
+                  "rounded-xl border px-4 py-3 text-left transition",
+                  roomType.id === selectedRoomTypeId && !showTypeForm
+                    ? "border-coral bg-coral-soft text-coral-dark"
+                    : "border-line bg-white text-ink-soft hover:border-coral/35",
+                )}
+              >
+                <p className="text-[12px] font-bold">{roomType.name}</p>
+                <p className="mt-0.5 text-[10px] opacity-65">PKR {(roomType.defaultRate / 100).toLocaleString()} · up to {roomType.maxOccupancy}</p>
+              </button>
+            ))}
           </div>
+        )}
+      </div>
 
-          {lastAddedRoom && (
-            <div className="flex items-center gap-2 text-pine font-semibold text-[14px]">
-              <Check size={16} />
-              Room {lastAddedRoom} added
+      <AnimatePresence mode="wait">
+        {showTypeForm ? (
+          <motion.div key="type-form" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-5 rounded-2xl border border-coral/20 bg-coral-soft/35 p-5">
+            <div className="mb-5 flex items-center justify-between">
+              <div><p className="text-[13px] font-bold">Create a room type</p><p className="mt-1 text-[11px] text-ink-mute">Example: Deluxe King, Family Suite, Garden Cottage</p></div>
+              {roomTypes.length > 0 && <button onClick={() => setShowTypeForm(false)} className="text-[11px] font-bold text-ink-mute hover:text-ink">Cancel</button>}
             </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>Room number</label>
-              <input
-                className={inputCls} value={roomForm.number}
-                onChange={(e) => setRoomForm((f) => ({ ...f, number: e.target.value }))}
-                placeholder="101"
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className={labelCls}>Category name
+                <input className={cn(inputCls, "mt-1.5")} value={roomTypeForm.name} onChange={(event) => setRoomTypeForm((current) => ({ ...current, name: event.target.value }))} placeholder="Deluxe Room" />
+              </label>
+              <label className={labelCls}>Bed / unit type
+                <select className={cn(inputCls, "mt-1.5 cursor-pointer")} value={roomTypeForm.bedType} onChange={(event) => setRoomTypeForm((current) => ({ ...current, bedType: event.target.value as RoomTypeName }))}>
+                  {BED_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+                </select>
+              </label>
+              <label className={labelCls}>Base nightly rate (PKR)
+                <input type="number" min="0" className={cn(inputCls, "mt-1.5")} value={roomTypeForm.baseRate} onChange={(event) => setRoomTypeForm((current) => ({ ...current, baseRate: event.target.value }))} placeholder="8000" />
+                {Number(roomTypeForm.baseRate) > 0 && <span className="mt-1 block text-[10px] italic text-ink-mute">{pkrInWords(Number(roomTypeForm.baseRate))}</span>}
+              </label>
+              <label className={labelCls}>Maximum guests
+                <input type="number" min="1" className={cn(inputCls, "mt-1.5")} value={roomTypeForm.maxOccupancy} onChange={(event) => setRoomTypeForm((current) => ({ ...current, maxOccupancy: event.target.value }))} />
+              </label>
             </div>
-            <div>
-              <label className={labelCls}>Floor</label>
-              <input
-                type="number" className={inputCls} value={roomForm.floor}
-                onChange={(e) => setRoomForm((f) => ({ ...f, floor: e.target.value }))}
-                placeholder="1"
-              />
-            </div>
-          </div>
-          <div>
-            <label className={labelCls}>Room type</label>
-            <input className={cn(inputCls, "opacity-60 cursor-not-allowed")} value={createdRoomType.name} readOnly />
-          </div>
-
-          <button
-            onClick={handleAddRoom}
-            disabled={saving}
-            className="w-full border-2 border-coral text-coral hover:bg-coral-soft disabled:opacity-60 font-semibold rounded-xl py-3 text-[14px] transition-colors"
-          >
-            {saving ? "Adding…" : roomsAdded > 0 ? "Add Another Room" : "Add Room"}
-          </button>
-
-          {roomsAdded > 0 && (
-            <button
-              onClick={onNext}
-              className="w-full bg-coral hover:bg-coral-dark text-white font-semibold rounded-xl py-4 text-[15px] transition-colors"
-            >
-              Continue →
+            <button onClick={addRoomType} disabled={saving !== null} className={cn(primaryButton, "mt-5")}>
+              {saving === "type" ? "Creating category…" : "Create room type"}
             </button>
-          )}
-        </div>
-      )}
+          </motion.div>
+        ) : (
+          <motion.div key="room-form" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-5 rounded-2xl border border-line bg-card p-5">
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[13px] font-bold">Add a room to {selectedRoomType?.name || "a category"}</p>
+                <p className="mt-1 text-[11px] text-ink-mute">Add one now to unlock the reservation calendar. Add the rest here or later from Rooms.</p>
+              </div>
+              <BedDouble className="h-5 w-5 shrink-0 text-coral-dark" />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className={labelCls}>Room number
+                <input className={cn(inputCls, "mt-1.5")} value={roomForm.number} onChange={(event) => setRoomForm((current) => ({ ...current, number: event.target.value }))} placeholder="101" />
+              </label>
+              <label className={labelCls}>Floor (optional)
+                <input type="number" className={cn(inputCls, "mt-1.5")} value={roomForm.floor} onChange={(event) => setRoomForm((current) => ({ ...current, floor: event.target.value }))} placeholder="1" />
+              </label>
+            </div>
+            <button onClick={addRoom} disabled={saving !== null || !selectedRoomType} className={cn(secondaryButton, "mt-5 w-full border-coral/40 text-coral-dark")}>
+              <Plus className="mr-1.5 h-4 w-4" /> {saving === "room" ? "Adding room…" : "Add room"}
+            </button>
+            {recentRooms.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {recentRooms.map((room) => <span key={room} className="inline-flex items-center gap-1.5 rounded-full bg-pine-soft px-3 py-1.5 text-[10px] font-bold text-pine-deep"><Check className="h-3 w-3" />{room}</span>)}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <button
-        onClick={onNext}
-        className="mt-4 w-full text-center text-[13px] font-semibold text-ink-mute hover:text-ink-soft transition-colors"
-      >
-        Skip for now →
-      </button>
+      {roomCount > 0 ? (
+        <button onClick={onNext} className={cn(primaryButton, "mt-6")}>Continue with {roomCount} room{roomCount === 1 ? "" : "s"} <ArrowRight className="ml-2 h-4 w-4" /></button>
+      ) : (
+        <button onClick={onNext} className="mt-5 w-full text-center text-[12px] font-bold text-ink-mute hover:text-ink">Skip rooms for now</button>
+      )}
     </div>
   );
 }
 
-// ── Step 4 — Your Team ───────────────────────────────────────────────────────
-
-interface AddedMember {
-  name: string;
-  roleLabel: string;
-  tempPassword: string;
-}
+type AddedMember = { name: string; roleLabel: string; tempPassword: string };
 
 function StepTeam({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
   const { data: roles = [] } = useQuery<Role[]>({
@@ -636,148 +721,117 @@ function StepTeam({ onBack, onNext }: { onBack: () => void; onNext: () => void }
     queryFn: usersService.getRoles,
     staleTime: 5 * 60_000,
   });
-
   const teamRoleOptions = TEAM_ROLES
-    .map((tr) => {
-      const role = roles.find((r) => r.name === tr.name);
-      return role ? { roleId: role.id, name: tr.name, label: tr.label } : null;
+    .map((teamRole) => {
+      const role = roles.find((candidate) => candidate.name === teamRole.name);
+      return role ? { roleId: role.id, label: teamRole.label } : null;
     })
-    .filter((r): r is { roleId: string; name: string; label: string } => r !== null);
+    .filter((role): role is { roleId: string; label: string } => role !== null);
 
   const [form, setForm] = useState({ name: "", email: "", roleId: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [members, setMembers] = useState<AddedMember[]>([]);
-  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
-  async function handleAdd() {
+  async function addMember() {
     if (!form.name.trim() || !form.email.trim() || !form.roleId) {
-      setError("Name, email and role are required");
+      setError("Name, email and role are required.");
       return;
     }
-    setError(null);
     setSaving(true);
+    setError(null);
     try {
       const tempPassword = generateTempPassword();
-      await usersService.createUser({
-        name: form.name,
-        email: form.email,
-        password: tempPassword,
-        roleId: form.roleId,
-      });
-      const roleLabel = teamRoleOptions.find((r) => r.roleId === form.roleId)?.label ?? "Staff";
-      setMembers((m) => [...m, { name: form.name, roleLabel, tempPassword }]);
+      await usersService.createUser({ name: form.name.trim(), email: form.email.trim(), password: tempPassword, roleId: form.roleId });
+      const roleLabel = teamRoleOptions.find((role) => role.roleId === form.roleId)?.label ?? "Staff";
+      setMembers((current) => [...current, { name: form.name.trim(), roleLabel, tempPassword }]);
       setForm({ name: "", email: "", roleId: "" });
     } catch {
-      setError("Failed to add team member");
+      setError("We couldn’t create that login. The email may already be in use.");
     } finally {
       setSaving(false);
     }
   }
 
-  function copyCredentials(member: AddedMember, idx: number) {
+  function copyCredentials(member: AddedMember, index: number) {
     void navigator.clipboard.writeText(`Temporary password: ${member.tempPassword}`);
-    setCopiedIdx(idx);
-    setTimeout(() => setCopiedIdx(null), 1500);
+    setCopiedIndex(index);
+    window.setTimeout(() => setCopiedIndex(null), 1500);
   }
 
   return (
     <div>
       <StepHeader
-        title="Invite your team"
-        subtitle="Add staff members so they can log in and help manage the hotel"
+        eyebrow="People & access"
+        title="Invite only the team you need today."
+        subtitle="Every person gets an individual login and a role. Permissions can be fine-tuned later without sharing the owner account."
         onBack={onBack}
       />
+      {error && <ErrorNotice message={error} />}
 
-      {error && (
-        <div className="mb-4 p-3 bg-clay-soft border border-clay/20 rounded-lg text-sm text-clay">
-          {error}
+      <div className="rounded-2xl border border-line bg-card p-5">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-coral-soft"><Users className="h-4 w-4 text-coral-dark" /></div>
+          <div><p className="text-[13px] font-bold">Create a staff login</p><p className="text-[11px] text-ink-mute">This step is optional</p></div>
         </div>
-      )}
-
-      <div className="space-y-4">
-        <div>
-          <label className={labelCls}>Full name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
-          <input
-            className={inputCls} value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className={labelCls}>Full name
+            <input className={cn(inputCls, "mt-1.5")} value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Ayesha Khan" />
+          </label>
+          <label className={labelCls}>Email
+            <input type="email" className={cn(inputCls, "mt-1.5")} value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder="ayesha@hotel.com" />
+          </label>
+          <label className={cn(labelCls, "sm:col-span-2")}>Role
+            <select className={cn(inputCls, "mt-1.5 cursor-pointer")} value={form.roleId} onChange={(event) => setForm((current) => ({ ...current, roleId: event.target.value }))}>
+              <option value="">Select the staff role…</option>
+              {teamRoleOptions.map((role) => <option key={role.roleId} value={role.roleId}>{role.label}</option>)}
+            </select>
+          </label>
         </div>
-        <div>
-          <label className={labelCls}>Email <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
-          <input
-            type="email" className={inputCls} value={form.email}
-            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-          />
-        </div>
-        <div>
-          <label className={labelCls}>Role <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
-          <select
-            className={cn(inputCls, "cursor-pointer")}
-            value={form.roleId}
-            onChange={(e) => setForm((f) => ({ ...f, roleId: e.target.value }))}
-          >
-            <option value="">Select a role…</option>
-            {teamRoleOptions.map((r) => (
-              <option key={r.roleId} value={r.roleId}>{r.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <button
-          onClick={handleAdd}
-          disabled={saving}
-          className="w-full border-2 border-coral text-coral hover:bg-coral-soft disabled:opacity-60 font-semibold rounded-xl py-3 text-[14px] transition-colors"
-        >
-          {saving ? "Adding…" : "Add Team Member"}
+        <button onClick={addMember} disabled={saving} className={cn(secondaryButton, "mt-5 w-full border-coral/40 text-coral-dark")}>
+          <Plus className="mr-1.5 h-4 w-4" /> {saving ? "Creating login…" : "Add team member"}
         </button>
       </div>
 
       {members.length > 0 && (
-        <div className="mt-6 space-y-3">
-          {members.map((m, idx) => (
-            <div key={idx} className="bg-green-50 border border-green-200 rounded-xl p-4">
-              <div className="text-[14px] font-semibold text-ink">✓ {m.name} added as {m.roleLabel}</div>
-              <div className="text-[13px] text-ink-mute mt-1">Temporary password: <span className="font-mono font-semibold text-ink">{m.tempPassword}</span></div>
-              <button
-                onClick={() => copyCredentials(m, idx)}
-                className="mt-2 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-pine-deep hover:text-pine transition-colors"
-              >
-                <Copy size={13} />
-                {copiedIdx === idx ? "Copied!" : "Copy credentials"}
+        <div className="mt-4 space-y-2">
+          {members.map((member, index) => (
+            <div key={`${member.name}-${index}`} className="flex flex-col justify-between gap-3 rounded-2xl border border-pine/20 bg-pine-soft p-4 sm:flex-row sm:items-center">
+              <div>
+                <p className="text-[12px] font-bold text-pine-deep"><CheckCircle2 className="mr-1.5 inline h-4 w-4" />{member.name} · {member.roleLabel}</p>
+                <p className="mt-1 text-[11px] text-ink-mute">Temporary password: <span className="font-mono font-bold text-ink">{member.tempPassword}</span></p>
+              </div>
+              <button onClick={() => copyCredentials(member, index)} className="inline-flex items-center text-[11px] font-bold text-pine-deep">
+                <Copy className="mr-1.5 h-3.5 w-3.5" />{copiedIndex === index ? "Copied" : "Copy"}
               </button>
             </div>
           ))}
         </div>
       )}
 
-      <button
-        onClick={onNext}
-        className="mt-8 w-full bg-coral hover:bg-coral-dark text-white font-semibold rounded-xl py-4 text-[15px] transition-colors"
-      >
-        Continue →
+      <button onClick={onNext} className={cn(primaryButton, "mt-6")}>
+        {members.length > 0 ? "Continue" : "Continue without staff"} <ArrowRight className="ml-2 h-4 w-4" />
       </button>
     </div>
   );
 }
 
-// ── Step 5 — Appearance ──────────────────────────────────────────────────────
-
 function StepTheme({ onBack, onFinish }: { onBack: () => void; onFinish: () => void }) {
   const [themeKey, setThemeKey] = useState<ThemeKey>("WARM_CLAY");
   const [saving, setSaving] = useState(false);
 
-  function pick(key: ThemeKey) {
+  function chooseTheme(key: ThemeKey) {
     setThemeKey(key);
-    applyTheme(key); // live preview
+    applyTheme(key);
   }
 
   async function finish() {
     setSaving(true);
     try {
-      await settingsService.updateSettings({ themeKey });
+      await settingsService.updateSettings({ themeKey, onboardingStep: 4 });
     } catch {
-      // Non-critical — owner can change it later in Settings.
+      // Theme is a preference, not a reason to block the hotel from opening.
     } finally {
       setSaving(false);
       onFinish();
@@ -787,117 +841,63 @@ function StepTheme({ onBack, onFinish }: { onBack: () => void; onFinish: () => v
   return (
     <div>
       <StepHeader
-        title="Make it yours"
-        subtitle="Choose a color palette for the app. Default is Warm Clay — change anytime in Settings."
+        eyebrow="Your workspace"
+        title="Make the first shift feel like yours."
+        subtitle="Choose a calm operating palette. This changes the staff PMS only and can be updated any time in Settings."
         onBack={onBack}
       />
 
-      <ThemePicker value={themeKey} onChange={pick} />
+      <div className="rounded-2xl border border-line bg-card p-5">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-coral-soft"><Palette className="h-4 w-4 text-coral-dark" /></div>
+          <div><p className="text-[13px] font-bold">Choose a palette</p><p className="text-[11px] text-ink-mute">Live preview is applied immediately</p></div>
+        </div>
+        <ThemePicker value={themeKey} onChange={chooseTheme} />
+      </div>
 
-      <button
-        onClick={finish}
-        disabled={saving}
-        className="mt-8 w-full bg-coral hover:bg-coral-dark disabled:opacity-60 text-white font-semibold rounded-xl py-4 text-[15px] transition-colors"
-      >
-        {saving ? "Saving…" : "Go to Dashboard →"}
-      </button>
-      <button
-        onClick={() => { applyTheme("WARM_CLAY"); onFinish(); }}
-        className="mt-3 w-full text-center text-[13px] font-semibold text-ink-mute hover:text-ink-soft transition-colors"
-      >
-        Skip — keep Warm Clay
+      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        {[
+          [Building2, "Property", "Saved"],
+          [BedDouble, "Rooms", "Ready to sell"],
+          [ShieldCheck, "Access", "Role-based"],
+        ].map(([Icon, label, status]) => {
+          const SummaryIcon = Icon as LucideIcon;
+          return (
+            <div key={String(label)} className="rounded-2xl border border-line bg-mist p-4">
+              <SummaryIcon className="h-4 w-4 text-coral-dark" />
+              <p className="mt-3 text-[11px] font-bold text-ink">{String(label)}</p>
+              <p className="mt-0.5 text-[10px] text-ink-mute">{String(status)}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <button onClick={finish} disabled={saving} className={cn(primaryButton, "mt-7")}>
+        {saving ? "Opening InnFlo…" : "Open my dashboard"} {!saving && <Rocket className="ml-2 h-4 w-4" />}
       </button>
     </div>
   );
 }
 
-// ── Completion overlay ───────────────────────────────────────────────────────
-
 function CompletionOverlay({ onDone }: { onDone: () => void }) {
-  const [lineIdx, setLineIdx] = useState(0);
-
-  const [confetti] = useState(() =>
-    Array.from({ length: 28 }, (_, i) => ({
-      left: Math.random() * 100,
-      size: 6 + Math.random() * 6,
-      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-      rounded: i % 2 === 0,
-      duration: 2 + Math.random() * 1.5,
-      delay: Math.random() * 0.8,
-    })),
-  );
-
   useEffect(() => {
-    const lineDuration = 5000 / CELEBRATION_LINES.length;
-    const lineTimer = setInterval(() => {
-      setLineIdx((i) => (i < CELEBRATION_LINES.length - 1 ? i + 1 : i));
-    }, lineDuration);
-    const doneTimer = setTimeout(onDone, lineDuration * CELEBRATION_LINES.length);
-    return () => { clearInterval(lineTimer); clearTimeout(doneTimer); };
+    const timer = window.setTimeout(onDone, 2600);
+    return () => window.clearTimeout(timer);
   }, [onDone]);
 
   return (
-    <motion.div
-      className="fixed inset-0 z-50 bg-ink overflow-hidden flex flex-col items-center justify-center"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.4 }}
-    >
-      {confetti.map((c, i) => (
-        <motion.span
-          key={i}
-          className={cn("absolute top-0", c.rounded ? "rounded-full" : "rounded-sm", c.color)}
-          style={{ left: `${c.left}%`, width: c.size, height: c.size }}
-          initial={{ y: -20, opacity: 0, rotate: 0 }}
-          animate={{ y: "110vh", opacity: [0, 1, 1, 0.6], rotate: 360 }}
-          transition={{ duration: c.duration, delay: c.delay, ease: "linear" }}
-        />
-      ))}
-
-      <div className="relative h-28 w-28 mb-8">
-        {CONVERGE_ICONS.map((Icon, i) => {
-          const angle = (i / CONVERGE_ICONS.length) * 2 * Math.PI;
-          const radius = 90;
-          return (
-            <motion.div
-              key={i}
-              className="absolute inset-0 grid place-items-center text-coral"
-              initial={{ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius, opacity: 1, scale: 1 }}
-              animate={{ x: 0, y: 0, opacity: 0, scale: 0.2 }}
-              transition={{ duration: 0.7, delay: 0.3 + i * 0.12, ease: "easeIn" }}
-            >
-              <Icon size={26} />
-            </motion.div>
-          );
-        })}
-        <motion.div
-          className="absolute inset-0 grid place-items-center text-coral"
-          initial={{ scale: 0, rotate: -15 }}
-          animate={{ scale: [0, 1.25, 1], rotate: 0 }}
-          transition={{ delay: 1.1, duration: 0.5, ease: "easeOut" }}
-        >
-          <Package size={60} />
+    <motion.div className="fixed inset-0 z-50 grid place-items-center overflow-hidden bg-ink px-6 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <motion.div initial={{ opacity: 0, y: 22, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: 0.15, duration: 0.55, ease: "easeOut" }}>
+        <motion.div className="mx-auto grid h-20 w-20 place-items-center rounded-[26px] bg-coral text-white shadow-pop" animate={{ rotate: [0, -4, 4, 0] }} transition={{ delay: 0.7, duration: 0.6 }}>
+          <Rocket className="h-9 w-9" />
         </motion.div>
-      </div>
-
-      <AnimatePresence mode="wait">
-        <motion.p
-          key={lineIdx}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -12 }}
-          transition={{ duration: 0.3 }}
-          className="text-white text-lg font-semibold tracking-wide"
-        >
-          {CELEBRATION_LINES[lineIdx]}
-        </motion.p>
-      </AnimatePresence>
+        <p className="mt-7 text-[10px] font-bold uppercase tracking-[.22em] text-coral">Property ready</p>
+        <h2 className="mt-3 font-display text-[clamp(36px,6vw,58px)] font-semibold text-white">Your command center is open.</h2>
+        <p className="mx-auto mt-4 max-w-md text-[13px] leading-relaxed text-white/50">Rooms, rules and staff access are connected. Let’s run the first shift.</p>
+      </motion.div>
     </motion.div>
   );
 }
-
-// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
@@ -905,18 +905,9 @@ export default function OnboardingPage() {
   const [direction, setDirection] = useState(1);
   const [completing, setCompleting] = useState(false);
 
-  const { data: hotel } = useQuery({
-    queryKey: ["onboarding-hotel-me"],
-    queryFn: hotelsService.getMe,
-  });
-
-  const { data: staff = [] } = useQuery({
-    queryKey: ["onboarding-users"],
-    queryFn: usersService.getUsers,
-  });
-
-  const currentUserId = getCurrentUserId();
-  const ownerName = staff.find((s) => s.user.id === currentUserId)?.user.name ?? "there";
+  const { data: hotel } = useQuery({ queryKey: ["onboarding-hotel-me"], queryFn: hotelsService.getMe });
+  const { data: staff = [] } = useQuery({ queryKey: ["onboarding-users"], queryFn: usersService.getUsers });
+  const ownerName = staff.find((member) => member.user.id === getCurrentUserId())?.user.name?.split(" ")[0] ?? "there";
 
   function goTo(step: number) {
     setDirection(step > currentStep ? 1 : -1);
@@ -931,67 +922,24 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="h-screen flex overflow-hidden">
-      <LeftPanel hotelName={hotel?.name} currentStep={currentStep} onSkip={finishNow} />
-
-      <div className="relative w-[72%] bg-white overflow-y-auto" style={{ perspective: 1200 }}>
-        {/* Progress bar */}
-        <div className="sticky top-0 left-0 right-0 h-1 bg-coral-soft z-20">
-          <motion.div
-            className="h-full bg-coral"
-            animate={{ width: `${(currentStep / STEP_LABELS.length) * 100}%` }}
-            transition={stepTransition}
-          />
-        </div>
-
-        {/* Diagonal wipe — fires on every step change */}
-        <AnimatePresence>
-          <motion.div
-            key={`sweep-${currentStep}`}
-            className="absolute inset-0 z-10 pointer-events-none bg-coral"
-            style={{ clipPath: "polygon(0 0, 100% 0, 85% 100%, -15% 100%)" }}
-            custom={direction}
-            variants={sweepVariants}
-            initial="initial"
-            animate="animate"
-            transition={{ duration: 0.5, ease: "easeInOut" }}
-          />
-        </AnimatePresence>
-
-        <div className="p-12">
+    <div className="min-h-screen bg-paper lg:flex">
+      <DesktopRail hotelName={hotel?.name} currentStep={currentStep} onSkip={() => void finishNow()} />
+      <main className="min-h-screen min-w-0 flex-1">
+        <MobileProgress hotelName={hotel?.name} currentStep={currentStep} />
+        <div className="mx-auto w-full max-w-3xl px-5 py-8 sm:px-8 sm:py-12 lg:px-12 lg:py-14">
           <AnimatePresence mode="wait" custom={direction}>
-            <motion.div
-              key={currentStep}
-              custom={direction}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              variants={stepVariants}
-              transition={stepTransition}
-            >
-              {currentStep === 1 && (
-                <StepWelcome ownerName={ownerName} onNext={() => goTo(2)} />
-              )}
-              {currentStep === 2 && (
-                <StepHotelProfile onBack={() => goTo(1)} onNext={() => goTo(3)} />
-              )}
-              {currentStep === 3 && (
-                <StepRooms onBack={() => goTo(2)} onNext={() => goTo(4)} />
-              )}
-              {currentStep === 4 && (
-                <StepTeam onBack={() => goTo(3)} onNext={() => goTo(5)} />
-              )}
-              {currentStep === 5 && (
-                <StepTheme onBack={() => goTo(4)} onFinish={() => setCompleting(true)} />
-              )}
+            <motion.div key={currentStep} custom={direction} variants={stepVariants} initial="initial" animate="animate" exit="exit" transition={stepTransition}>
+              {currentStep === 1 && <StepWelcome ownerName={ownerName} onNext={() => goTo(2)} />}
+              {currentStep === 2 && <StepHotelProfile onBack={() => goTo(1)} onNext={() => goTo(3)} />}
+              {currentStep === 3 && <StepRooms onBack={() => goTo(2)} onNext={() => goTo(4)} />}
+              {currentStep === 4 && <StepTeam onBack={() => goTo(3)} onNext={() => goTo(5)} />}
+              {currentStep === 5 && <StepTheme onBack={() => goTo(4)} onFinish={() => setCompleting(true)} />}
             </motion.div>
           </AnimatePresence>
         </div>
-      </div>
+      </main>
 
-      <AnimatePresence>
-        {completing && <CompletionOverlay onDone={finishNow} />}
-      </AnimatePresence>
+      <AnimatePresence>{completing && <CompletionOverlay onDone={() => void finishNow()} />}</AnimatePresence>
     </div>
   );
 }

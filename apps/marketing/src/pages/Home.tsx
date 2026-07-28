@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Reveal from "../components/motion/Reveal";
 import SplitHeading from "../components/motion/SplitHeading";
 import MagneticButton from "../components/motion/MagneticButton";
 import Marquee from "../components/motion/Marquee";
-import { ArrowRight, ShieldCheck, LifeBuoy, CloudCog, Activity, Plus } from "lucide-react";
+import { ArrowRight, ShieldCheck, LifeBuoy, Cloud, Activity, Plus } from "lucide-react";
 import TabbedFeatureBlock from "../components/features/TabbedFeatureBlock";
+import ProductCockpit from "../components/ProductCockpit";
 import {
   FrontDeskMockup, HousekeepingMockup, ReportsSnapshotMockup, ChannelManagerComingSoonMockup, TeamAccessMockup,
 } from "../components/features/HomeTabMockups";
@@ -16,7 +17,7 @@ const REGIONS = ["Hunza", "Skardu", "Naran", "Gilgit", "Swat", "Murree", "Fairy 
 const STAY_TYPES = [
   {
     title: "Hotels",
-    description: "Boutiques, motels, resorts and multi-site brands",
+    description: "Independent hotels, boutiques, lodges and resorts",
     image: "/images/hotels.webp",
     to: "/stays/hotels",
   },
@@ -28,7 +29,7 @@ const STAY_TYPES = [
   },
   {
     title: "Vacation rentals",
-    description: "Single homes to multi-unit portfolios",
+    description: "Serviced apartments and independent rental units",
     image: "/images/vacation_rentals.webp",
     to: "/stays/vacation-rentals",
   },
@@ -40,54 +41,6 @@ const STAY_TYPES = [
   },
 ];
 
-
-function HeroMockup() {
-  const { scrollY } = useScroll();
-  const y = useTransform(scrollY, [0, 700], [0, 90]);
-  const rotateY = useTransform(scrollY, [0, 700], [-7, 0]);
-  const rotateX = useTransform(scrollY, [0, 700], [3, 0]);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  // The video is above the fold, but its bytes shouldn't compete with the
-  // page's critical resources (HTML/CSS/JS/fonts) on first paint. preload="none"
-  // stops the browser from eagerly fetching it during parsing; assigning src
-  // on a deferred tick pushes the request past the initial critical path
-  // instead of racing it. (Not requestIdleCallback: unsupported in Safari,
-  // and a fixed short delay is plenty for "after the page is interactive".)
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    const id = window.setTimeout(() => {
-      video.src = "/video/hero-software_2.mp4";
-      video.load();
-      void video.play();
-    }, 300);
-    return () => window.clearTimeout(id);
-  }, []);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: 40 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 1, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      style={{ y, perspective: 1400 }}
-    >
-      <motion.div style={{ rotateY, rotateX, transformStyle: "preserve-3d" }}>
-        <div className="rounded-2xl overflow-hidden bg-ink border border-line shadow-[0_32px_80px_rgba(0,0,0,0.10)]">
-          <video
-            ref={videoRef}
-            className="w-full h-full object-cover aspect-[4/3]"
-            preload="none"
-            muted
-            loop
-            playsInline
-          />
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-}
-
 // ─── FAQ ────────────────────────────────────────────────────────────────────
 const FAQS = [
   {
@@ -96,7 +49,7 @@ const FAQS = [
   },
   {
     q: "Which types of properties can use InnFlo?",
-    a: "Hotels, B&Bs and guesthouses, hostels, vacation rentals, glamping sites, and long-term stays — anything from a single room to a multi-property portfolio.",
+    a: "Independent hotels, B&Bs and guesthouses, hostels, serviced apartments, lodges, resorts, and glamping sites. InnFlo is focused on one property per hotel account today.",
   },
   {
     q: "Does InnFlo work when the internet is unreliable?",
@@ -104,7 +57,7 @@ const FAQS = [
   },
   {
     q: "How is InnFlo priced?",
-    a: "Three flat monthly plans — Essentials, Growth, and Complete — priced by what your property needs, not by how many bookings you take. No commission per booking, no hidden per-guest fees.",
+    a: "Three flat monthly plans — Essentials, Growth, and Complete — with no commission on direct bookings and no per-booking cut.",
   },
   {
     q: "Is InnFlo ready for my property today?",
@@ -148,14 +101,13 @@ function FaqRow({ q, a, isOpen, isLast, onClick }: { q: string; a: string; isOpe
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 export default function Home() {
-  const heroRef = useRef<HTMLDivElement>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   return (
     <div className="bg-paper text-ink">
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center pt-20 overflow-hidden">
+      <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
         <div
           className="absolute inset-0 bg-grid"
           style={{ maskImage: "linear-gradient(to bottom, black, transparent)" }}
@@ -169,7 +121,7 @@ export default function Home() {
         />
 
         <div className="relative mx-auto max-w-7xl px-6 w-full py-20">
-          <div className="grid grid-cols-1 lg:grid-cols-[52%_48%] gap-16 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[44%_56%] gap-12 xl:gap-16 items-center">
             <div>
               <Reveal variant="fade">
                 <p className="eyebrow mb-6">Hotel property management</p>
@@ -179,12 +131,12 @@ export default function Home() {
                   Your hotel,
                 </SplitHeading>
                 <SplitHeading as="span" delay={0.3} className="font-display italic block text-[clamp(52px,7.5vw,100px)] leading-[0.98] font-medium text-coral-dark">
-                  running itself.
+                  finally in flow.
                 </SplitHeading>
               </h1>
               <Reveal delay={0.5}>
                 <p className="text-[18px] text-ink-soft leading-relaxed max-w-md mb-10 font-body font-medium">
-                  From check-in to checkout, reservations to room service — InnFlo connects every corner of your property in one dashboard.
+                  Reservations, rooms, guests, folios, housekeeping, dining and reporting—one calm operating system for independent hotels.
                 </p>
               </Reveal>
               <Reveal delay={0.62}>
@@ -194,7 +146,7 @@ export default function Home() {
                       to="/contact"
                       className="h-12 px-8 rounded-full text-[16px] font-semibold font-body text-white bg-coral hover:bg-coral-dark transition-colors shadow-pop flex items-center"
                     >
-                      Request access
+                      Book a walkthrough
                     </Link>
                   </MagneticButton>
                   <Link
@@ -208,8 +160,8 @@ export default function Home() {
               </Reveal>
             </div>
 
-            <div style={{ marginRight: "clamp(-4rem, -4vw, 0px)" }}>
-              <HeroMockup />
+            <div className="lg:-mr-12 xl:-mr-20">
+              <ProductCockpit />
             </div>
           </div>
         </div>
@@ -245,10 +197,10 @@ export default function Home() {
 
               <div className="relative grid grid-cols-2 lg:grid-cols-4 divide-y divide-x-0 lg:divide-y-0 lg:divide-x divide-white/10">
                 {[
-                  { value: "10", label: "Payment methods, one guest folio" },
-                  { value: "100%", label: "Checkouts trigger a housekeeping task, automatically" },
-                  { value: "100%", label: "POS orders post straight to the folio" },
-                  { value: "24/7", label: "Real support, not a chatbot queue" },
+                  { value: "26+", label: "Operational and management reports" },
+                  { value: "1", label: "Checkout action creates the next cleaning task" },
+                  { value: "<1s", label: "For booking alerts to reach every open front-desk screen" },
+                  { value: "0%", label: "Commission on your direct Booking Engine reservations" },
                 ].map((stat, i) => (
                   <Reveal key={stat.label} delay={i * 0.08} variant="rise" className="px-0 lg:px-8 py-6 lg:py-0 first:pl-0 last:pr-0">
                     <p className="font-display text-[clamp(38px,4.8vw,58px)] font-medium text-coral leading-none">{stat.value}</p>
@@ -268,37 +220,43 @@ export default function Home() {
         eyebrow="Run the front of house"
         headline="Everything the desk touches, in one place."
         mockupSide="left"
-        mockupMinHeight="360px"
+        mockupMinHeight="420px"
         tabs={[
           {
             label: "Front Desk",
             heading: "Every guest, one glance away.",
             copy: "Arrivals, departures, and room status for the whole day — check someone in without leaving this screen.",
             mockup: <FrontDeskMockup />,
+            learnMoreTo: "/pms",
           },
           {
             label: "Housekeeping",
             heading: "Keeps working when the Wi-Fi doesn't.",
             copy: "Staff mark rooms clean from their own phone, even offline — everything syncs the moment a signal comes back.",
             mockup: <HousekeepingMockup />,
+            learnMoreTo: "/pms",
           },
           {
             label: "Reports",
             heading: "The numbers, already done.",
             copy: "Occupancy, ADR, revenue, and profit — a finished report waiting for you, not a spreadsheet you have to build.",
             mockup: <ReportsSnapshotMockup />,
+            learnMoreTo: "/statistics",
           },
           {
             label: "Team & Access",
             heading: "Every role, only what they need.",
             copy: "Owner, Manager, Front Desk, Housekeeping — each sees only the modules their job touches. Add staff without handing over the whole system.",
             mockup: <TeamAccessMockup />,
+            learnMoreTo: "/pms",
           },
           {
             label: "Channel Manager",
             heading: "Coming soon.",
             copy: "Direct two-way sync with Booking.com, Expedia, Agoda, and Airbnb is in development — not live yet, so we're not going to pretend it is.",
             mockup: <ChannelManagerComingSoonMockup />,
+            learnMoreTo: "/channel-manager",
+            learnMoreLabel: "View the roadmap",
           },
         ]}
       />
@@ -312,7 +270,7 @@ export default function Home() {
               Built for every kind of stay
             </h2>
             <p className="text-[16.5px] text-ink-soft max-w-xl mx-auto leading-relaxed">
-              From a single room to a global portfolio — and everything in between.
+              Purpose-built for independent properties that want one dependable source of truth.
             </p>
           </Reveal>
 
@@ -367,24 +325,24 @@ export default function Home() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-10 gap-y-12 items-stretch">
             {[
               {
-                icon: CloudCog,
-                title: "Powered by AWS",
-                body: "InnFlo runs on Amazon Web Services — the same cloud infrastructure trusted by banks and governments.",
+                icon: Cloud,
+                title: "Secure cloud delivery",
+                body: "Managed infrastructure, encrypted HTTPS connections, and monitored services keep your team working without maintaining a server.",
               },
               {
                 icon: Activity,
-                title: "99.9% uptime",
-                body: "Monitored around the clock on infrastructure built to stay up — a stalled dashboard shouldn't be why a guest waits.",
+                title: "Built for daily operations",
+                body: "Fast route-based loading, production monitoring, and a phone-first housekeeping PWA designed for the realities of hotel work.",
               },
               {
                 icon: ShieldCheck,
                 title: "Your data, walled off",
-                body: "Tenant isolation enforced at the database level, encrypted end to end — one property's data never touches another's.",
+                body: "Authenticated hotel scoping, role permissions, and explicit tenant filters keep one property's operating data out of another's workspace.",
               },
               {
                 icon: LifeBuoy,
-                title: "Real support, 24/7",
-                body: "No chatbot loop, no ticket number to wait on. Message us and talk to someone who actually built the product.",
+                title: "Human product support",
+                body: "Talk to the small team building InnFlo. We can explain the workflow, help with setup, and tell you honestly what is ready.",
               },
             ].map((item, i) => (
               <Reveal key={item.title} delay={i * 0.06} variant="rise" className="h-full">
@@ -424,7 +382,7 @@ export default function Home() {
                       to="/contact"
                       className="h-12 px-8 rounded-full text-[16px] font-semibold font-body bg-white text-coral-deep hover:bg-paper transition-colors flex items-center"
                     >
-                      Request early access
+                      Book a product walkthrough
                     </Link>
                   </MagneticButton>
                   <Link to="/pricing" className="text-[16px] text-white/85 hover:text-white font-body transition-colors">

@@ -4,12 +4,476 @@ import { motion, AnimatePresence } from "framer-motion";
 import Reveal from "../components/motion/Reveal";
 import SplitHeading from "../components/motion/SplitHeading";
 import TabbedFeatureBlock from "../components/features/TabbedFeatureBlock";
-import { Globe, RefreshCw, Crown, Lock, ShieldCheck, Utensils, Wifi, CheckCircle2, ChevronRight, ShoppingBag, DoorOpen, Plus, Clock } from "lucide-react";
+import {
+  ArrowRight,
+  BedDouble,
+  BellRing,
+  Calculator,
+  CalendarCheck2,
+  ChefHat,
+  CheckCircle2,
+  ChevronRight,
+  ClipboardCheck,
+  Clock,
+  Crown,
+  DoorOpen,
+  EyeOff,
+  Globe,
+  KeyRound,
+  LayoutDashboard,
+  Lock,
+  Plus,
+  ReceiptText,
+  RefreshCw,
+  Settings,
+  ShieldCheck,
+  ShoppingBag,
+  Sparkles,
+  UserCog,
+  Users,
+  Utensils,
+  Wallet,
+  Wifi,
+  Wrench,
+} from "lucide-react";
 
 import {
   LiveScheduleMockup, PosTerminalMockup, QrMenuMockup,
-  ScanToCountMockup, LiveFolioMockup,
+  InventoryControlMockup, LiveFolioMockup,
 } from "../components/features/TabModuleMockups";
+
+function PmsHeroMockup() {
+  const metrics = [
+    { label: "Occupancy", value: "75%", detail: "9 / 12 rooms", icon: BedDouble, tone: "bg-emerald-50 text-emerald-700" },
+    { label: "Arrivals", value: "4", detail: "2 before 3 PM", icon: CalendarCheck2, tone: "bg-blue-50 text-blue-700" },
+    { label: "Guests", value: "18", detail: "Currently in-house", icon: Users, tone: "bg-violet-50 text-violet-700" },
+    { label: "Revenue", value: "54K", detail: "PKR today", icon: Wallet, tone: "bg-coral-soft text-coral-dark" },
+  ];
+
+  return (
+    <div className="relative pb-8 pt-3 sm:pl-5 lg:-mr-8">
+      <div className="overflow-hidden rounded-[26px] border border-line bg-white shadow-[0_32px_90px_rgba(68,43,30,.18)]">
+        <div className="flex h-11 items-center justify-between border-b border-line-soft bg-[#FBF8F4] px-4">
+          <div className="flex items-center gap-3">
+            <div className="flex gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#F5A6A0]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#F5D183]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#9EDDC7]" />
+            </div>
+            <span className="text-[9px] font-black tracking-wide text-ink-mute">InnFlo · Central Inn</span>
+          </div>
+          <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[7px] font-black text-emerald-700">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+            LIVE
+          </span>
+        </div>
+
+        <div className="grid bg-[#F7F3EE] sm:grid-cols-[88px_minmax(0,1fr)]">
+          <aside className="hidden border-r border-line-soft bg-ink px-2.5 py-4 text-white sm:block">
+            <div className="mb-5 flex items-center gap-1.5 px-1">
+              <span className="grid h-6 w-6 place-items-center rounded-lg bg-coral text-[9px] font-black">I</span>
+              <span className="text-[9px] font-black">InnFlo</span>
+            </div>
+            {["Today", "Reservations", "Rooms", "Guests", "Billing", "Reports"].map((item, index) => (
+              <div
+                key={item}
+                className={`mb-1 rounded-lg px-2 py-2 text-[6.5px] font-bold ${
+                  index === 0 ? "bg-white/10 text-white" : "text-white/50"
+                }`}
+              >
+                {item}
+              </div>
+            ))}
+          </aside>
+
+          <div className="min-w-0 p-3.5 sm:p-4">
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-[7px] font-black uppercase tracking-[.15em] text-coral-dark">Wednesday · 7 July</p>
+                <p className="mt-1 text-[15px] font-black text-ink">Good morning, Basit.</p>
+              </div>
+              <span className="hidden rounded-lg border border-line-soft bg-white px-2.5 py-1.5 text-[7px] font-bold text-ink-soft sm:block">Property overview</span>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+              {metrics.map((metric) => {
+                const Icon = metric.icon;
+                return (
+                  <div key={metric.label} className="rounded-xl border border-line-soft bg-white p-2.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[6px] font-black uppercase tracking-wider text-ink-mute">{metric.label}</p>
+                      <span className={`grid h-5 w-5 place-items-center rounded-lg ${metric.tone}`}>
+                        <Icon className="h-2.5 w-2.5" />
+                      </span>
+                    </div>
+                    <p className="mt-2 text-[14px] font-black leading-none text-ink">{metric.value}</p>
+                    <p className="mt-1 text-[5.5px] font-semibold text-ink-mute">{metric.detail}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-2 grid gap-2 md:grid-cols-[1.12fr_.88fr]">
+              <div className="rounded-xl border border-line-soft bg-white p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[8px] font-black text-ink">Today&apos;s guest movement</p>
+                    <p className="text-[5.5px] text-ink-mute">Arrivals and departures in one queue</p>
+                  </div>
+                  <span className="text-[6px] font-black text-coral-dark">View timeline</span>
+                </div>
+                <div className="mt-2.5 space-y-1.5">
+                  {[
+                    ["108", "Zara Khan", "Arriving · 2 PM", "bg-blue-50 text-blue-700"],
+                    ["104", "Hamza Ahmed", "Checked in", "bg-emerald-50 text-emerald-700"],
+                    ["201", "Rao Family", "Due out · 12 PM", "bg-amber-50 text-amber-700"],
+                  ].map(([room, guest, status, tone]) => (
+                    <div key={room} className="flex items-center gap-2 rounded-lg bg-[#FAF8F5] px-2 py-1.5">
+                      <span className={`grid h-6 w-6 place-items-center rounded-lg text-[6.5px] font-black ${tone}`}>{room}</span>
+                      <div className="min-w-0">
+                        <p className="truncate text-[7px] font-black text-ink">{guest}</p>
+                        <p className="text-[5.5px] font-semibold text-ink-mute">{status}</p>
+                      </div>
+                      <ChevronRight className="ml-auto h-2.5 w-2.5 text-ink-faint" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-line-soft bg-ink p-3 text-white">
+                <p className="text-[6px] font-black uppercase tracking-[.15em] text-coral">Rooms right now</p>
+                <div className="mt-3 grid grid-cols-2 gap-1.5">
+                  {[
+                    ["9", "Occupied", "text-white"],
+                    ["2", "To clean", "text-amber-300"],
+                    ["1", "Available", "text-emerald-300"],
+                    ["0", "Blocked", "text-white/50"],
+                  ].map(([value, label, tone]) => (
+                    <div key={label} className="rounded-lg border border-white/10 bg-white/[.055] p-2">
+                      <p className={`text-[12px] font-black ${tone}`}>{value}</p>
+                      <p className="mt-0.5 text-[5.5px] font-bold text-white/40">{label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-white/[.07] px-2 py-1.5">
+                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-300" />
+                  <p className="text-[5.5px] font-bold text-white/60">Housekeeping synced just now</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="absolute bottom-0 right-0 flex w-[215px] items-start gap-2.5 rounded-2xl border border-coral/20 bg-ink p-3 text-white shadow-[0_18px_50px_rgba(35,27,22,.28)] sm:right-3">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-coral text-white">
+          <BellRing className="h-3.5 w-3.5" />
+        </span>
+        <div>
+          <p className="text-[8px] font-black">New direct booking request</p>
+          <p className="mt-1 text-[6.5px] font-semibold text-white/50">Deluxe Room · 3 nights</p>
+          <p className="mt-1.5 text-[6px] font-black uppercase tracking-wider text-coral">Front desk alerted live</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RoleWorkspaceShowcase() {
+  const roles = [
+    {
+      id: "owner",
+      label: "Owner",
+      initials: "BN",
+      person: "Basit Nadeem",
+      access: "Full property view",
+      modules: [
+        { label: "Dashboard", icon: LayoutDashboard },
+        { label: "Reservations", icon: CalendarCheck2 },
+        { label: "Rooms", icon: BedDouble },
+        { label: "Financials", icon: Wallet },
+        { label: "Team", icon: Users },
+        { label: "Reports", icon: Calculator },
+        { label: "Settings", icon: Settings },
+      ],
+      eyebrow: "Owner overview",
+      heading: "The whole property, without chasing departments.",
+      metrics: [["Occupancy", "86%"], ["Revenue today", "PKR 78.5K"], ["Arrivals", "8"], ["Open follow-ups", "3"]],
+      items: [["Front desk handover", "Ready · 3 notes"], ["Housekeeping", "12 of 15 rooms done"], ["Cash variance", "Balanced"]],
+      guardrail: "All hotel controls available",
+    },
+    {
+      id: "manager",
+      label: "Manager",
+      initials: "MR",
+      person: "Mariam Raza",
+      access: "Operations access",
+      modules: [
+        { label: "Dashboard", icon: LayoutDashboard },
+        { label: "Reservations", icon: CalendarCheck2 },
+        { label: "Rooms", icon: BedDouble },
+        { label: "Housekeeping", icon: Sparkles },
+        { label: "POS", icon: Utensils },
+        { label: "Reports", icon: Calculator },
+        { label: "Team", icon: Users },
+      ],
+      eyebrow: "Manager workspace",
+      heading: "Today’s operation, already brought together.",
+      metrics: [["Occupancy", "86%"], ["Due in", "8"], ["To clean", "3"], ["Open issues", "2"]],
+      items: [["Room 204", "Late arrival · 8:30 PM"], ["Room 108", "Cleaning in progress"], ["Kitchen", "2 orders awaiting prep"]],
+      guardrail: "Ownership settings stay protected",
+    },
+    {
+      id: "front-desk",
+      label: "Front desk",
+      initials: "AK",
+      person: "Ayesha Khan",
+      access: "Guest operations",
+      modules: [
+        { label: "Dashboard", icon: LayoutDashboard },
+        { label: "Reservations", icon: CalendarCheck2 },
+        { label: "Rooms", icon: BedDouble },
+        { label: "Guests", icon: Users },
+        { label: "Billing", icon: ReceiptText },
+        { label: "Housekeeping", icon: Sparkles },
+        { label: "POS", icon: Utensils },
+      ],
+      eyebrow: "Front desk workspace",
+      heading: "Every arrival, stay and folio within reach.",
+      metrics: [["Arrivals", "8"], ["Departures", "5"], ["Rooms ready", "6"], ["Open folios", "11"]],
+      items: [["Zara Khan", "Room 108 · Arriving 2 PM"], ["Hamza Ahmed", "Room 104 · Checked in"], ["Rao Family", "3 rooms · Balance due"]],
+      guardrail: "Refund controls stay out of view",
+    },
+    {
+      id: "housekeeping",
+      label: "Housekeeping",
+      initials: "SK",
+      person: "Sana Karim",
+      access: "Rooms and assigned tasks",
+      modules: [
+        { label: "Dashboard", icon: LayoutDashboard },
+        { label: "Rooms", icon: BedDouble },
+        { label: "Housekeeping", icon: Sparkles },
+        { label: "Maintenance", icon: Wrench },
+      ],
+      eyebrow: "Housekeeping workspace",
+      heading: "A clean task list—without guest or money screens.",
+      metrics: [["Assigned", "6"], ["Completed", "4"], ["In progress", "1"], ["Priority", "1"]],
+      items: [["Room 101", "Checkout clean · Priority"], ["Room 204", "Stayover refresh · In progress"], ["Room 305", "Linen change · Next"]],
+      guardrail: "Guest and financial data stay out of view",
+    },
+    {
+      id: "kitchen",
+      label: "Kitchen",
+      initials: "UR",
+      person: "Usman Rafiq",
+      access: "Orders and stock",
+      modules: [
+        { label: "Kitchen dashboard", icon: ChefHat },
+        { label: "Display mode", icon: ClipboardCheck },
+        { label: "POS", icon: Utensils },
+        { label: "Inventory", icon: Calculator },
+      ],
+      eyebrow: "Kitchen workspace",
+      heading: "Tickets, prep and stock. Nothing else in the way.",
+      metrics: [["New tickets", "3"], ["Preparing", "4"], ["Ready", "2"], ["Low stock", "1"]],
+      items: [["Order #412", "Room 204 · 6 min"], ["Order #413", "Dine in · 4 min"], ["Order #414", "Pickup · New"]],
+      guardrail: "Guest records stay out of view",
+    },
+    {
+      id: "maintenance",
+      label: "Maintenance",
+      initials: "FA",
+      person: "Fahad Ali",
+      access: "Rooms and issues",
+      modules: [
+        { label: "Dashboard", icon: LayoutDashboard },
+        { label: "Rooms", icon: BedDouble },
+        { label: "Housekeeping", icon: Sparkles },
+        { label: "Maintenance", icon: Wrench },
+      ],
+      eyebrow: "Maintenance workspace",
+      heading: "Every fault, room and priority in one queue.",
+      metrics: [["Open", "5"], ["Urgent", "1"], ["In progress", "2"], ["Closed today", "4"]],
+      items: [["Room 208", "Water heater · Urgent"], ["Room 114", "Door lock · In progress"], ["Lobby", "Light fitting · Scheduled"]],
+      guardrail: "Guest and financial data stay out of view",
+    },
+    {
+      id: "accountant",
+      label: "Accountant",
+      initials: "RM",
+      person: "Rida Malik",
+      access: "Money and reporting",
+      modules: [
+        { label: "Dashboard", icon: LayoutDashboard },
+        { label: "Billing", icon: ReceiptText },
+        { label: "Expenses", icon: Wallet },
+        { label: "Balance book", icon: Calculator },
+        { label: "Reports", icon: ClipboardCheck },
+      ],
+      eyebrow: "Accountant workspace",
+      heading: "The financial picture, without operational clutter.",
+      metrics: [["Revenue", "PKR 78.5K"], ["Expenses", "PKR 18.2K"], ["Receivables", "PKR 31K"], ["Variance", "PKR 0"]],
+      items: [["Cash shift", "Balanced · 6:00 PM"], ["Bank transfer", "PKR 24,000 · Recorded"], ["Monthly report", "Ready to export"]],
+      guardrail: "Room-operation controls stay out of view",
+    },
+  ];
+
+  const [activeRoleId, setActiveRoleId] = useState("front-desk");
+  const activeRole = roles.find((role) => role.id === activeRoleId) ?? roles[2];
+
+  return (
+    <div className="relative">
+      <div className="mb-5 flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {roles.map((role) => (
+          <button
+            key={role.id}
+            type="button"
+            onClick={() => setActiveRoleId(role.id)}
+            aria-pressed={activeRole.id === role.id}
+            className={`shrink-0 rounded-full border px-4 py-2.5 font-body text-[12px] font-black transition-all ${
+              activeRole.id === role.id
+                ? "border-coral bg-coral text-white shadow-[0_10px_30px_rgba(224,83,43,.28)]"
+                : "border-white/10 bg-white/[.055] text-white/55 hover:border-white/25 hover:text-white"
+            }`}
+          >
+            {role.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[#F7F3EE] shadow-[0_38px_100px_rgba(0,0,0,.38)]">
+        <div className="flex h-12 items-center justify-between border-b border-line bg-white px-4 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex shrink-0 gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#F5A6A0]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#F5D183]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#9EDDC7]" />
+            </div>
+            <span className="truncate text-[9px] font-black text-ink-mute">InnFlo · Central Inn</span>
+          </div>
+          <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[7px] font-black text-emerald-700">
+            <ShieldCheck className="h-3 w-3" />
+            ACCESS VERIFIED
+          </span>
+        </div>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeRole.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22 }}
+            className="grid min-h-[510px] grid-cols-1 sm:grid-cols-[205px_minmax(0,1fr)]"
+          >
+            <aside className="bg-[#211E1A] p-4 text-white sm:p-5">
+              <div className="flex items-center gap-3 border-b border-white/10 pb-5">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-coral text-[10px] font-black">
+                  {activeRole.initials}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-[10px] font-black">{activeRole.person}</p>
+                  <p className="mt-1 text-[7px] font-bold uppercase tracking-[.13em] text-white/35">{activeRole.label}</p>
+                </div>
+              </div>
+
+              <p className="mt-5 text-[7px] font-black uppercase tracking-[.16em] text-white/30">Your workspace</p>
+              <nav className="mt-2.5 grid grid-cols-2 gap-1 sm:grid-cols-1">
+                {activeRole.modules.map((module, index) => {
+                  const ModuleIcon = module.icon;
+                  return (
+                    <div
+                      key={module.label}
+                      className={`flex min-w-0 items-center gap-2 rounded-xl px-2.5 py-2 text-[8px] font-bold ${
+                        index === 0 ? "bg-white text-ink" : "text-white/55"
+                      }`}
+                    >
+                      <ModuleIcon className={`h-3 w-3 shrink-0 ${index === 0 ? "text-coral" : "text-white/35"}`} />
+                      <span className="truncate">{module.label}</span>
+                    </div>
+                  );
+                })}
+              </nav>
+
+              <div className="mt-5 rounded-2xl border border-white/10 bg-white/[.055] p-3">
+                <div className="flex items-center gap-2">
+                  <EyeOff className="h-3.5 w-3.5 text-coral" />
+                  <p className="text-[8px] font-black">No disabled clutter</p>
+                </div>
+                <p className="mt-1.5 text-[7px] leading-relaxed text-white/35">{activeRole.guardrail}</p>
+              </div>
+            </aside>
+
+            <main className="min-w-0 p-4 sm:p-6 lg:p-7">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-[7px] font-black uppercase tracking-[.16em] text-coral-dark">{activeRole.eyebrow}</p>
+                  <h3 className="mt-2 max-w-xl font-display text-[clamp(22px,3vw,34px)] font-medium leading-tight text-ink">
+                    {activeRole.heading}
+                  </h3>
+                </div>
+                <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-line bg-white px-3 py-2 text-[7px] font-black text-ink-soft">
+                  <KeyRound className="h-3 w-3 text-emerald-600" />
+                  {activeRole.access}
+                </span>
+              </div>
+
+              <div className="mt-6 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                {activeRole.metrics.map(([label, value]) => (
+                  <div key={label} className="rounded-2xl border border-line bg-white p-3 shadow-card">
+                    <p className="text-[6.5px] font-black uppercase tracking-wider text-ink-mute">{label}</p>
+                    <p className="mt-2 text-[15px] font-black text-ink">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_190px]">
+                <div className="overflow-hidden rounded-2xl border border-line bg-white">
+                  <div className="flex items-center justify-between border-b border-line-soft px-4 py-3">
+                    <div>
+                      <p className="text-[9px] font-black text-ink">Work that needs attention</p>
+                      <p className="mt-0.5 text-[6.5px] text-ink-mute">Only this role’s relevant queue appears</p>
+                    </div>
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  </div>
+                  <div className="divide-y divide-line-soft">
+                    {activeRole.items.map(([title, detail], index) => (
+                      <div key={title} className="flex items-center gap-3 px-4 py-3">
+                        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-xl text-[7px] font-black ${
+                          index === 0 ? "bg-coral-soft text-coral-dark" : "bg-mist text-ink-mute"
+                        }`}>
+                          {index + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-[8px] font-black text-ink">{title}</p>
+                          <p className="mt-0.5 truncate text-[6.5px] font-semibold text-ink-mute">{detail}</p>
+                        </div>
+                        <ChevronRight className="ml-auto h-3 w-3 shrink-0 text-ink-faint" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-coral p-4 text-white shadow-[0_18px_45px_rgba(224,83,43,.22)]">
+                  <UserCog className="h-5 w-5" />
+                  <p className="mt-5 text-[11px] font-black">Owner-controlled access</p>
+                  <p className="mt-2 text-[7px] leading-relaxed text-white/65">
+                    Choose who can view, create, update or manage each area.
+                  </p>
+                  <div className="mt-5 rounded-xl bg-white/15 px-3 py-2.5">
+                    <p className="text-[7px] font-black">Enforced beyond the menu</p>
+                    <p className="mt-1 text-[6.5px] leading-relaxed text-white/60">Protected actions remain protected even outside the screen.</p>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
 
 
 
@@ -58,146 +522,90 @@ function ReportMockup() {
 // ─── Background Jobs Mockups ───────────────────────────────────────────────
 function BriefingMockup() {
   return (
-    <div className="h-[320px] w-full bg-[#FAFAF8] border-b border-line-soft flex items-center justify-center p-4 relative overflow-hidden select-none">
-      {/* Background glowing orbs */}
-      <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-[#25D366]/10 blur-3xl pointer-events-none" />
-      <div className="absolute bottom-[-20px] left-[-20px] w-40 h-40 rounded-full bg-[#128C7E]/10 blur-3xl pointer-events-none" />
-
-      {/* iPhone Frame */}
-      <div className="w-[220px] h-[450px] bg-white rounded-[36px] border-[8px] border-[#1E1E1E] shadow-[0_24px_60px_rgba(0,0,0,0.12)] flex flex-col overflow-hidden transform rotate-[-2deg] hover:rotate-0 transition-transform duration-500 shrink-0 mt-24">
-        {/* Notch */}
-        <div className="absolute top-0 inset-x-0 h-5 flex justify-center z-20">
-          <div className="w-20 h-4 bg-[#1E1E1E] rounded-b-xl" />
-        </div>
-
-        {/* Header */}
-        <div className="pt-8 pb-3 px-4 bg-[#075E54] text-white flex items-center gap-3 relative z-10">
-          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0 border border-white/30 backdrop-blur-sm">
-            <span className="text-[12px] font-bold">IF</span>
+    <div className="h-[320px] w-full overflow-hidden border-b border-line-soft bg-ink p-5 text-white">
+      <div className="flex items-center justify-between">
+        <div><p className="text-[8px] font-bold uppercase tracking-wider text-coral">Today at a glance</p><p className="mt-1 font-display text-[18px] font-medium">Manager dashboard</p></div>
+        <span className="rounded-full bg-white/10 px-2 py-1 text-[7px] font-bold text-white/50">LIVE</span>
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        {[
+          ["Occupancy", "86%"],
+          ["Revenue", "PKR 78.5K"],
+          ["Arrivals", "8 rooms"],
+          ["To clean", "3 rooms"],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-xl border border-white/10 bg-white/[.055] p-3">
+            <p className="text-[7px] font-bold uppercase tracking-wider text-white/35">{label}</p>
+            <p className="mt-2 text-[13px] font-black">{value}</p>
           </div>
-          <div className="flex-1 min-w-0">
-            <h4 className="text-[11px] font-bold leading-tight flex items-center gap-1">
-              InnFlo Bot
-              <span className="w-2.5 h-2.5 bg-[#25D366] rounded-full flex items-center justify-center text-white">
-                <CheckCircle2 className="w-1.5 h-1.5" />
-              </span>
-            </h4>
-            <p className="text-[8px] text-white/80 mt-0.5">Automated Briefing</p>
-          </div>
-        </div>
-
-        {/* Chat Area */}
-        <div 
-          className="flex-1 p-3 flex flex-col justify-end space-y-3 relative pb-8"
-          style={{ backgroundColor: "#E5DDD5" }}
-        >
-          {/* Chat Background Pattern */}
-          <div className="absolute inset-0 opacity-40 pointer-events-none" style={{ backgroundImage: "radial-gradient(#000000 0.5px, transparent 0.5px)", backgroundSize: "8px 8px" }} />
-
-          <div className="self-center bg-[#E1F3FB] text-[#4F686A] text-[8px] font-bold px-2.5 py-1 rounded-md shadow-sm z-10 mb-2">
-            TODAY
-          </div>
-
-          {/* Typing Indicator */}
-          <div className="bg-white rounded-2xl rounded-tl-sm p-3 shadow-sm w-fit z-10 flex items-center gap-1 animate-pulse">
-            <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
-            <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
-            <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
-          </div>
-
-          {/* Report Bubble */}
-          <div className="bg-[#DCF8C6] text-[#1A1A1A] rounded-2xl rounded-tr-sm p-3.5 shadow-sm max-w-[90%] self-end z-10 flex flex-col gap-2 relative">
-            <div className="flex items-center gap-1.5 border-b border-black/5 pb-2">
-              <span className="text-[12px]">🌙</span>
-              <span className="text-[9px] font-bold uppercase tracking-wider text-[#075E54]">Nightly Report</span>
-            </div>
-            
-            <div className="space-y-1.5 text-[10px] font-medium leading-relaxed">
-              <div className="flex justify-between items-center">
-                <span className="text-black/60">Occupancy</span>
-                <span className="font-bold">86% <span className="text-[8px] text-[#25D366]">(+4%)</span></span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-black/60">Revenue</span>
-                <span className="font-bold">PKR 78.5K</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-black/60">Tomorrow In</span>
-                <span className="font-bold">8 rooms</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-black/60">Housekeeping</span>
-                <span className="font-bold text-[#075E54]">All clean ✨</span>
-              </div>
-            </div>
-
-            <div className="flex justify-end items-center gap-1 mt-1 text-[#075E54]">
-              <span className="text-[7px] font-medium">11:00 PM</span>
-              <svg className="w-3 h-3 text-[#34B7F1]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-            </div>
-          </div>
-        </div>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center gap-2 rounded-xl bg-coral px-3 py-2.5">
+        <CheckCircle2 className="h-3.5 w-3.5" />
+        <p className="text-[8px] font-bold">Shift handover ready · 3 notes</p>
       </div>
     </div>
   );
 }
 
-function ChannelSyncMockup() {
+function LiveAlertsMockup() {
   return (
-    <div className="h-[320px] w-full bg-[#FAFAF8] border-b border-line-soft flex items-center justify-center p-4 relative overflow-hidden select-none">
-      {/* Tech Grid Background */}
-      <div className="absolute inset-0 bg-[radial-gradient(#D4D4D8_1px,transparent_1px)] [background-size:16px_16px] opacity-40 pointer-events-none" />
-      
-      {/* Central Flow Nodes */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        {/* Connection Lines */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[180px] h-[120px] border border-blue-500/20 rounded-3xl" />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[80px] border border-emerald-500/20 rounded-2xl" />
+    <div className="relative h-[320px] w-full overflow-hidden border-b border-line-soft bg-ink p-5 text-white">
+      <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-coral/20 blur-3xl" />
+      <div className="relative flex items-center justify-between">
+        <div>
+          <p className="text-[8px] font-black uppercase tracking-[.17em] text-coral">Live alerts</p>
+          <p className="mt-1 font-display text-[18px] font-medium">Nothing slips by.</p>
+        </div>
+        <span className="flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 py-1 text-[7px] font-black text-emerald-300">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+          CONNECTED
+        </span>
       </div>
 
-      {/* Main SaaS Dashboard Widget */}
-      <div className="w-[280px] rounded-[24px] bg-white border border-line shadow-[0_20px_60px_rgba(0,0,0,0.06)] flex flex-col overflow-hidden z-10 hover:shadow-[0_24px_80px_rgba(0,0,0,0.1)] transition-shadow duration-500">
-        <div className="px-5 py-4 bg-white border-b border-line-soft flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
-              <RefreshCw className="w-4 h-4 text-blue-600 animate-spin-slow" />
+      <div className="relative mt-5 space-y-2.5">
+        {[
+          {
+            title: "New Booking Engine request",
+            detail: "Zara Khan · Deluxe Room · 3 nights",
+            meta: "Front desk · just now",
+            tone: "bg-coral text-white",
+            icon: BellRing,
+          },
+          {
+            title: "Checkout cleaning created",
+            detail: "Room 204 · assigned to Housekeeping",
+            meta: "Automated · 2m ago",
+            tone: "bg-emerald-400/15 text-emerald-300",
+            icon: CheckCircle2,
+          },
+          {
+            title: "Shift handover updated",
+            detail: "3 notes ready for the evening team",
+            meta: "Operations · 6m ago",
+            tone: "bg-white/10 text-white/70",
+            icon: RefreshCw,
+          },
+        ].map((alert) => {
+          const Icon = alert.icon;
+          return (
+            <div key={alert.title} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[.055] p-3 backdrop-blur-sm">
+              <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${alert.tone}`}>
+                <Icon className="h-3.5 w-3.5" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-[9px] font-black text-white">{alert.title}</p>
+                <p className="mt-1 truncate text-[7px] font-semibold text-white/50">{alert.detail}</p>
+                <p className="mt-1.5 text-[6px] font-black uppercase tracking-wider text-coral">{alert.meta}</p>
+              </div>
             </div>
-            <div>
-              <h4 className="text-[12px] font-black text-ink tracking-tight">Channel Manager</h4>
-              <p className="text-[10px] text-ink-mute mt-0.5">Real-time bi-directional sync</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[9px] font-bold text-emerald-700">Online</span>
-          </div>
-        </div>
+          );
+        })}
+      </div>
 
-        <div className="p-4 space-y-3 bg-[#FBFBFB]">
-          {[
-            { name: "Booking.com", color: "bg-[#003580]", text: "text-white", initial: "B.", active: true, time: "Just now" },
-            { name: "Airbnb", color: "bg-[#FF5A5F]", text: "text-white", initial: "A.", active: true, time: "2m ago" },
-            { name: "Expedia", color: "bg-[#000048]", text: "text-[#FFC000]", initial: "E.", active: true, time: "5m ago" },
-          ].map((channel, idx) => (
-            <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-2xl border border-line-soft shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:border-blue-200 transition-colors cursor-default">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-[14px] font-black ${channel.color} ${channel.text} shadow-sm`}>
-                  {channel.initial}
-                </div>
-                <div>
-                  <p className="text-[11px] font-bold text-ink">{channel.name}</p>
-                  <p className="text-[9px] text-ink-mute mt-0.5 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Rates & Availability
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Synced</span>
-                <p className="text-[8px] text-ink-mute mt-1.5">{channel.time}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="relative mt-3 flex items-center gap-2 text-[7px] font-bold text-white/50">
+        <BellRing className="h-3 w-3 text-coral" />
+        Persistent on-screen alerts stay until staff dismiss them.
       </div>
     </div>
   );
@@ -206,18 +614,14 @@ function ChannelSyncMockup() {
 function HousekeepingPwaMockup() {
   return (
     <div className="h-[320px] w-full bg-[#FAFAF8] border-b border-line-soft flex items-center justify-center p-4 relative overflow-hidden select-none">
-      {/* Background accents */}
       <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-coral/5 blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-blue-500/5 blur-3xl pointer-events-none" />
 
-      {/* Mobile Device Mockup */}
       <div className="w-[230px] h-[480px] bg-white rounded-[40px] border-[10px] border-black shadow-[0_24px_60px_rgba(0,0,0,0.12)] flex flex-col overflow-hidden transform hover:-translate-y-2 transition-transform duration-500 shrink-0 mt-20">
-        {/* Notch Area */}
         <div className="absolute top-0 inset-x-0 h-6 flex justify-center z-30">
           <div className="w-24 h-5 bg-black rounded-b-2xl" />
         </div>
 
-        {/* Status Bar */}
         <div className="px-5 pt-1.5 pb-2 bg-ink text-white flex justify-between items-center text-[10px] font-sans font-medium z-20">
           <span>9:41</span>
           <div className="flex items-center gap-1">
@@ -228,7 +632,6 @@ function HousekeepingPwaMockup() {
           </div>
         </div>
 
-        {/* Header */}
         <div className="px-4 py-4 bg-ink text-white shrink-0 z-20 relative shadow-sm">
           <div className="flex items-center justify-between">
             <div>
@@ -239,8 +642,6 @@ function HousekeepingPwaMockup() {
               <span className="text-[12px]">🧹</span>
             </div>
           </div>
-          
-          {/* Progress */}
           <div className="mt-4">
             <div className="flex justify-between text-[10px] font-bold mb-2">
               <span>Progress</span>
@@ -252,7 +653,6 @@ function HousekeepingPwaMockup() {
           </div>
         </div>
 
-        {/* Task List */}
         <div className="flex-1 bg-[#F9F9FB] p-3 space-y-3 overflow-y-auto pb-10">
           {[
             { room: "101", type: "Checkout Clean", time: "ASAP", status: "done" },
@@ -261,30 +661,30 @@ function HousekeepingPwaMockup() {
             { room: "205", type: "Touch up", time: "Afternoon", status: "pending" },
           ].map((task, idx) => (
             <div key={idx} className={`p-3 rounded-2xl border flex items-center justify-between transition-all ${
-              task.status === 'done' ? 'bg-white opacity-60 border-line-soft' : 
-              task.status === 'active' ? 'bg-white border-coral/30 shadow-[0_4px_20px_rgba(224,83,43,0.08)]' : 
-              'bg-white border-line-soft'
+              task.status === "done" ? "bg-white opacity-60 border-line-soft" :
+              task.status === "active" ? "bg-white border-coral/30 shadow-[0_4px_20px_rgba(224,83,43,0.08)]" :
+              "bg-white border-line-soft"
             }`}>
               <div className="flex gap-3 items-center">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[12px] ${
-                  task.status === 'done' ? 'bg-emerald-50 text-emerald-600' : 
-                  task.status === 'active' ? 'bg-coral text-white' : 
-                  'bg-mist text-ink-mute'
+                  task.status === "done" ? "bg-emerald-50 text-emerald-600" :
+                  task.status === "active" ? "bg-coral text-white" :
+                  "bg-mist text-ink-mute"
                 }`}>
                   {task.room}
                 </div>
                 <div>
-                  <p className={`text-[12px] font-bold ${task.status === 'done' ? 'text-ink-soft line-through' : 'text-ink'}`}>{task.type}</p>
+                  <p className={`text-[12px] font-bold ${task.status === "done" ? "text-ink-soft line-through" : "text-ink"}`}>{task.type}</p>
                   <p className="text-[9px] text-ink-mute mt-1 flex items-center gap-1">
                     <Clock className="w-3 h-3" /> {task.time}
                   </p>
                 </div>
               </div>
               <div>
-                {task.status === 'done' ? (
+                {task.status === "done" ? (
                   <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-                ) : task.status === 'active' ? (
-                  <button className="bg-coral text-white px-3 py-1.5 rounded-full text-[9px] font-bold shadow-sm">Start</button>
+                ) : task.status === "active" ? (
+                  <button type="button" className="bg-coral text-white px-3 py-1.5 rounded-full text-[9px] font-bold shadow-sm">Start</button>
                 ) : (
                   <div className="w-6 h-6 rounded-full border-2 border-line-soft" />
                 )}
@@ -300,18 +700,12 @@ function HousekeepingPwaMockup() {
 function GuestCrmMockup() {
   return (
     <div className="h-[320px] w-full bg-[#FAFAF8] border-b border-line-soft flex items-center justify-center p-4 relative overflow-hidden select-none">
-      {/* Background accents */}
       <div className="absolute top-[-25px] left-[-25px] w-48 h-48 rounded-full bg-blue-500/5 blur-3xl pointer-events-none" />
       <div className="absolute bottom-[-25px] right-[-25px] w-48 h-48 rounded-full bg-purple-500/5 blur-3xl pointer-events-none" />
 
-      {/* CRM Card Widget */}
       <div className="w-[300px] rounded-[24px] bg-white border border-line shadow-[0_20px_60px_rgba(0,0,0,0.08)] flex flex-col hover:-translate-y-1 transition-transform duration-500">
-        
-        {/* Header Profile Area */}
         <div className="p-5 flex items-center gap-4 border-b border-line-soft relative overflow-hidden">
-          {/* Pattern overlay */}
           <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-blue-50 to-transparent" />
-          
           <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-[20px] font-black shadow-lg relative z-10">
             AL
             <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center">
@@ -320,7 +714,6 @@ function GuestCrmMockup() {
               </span>
             </div>
           </div>
-          
           <div className="relative z-10">
             <h3 className="text-[16px] font-black text-ink tracking-tight">Alison Larsen</h3>
             <p className="text-[11px] text-ink-mute font-medium mt-1">alison.larsen@example.com</p>
@@ -332,11 +725,10 @@ function GuestCrmMockup() {
         </div>
 
         <div className="p-5 space-y-4">
-          {/* Key Metrics Grid */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-[#F8F9FA] rounded-xl p-3 border border-line-soft">
               <p className="text-[9px] font-bold text-ink-mute uppercase tracking-wider">Lifetime Spend</p>
-              <p className="text-[16px] font-black text-ink mt-1">$3,667.22</p>
+              <p className="text-[16px] font-black text-ink mt-1">PKR 366,722</p>
             </div>
             <div className="bg-[#F8F9FA] rounded-xl p-3 border border-line-soft">
               <p className="text-[9px] font-bold text-ink-mute uppercase tracking-wider">Last Stay</p>
@@ -344,8 +736,6 @@ function GuestCrmMockup() {
               <p className="text-[9px] text-emerald-600 font-bold mt-0.5">Room 402</p>
             </div>
           </div>
-
-          {/* Preferences */}
           <div>
             <p className="text-[9px] font-bold text-ink-mute uppercase tracking-wider mb-2">Saved Preferences</p>
             <div className="flex flex-wrap gap-1.5">
@@ -353,9 +743,9 @@ function GuestCrmMockup() {
                 { icon: "☕️", text: "Extra Coffee Pods" },
                 { icon: "🤫", text: "Quiet Floor" },
                 { icon: "🛏", text: "King Bed Required" },
-                { icon: "🚗", text: "Parking Space" }
-              ].map((pref, i) => (
-                <div key={i} className="flex items-center gap-1.5 bg-white border border-line px-2.5 py-1.5 rounded-lg shadow-sm">
+                { icon: "🚗", text: "Parking Space" },
+              ].map((pref) => (
+                <div key={pref.text} className="flex items-center gap-1.5 bg-white border border-line px-2.5 py-1.5 rounded-lg shadow-sm">
                   <span className="text-[10px]">{pref.icon}</span>
                   <span className="text-[10px] font-bold text-ink">{pref.text}</span>
                 </div>
@@ -412,7 +802,7 @@ function QrKitchenDualMockup() {
               {/* QR dot grid */}
               <div className="absolute inset-2 grid grid-cols-7 gap-0.5 opacity-60">
                 {Array.from({ length: 49 }, (_, i) => (
-                  <span key={i} className="rounded-[1px]" style={{ background: Math.random() > 0.4 ? "#fff" : "transparent", aspectRatio: "1" }} />
+                  <span key={i} className="rounded-[1px]" style={{ background: (i * 17 + 11) % 10 > 3 ? "#fff" : "transparent", aspectRatio: "1" }} />
                 ))}
               </div>
             </div>
@@ -479,7 +869,7 @@ function QrKitchenDualMockup() {
           <div className="flex gap-1 mb-2">
             {[
               { label: "Room Folio", active: true },
-              { label: "Pay Spot", active: false },
+              { label: "Pay at spot", active: false },
             ].map(o => (
               <button
                 key={o.label}
@@ -853,8 +1243,8 @@ function ChannelManagerFlowMockup() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-coral-dark bg-coral-soft/50 font-bold px-2 py-0.5 rounded-full">Sync Active</span>
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-[10px] text-coral-dark bg-coral-soft/50 font-bold px-2 py-0.5 rounded-full">Roadmap preview</span>
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
         </div>
       </div>
 
@@ -884,8 +1274,8 @@ function ChannelManagerFlowMockup() {
               </div>
               {/* Sync status */}
               <div className="flex items-center gap-1.5">
-                <span className="text-[7.5px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full">Synced</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span className="text-[7.5px] font-bold text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">Planned</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
               </div>
             </div>
           ))}
@@ -971,7 +1361,7 @@ function ChannelManagerFlowMockup() {
           {/* Calendar status bar */}
           <div className="px-3 py-1.5 bg-mist border-t border-line-soft flex items-center justify-between text-[7px] text-ink-mute font-medium">
             <span className="flex items-center gap-1"><Lock className="w-2.5 h-2.5 text-coral" /> Closed on other channels</span>
-            <span className="font-bold text-emerald-600 flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500" /> Live rates sync</span>
+            <span className="font-bold text-amber-700 flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-500" /> Planned rates sync</span>
           </div>
         </div>
 
@@ -987,8 +1377,8 @@ const FEATURE_FAQS = [
     a: "Yes. Every order — whether rung up at the register or placed by a guest scanning a QR code — posts directly to that guest's live folio. Nothing gets tracked on a separate notepad and reconciled later.",
   },
   {
-    q: "How does the Inventory 'point your phone' feature actually work?",
-    a: "Photograph a shelf and InnFlo reads what's on it — no manual SKU entry, no clipboard count. Set a par level once, and low-stock items surface automatically the next time you scan.",
+    q: "How does inventory stay up to date?",
+    a: "Staff record stock movements and adjustments, while POS sales can deduct ingredients through linked recipes. Reorder levels surface low-stock items before they become a service problem. Camera-assisted counting remains roadmap work.",
   },
   {
     q: "What happens to Housekeeping if the Wi-Fi drops mid-shift?",
@@ -1012,13 +1402,26 @@ const FEATURE_FAQS = [
   },
 ];
 
-function FeatureFaqRow({ q, a, isOpen, onClick }: { q: string; a: string; isOpen: boolean; onClick: () => void }) {
+function FeatureFaqRow({
+  q,
+  a,
+  isOpen,
+  isLast,
+  onClick,
+}: {
+  q: string;
+  a: string;
+  isOpen: boolean;
+  isLast: boolean;
+  onClick: () => void;
+}) {
   return (
-    <div className="border-b border-line">
+    <div className={isLast ? "" : "border-b border-line-soft"}>
       <button
+        type="button"
         onClick={onClick}
         aria-expanded={isOpen}
-        className="w-full flex items-center justify-between gap-6 py-4 text-left"
+        className="flex w-full items-center justify-between gap-6 px-6 py-5 text-left sm:px-8"
       >
         <span className="text-[18px] sm:text-[19px] font-bold font-body text-ink">{q}</span>
         <span
@@ -1036,7 +1439,7 @@ function FeatureFaqRow({ q, a, isOpen, onClick }: { q: string; a: string; isOpen
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-            <p className="text-[15.5px] text-ink-soft font-body leading-relaxed text-justify pb-5 pr-14">
+            <p className="px-6 pb-6 pr-14 font-body text-[15.5px] leading-relaxed text-ink-soft sm:px-8">
               {a}
             </p>
           </motion.div>
@@ -1053,24 +1456,62 @@ export default function Features() {
   return (
     <div className="bg-paper text-ink">
 
-      {/* ── OPENER ─────────────────────────────────────────────────────────── */}
-      <section className="pt-40 pb-24 px-6 bg-grid relative overflow-hidden">
+      {/* ── HERO ───────────────────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden bg-grid px-6 pb-24 pt-36 lg:min-h-[88vh] lg:pt-40">
         <div
           className="absolute pointer-events-none"
           style={{ top: "-15%", right: "-10%", width: "55%", height: "70%", background: "radial-gradient(ellipse, rgba(224,83,43,0.09), transparent 65%)" }}
         />
-        <div className="relative mx-auto max-w-7xl">
-          <Reveal variant="fade"><p className="eyebrow mb-6">What's inside</p></Reveal>
-          <h1 className="font-display text-[clamp(46px,7.5vw,92px)] font-medium leading-[0.98] text-ink">
-            <SplitHeading as="span" className="block">Everything</SplitHeading>
-            <SplitHeading as="span" delay={0.25} className="block italic text-ink-soft">your property</SplitHeading>
-            <SplitHeading as="span" delay={0.5} className="block text-coral-dark">needs.</SplitHeading>
-          </h1>
+        <div className="absolute -left-24 bottom-0 h-[420px] w-[520px] rounded-full bg-[#0A8272]/[.055] blur-3xl" />
+
+        <div className="relative mx-auto grid max-w-7xl items-center gap-16 lg:grid-cols-[.82fr_1.18fr] xl:gap-20">
+          <div>
+            <Reveal variant="fade">
+              <p className="eyebrow mb-6">Hotel Property Management System · Live</p>
+            </Reveal>
+            <h1 className="font-display text-[clamp(50px,6.7vw,86px)] font-medium leading-[.95] tracking-[-.035em] text-ink">
+              <SplitHeading as="span" className="block">Run the hotel.</SplitHeading>
+              <SplitHeading as="span" delay={0.22} className="block italic text-ink-soft">Lose the daily</SplitHeading>
+              <SplitHeading as="span" delay={0.44} className="block text-coral-dark">scramble.</SplitHeading>
+            </h1>
+            <Reveal delay={0.55}>
+              <p className="mt-7 max-w-xl text-[18px] font-medium leading-relaxed text-ink-soft">
+                Reservations, rooms, guests, folios, housekeeping, dining, inventory and reporting—one connected operating system built for independent hotel teams.
+              </p>
+            </Reveal>
+            <Reveal delay={0.65}>
+              <div className="mt-9 flex flex-wrap items-center gap-4">
+                <Link
+                  to="/contact"
+                  className="group flex h-12 items-center gap-2 rounded-full bg-coral px-7 text-[14px] font-black text-white shadow-pop transition-all hover:-translate-y-0.5 hover:bg-coral-dark"
+                >
+                  Book a walkthrough
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+                <a
+                  href="#operations"
+                  className="flex h-12 items-center rounded-full border border-ink px-7 text-[14px] font-black text-ink transition-colors hover:bg-ink hover:text-white"
+                >
+                  Explore the PMS
+                </a>
+              </div>
+              <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[11px] font-bold text-ink-mute">
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" /> Built for independent hotels</span>
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" /> Works across phones and desktops</span>
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" /> Tenant-isolated hotel data</span>
+              </div>
+            </Reveal>
+          </div>
+
+          <Reveal variant="scale" delay={0.14}>
+            <PmsHeroMockup />
+          </Reveal>
         </div>
       </section>
 
       {/* ── OPERATIONS — one block, five features, five tabs ────────────────── */}
       <TabbedFeatureBlock
+        id="operations"
         eyebrow="Operations"
         headline="Your property, one screen at a time."
         mockupSide="left"
@@ -1081,30 +1522,35 @@ export default function Features() {
             heading: "Walk in. Glance up. Know everything.",
             copy: "Arrivals, departures, revenue, and shift notes — the whole day on one screen, updating live, with a marker showing exactly where you are right now.",
             mockup: <LiveScheduleMockup />,
+            learnMoreTo: "/pms",
           },
           {
             label: "POS",
             heading: "Ring it up. Room it up.",
             copy: "Ring up a coffee, a spa treatment, a late checkout fee — charged straight to the room, no separate register to reconcile.",
             mockup: <PosTerminalMockup />,
+            learnMoreTo: "/pos",
           },
           {
             label: "QR Dining & Kitchen",
             heading: "Guests order. Kitchen knows. Nothing's missed.",
             copy: "A QR code on the table — guests browse and order with no app, no call to the front desk — and every ticket lands on the kitchen screen the instant it's placed.",
             mockup: <QrMenuMockup />,
+            learnMoreTo: "/pos",
           },
           {
             label: "Inventory",
-            heading: "Point your phone. Count your shelf.",
-            copy: "Set a par level once, and let the camera do the counting. Photograph the shelf and InnFlo reads the labels for you — no clipboard, no typing every SKU by hand.",
-            mockup: <ScanToCountMockup />,
+            heading: "Know what moved, and what is running low.",
+            copy: "Record stock in, stock out and adjustments, set reorder levels, and let linked POS recipes deduct ingredients as orders are sold.",
+            mockup: <InventoryControlMockup />,
+            learnMoreTo: "/automations",
           },
           {
             label: "Financials",
             heading: "The books that balance themselves.",
             copy: "Room, F&B, laundry, tax, discount — every charge lands on one live folio. Every payment and expense, auto-logged and reconciled.",
             mockup: <LiveFolioMockup />,
+            learnMoreTo: "/financials",
           },
         ]}
       />
@@ -1120,31 +1566,31 @@ export default function Features() {
           </Reveal>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-            {/* WhatsApp Nightly Briefing */}
+            {/* Daily control */}
             <Reveal variant="rise" delay={0.0}>
               <div className="rounded-3xl bg-card border border-line overflow-hidden shadow-card hover:shadow-float transition-all duration-300 h-full flex flex-col">
                 <BriefingMockup />
-                <div className="p-8 flex-1 flex flex-col">
-                  <h3 className="font-body text-[18px] font-bold text-ink mb-3">
-                    Nightly WhatsApp Briefing
+                <div className="p-6 flex-1 flex flex-col">
+                  <h3 className="font-body text-[17px] font-bold text-ink mb-2.5">
+                    Daily manager dashboard
                   </h3>
-                  <p className="text-[15.5px] text-ink-soft leading-relaxed font-body">
-                    No need to log in to see how your day went. Every night at 11 PM, InnFlo auto-sends the owner a complete operational summary: occupancy, daily revenue, tomorrow's arrivals, housekeeping backlog, and open maintenance tickets.
+                  <p className="text-[14px] text-ink-soft leading-relaxed font-body">
+                    Arrivals, departures, occupancy, room status and revenue—one quick view, with deeper reports when needed.
                   </p>
                 </div>
               </div>
             </Reveal>
 
-            {/* Auto Channel Sync */}
+            {/* Persistent live alerts */}
             <Reveal variant="rise" delay={0.06}>
               <div className="rounded-3xl bg-card border border-line overflow-hidden shadow-card hover:shadow-float transition-all duration-300 h-full flex flex-col">
-                <ChannelSyncMockup />
-                <div className="p-8 flex-1 flex flex-col">
-                  <h3 className="font-body text-[18px] font-bold text-ink mb-3">
-                    Auto Channel Sync
+                <LiveAlertsMockup />
+                <div className="p-6 flex-1 flex flex-col">
+                  <h3 className="font-body text-[17px] font-bold text-ink mb-2.5">
+                    Alerts staff cannot miss
                   </h3>
-                  <p className="text-[15.5px] text-ink-soft leading-relaxed font-body">
-                    Rates, dates, and availability synchronize across Booking.com, Agoda, Expedia, and Airbnb in the background. The instant a guest checks in or books a room, other channels update to prevent double-bookings.
+                  <p className="text-[14px] text-ink-soft leading-relaxed font-body">
+                    Direct bookings stay visible until dismissed. Cleaning tasks and shift updates reach the right team automatically.
                   </p>
                 </div>
               </div>
@@ -1154,12 +1600,12 @@ export default function Features() {
             <Reveal variant="rise" delay={0.12}>
               <div className="rounded-3xl bg-card border border-line overflow-hidden shadow-card hover:shadow-float transition-all duration-300 h-full flex flex-col">
                 <GuestCrmMockup />
-                <div className="p-8 flex-1 flex flex-col">
-                  <h3 className="font-body text-[18px] font-bold text-ink mb-3">
+                <div className="p-6 flex-1 flex flex-col">
+                  <h3 className="font-body text-[17px] font-bold text-ink mb-2.5">
                     Guest CRM
                   </h3>
-                  <p className="text-[15.5px] text-ink-soft leading-relaxed font-body">
-                    Every guest builds a history — past stays, lifetime spend, and the preferences they mentioned once. Filter by who hasn't stayed in a while and reach out with a seasonal offer, right when it'll actually land.
+                  <p className="text-[14px] text-ink-soft leading-relaxed font-body">
+                    Past stays, spend and preferences stay attached to every guest for better service and timely follow-up.
                   </p>
                 </div>
               </div>
@@ -1169,12 +1615,12 @@ export default function Features() {
             <Reveal variant="rise" delay={0.18}>
               <div className="rounded-3xl bg-card border border-line overflow-hidden shadow-card hover:shadow-float transition-all duration-300 h-full flex flex-col">
                 <HousekeepingPwaMockup />
-                <div className="p-8 flex-1 flex flex-col">
-                  <h3 className="font-body text-[18px] font-bold text-ink mb-3">
+                <div className="p-6 flex-1 flex flex-col">
+                  <h3 className="font-body text-[17px] font-bold text-ink mb-2.5">
                     Housekeeping, automated
                   </h3>
-                  <p className="text-[15.5px] text-ink-soft leading-relaxed font-body">
-                    A checkout closes and the cleaning task appears on its own — no one has to notice, remember, or write it down. Staff mark rooms done from their phone, and the front desk sees it the same second.
+                  <p className="text-[14px] text-ink-soft leading-relaxed font-body">
+                    Checkout creates the cleaning task. Staff update rooms from their phones; front desk sees every change live.
                   </p>
                 </div>
               </div>
@@ -1184,17 +1630,22 @@ export default function Features() {
       </section>
 
       {/* ── RESERVATIONS ───────────────────────────────────────────────────── */}
-      <section className="py-28 overflow-hidden">
+      <section id="reservations" className="scroll-mt-24 py-28 overflow-hidden">
         <div className="mx-auto max-w-7xl px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-[36%_64%] gap-16 items-center">
-            {/* Left — Copy */}
-            <Reveal>
+          <div className="grid grid-cols-1 items-center gap-14 lg:grid-cols-[64%_36%] lg:gap-16">
+            {/* Left — Calendar Mockup */}
+            <Reveal delay={0.1} variant="rise" className="order-2 lg:order-1">
+              <OneCalendarMockup />
+            </Reveal>
+
+            {/* Right — Copy */}
+            <Reveal className="order-1 lg:order-2">
               <p className="eyebrow mb-5">Reservations</p>
               <h2 className="font-display text-[clamp(34px,4.5vw,52px)] font-medium leading-tight text-ink mb-6">
                 One calendar.<br />All bookings.
               </h2>
               <p className="text-[17px] text-ink-soft font-body leading-relaxed mb-8">
-                Walk-ins, calls, WhatsApp, your own website, Booking.com, Agoda, Expedia, Airbnb — every source feeds the same calendar. If a room is taken, it's taken everywhere.
+                Walk-ins, calls, WhatsApp and direct Booking Engine requests live in the same calendar. Record an OTA booking with its source today; automatic two-way Booking.com, Agoda, Expedia and Airbnb synchronization is clearly marked as Channel Manager roadmap work.
               </p>
               <ul className="space-y-4 font-body text-[15.5px] text-ink-soft">
                 {[
@@ -1211,29 +1662,24 @@ export default function Features() {
                 ))}
               </ul>
             </Reveal>
-
-            {/* Right — Calendar Mockup */}
-            <Reveal delay={0.1} variant="rise">
-              <OneCalendarMockup />
-            </Reveal>
           </div>
         </div>
       </section>
 
-      {/* ── WHATSAPP BRIEFING ──────────────────────────────────────────────── */}
+      {/* ── MANAGER SUMMARY ────────────────────────────────────────────────── */}
       <section className="bg-ink py-28">
         <div className="mx-auto max-w-3xl px-6 text-center">
           <Reveal>
             <span className="rule-coral block w-12 mx-auto mb-10" />
             <p className="font-display italic text-[clamp(26px,5vw,44px)] font-medium text-paper mb-6 leading-tight">
-              "A nightly report that finds you,<br />not the other way around."
+              "A daily operating picture<br />that takes seconds to read."
             </p>
             <p className="text-[17px] font-body leading-relaxed max-w-xl mx-auto mb-10" style={{ color: "rgba(246,243,238,0.62)" }}>
-              Configure your WhatsApp number in Settings. At 11 PM every night, InnFlo sends the owner a full operational summary — occupancy, revenue, tomorrow's schedule, housekeeping, maintenance. No login, no dashboard required.
+              Open the manager dashboard for arrivals, departures, occupancy, revenue and operational follow-ups. InnFlo keeps the underlying records connected so the summary is useful, not decorative.
             </p>
             <div className="inline-flex items-center gap-3 px-5 py-3 rounded-full font-body text-[14.5px]" style={{ background: "rgba(224,83,43,0.14)", border: "1px solid rgba(224,83,43,0.3)" }}>
               <span className="h-2 w-2 rounded-full bg-coral animate-pulse" />
-              <span className="text-coral" style={{ color: "#F5A183" }}>Sent automatically at 11:00 PM every night</span>
+              <span className="text-coral" style={{ color: "#F5A183" }}>Live hotel data, ready when the manager opens InnFlo</span>
             </div>
           </Reveal>
         </div>
@@ -1305,11 +1751,48 @@ export default function Features() {
         </div>
       </section>
 
+      {/* ── TEAM & ACCESS ──────────────────────────────────────────────────── */}
+      <section id="team-access" className="relative scroll-mt-24 overflow-hidden bg-ink py-28">
+        <div className="pointer-events-none absolute -left-40 top-16 h-[420px] w-[420px] rounded-full bg-coral/15 blur-3xl" />
+        <div className="pointer-events-none absolute -right-48 bottom-0 h-[520px] w-[520px] rounded-full bg-[#0A8272]/10 blur-3xl" />
+
+        <div className="relative mx-auto max-w-7xl px-6">
+          <div className="grid items-end gap-8 lg:grid-cols-[1.12fr_.88fr]">
+            <Reveal>
+              <p className="eyebrow mb-5 text-coral">Team &amp; access</p>
+              <h2 className="max-w-3xl font-display text-[clamp(38px,4.5vw,52px)] font-medium leading-[1.02] text-paper">
+                The app changes<br />
+                <span className="italic text-coral">with the person using it.</span>
+              </h2>
+            </Reveal>
+            <Reveal delay={0.08}>
+              <div className="max-w-xl lg:pb-2">
+                <p className="font-body text-[17px] leading-relaxed text-white/60">
+                  No maze of disabled pages. Front desk opens guest operations. Housekeeping opens rooms and tasks. Accounting opens the books. Irrelevant modules simply do not appear.
+                </p>
+                <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 font-body text-[10px] font-black uppercase tracking-[.12em] text-white/35">
+                  <span>Focused by role</span>
+                  <span>Owner controlled</span>
+                  <span>Protected everywhere</span>
+                </div>
+              </div>
+            </Reveal>
+          </div>
+
+          <Reveal delay={0.12} variant="rise" className="mt-14">
+            <RoleWorkspaceShowcase />
+          </Reveal>
+        </div>
+      </section>
+
       {/* ── REPORTS ────────────────────────────────────────────────────────── */}
       <section className="py-24">
         <div className="mx-auto max-w-7xl px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-16 items-start">
-            <Reveal>
+          <div className="grid grid-cols-1 items-center gap-14 lg:grid-cols-[55%_45%] lg:gap-16">
+            <Reveal delay={0.1} variant="rise" className="order-2 lg:order-1">
+              <ReportMockup />
+            </Reveal>
+            <Reveal className="order-1 lg:order-2">
               <p className="eyebrow mb-4">Reports</p>
               <h2 className="font-display text-[clamp(30px,4vw,46px)] font-medium leading-tight text-ink mb-6">
                 Every number<br />your accountant<br /><span className="text-ink-soft italic">actually expects.</span>
@@ -1318,10 +1801,9 @@ export default function Features() {
                 Daily reports break down occupancy, revenue by payment method, guest arrivals and departures, shift cash variance, and expenses by category. Monthly reports add ADR, RevPAR, profit margin, top guests, and housekeeping/maintenance summaries.
               </p>
               <p className="text-[14.5px] text-ink-mute font-body">
-                FBR invoice submission support for Pakistan tax compliance.
+                Hotel-specific GST/PST configuration, tax-inclusive pricing, and exportable records for your accountant. Direct FBR submission is roadmap work.
               </p>
             </Reveal>
-            <Reveal delay={0.1}><ReportMockup /></Reveal>
           </div>
         </div>
       </section>
@@ -1349,10 +1831,10 @@ export default function Features() {
                 ))}
               </div>
               <Link
-                to="/contact"
+                to="/channel-manager"
                 className="inline-flex h-11 px-7 rounded-full text-[14.5px] font-semibold font-body border border-coral text-coral-dark hover:bg-coral-soft transition-colors items-center"
               >
-                Get notified when it launches
+                Explore the roadmap
               </Link>
             </Reveal>
 
@@ -1364,7 +1846,7 @@ export default function Features() {
       </section>
 
       {/* ── FAQ — got a question ─────────────────────────────────────────────── */}
-      <section className="pb-24">
+      <section className="bg-paper py-24">
         <div className="mx-auto max-w-4xl px-6">
           <Reveal variant="fade" className="text-center mb-14">
             <h2 className="font-display text-[clamp(30px,4vw,44px)] font-medium leading-tight text-ink">
@@ -1373,12 +1855,13 @@ export default function Features() {
           </Reveal>
 
           <Reveal variant="rise">
-            <div className="border-t border-line">
+            <div className="overflow-hidden rounded-3xl bg-card shadow-float">
               {FEATURE_FAQS.map((item, i) => (
                 <FeatureFaqRow
                   key={item.q}
                   q={item.q}
                   a={item.a}
+                  isLast={i === FEATURE_FAQS.length - 1}
                   isOpen={openFaq === i}
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
                 />

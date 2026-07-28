@@ -16,11 +16,11 @@ const CM_FAQS = [
   },
   {
     q: "How does InnFlo's channel manager work?",
-    a: "You set rates and inventory once inside InnFlo. Channel Manager pushes that out to every connected OTA, and any booking that comes back — from any channel — updates your InnFlo calendar in real time.",
+    a: "The planned flow is to set rates and inventory once inside InnFlo, distribute them to connected OTAs, and return incoming bookings to the InnFlo calendar. This module is still in development.",
   },
   {
     q: "Which channels and OTAs can I connect to?",
-    a: "Booking.com, Airbnb, Expedia, and Agoda to start, with Bookme.pk and Sastaticket.pk built in specifically for this market — not bolted on as an afterthought.",
+    a: "Booking.com, Airbnb, Expedia and Agoda are the initial integration targets. Final supported channels will be confirmed before launch.",
   },
   {
     q: "Will a channel manager stop overbookings?",
@@ -28,7 +28,7 @@ const CM_FAQS = [
   },
   {
     q: "How much will Channel Manager cost?",
-    a: "It'll be part of InnFlo's flat monthly fee, not a separate line item or a per-booking commission on top — consistent with how the rest of InnFlo is priced.",
+    a: "Pricing has not been finalized. InnFlo’s existing PMS plans remain flat monthly subscriptions with no percentage commission on direct Booking Engine reservations.",
   },
   {
     q: "Can I connect a channel InnFlo doesn't list?",
@@ -40,7 +40,7 @@ const CM_FAQS = [
   },
   {
     q: "Can I manage more than one property?",
-    a: "Yes — Channel Manager is being built to work the same way InnFlo already does across a portfolio, not just a single property.",
+    a: "InnFlo accounts are property-isolated today. Multi-property management is separate roadmap work and is not being promised as part of the first Channel Manager release.",
   },
 ];
 
@@ -397,7 +397,7 @@ export default function ChannelManager() {
           <Reveal>
             <p className="eyebrow mb-5" style={{ color: "#E0532B" }}>Get in early</p>
             <h2 className="font-display italic text-[clamp(30px,4vw,46px)] font-medium text-paper leading-tight mb-6">
-              Start your free 14-day trial.
+              Start with a guided InnFlo trial.
             </h2>
             <p className="text-[16px] font-body leading-relaxed max-w-lg mx-auto mb-9" style={{ color: "rgba(245,235,228,0.68)" }}>
               Be first in line when Channel Manager goes live — no card required, no obligation to continue.
@@ -407,7 +407,7 @@ export default function ChannelManager() {
                 to="/contact"
                 className="inline-flex items-center h-12 px-9 rounded-full text-[16px] font-bold font-body bg-coral hover:bg-coral-dark text-white transition-colors shadow-pop"
               >
-                Start your free 14-day trial →
+                Book a guided trial →
               </Link>
             </MagneticButton>
           </Reveal>

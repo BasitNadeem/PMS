@@ -259,7 +259,7 @@ function FrontDeskNotes() {
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-3">
         <div>
-          <h3 className="serif text-[20px] text-ink">Front Desk Notes</h3>
+          <h3 className="serif text-[20px] text-ink">Notes/Todo List</h3>
           <p className="text-[12px] text-ink-mute">Shared team scratchpad</p>
         </div>
         <button
@@ -1044,7 +1044,7 @@ export default function DashboardPage() {
           icon={PlaneTakeoff} toneName="amber"
           label="Departures today"
           value={today?.departuresToday ?? 0}
-          sub="Folios to settle"
+          sub="Expected check-outs"
           trend={countDelta(today?.departuresToday ?? 0, today?.departuresYesterday ?? 0)}
           delay={60}
         />

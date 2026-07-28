@@ -1,488 +1,433 @@
-import { 
-  Coffee, Utensils, CheckCircle, AlertTriangle, Clock, Receipt 
+import type { ReactNode } from "react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  Check,
+  ChefHat,
+  CircleDollarSign,
+  Clock3,
+  Coffee,
+  CreditCard,
+  PackageCheck,
+  Plus,
+  Receipt,
+  ShoppingBag,
+  Sparkles,
+  Utensils,
+  WalletCards,
 } from "lucide-react";
 
-function CardShell({ children, label }: { children: React.ReactNode; label: string }) {
+function ProductWindow({
+  title,
+  status = "Live",
+  children,
+}: {
+  title: string;
+  status?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="rounded-2xl overflow-hidden font-body bg-card border border-line shadow-float">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-line-soft bg-mist">
-        <div className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-red-400 opacity-50" />
-          <span className="h-2.5 w-2.5 rounded-full bg-amber-400 opacity-50" />
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 opacity-50" />
-          <span className="ml-3 text-[11px] text-ink-mute font-body font-semibold tracking-wide">{label}</span>
+    <div className="w-full min-w-0 max-w-full overflow-hidden rounded-[22px] border border-line bg-card font-body shadow-[0_24px_65px_rgba(74,45,31,0.16)]">
+      <div className="flex h-11 items-center justify-between border-b border-line-soft bg-[#FBF8F4] px-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex shrink-0 gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#F5A6A0]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#F5D183]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#9EDDC7]" />
+          </div>
+          <span className="truncate text-[10px] font-bold tracking-wide text-ink-mute">{title}</span>
         </div>
-        <span className="h-1.5 w-1.5 rounded-full bg-[#059669]" />
+        <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-1 text-[6.5px] font-black text-emerald-700">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+          {status.toUpperCase()}
+        </span>
       </div>
       {children}
     </div>
   );
 }
 
-// ─── ① Dashboard — Live Schedule (Timeline & Metrics Sidebar) ──────────────────
+function TinyMetric({ label, value, detail, accent }: { label: string; value: string; detail: string; accent?: boolean }) {
+  return (
+    <div className={`rounded-xl border p-2.5 ${accent ? "border-coral/15 bg-coral-soft/60" : "border-line-soft bg-white"}`}>
+      <p className="text-[6px] font-black uppercase tracking-[0.13em] text-ink-mute">{label}</p>
+      <p className={`mt-1.5 text-[14px] font-black leading-none ${accent ? "text-coral-dark" : "text-ink"}`}>{value}</p>
+      <p className="mt-1 text-[6px] font-semibold text-ink-mute">{detail}</p>
+    </div>
+  );
+}
+
 export function LiveScheduleMockup() {
-  const rooms = ["101", "102", "103", "104"];
-  const days = ["Mon 5", "Tue 6", "Wed 7", "Thu 8", "Fri 9", "Sat 10", "Sun 11"];
-  const bookings = [
-    { roomIdx: 0, start: 0, span: 3, label: "Ahmed R.", color: "#059669" },
-    { roomIdx: 0, start: 4, span: 3, label: "Awais S.", color: "#2563EB" },
-    { roomIdx: 1, start: 1, span: 4, label: "Rao F.", color: "#059669" },
-    { roomIdx: 2, start: 0, span: 7, label: "Malik Group (3 Rooms)", color: "#9E3417" },
-    { roomIdx: 3, start: 3, span: 2, label: "Hamza A.", color: "#D97706" },
+  const days = ["MON 5", "TUE 6", "WED 7", "THU 8", "FRI 9", "SAT 10", "SUN 11"];
+  const rows = [
+    { room: "101", blocks: [{ left: "3%", width: "40%", name: "Ahmed R.", color: "bg-emerald-600" }, { left: "66%", width: "31%", name: "Awais S.", color: "bg-blue-600" }] },
+    { room: "102", blocks: [{ left: "19%", width: "50%", name: "Rao Family", color: "bg-[#0A8272]" }] },
+    { room: "103", blocks: [{ left: "2%", width: "76%", name: "Malik Group · 3 rooms", color: "bg-coral-dark" }] },
+    { room: "104", blocks: [{ left: "50%", width: "31%", name: "Hamza A.", color: "bg-amber-600" }] },
   ];
 
   return (
-    <CardShell label="InnFlo — Live Schedule & Timeline">
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] divide-y md:divide-y-0 md:divide-x divide-line-soft bg-card">
-        {/* Left Panel: Schedulers Grid */}
-        <div className="p-4 overflow-x-auto no-scrollbar">
-          <div className="min-w-[480px]">
-            {/* Header Dates */}
-            <div className="flex border-b border-line-soft pb-2 mb-2">
-              <div className="w-14 shrink-0 text-[10px] font-bold text-ink-mute uppercase tracking-wider">Room</div>
-              <div className="flex-1 grid grid-cols-7 gap-1 text-center">
-                {days.map((d, i) => (
-                  <div key={d} className="text-[10px] font-bold" style={{ color: i === 2 ? "#E0532B" : "#938C81" }}>
-                    {d}
-                  </div>
-                ))}
-              </div>
+    <ProductWindow title="InnFlo / Live schedule">
+      <div className="grid min-w-0 bg-[#F8F4EF] sm:grid-cols-[minmax(0,1fr)_180px]">
+        <div className="min-w-0 border-b border-line-soft p-3 sm:border-b-0 sm:border-r">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black text-ink">Reservations timeline</p>
+              <p className="text-[7px] text-ink-mute">5–11 July · 12 rooms</p>
             </div>
-
-            {/* Room Rows with timeline blocks */}
-            <div className="space-y-2 relative">
-              {/* Timeline Indicator Line */}
-              <div className="absolute top-0 bottom-0 w-[2px] bg-[#E0532B]/85 z-10" style={{ left: "calc(54px + 35.7% - 1px)" }}>
-                <span className="absolute -top-1.5 -left-1 w-2.5 h-2.5 rounded-full bg-[#E0532B]" />
+            <span className="rounded-lg border border-line-soft bg-white px-2 py-1 text-[7px] font-bold text-ink-soft">Week view</span>
+          </div>
+          <div className="overflow-hidden rounded-2xl border border-line-soft bg-white p-2.5">
+            <div className="grid grid-cols-[38px_repeat(7,minmax(0,1fr))] border-b border-line-soft pb-2">
+              <span className="text-[5.5px] font-black text-ink-mute">ROOM</span>
+              {days.map((day, index) => (
+                <span key={day} className={`text-center text-[5.5px] font-black ${index === 2 ? "text-coral-dark" : "text-ink-mute"}`}>{day}</span>
+              ))}
+            </div>
+            <div className="relative mt-1">
+              <div className="absolute bottom-0 left-[34%] top-0 z-20 w-px bg-coral">
+                <span className="absolute -left-1 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-coral" />
               </div>
-
-              {rooms.map((room, rIdx) => (
-                <div key={room} className="flex items-center h-10 border-b border-line-soft/40 relative">
-                  {/* Room Label */}
-                  <div className="w-14 shrink-0">
-                    <span className="text-[11px] font-bold text-ink bg-mist border border-line-soft px-1.5 py-0.5 rounded-md">
-                      {room}
-                    </span>
-                  </div>
-                  {/* Grid cells */}
-                  <div className="flex-1 grid grid-cols-7 h-full relative">
-                    {Array.from({ length: 7 }).map((_, colIdx) => (
-                      <div key={colIdx} className="border-r border-line-soft/30 h-full" />
+              {rows.map((row) => (
+                <div key={row.room} className="grid h-10 grid-cols-[38px_minmax(0,1fr)] items-center border-b border-line-soft last:border-0">
+                  <span className="text-[7px] font-black text-ink">{row.room}</span>
+                  <div className="relative h-full bg-[linear-gradient(to_right,transparent_calc(14.28%-1px),rgba(233,226,217,.7)_14.28%)] bg-[length:14.28%_100%]">
+                    {row.blocks.map((block) => (
+                      <div
+                        key={block.name}
+                        className={`absolute top-2 flex h-6 items-center overflow-hidden rounded-full px-2 text-[6px] font-black text-white shadow-sm ${block.color}`}
+                        style={{ left: block.left, width: block.width }}
+                      >
+                        <span className="truncate">{block.name}</span>
+                      </div>
                     ))}
-                    {/* Render Bookings */}
-                    {bookings
-                      .filter((b) => b.roomIdx === rIdx)
-                      .map((b, bIdx) => (
-                        <div
-                          key={bIdx}
-                          className="absolute h-7 top-1.5 rounded-full flex items-center px-3 shadow-md z-0 transition-transform hover:scale-[1.02] cursor-pointer"
-                          style={{
-                            left: `calc(${(b.start / 7) * 100}% + 2px)`,
-                            width: `calc(${(b.span / 7) * 100}% - 4px)`,
-                            backgroundColor: b.color,
-                          }}
-                        >
-                          <span className="text-[9.5px] font-semibold text-white truncate">{b.label}</span>
-                        </div>
-                      ))}
                   </div>
                 </div>
               ))}
             </div>
           </div>
+          <div className="mt-3 flex items-center gap-2 rounded-xl bg-ink px-3 py-2 text-white">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-coral" />
+            <p className="text-[6.5px] font-bold text-white/70">Now · 2 arrivals due before 3 PM</p>
+            <span className="ml-auto text-[6px] font-black text-emerald-300">SYNCED</span>
+          </div>
         </div>
 
-        {/* Right Panel: Live Stats Summary */}
-        <div className="p-4 bg-mist flex flex-col justify-between">
-          <div>
-            <p className="text-[10px] font-bold text-ink-mute uppercase tracking-wider mb-3">Live Status</p>
-            <div className="space-y-2.5">
-              <div className="bg-card p-2.5 rounded-xl border border-line-soft">
-                <p className="text-[10px] text-ink-mute font-body uppercase">Occupancy</p>
-                <div className="flex items-end justify-between mt-0.5">
-                  <p className="text-[16px] font-bold text-ink leading-none">75.0%</p>
-                  <p className="text-[10px] font-semibold text-ink-soft">9 / 12 Rooms</p>
-                </div>
-              </div>
-              <div className="bg-card p-2.5 rounded-xl border border-line-soft">
-                <p className="text-[10px] text-ink-mute font-body uppercase">Today's Revenue</p>
-                <div className="flex items-end justify-between mt-0.5">
-                  <p className="text-[16px] font-bold text-emerald-700 leading-none">PKR 54,000</p>
-                  <p className="text-[10px] font-semibold text-emerald-600">+12% vs avg</p>
-                </div>
-              </div>
-              <div className="bg-card p-2.5 rounded-xl border border-line-soft">
-                <p className="text-[10px] text-ink-mute font-body uppercase">Pending Clean</p>
-                <div className="flex items-end justify-between mt-0.5">
-                  <p className="text-[16px] font-bold text-amber-700 leading-none">2 Rooms</p>
-                  <p className="text-[10px] font-semibold text-amber-600">Checkout cleanup</p>
-                </div>
-              </div>
-            </div>
+        <div className="p-3">
+          <p className="mb-2 text-[6.5px] font-black uppercase tracking-[0.13em] text-ink-mute">Live property</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
+            <TinyMetric label="Occupancy" value="75%" detail="9 of 12 rooms" />
+            <TinyMetric label="Revenue today" value="54K" detail="+12% vs average" accent />
+            <TinyMetric label="To clean" value="2" detail="Both assigned" />
           </div>
-          <div className="mt-4 pt-3 border-t border-line-soft flex items-center justify-between text-[10px] text-ink-soft font-semibold">
-            <span>Last sync: Just now</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="mt-2 rounded-xl border border-line-soft bg-white p-2.5">
+            <p className="text-[6px] font-black text-ink-mute">SHIFT NOTE</p>
+            <p className="mt-1.5 text-[7px] font-bold leading-relaxed text-ink">Room 204 requested a late checkout.</p>
+            <p className="mt-1 text-[5.5px] text-ink-mute">Front desk · 6m ago</p>
           </div>
         </div>
       </div>
-    </CardShell>
+    </ProductWindow>
   );
 }
 
-// ─── ② POS — In-House POS Billing Terminal ────────────────────────────────────
 export function PosTerminalMockup() {
-  const categories = ["All Items", "Beverages", "Food Menu", "Spa Services", "Transport"];
   const items = [
-    { name: "Cappuccino", price: 450, icon: <Coffee className="h-3.5 w-3.5" /> },
-    { name: "Club Sandwich", price: 1200, icon: <Utensils className="h-3.5 w-3.5" /> },
-    { name: "Mineral Water", price: 150, icon: <Coffee className="h-3.5 w-3.5" /> },
-    { name: "Stone Massage", price: 6500, icon: <SparklesIcon className="h-3.5 w-3.5" /> },
+    { name: "Cappuccino", price: "450", icon: Coffee, tone: "bg-[#F8E7DC] text-coral-dark" },
+    { name: "Club sandwich", price: "1,200", icon: Utensils, tone: "bg-emerald-50 text-emerald-700" },
+    { name: "Airport pickup", price: "5,000", icon: ShoppingBag, tone: "bg-blue-50 text-blue-700" },
+    { name: "Spa treatment", price: "6,500", icon: Sparkles, tone: "bg-violet-50 text-violet-700" },
   ];
 
   return (
-    <CardShell label="InnFlo — In-House POS Billing Terminal">
-      <div className="grid grid-cols-1 md:grid-cols-[1.3fr_1fr] divide-y md:divide-y-0 md:divide-x divide-line-soft bg-card">
-        {/* Left Side: Items & Grid selection */}
-        <div className="p-4">
-          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-3 mb-3 border-b border-line-soft">
-            {categories.map((c, i) => (
-              <span
-                key={c}
-                className="text-[10px] px-3 py-1.5 rounded-full font-bold cursor-pointer shrink-0 transition-colors"
-                style={
-                  i === 0
-                    ? { background: "#E0532B", color: "white" }
-                    : { background: "#FAF8F4", color: "#4A453E", border: "1px solid #EAE4DB" }
-                }
-              >
-                {c}
+    <ProductWindow title="InnFlo / Point of sale">
+      <div className="grid min-w-0 bg-[#F8F4EF] sm:grid-cols-[minmax(0,1.12fr)_minmax(0,.88fr)]">
+        <div className="border-b border-line-soft p-3 sm:border-b-0 sm:border-r">
+          <div className="flex gap-1.5 overflow-hidden border-b border-line-soft pb-3">
+            {["All items", "Food", "Beverages", "Services"].map((item, index) => (
+              <span key={item} className={`shrink-0 rounded-full px-2.5 py-1.5 text-[6.5px] font-black ${index === 0 ? "bg-ink text-white" : "bg-white text-ink-mute"}`}>
+                {item}
               </span>
             ))}
           </div>
-
-          <div className="grid grid-cols-2 gap-2.5">
-            {items.map((it) => (
-              <div
-                key={it.name}
-                className="rounded-xl border border-line-soft bg-mist p-3 transition-all hover:bg-line-soft cursor-pointer flex justify-between items-start"
-              >
-                <div>
-                  <div className="text-coral-dark mb-1">{it.icon}</div>
-                  <p className="text-[11.5px] font-bold text-ink leading-tight">{it.name}</p>
-                  <p className="text-[10px] text-ink-mute mt-0.5">PKR {it.price.toLocaleString()}</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {items.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.name} className="group rounded-2xl border border-line-soft bg-white p-3 shadow-[0_3px_12px_rgba(49,35,26,.03)]">
+                  <div className="flex items-start justify-between">
+                    <span className={`grid h-8 w-8 place-items-center rounded-xl ${item.tone}`}>
+                      <Icon className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="grid h-6 w-6 place-items-center rounded-full border border-line-soft text-ink-soft">
+                      <Plus className="h-3 w-3" />
+                    </span>
+                  </div>
+                  <p className="mt-3 text-[8px] font-black text-ink">{item.name}</p>
+                  <p className="mt-0.5 text-[7px] font-bold text-ink-mute">PKR {item.price}</p>
                 </div>
-                <span className="bg-card w-5 h-5 rounded-full grid place-items-center text-[10px] text-ink-soft border border-line shadow-pop">+</span>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-between bg-white p-3">
+          <div>
+            <div className="flex items-center justify-between border-b border-line-soft pb-3">
+              <div>
+                <p className="text-[10px] font-black text-ink">Room 104</p>
+                <p className="text-[7px] text-ink-mute">Hamza Ahmed · Checked in</p>
+              </div>
+              <span className="grid h-8 w-8 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+                <PackageCheck className="h-4 w-4" />
+              </span>
+            </div>
+            <div className="mt-3 space-y-2">
+              {[
+                ["1 × Cappuccino", "450"],
+                ["1 × Club sandwich", "1,200"],
+                ["Service tax", "80"],
+              ].map(([label, price], index) => (
+                <div key={label} className="flex items-center justify-between text-[7.5px]">
+                  <span className={index === 2 ? "text-ink-mute" : "font-bold text-ink"}>{label}</span>
+                  <span className="font-black text-ink">PKR {price}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-5">
+            <div className="flex items-end justify-between border-t border-line-soft pt-3">
+              <span className="text-[8px] font-black text-ink">Total</span>
+              <span className="text-[16px] font-black text-ink">PKR 1,730</span>
+            </div>
+            <div className="mt-3 flex h-10 items-center justify-center gap-2 rounded-xl bg-coral text-[8px] font-black text-white shadow-pop">
+              <Receipt className="h-3.5 w-3.5" /> Charge to room folio
+            </div>
+            <p className="mt-2 text-center text-[5.5px] font-bold text-emerald-700">Guest stay verified automatically</p>
+          </div>
+        </div>
+      </div>
+    </ProductWindow>
+  );
+}
+
+export function QrMenuMockup() {
+  return (
+    <div className="relative min-h-[380px] w-full">
+      <div className="absolute bottom-2 right-0 top-2 w-[78%]">
+        <ProductWindow title="InnFlo / Kitchen display">
+          <div className="bg-[#F8F4EF] p-3 pl-16 sm:pl-20">
+            <div className="flex items-center justify-between border-b border-line-soft pb-3">
+              <div>
+                <p className="text-[10px] font-black text-ink">Kitchen queue</p>
+                <p className="text-[7px] text-ink-mute">3 active orders · auto-updating</p>
+              </div>
+              <ChefHat className="h-5 w-5 text-coral-dark" />
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <div className="rounded-2xl border-2 border-coral bg-white p-3 shadow-pop">
+                <div className="flex items-center justify-between">
+                  <span className="rounded-lg bg-ink px-2 py-1 text-[7px] font-black text-white">ROOM 104</span>
+                  <span className="flex items-center gap-1 text-[6px] font-bold text-coral-dark"><Clock3 className="h-2.5 w-2.5" /> 03:12</span>
+                </div>
+                <p className="mt-3 text-[8px] font-black text-ink">1 × Chicken Karahi</p>
+                <p className="mt-1 text-[7px] font-bold text-ink-soft">2 × Fresh lime</p>
+                <p className="mt-1 text-[6px] text-ink-mute">Less spicy · Room delivery</p>
+                <div className="mt-4 rounded-lg bg-coral py-2 text-center text-[6.5px] font-black text-white">START COOKING</div>
+              </div>
+              <div className="rounded-2xl border border-line-soft bg-white p-3">
+                <div className="flex items-center justify-between">
+                  <span className="rounded-lg bg-emerald-50 px-2 py-1 text-[7px] font-black text-emerald-700">PICKUP</span>
+                  <span className="text-[6px] font-bold text-ink-mute">01:08</span>
+                </div>
+                <p className="mt-3 text-[8px] font-black text-ink">2 × Club sandwich</p>
+                <p className="mt-1 text-[7px] font-bold text-ink-soft">1 × Mineral water</p>
+                <div className="mt-4 flex items-center gap-1 text-[6.5px] font-black text-emerald-700">
+                  <Check className="h-3 w-3" /> PAY AT SPOT
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 flex items-center rounded-xl border border-line-soft bg-white px-3 py-2 text-[6.5px] font-bold text-ink-soft">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+              <span className="ml-2">New orders appear here automatically</span>
+              <span className="ml-auto text-coral-dark">1 just arrived</span>
+            </div>
+          </div>
+        </ProductWindow>
+      </div>
+
+      <div className="absolute bottom-0 left-0 top-0 w-[172px] overflow-hidden rounded-[29px] border-[5px] border-ink bg-white shadow-[0_28px_60px_rgba(37,28,23,.28)]">
+        <div className="flex items-center justify-between bg-ink px-3 py-2 text-[6px] font-black text-white">
+          <span>9:41</span><span>● ● ●</span>
+        </div>
+        <div className="bg-[#F5EBE4] px-2.5 pb-2.5 pt-3">
+          <p className="text-[6px] font-black uppercase tracking-wider text-coral-dark">Eagle&apos;s Nest Hotel</p>
+          <p className="mt-1 font-display text-[14px] font-semibold text-ink">Order your favourites</p>
+          <div className="mt-3 flex gap-1 overflow-hidden">
+            {["Popular", "Pakistani", "Drinks"].map((item, index) => (
+              <span key={item} className={`shrink-0 rounded-full px-2 py-1 text-[5.5px] font-black ${index === 0 ? "bg-ink text-white" : "bg-white text-ink-mute"}`}>{item}</span>
+            ))}
+          </div>
+          <div className="mt-3 space-y-2">
+            {[
+              ["Chicken Karahi", "PKR 1,650"],
+              ["Fresh Lime", "PKR 350"],
+            ].map(([name, price], index) => (
+              <div key={name} className="rounded-xl bg-white p-2.5 shadow-sm">
+                <div className={`h-12 rounded-lg ${index === 0 ? "bg-[linear-gradient(135deg,#C65D39,#F0B074)]" : "bg-[linear-gradient(135deg,#A5C98D,#E7D272)]"}`} />
+                <div className="mt-2 flex items-start justify-between">
+                  <div>
+                    <p className="text-[7px] font-black text-ink">{name}</p>
+                    <p className="text-[6px] font-bold text-ink-mute">{price}</p>
+                  </div>
+                  <span className="grid h-5 w-5 place-items-center rounded-full bg-coral text-white"><Plus className="h-2.5 w-2.5" /></span>
+                </div>
               </div>
             ))}
           </div>
+          <div className="mt-2 rounded-xl bg-coral py-2.5 text-center text-[7px] font-black text-white">View order · PKR 2,350</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function InventoryControlMockup() {
+  const rows = [
+    { item: "Chicken breast", area: "Kitchen", stock: "8.5 kg", level: 28, tone: "bg-rose-500", note: "POS recipe linked" },
+    { item: "Mineral water", area: "Restaurant", stock: "12 cases", level: 38, tone: "bg-amber-500", note: "Reorder at 20" },
+    { item: "Bath towels", area: "Housekeeping", stock: "46 pcs", level: 76, tone: "bg-emerald-500", note: "Healthy stock" },
+  ];
+
+  return (
+    <ProductWindow title="InnFlo / Inventory control">
+      <div className="bg-[#F8F4EF] p-3 sm:p-4">
+        <div className="grid grid-cols-3 gap-2">
+          <TinyMetric label="Stock value" value="428K" detail="Across 3 locations" />
+          <TinyMetric label="Low stock" value="2" detail="Needs attention" accent />
+          <TinyMetric label="Movements" value="18" detail="Recorded today" />
         </div>
 
-        {/* Right Side: Active Ticket Cart & Folio Charging */}
-        <div className="p-4 bg-mist flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-2 border-b border-line-soft mb-3">
+        <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
+          <div className="overflow-hidden rounded-2xl border border-line-soft bg-white">
+            <div className="flex items-center justify-between border-b border-line-soft px-3 py-2.5">
               <div>
-                <p className="text-[11.5px] font-bold text-ink">Active Ticket</p>
-                <p className="text-[9.5px] text-ink-mute">Room 104 · Hamza A.</p>
+                <p className="text-[10px] font-black text-ink">Current stock</p>
+                <p className="text-[7px] text-ink-mute">Quantities and reorder levels</p>
               </div>
-              <span className="text-[9px] font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">Checked In</span>
+              <span className="rounded-lg bg-ink px-2 py-1 text-[6.5px] font-black text-white">+ Record movement</span>
             </div>
-
-            <div className="space-y-2 max-h-[140px] overflow-y-auto no-scrollbar">
-              <div className="flex justify-between items-center text-[11px] bg-card p-2 rounded-lg border border-line-soft">
-                <div>
-                  <p className="font-semibold text-ink">Cappuccino</p>
-                  <p className="text-[9.5px] text-ink-mute">PKR 450 × 1</p>
+            <div className="divide-y divide-line-soft">
+              {rows.map((row) => (
+                <div key={row.item} className="px-3 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[8px] font-black text-ink">{row.item}</p>
+                      <p className="text-[6px] text-ink-mute">{row.area} · {row.note}</p>
+                    </div>
+                    <span className="text-[7px] font-black text-ink">{row.stock}</span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-mist">
+                    <div className={`h-full rounded-full ${row.tone}`} style={{ width: `${row.level}%` }} />
+                  </div>
                 </div>
-                <p className="font-bold text-ink">PKR 450</p>
-              </div>
-              <div className="flex justify-between items-center text-[11px] bg-card p-2 rounded-lg border border-line-soft">
-                <div>
-                  <p className="font-semibold text-ink">Club Sandwich</p>
-                  <p className="text-[9.5px] text-ink-mute">PKR 1,200 × 1</p>
-                </div>
-                <p className="font-bold text-ink">PKR 1,200</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <div className="flex justify-between items-center text-[11.5px] font-bold text-ink border-t border-line-soft pt-3 mb-3">
-              <span>Total Bill</span>
-              <span>PKR 1,650</span>
-            </div>
-            <button className="w-full h-9 rounded-xl bg-ink hover:bg-ink-soft text-white text-[11.5px] font-bold flex items-center justify-center gap-1.5 shadow-pop transition-colors">
-              <Receipt className="h-3.5 w-3.5" />
-              Charge to Guest Folio
-            </button>
-          </div>
-        </div>
-      </div>
-    </CardShell>
-  );
-}
-
-// ─── ③ QR Dining & Kitchen — Phone App & Kitchen KDS Tablet dual setup ──────
-export function QrMenuMockup() {
-  const items = [
-    { name: "Chicken Karahi", price: "1,650", tag: "CHEF'S SPECIAL", qty: 1 },
-    { name: "Fresh Lime", price: "350", tag: null, qty: 2 },
-  ];
-
-  return (
-    <div className="flex flex-col sm:flex-row items-center justify-center gap-6 p-4 bg-mist rounded-2xl border border-line-soft">
-      {/* Smartphone Frame (Guest Ordering App) */}
-      <div className="phone-frame w-[190px] shrink-0" style={{ aspectRatio: "9/18.5" }}>
-        <div className="px-3.5 pt-3 pb-2.5 bg-card border-b border-line-soft flex items-center justify-between">
-          <div>
-            <p className="text-[8.5px] text-ink-mute font-bold uppercase tracking-wider">Room 104</p>
-            <p className="font-display text-[13px] font-medium text-ink">Eagle's Nest Menu</p>
-          </div>
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-        </div>
-        <div className="p-2 space-y-2 bg-[#F5EBE4] overflow-y-auto" style={{ minHeight: 200 }}>
-          {items.map((it) => (
-            <div key={it.name} className="rounded-lg bg-card border border-line-soft p-2.5 shadow-pop">
-              {it.tag && (
-                <span className="text-[7px] font-bold bg-coral-soft text-coral-dark px-1 py-0.5 rounded block w-max mb-1">
-                  {it.tag}
-                </span>
-              )}
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-[10px] font-bold text-ink leading-tight">{it.name}</p>
-                  <p className="text-[9px] text-ink-mute mt-0.5">PKR {it.price}</p>
-                </div>
-                <div className="flex items-center gap-1.5 border border-line-soft px-1.5 py-0.5 rounded-full bg-mist">
-                  <span className="text-[9px] text-ink-soft cursor-pointer font-bold">-</span>
-                  <span className="text-[9.5px] font-bold text-ink">{it.qty}</span>
-                  <span className="text-[9px] text-ink-soft cursor-pointer font-bold">+</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="p-2 border-t border-line-soft bg-card">
-          <button className="w-full h-8 rounded-full bg-coral hover:bg-coral-dark text-white text-[10px] font-bold shadow-pop transition-colors">
-            Send Order · PKR 2,350
-          </button>
-        </div>
-      </div>
-
-      {/* Browser KDS Display (Kitchen Display System) */}
-      <div className="rounded-xl overflow-hidden bg-card border border-line-soft shadow-hero flex-1 min-w-[240px] max-w-[360px] self-stretch flex flex-col">
-        <div className="px-3.5 py-2.5 border-b border-line-soft bg-mist flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            <p className="text-[10.5px] font-bold text-ink">Kitchen Screen (KDS)</p>
-          </div>
-          <span className="text-[8.5px] text-ink-mute font-bold">2 active tickets</span>
-        </div>
-
-        <div className="p-3 bg-card space-y-2.5 flex-1 overflow-y-auto">
-          {/* Active Ticket Card */}
-          <div className="rounded-xl border border-line bg-mist p-3">
-            <div className="flex items-center justify-between border-b border-line-soft pb-1.5 mb-2">
-              <span className="text-[10.5px] font-bold text-white bg-ink px-2 py-0.5 rounded">Room 104</span>
-              <div className="flex items-center gap-1 text-ink-mute text-[9.5px]">
-                <Clock className="h-3 w-3" />
-                <span>2 min ago</span>
-              </div>
-            </div>
-            <div className="space-y-1 text-[10.5px] font-medium text-ink mb-3">
-              <p className="flex justify-between"><span>1x Chicken Karahi</span> <span className="font-bold">Pending</span></p>
-              <p className="flex justify-between"><span>2x Fresh Lime</span> <span className="font-bold">Pending</span></p>
-            </div>
-            <button className="w-full h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[9.5px] font-bold shadow-pop transition-colors">
-              Accept & Start cooking
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── ④ Inventory — Phone camera stock count & par alerts ────────────────────
-export function ScanToCountMockup() {
-  return (
-    <div className="flex flex-col sm:flex-row items-center justify-center gap-6 p-4 bg-mist rounded-2xl border border-line-soft">
-      {/* Smartphone scanner viewfinder */}
-      <div className="phone-frame w-[190px] shrink-0" style={{ aspectRatio: "9/18.5" }}>
-        <div className="relative flex-1 bg-ink flex flex-col justify-between" style={{ minHeight: 220 }}>
-          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 z-0" />
-          
-          <div className="relative p-3 z-10 flex justify-between items-center">
-            <span className="text-[8px] bg-red-600 text-white px-2 py-0.5 rounded font-bold">● SCANNING</span>
-            <span className="text-[8.5px] text-white/80">Shelf: Row C</span>
-          </div>
-
-          {/* Graphical crosshair viewfinder and overlays */}
-          <div className="relative w-full h-[140px] z-10 flex items-center justify-center">
-            {/* Corner Bracket Overlays */}
-            <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-coral" />
-            <div className="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-coral" />
-            <div className="absolute bottom-4 left-4 w-4 h-4 border-b-2 border-l-2 border-coral" />
-            <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-coral" />
-
-            {/* Simulated Bounding Boxes */}
-            <div className="absolute w-[60px] h-[50px] border border-emerald-500 rounded bg-emerald-500/10 flex flex-col items-center justify-center shadow-lg" style={{ left: "15%", top: "25%" }}>
-              <span className="text-[6.5px] font-bold text-white bg-emerald-500 px-1 py-0.2 rounded-sm mb-0.5">Water 24ct</span>
-              <span className="text-[7.5px] font-bold text-white">Qty: 12</span>
-            </div>
-            
-            <div className="absolute w-[70px] h-[40px] border border-emerald-500 rounded bg-emerald-500/10 flex flex-col items-center justify-center shadow-lg" style={{ right: "12%", bottom: "20%" }}>
-              <span className="text-[6.5px] font-bold text-white bg-emerald-500 px-1 py-0.2 rounded-sm mb-0.5">Towel Sets</span>
-              <span className="text-[7.5px] font-bold text-white">Qty: 25</span>
-            </div>
-          </div>
-
-          <div className="relative p-2.5 z-10 bg-black/60 border-t border-white/10 flex items-center gap-2">
-            <CheckCircle className="h-4.5 w-4.5 text-emerald-400 shrink-0" />
-            <p className="text-[8.5px] text-white font-medium leading-tight">Image processed. 2 items identified.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Stock Par Level alerts panel */}
-      <div className="rounded-xl border border-line bg-card p-4 shadow-card flex-1 min-w-[240px] self-stretch flex flex-col justify-between">
-        <div>
-          <div className="flex items-center justify-between border-b border-line-soft pb-2 mb-3">
-            <h4 className="text-[11px] font-bold text-ink uppercase tracking-wider">Par Stock Alerts</h4>
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between p-2 rounded-lg bg-red-50 border border-red-100">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
-                <div>
-                  <p className="text-[11px] font-bold text-red-950">Mineral Water (24ct)</p>
-                  <p className="text-[9px] text-red-800">Par: 20 · Actual: 12</p>
-                </div>
-              </div>
-              <span className="text-[9px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded">Low stock</span>
-            </div>
-
-            <div className="flex items-center justify-between p-2 rounded-lg bg-[#FAF8F4] border border-line-soft">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
-                <div>
-                  <p className="text-[11px] font-bold text-ink-soft">Bath Towels (Sets)</p>
-                  <p className="text-[9px] text-ink-mute">Par: 15 · Actual: 25</p>
-                </div>
-              </div>
-              <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Normal</span>
-            </div>
-          </div>
-        </div>
-
-        <button className="w-full h-8 rounded-lg border border-coral text-coral-dark hover:bg-coral-soft text-[10.5px] font-bold mt-4 transition-colors">
-          Draft Purchase Order
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── ⑤ Financials — Detailed guest folio ledger sheet ─────────────────────────
-export function LiveFolioMockup() {
-  const transactions = [
-    { date: "04 Jul", desc: "Room Charge (Deluxe Suite - 3 Nights)", type: "Room", amt: 36000, debit: true },
-    { date: "05 Jul", desc: "QR Dining Order (Room Service Karahi)", type: "F&B", amt: 1650, debit: true },
-    { date: "05 Jul", desc: "POS Terminal Charge (Hot Stone Massage)", type: "Spa", amt: 6500, debit: true },
-    { date: "05 Jul", desc: "GST Sales Tax (8%)", type: "Tax", amt: 3532, debit: true },
-    { date: "05 Jul", desc: "Advance Deposit Paid (Bank Transfer)", type: "Payment", amt: 15000, debit: false },
-  ];
-
-  return (
-    <CardShell label="InnFlo — Guest Folio Ledger Screen">
-      <div className="p-4 bg-card font-body">
-        {/* Folio Info header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pb-3 border-b border-line-soft mb-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-[13px] font-bold text-ink">Folio: Hamza A.</h3>
-              <span className="text-[9.5px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-medium">Payment Pending</span>
-            </div>
-            <p className="text-[10px] text-ink-soft mt-0.5">Booking Ref: HPM-2026-00214 · Room 108</p>
-          </div>
-          <div className="text-left sm:text-right bg-mist border border-line-soft rounded-lg px-3 py-1.5">
-            <p className="text-[9px] text-ink-mute uppercase">Outstanding Balance</p>
-            <p className="text-[14px] font-bold text-ink leading-tight">PKR 32,682</p>
-          </div>
-        </div>
-
-        {/* Ledger Table */}
-        <div className="overflow-x-auto no-scrollbar mb-3">
-          <table className="w-full min-w-[420px] text-[10.5px]">
-            <thead>
-              <tr className="text-ink-mute uppercase border-b border-line-soft text-left">
-                <th className="py-2 font-bold w-12">Date</th>
-                <th className="py-2 font-bold">Description</th>
-                <th className="py-2 font-bold w-12 text-center">Type</th>
-                <th className="py-2 font-bold w-20 text-right">Debit</th>
-                <th className="py-2 font-bold w-20 text-right">Credit</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line-soft/40">
-              {transactions.map((t, idx) => (
-                <tr key={idx} className="text-ink-soft">
-                  <td className="py-2 font-medium">{t.date}</td>
-                  <td className="py-2 truncate max-w-[200px]">{t.desc}</td>
-                  <td className="py-2 text-center">
-                    <span className="bg-mist px-1.5 py-0.5 rounded text-[8.5px] font-bold text-ink-mute">
-                      {t.type}
-                    </span>
-                  </td>
-                  <td className="py-2 text-right font-bold">
-                    {t.debit ? `PKR ${t.amt.toLocaleString()}` : "—"}
-                  </td>
-                  <td className="py-2 text-right font-bold text-emerald-700">
-                    {!t.debit ? `PKR ${t.amt.toLocaleString()}` : "—"}
-                  </td>
-                </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </div>
 
-        {/* Folio Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft pt-3 text-[10px]">
-          <p className="text-ink-mute font-medium">Total Charges: PKR 47,682 · Total Payments: PKR 15,000</p>
-          <div className="flex gap-2">
-            <button className="h-7 px-3.5 rounded-lg border border-line text-ink hover:bg-mist font-bold transition-colors">
-              Print Folio
-            </button>
-            <button className="h-7 px-3.5 rounded-lg bg-coral text-white hover:bg-coral-dark font-bold shadow-pop transition-colors">
-              Checkout & Settle
-            </button>
+          <div className="flex flex-col gap-2">
+            <div className="rounded-2xl bg-ink p-3.5 text-white">
+              <p className="flex items-center gap-1.5 text-[6.5px] font-black uppercase tracking-wider text-coral">
+                <PackageCheck className="h-3 w-3" /> Recipe deduction
+              </p>
+              <p className="mt-3 text-[12px] font-black">QR order #4082</p>
+              <div className="mt-3 space-y-2 text-[6.5px] font-bold text-white/65">
+                <p className="flex justify-between"><span>Chicken breast</span><span>− 0.7 kg</span></p>
+                <p className="flex justify-between"><span>Cooking oil</span><span>− 0.2 L</span></p>
+                <p className="flex justify-between"><span>Spices</span><span>− 0.1 kg</span></p>
+              </div>
+              <p className="mt-3 flex items-center gap-1 text-[6px] font-black text-emerald-300"><Check className="h-2.5 w-2.5" /> Posted automatically</p>
+            </div>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
+              <p className="text-[6px] font-black uppercase tracking-wider text-amber-700">Reorder alert</p>
+              <p className="mt-1.5 text-[8px] font-black text-amber-950">Mineral water is below par.</p>
+            </div>
           </div>
         </div>
       </div>
-    </CardShell>
+    </ProductWindow>
   );
 }
 
-// Sparkles placeholder to prevent compilation issues
-function SparklesIcon(props: React.SVGProps<SVGSVGElement>) {
+export function LiveFolioMockup() {
+  const lines = [
+    { label: "Room · Deluxe Suite", meta: "3 nights", value: "36,000", kind: "charge" },
+    { label: "QR dining · Order #4082", meta: "Room service", value: "1,650", kind: "charge" },
+    { label: "Spa · Hot stone", meta: "POS terminal", value: "6,500", kind: "charge" },
+    { label: "Advance deposit", meta: "Bank transfer", value: "15,000", kind: "payment" },
+  ];
+
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-      <path d="m5 3 1 2.5L8.5 6 6 7 5 9.5 4 7 1.5 6 4 5.5z" />
-      <path d="m19 17 1 2.5 2.5.5-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z" />
-    </svg>
+    <ProductWindow title="InnFlo / Guest folio">
+      <div className="bg-[#F8F4EF] p-3 sm:p-4">
+        <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1.15fr)_minmax(0,.85fr)]">
+          <div className="overflow-hidden rounded-2xl border border-line-soft bg-white">
+            <div className="flex items-center justify-between border-b border-line-soft p-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-[11px] font-black text-ink">Hamza Ahmed</p>
+                  <span className="rounded-full bg-amber-50 px-2 py-1 text-[6px] font-black text-amber-700">OPEN</span>
+                </div>
+                <p className="mt-0.5 text-[7px] text-ink-mute">Room 108 · HPM-00214</p>
+              </div>
+              <WalletCards className="h-5 w-5 text-coral-dark" />
+            </div>
+            <div className="divide-y divide-line-soft">
+              {lines.map((line) => (
+                <div key={line.label} className="flex items-center gap-2.5 px-3 py-2.5">
+                  <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${line.kind === "payment" ? "bg-emerald-50 text-emerald-700" : "bg-mist text-ink-soft"}`}>
+                    {line.kind === "payment" ? <ArrowDownRight className="h-3.5 w-3.5" /> : <ArrowUpRight className="h-3.5 w-3.5" />}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[7.5px] font-black text-ink">{line.label}</p>
+                    <p className="text-[6px] text-ink-mute">{line.meta}</p>
+                  </div>
+                  <span className={`text-[7.5px] font-black ${line.kind === "payment" ? "text-emerald-700" : "text-ink"}`}>
+                    {line.kind === "payment" ? "−" : "+"} PKR {line.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col justify-between rounded-2xl bg-ink p-4 text-white shadow-pop">
+            <div>
+              <p className="text-[6.5px] font-black uppercase tracking-[0.14em] text-white/45">Outstanding balance</p>
+              <p className="mt-2 text-[25px] font-black tracking-tight">PKR 32,682</p>
+              <div className="mt-4 space-y-2 border-t border-white/10 pt-3 text-[7px] font-bold">
+                <p className="flex justify-between text-white/55"><span>Total charges</span><span className="text-white">47,682</span></p>
+                <p className="flex justify-between text-white/55"><span>Payments</span><span className="text-emerald-300">−15,000</span></p>
+                <p className="flex justify-between text-white/55"><span>Tax included</span><span className="text-white">3,532</span></p>
+              </div>
+            </div>
+            <div className="mt-5">
+              <div className="flex h-10 items-center justify-center gap-2 rounded-xl bg-coral text-[8px] font-black text-white">
+                <CreditCard className="h-3.5 w-3.5" /> Settle & check out
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <span className="rounded-lg border border-white/10 py-2 text-center text-[6px] font-bold text-white/60">Print folio</span>
+                <span className="rounded-lg border border-white/10 py-2 text-center text-[6px] font-bold text-white/60">Add charge</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[6.5px] font-bold text-emerald-800">
+          <CircleDollarSign className="mr-2 h-3.5 w-3.5" />
+          Every room, POS and QR charge is already reconciled here.
+          <span className="ml-auto">Just now</span>
+        </div>
+      </div>
+    </ProductWindow>
   );
 }

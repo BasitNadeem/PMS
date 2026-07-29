@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { optionalPhoneSchema, optionalEmailSchema } from "../lib/validation";
 
+const hotelTimeSchema = z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Use HH:mm in 24-hour time");
+
 export const updateSettingsSchema = z.object({
   // Hotel model fields
   name:         z.string().trim().min(1).optional(),
@@ -20,6 +22,10 @@ export const updateSettingsSchema = z.object({
   timezone:          z.string().trim().optional(),
   checkInTime:       z.string().trim().optional(),
   checkOutTime:      z.string().trim().optional(),
+  shiftMorningStart: hotelTimeSchema.optional(),
+  shiftEveningStart: hotelTimeSchema.optional(),
+  shiftNightStart:   hotelTimeSchema.optional(),
+  requireIndependentShiftSignoff: z.boolean().optional(),
   lateCheckoutFee:   z.number().int().min(0).optional(),
   earlyCheckinFee:   z.number().int().min(0).optional(),
   defaultSource:     z.enum(["WALK_IN", "PHONE", "WHATSAPP", "BOOKING_COM", "AGODA", "EXPEDIA"]).optional(),
@@ -38,6 +44,37 @@ export const updateSettingsSchema = z.object({
   logoUrl:                z.string().nullable().optional(),
   // onboarding progress — Hotel model field
   onboardingStep:         z.number().int().min(0).max(4).optional(),
+}).superRefine((value, ctx) => {
+  const values = [
+    value.shiftMorningStart,
+    value.shiftEveningStart,
+    value.shiftNightStart,
+  ];
+  if (values.every((item) => item === undefined)) return;
+  if (values.some((item) => item === undefined)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["shiftMorningStart"],
+      message: "Morning, Evening, and Night shift starts must be updated together",
+    });
+    return;
+  }
+
+  const minutes = (item: string | undefined) => {
+    if (!item) return -1;
+    const [hour, minute] = item.split(":").map(Number);
+    return hour * 60 + minute;
+  };
+  const morning = minutes(value.shiftMorningStart);
+  const evening = minutes(value.shiftEveningStart);
+  const night = minutes(value.shiftNightStart);
+  if (!(morning < evening && evening < night)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["shiftMorningStart"],
+      message: "Shift starts must be ordered Morning, Evening, then Night",
+    });
+  }
 });
 
 export type UpdateSettingsDto = z.infer<typeof updateSettingsSchema>;

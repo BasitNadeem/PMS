@@ -30,6 +30,10 @@ export interface PreflightCheck {
   noShowCandidates: NoShowCandidate[];
   overdueDepartures: OverdueDeparture[];
   roomChargeMismatches: RoomChargeMismatch[];
+  openBalances: { count: number; total: number };
+  unsignedShiftReports: Array<{ id: string; shiftType: string }>;
+  unresolvedDiscrepancies: number;
+  unpostedPosOrders: number;
   alreadyAudited: boolean;
 }
 
@@ -68,8 +72,16 @@ export const nightAuditService = {
     await api.post(`/api/night-audit/no-show/${reservationId}`);
   },
 
-  runNightAudit: async (businessDate: string): Promise<{ id: string; businessDate: string; nextBusinessDate: string }> => {
-    const res = await api.post("/api/night-audit/run", { businessDate });
+  runNightAudit: async (
+    businessDate: string,
+    skippedNoShowIds: string[],
+    exceptionReason?: string,
+  ): Promise<{ id: string; businessDate: string; nextBusinessDate: string }> => {
+    const res = await api.post("/api/night-audit/run", {
+      businessDate,
+      skippedNoShowIds,
+      exceptionReason,
+    });
     return res.data.data;
   },
 

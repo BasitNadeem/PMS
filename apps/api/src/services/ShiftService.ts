@@ -7,6 +7,12 @@ import { paginationMeta } from "../utils/pagination";
 import type { CreateShiftReportDto, SignOffDto, ListShiftsQuery } from "../schemas/shifts";
 import { getPKTDayRange } from "../lib/timezone";
 import { NotificationService } from "./NotificationService";
+import {
+  getCurrentShiftContext,
+  getShiftWindow,
+  readShiftSchedule,
+  type ShiftType,
+} from "../lib/shiftSchedule";
 
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
 
@@ -26,24 +32,43 @@ async function notifyManagersOfDiscrepancy(
   } catch { /* push delivery is non-critical */ }
 }
 
-export const ShiftService = {
-  async getPrefillData(withTenant: WithTenantFn, date: string, shiftType: string) {
-    const [y, m, d] = date.split("-").map(Number);
-    let shiftStart: Date;
-    let shiftEnd: Date;
-    if (shiftType === "MORNING") {
-      shiftStart = new Date(Date.UTC(y, m - 1, d, 1, 0, 0));  // 6am PKT
-      shiftEnd   = new Date(Date.UTC(y, m - 1, d, 9, 0, 0));  // 2pm PKT
-    } else if (shiftType === "EVENING") {
-      shiftStart = new Date(Date.UTC(y, m - 1, d, 9, 0, 0));
-      shiftEnd   = new Date(Date.UTC(y, m - 1, d, 17, 0, 0)); // 10pm PKT
-    } else {
-      shiftStart = new Date(Date.UTC(y, m - 1, d, 17, 0, 0));
-      shiftEnd   = new Date(Date.UTC(y, m - 1, d + 1, 1, 0, 0));
-    }
+function addDays(date: string, days: number): string {
+  const [year, month, day] = date.split("-").map(Number);
+  const value = new Date(Date.UTC(year, month - 1, day + days));
+  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
+}
 
-    return withTenant(async (db) => {
-      const [checkIns, checkOuts, newBookings, posOrders, cashPayments] = await Promise.all([
+function previousShift(date: string, shiftType: ShiftType): { date: string; type: ShiftType } {
+  if (shiftType === "EVENING") return { date, type: "MORNING" };
+  if (shiftType === "NIGHT") return { date, type: "EVENING" };
+  return { date: addDays(date, -1), type: "NIGHT" };
+}
+
+export const ShiftService = {
+  async getCurrentContext(withTenant: WithTenantFn, hotelId: string) {
+    const hotel = await withTenant((db) =>
+      db.hotel.findUniqueOrThrow({ where: { id: hotelId }, select: { settings: true } }),
+    );
+    return getCurrentShiftContext(hotel.settings);
+  },
+
+  async getPrefillData(
+    withTenant: WithTenantFn,
+    hotelId: string,
+    date: string,
+    shiftType: ShiftType,
+  ) {
+    const hotel = await withTenant((db) =>
+      db.hotel.findUniqueOrThrow({ where: { id: hotelId }, select: { settings: true } }),
+    );
+    const { start: shiftStart, end: shiftEnd } = getShiftWindow(
+      date,
+      shiftType,
+      readShiftSchedule(hotel.settings),
+    );
+
+    const data = await withTenant(async (db) => {
+      const [checkIns, checkOuts, newBookings, posOrders, cashPayments, directPosCash] = await Promise.all([
         db.reservation.count({ where: { actualCheckIn:  { gte: shiftStart, lt: shiftEnd } } }),
         db.reservation.count({ where: { actualCheckOut: { gte: shiftStart, lt: shiftEnd } } }),
         db.reservation.count({ where: { createdAt:      { gte: shiftStart, lt: shiftEnd } } }),
@@ -57,11 +82,28 @@ export const ShiftService = {
             method:    "CASH",
           },
         }),
+        db.posOrder.aggregate({
+          _sum: { total: true },
+          where: {
+            createdAt: { gte: shiftStart, lt: shiftEnd },
+            isPostedToFolio: false,
+            tableNumber: "PAID:CASH",
+          },
+        }),
       ]);
 
+      const previous = previousShift(date, shiftType);
       const lastReport = await db.shiftReport.findFirst({
+        where: {
+          shiftDate: new Date(`${previous.date}T00:00:00.000Z`),
+          shiftType: previous.type,
+          signedOffAt: { not: null },
+        },
+        orderBy: { signedOffAt: "desc" },
+        select: { closingBalance: true },
+      }) ?? await db.shiftReport.findFirst({
         where: { signedOffAt: { not: null } },
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ shiftDate: "desc" }, { signedOffAt: "desc" }],
         select: { closingBalance: true },
       });
 
@@ -70,13 +112,35 @@ export const ShiftService = {
         checkOuts,
         newBookings,
         posOrders,
-        cashCollected: cashPayments._sum.amount ?? 0,
+        cashCollected: (cashPayments._sum.amount ?? 0) + (directPosCash._sum.total ?? 0),
         suggestedOpeningBalance: lastReport?.closingBalance ?? 0,
       };
     });
+
+    let cashExpenses = 0;
+    try {
+      const rows = await adminPrisma.$queryRaw<Array<{ total: bigint }>>`
+        SELECT COALESCE(SUM(amount), 0)::bigint AS total
+        FROM expenses
+        WHERE hotel_id = ${hotelId}::uuid
+          AND payment_method = 'CASH'
+          AND created_at >= ${shiftStart}
+          AND created_at < ${shiftEnd}
+      `;
+      cashExpenses = Number(rows[0]?.total ?? 0);
+    } catch {
+      // Raw accounting tables are optional during a fresh setup.
+    }
+
+    return { ...data, cashExpenses, schedule: readShiftSchedule(hotel.settings) };
   },
 
-  async getHandoverBriefing(withTenant: WithTenantFn, hotelId: string, shiftDate: string) {
+  async getHandoverBriefing(
+    withTenant: WithTenantFn,
+    hotelId: string,
+    shiftDate: string,
+    shiftType: ShiftType,
+  ) {
     const { start: dateObj, end: dateEnd } = getPKTDayRange(shiftDate);
     const [sy, sm, sd] = shiftDate.split("-").map(Number);
     const tDate = new Date(Date.UTC(sy, sm - 1, sd + 1));
@@ -156,6 +220,8 @@ export const ShiftService = {
       );
 
     return {
+      shiftDate,
+      shiftType,
       pendingHousekeeping: pendingHousekeeping.map((t) => ({
         id:         t.id,
         taskType:   t.taskType,
@@ -194,8 +260,24 @@ export const ShiftService = {
   },
 
   async createShiftReport(withTenant: WithTenantFn, hotelId: string, dto: CreateShiftReportDto, actorId: string) {
-    const closingBalance = dto.openingBalance + dto.cashCollected - dto.cashExpenses;
-    return withTenant(async (db) => {
+    const authoritative = await this.getPrefillData(withTenant, hotelId, dto.shiftDate, dto.shiftType);
+    const closingBalance = dto.openingBalance + authoritative.cashCollected - authoritative.cashExpenses;
+    const report = await withTenant(async (db) => {
+      await db.$queryRaw`
+        SELECT pg_advisory_xact_lock(hashtext(${`${hotelId}:${dto.shiftDate}:${dto.shiftType}`}))
+      `;
+      const existing = await db.shiftReport.findFirst({
+        where: {
+          hotelId,
+          shiftDate: new Date(`${dto.shiftDate}T00:00:00.000Z`),
+          shiftType: dto.shiftType,
+        },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new AppError(409, "A handover for this hotel, date, and shift already exists");
+      }
+
       const report = await db.shiftReport.create({
         data: {
           hotelId,
@@ -203,15 +285,15 @@ export const ShiftService = {
           shiftDate:        new Date(dto.shiftDate),
           shiftType:        dto.shiftType,
           openingBalance:   dto.openingBalance,
-          cashCollected:    dto.cashCollected,
-          cashExpenses:     dto.cashExpenses,
+          cashCollected:    authoritative.cashCollected,
+          cashExpenses:     authoritative.cashExpenses,
           closingBalance,
           expectedBalance:  closingBalance,
           variance:         0,
-          checkIns:         dto.checkIns,
-          checkOuts:        dto.checkOuts,
-          newBookings:      dto.newBookings,
-          posOrders:        dto.posOrders,
+          checkIns:         authoritative.checkIns,
+          checkOuts:        authoritative.checkOuts,
+          newBookings:      authoritative.newBookings,
+          posOrders:        authoritative.posOrders,
           notes:            dto.notes ?? null,
           handoverBriefing: dto.handoverBriefing !== undefined
             ? (dto.handoverBriefing as Prisma.InputJsonValue)
@@ -231,6 +313,8 @@ export const ShiftService = {
 
       return report;
     });
+    notifyHotelDataChanged(hotelId, "SHIFT_HANDOVER_CREATED");
+    return report;
   },
 
   async signOff(withTenant: WithTenantFn, hotelId: string, reportId: string, dto: SignOffDto, actorId: string) {
@@ -238,6 +322,14 @@ export const ShiftService = {
       const report = await db.shiftReport.findFirst({ where: { id: reportId, hotelId } });
       if (!report) throw new AppError(404, "Shift report not found");
       if (report.signedOffAt) throw new AppError(409, "Already signed off");
+      const hotel = await db.hotel.findUniqueOrThrow({
+        where: { id: hotelId },
+        select: { settings: true },
+      });
+      const settings = (hotel.settings ?? {}) as Record<string, unknown>;
+      if (settings.requireIndependentShiftSignoff === true && report.staffId === actorId) {
+        throw new AppError(403, "A different authorized staff member must sign off this handover");
+      }
 
       const variance = dto.actualCashCount - report.expectedBalance;
       const isLargeDiscrepancy = Math.abs(variance) > DISCREPANCY_THRESHOLD_PAISAS;
@@ -305,7 +397,7 @@ export const ShiftService = {
       void notifyManagersOfDiscrepancy(hotelId, {
         title: "⚠ Shift Cash Discrepancy",
         body:  outcome.discrepancyBody,
-        url:   "/reports/shifts",
+        url:   "/operations/shift-handover",
       });
     }
 
@@ -373,15 +465,25 @@ export const ShiftService = {
     };
   },
 
-  async acknowledgeDiscrepancy(withTenant: WithTenantFn, hotelId: string, reportId: string) {
-    return withTenant(async (db) => {
+  async acknowledgeDiscrepancy(withTenant: WithTenantFn, hotelId: string, reportId: string, actorId: string) {
+    await withTenant(async (db) => {
       const report = await db.shiftReport.findFirst({ where: { id: reportId, hotelId } });
       if (!report) throw new AppError(404, "Shift report not found");
       await db.shiftReport.update({
         where: { id: reportId },
         data: { discrepancyAlerted: false },
       });
+      await db.auditLog.create({
+        data: {
+          hotelId,
+          userId: actorId,
+          action: "SHIFT_DISCREPANCY_ACKNOWLEDGED",
+          entity: "shiftReport",
+          entityId: reportId,
+        },
+      });
     });
+    notifyHotelDataChanged(hotelId, "SHIFT_DISCREPANCY_ACKNOWLEDGED");
   },
 
   async getDiscrepancyAlertCount(withTenant: WithTenantFn, hotelId: string) {

@@ -18,36 +18,17 @@ import {
   type ListShiftsParams,
 } from "@/services/shifts";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useSearchParams } from "react-router-dom";
 
 function formatPKR(paisas: number): string {
   return "PKR " + Math.floor(paisas / 100).toLocaleString("en-PK");
 }
 function fmtDate(iso: string): string {
-  return new Intl.DateTimeFormat("en-PK", { day: "numeric", month: "short", year: "numeric" }).format(new Date(iso));
+  return new Intl.DateTimeFormat("en-PK", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Karachi" }).format(new Date(iso));
 }
 function fmtDateTime(iso: string): string {
-  return new Intl.DateTimeFormat("en-PK", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
-}
-
-function currentShiftContext(): { shiftDate: string; shiftType: ShiftType } {
-  const now = new Date();
-  const pktHour = (now.getUTCHours() + 5) % 24;
-
-  let shiftType: ShiftType;
-  if (pktHour >= 6 && pktHour < 14) shiftType = "MORNING";
-  else if (pktHour >= 14 && pktHour < 22) shiftType = "EVENING";
-  else shiftType = "NIGHT";
-
-  // NIGHT spans 22:00–06:00 PKT (crosses midnight).
-  // If pktHour is 0–5 we are in the continuation of the PREVIOUS day's night shift.
-  const pktMs = now.getTime() + 5 * 60 * 60 * 1000;
-  const pktDate = new Date(pktMs);
-  if (shiftType === "NIGHT" && pktHour < 6) {
-    pktDate.setUTCDate(pktDate.getUTCDate() - 1);
-  }
-  const shiftDate = `${pktDate.getUTCFullYear()}-${String(pktDate.getUTCMonth() + 1).padStart(2, "0")}-${String(pktDate.getUTCDate()).padStart(2, "0")}`;
-
-  return { shiftDate, shiftType };
+  return new Intl.DateTimeFormat("en-PK", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Karachi" }).format(new Date(iso));
 }
 
 const SHIFT_TYPES: { value: ShiftType; label: string }[] = [
@@ -77,8 +58,8 @@ function rupeesToPaisas(v: string): number {
   return Math.round((Number(v) || 0) * 100);
 }
 
-function StatBox({ icon: Icon, label, value, onChange }: {
-  icon: React.ElementType; label: string; value: string; onChange: (v: string) => void;
+function StatBox({ icon: Icon, label, value }: {
+  icon: React.ElementType; label: string; value: string;
 }) {
   return (
     <div className="rounded-xl border border-line bg-mist p-3.5">
@@ -90,8 +71,8 @@ function StatBox({ icon: Icon, label, value, onChange }: {
         type="number"
         min={0}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-transparent serif text-[24px] text-ink tnum outline-none"
+        readOnly
+        className="w-full cursor-default bg-transparent serif text-[24px] text-ink tnum outline-none"
       />
     </div>
   );
@@ -322,6 +303,7 @@ function ShiftDetailDrawer({ report, onClose, onAcknowledged }: {
   onAcknowledged?: () => void;
 }) {
   const qc = useQueryClient();
+  const { has } = usePermissions();
   const acknowledgeMutation = useMutation({
     mutationFn: () => shiftsService.acknowledge(report.id),
     onSuccess: () => {
@@ -343,7 +325,7 @@ function ShiftDetailDrawer({ report, onClose, onAcknowledged }: {
             </h2>
           </div>
           <div className="flex items-center gap-2">
-            {report.discrepancyAlerted && (
+            {report.discrepancyAlerted && has("shiftHandover:acknowledge") && (
               <button
                 type="button"
                 onClick={() => acknowledgeMutation.mutate()}
@@ -460,9 +442,12 @@ function ShiftDetailDrawer({ report, onClose, onAcknowledged }: {
 
 function SubmitTab() {
   const qc = useQueryClient();
-  const { shiftDate: initialDate, shiftType: initialShiftType } = currentShiftContext();
+  const { has } = usePermissions();
+  const pktToday = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Asia/Karachi",
+  }).format(new Date());
   const [form, setForm] = useState<SubmitForm>({
-    shiftDate: initialDate, shiftType: initialShiftType,
+    shiftDate: pktToday, shiftType: "MORNING",
     openingBalance: "", cashCollected: "", cashExpenses: "",
     checkIns: "0", checkOuts: "0", newBookings: "0", posOrders: "0",
     notes: "",
@@ -474,6 +459,11 @@ function SubmitTab() {
   const [briefing, setBriefing] = useState<HandoverBriefing | null>(null);
   const [flagged, setFlagged] = useState<Record<string, boolean>>({});
   const [zeroCashAck, setZeroCashAck] = useState(false);
+  const { data: currentContext } = useQuery({
+    queryKey: ["shift-context"],
+    queryFn: shiftsService.getCurrentContext,
+    staleTime: 60_000,
+  });
 
   function set<K extends keyof SubmitForm>(key: K, value: SubmitForm[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -492,6 +482,7 @@ function SubmitTab() {
       setForm((f) => ({
         ...f,
         cashCollected:  String(Math.floor(prefill.cashCollected / 100)),
+        cashExpenses:   String(Math.floor(prefill.cashExpenses / 100)),
         checkIns:       String(prefill.checkIns),
         checkOuts:      String(prefill.checkOuts),
         newBookings:    String(prefill.newBookings),
@@ -511,11 +502,26 @@ function SubmitTab() {
     },
   });
 
-  // Auto-load data on mount so briefing and prefill are immediately visible
   useEffect(() => {
+    if (!currentContext) return;
+    setForm((current) => ({
+      ...current,
+      shiftDate: currentContext.shiftDate,
+      shiftType: currentContext.shiftType,
+    }));
+    setCreated(null);
+  }, [currentContext]);
+
+  // Date/type changes always refresh the server-authoritative snapshot, preventing
+  // figures from one shift being submitted under another.
+  useEffect(() => {
+    setCreated(null);
+    setBriefing(null);
+    setActualCash("");
+    setZeroCashAck(false);
     prefillMutation.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [form.shiftDate, form.shiftType]);
 
   function buildBriefingSnapshot(): HandoverBriefing | undefined {
     if (!briefing) return undefined;
@@ -631,12 +637,12 @@ function SubmitTab() {
             <input type="number" min={0} value={form.openingBalance} onChange={(e) => set("openingBalance", e.target.value)} placeholder="0" className={inputCls} />
           </div>
           <div>
-            <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Cash collected</label>
-            <input type="number" min={0} value={form.cashCollected} onChange={(e) => { set("cashCollected", e.target.value); setZeroCashAck(false); }} placeholder="0" className={inputCls} />
+            <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Cash collected <span className="font-normal text-ink-faint">· calculated</span></label>
+            <input type="number" min={0} value={form.cashCollected} readOnly className={cn(inputCls, "cursor-default bg-line-soft/50")} />
           </div>
           <div>
-            <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Cash expenses</label>
-            <input type="number" min={0} value={form.cashExpenses} onChange={(e) => set("cashExpenses", e.target.value)} placeholder="0" className={inputCls} />
+            <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Cash expenses <span className="font-normal text-ink-faint">· calculated</span></label>
+            <input type="number" min={0} value={form.cashExpenses} readOnly className={cn(inputCls, "cursor-default bg-line-soft/50")} />
           </div>
           <div>
             <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Closing balance</label>
@@ -664,10 +670,10 @@ function SubmitTab() {
       <Card>
         <h3 className="serif text-[18px] text-ink mb-4">Activity</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatBox icon={LogIn}        label="Check-ins"    value={form.checkIns}    onChange={(v) => set("checkIns", v)} />
-          <StatBox icon={LogOut}       label="Check-outs"   value={form.checkOuts}   onChange={(v) => set("checkOuts", v)} />
-          <StatBox icon={CalendarPlus} label="New bookings" value={form.newBookings} onChange={(v) => set("newBookings", v)} />
-          <StatBox icon={ShoppingCart} label="POS orders"   value={form.posOrders}   onChange={(v) => set("posOrders", v)} />
+          <StatBox icon={LogIn}        label="Check-ins"    value={form.checkIns} />
+          <StatBox icon={LogOut}       label="Check-outs"   value={form.checkOuts} />
+          <StatBox icon={CalendarPlus} label="New bookings" value={form.newBookings} />
+          <StatBox icon={ShoppingCart} label="POS orders"   value={form.posOrders} />
         </div>
       </Card>
 
@@ -735,6 +741,10 @@ function SubmitTab() {
                 </div>
               )}
             </div>
+          ) : !has("shiftHandover:signoff") ? (
+            <div className="rounded-xl border border-line bg-mist px-4 py-3 text-[13px] text-ink-mute">
+              Handover submitted. A staff member with sign-off permission must complete the physical cash approval.
+            </div>
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
@@ -794,13 +804,19 @@ function SubmitTab() {
                 <button
                   type="button"
                   onClick={() => signOffMutation.mutate()}
-                  disabled={signOffMutation.isPending || (isLargeVariance && !varianceReason.trim())}
+                  disabled={actualCash === "" || signOffMutation.isPending || (isLargeVariance && !varianceReason.trim())}
                   className="inline-flex items-center gap-2 h-11 px-6 rounded-full bg-coral text-white text-sm font-semibold hover:bg-coral-dark transition-colors shadow-pop disabled:opacity-40"
                 >
                   <CheckCircle2 size={17} />
                   {signOffMutation.isPending ? "Signing off…" : "Sign off"}
                 </button>
               </div>
+              {signOffMutation.isError && (
+                <p className="mt-2 text-right text-[13px] text-red-600">
+                  {(signOffMutation.error as { response?: { data?: { error?: string } } })?.response?.data?.error
+                    ?? "Sign-off failed. Check your permission and try again."}
+                </p>
+              )}
             </>
           )}
         </Card>
@@ -899,6 +915,31 @@ function ReportsTab() {
             ))
           )}
         </Card>
+        {(data?.meta.totalPages ?? 1) > 1 && (
+          <div className="flex items-center justify-between rounded-xl border border-line bg-card px-4 py-3">
+            <span className="text-[12px] text-ink-mute">
+              Page {data?.meta.page ?? 1} of {data?.meta.totalPages ?? 1}
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-line px-3 py-1.5 text-[12px] font-semibold disabled:opacity-40"
+                disabled={(filters.page ?? 1) <= 1}
+                onClick={() => setFilters((current) => ({ ...current, page: Math.max(1, (current.page ?? 1) - 1) }))}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-line px-3 py-1.5 text-[12px] font-semibold disabled:opacity-40"
+                disabled={(filters.page ?? 1) >= (data?.meta.totalPages ?? 1)}
+                onClick={() => setFilters((current) => ({ ...current, page: (current.page ?? 1) + 1 }))}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {selected && (
@@ -913,7 +954,17 @@ function ReportsTab() {
 }
 
 export default function ShiftHandoverPage() {
-  const [tab, setTab] = useState<"submit" | "reports">("submit");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { has } = usePermissions();
+  const canSubmit = has("shiftHandover:submit");
+  const [tab, setTabState] = useState<"submit" | "reports">(
+    searchParams.get("tab") === "reports" || !canSubmit ? "reports" : "submit",
+  );
+
+  function setTab(value: "submit" | "reports") {
+    setTabState(value);
+    setSearchParams(value === "reports" ? { tab: "reports" } : {}, { replace: true });
+  }
 
   return (
     <div>
@@ -924,7 +975,10 @@ export default function ShiftHandoverPage() {
       </div>
 
       <div className="flex gap-0 border-b border-line mb-6">
-        {([["submit", "Submit Handover"], ["reports", "View Reports"]] as const).map(([key, label]) => (
+        {([
+          ...(canSubmit ? [["submit", "Submit Handover"] as const] : []),
+          ["reports", "View Reports"] as const,
+        ]).map(([key, label]) => (
           <button
             key={key}
             type="button"

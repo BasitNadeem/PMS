@@ -187,8 +187,8 @@ function titleCase(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-const MODULE_PERMISSIONS: { key: string; module: string; action: string; displayName: string }[] =
-  MODULE_KEYS.flatMap((module) =>
+const MODULE_PERMISSIONS: { key: string; module: string; action: string; displayName: string }[] = [
+  ...MODULE_KEYS.flatMap((module) =>
     ACTION_KEYS
       .filter((action) => !MODULE_ACTION_EXCLUSIONS.has(`${module}:${action}`))
       .map((action) => {
@@ -200,7 +200,15 @@ const MODULE_PERMISSIONS: { key: string; module: string; action: string; display
           displayName: DUAL_PURPOSE_DISPLAY_NAMES[key] ?? `${titleCase(action)} ${titleCase(module)}`,
         };
       })
-  );
+  ),
+    { key: "shiftHandover:read",        module: "shiftHandover", action: "read",        displayName: "View Shift Handovers" },
+    { key: "shiftHandover:submit",      module: "shiftHandover", action: "submit",      displayName: "Submit Shift Handovers" },
+    { key: "shiftHandover:signoff",     module: "shiftHandover", action: "signoff",     displayName: "Sign Off Shift Handovers" },
+    { key: "shiftHandover:acknowledge", module: "shiftHandover", action: "acknowledge", displayName: "Acknowledge Cash Discrepancies" },
+    { key: "nightAudit:read",           module: "nightAudit",    action: "read",        displayName: "View Night Audit" },
+    { key: "nightAudit:run",            module: "nightAudit",    action: "run",         displayName: "Run Night Audit" },
+    { key: "nightAudit:markNoShow",     module: "nightAudit",    action: "markNoShow",  displayName: "Mark No-Shows During Audit" },
+];
 
 const MODULE_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   OWNER: MODULE_PERMISSIONS.map((p) => p.key),
@@ -221,6 +229,8 @@ const MODULE_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "bookingEngine:read", "bookingEngine:manage",
     "team:read", "team:create", "team:update",
     "reports:read",
+    "shiftHandover:read", "shiftHandover:submit", "shiftHandover:signoff", "shiftHandover:acknowledge",
+    "nightAudit:read", "nightAudit:run", "nightAudit:markNoShow",
     "settings:read", "settings:update",
   ],
 
@@ -233,6 +243,7 @@ const MODULE_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "billing:read", "billing:create", "billing:update",
     "housekeeping:read",
     "pos:read", "pos:create",
+    "shiftHandover:read", "shiftHandover:submit",
   ],
 
   HOUSEKEEPING: [
@@ -259,6 +270,8 @@ const MODULE_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "expenses:read", "expenses:create", "expenses:update", "expenses:delete",
     "cashbook:read", "cashbook:create",
     "reports:read",
+    "shiftHandover:read",
+    "nightAudit:read",
   ],
 };
 

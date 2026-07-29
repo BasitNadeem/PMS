@@ -26,6 +26,7 @@ import { roomsService, type Room } from "@/services/rooms";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { getCurrentUserName } from "@/lib/jwt";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -875,6 +876,8 @@ function ArrivalsReadiness({ scheduleEvents }: { scheduleEvents: DashboardSchedu
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { has } = usePermissions();
+  const canReadShiftHandovers = has("shiftHandover:read");
 
   const { data: dash, isLoading } = useQuery({
     queryKey: ["dashboard"],
@@ -893,6 +896,7 @@ export default function DashboardPage() {
   const { data: shiftDiscrepancyCount = 0 } = useQuery({
     queryKey: ["shift-discrepancy-count"],
     queryFn:  shiftsService.getDiscrepancyCount,
+    enabled: canReadShiftHandovers,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -974,10 +978,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Shift discrepancy alert — shows when ≥1 cash variance in last 3 days */}
-      {shiftDiscrepancyCount > 0 && (
+      {canReadShiftHandovers && shiftDiscrepancyCount > 0 && (
         <button
           type="button"
-          onClick={() => navigate("/reports/shifts")}
+          onClick={() => navigate("/operations/shift-handover?tab=reports")}
           className="w-full flex items-center gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-left hover:bg-red-100 transition-colors"
         >
           <AlertTriangle size={16} className="text-red-600 shrink-0" />
@@ -1164,4 +1168,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

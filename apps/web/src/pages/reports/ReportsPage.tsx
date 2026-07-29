@@ -77,20 +77,6 @@ const CATEGORIES: Category[] = [
         route: "/reports/monthly",
       },
       {
-        id: "shift",
-        name: "Shift Handover",
-        description: "Cash count and shift sign-off reports",
-        icon: ClipboardList,
-        route: "/reports/shifts",
-      },
-      {
-        id: "night-audit",
-        name: "Night Audit",
-        description: "Close the business day, flag no-shows, and advance the property date",
-        icon: Moon,
-        route: "/reports/night-audit",
-      },
-      {
         id: "revenue-source",
         name: "Revenue by Source",
         description: "Room, POS and other revenue breakdown by date range",
@@ -128,6 +114,27 @@ const CATEGORIES: Category[] = [
     ],
   },
   {
+    id: "operations",
+    name: "Operations",
+    icon: ClipboardList,
+    reports: [
+      {
+        id: "shift-history",
+        name: "Shift Reports",
+        description: "Review submitted handovers, cash counts, variances and approvals",
+        icon: ClipboardList,
+        route: "/operations/shift-handover?tab=reports",
+      },
+      {
+        id: "night-audit-history",
+        name: "Night Audit History",
+        description: "Review frozen daily closures, exceptions and operating snapshots",
+        icon: Moon,
+        route: "/operations/night-audit#history",
+      },
+    ],
+  },
+  {
     id: "occupancy",
     name: "Occupancy & Performance",
     icon: BedDouble,
@@ -151,8 +158,8 @@ const CATEGORIES: Category[] = [
     ],
   },
   {
-    id: "operations",
-    name: "Operations",
+    id: "operational-performance",
+    name: "Operational Performance",
     icon: Wrench,
     reports: [
       { id: "hk-performance", name: "Housekeeping Performance", description: "Per-staff task counts, avg completion time, by-type breakdown", icon: Sparkles, route: "/reports/housekeeping-performance" },

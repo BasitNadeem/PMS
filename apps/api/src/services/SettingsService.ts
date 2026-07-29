@@ -7,6 +7,8 @@ type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
 const SETTINGS_JSON_KEYS = [
   "starRating", "timezone",
   "checkInTime", "checkOutTime",
+  "shiftMorningStart", "shiftEveningStart", "shiftNightStart",
+  "requireIndependentShiftSignoff",
   "lateCheckoutFee", "earlyCheckinFee",
   "defaultSource", "autoConfirm", "maxAdvanceDays",
   "gstEnabled", "gstRate", "pstEnabled", "pstRate",

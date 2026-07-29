@@ -138,7 +138,11 @@ function PasswordField({
 
 // ── Permissions section helpers ─────────────────────────────────────────────
 
-const ACTION_ORDER = ["read", "create", "update", "delete", "manage", "checkin", "checkout", "cancel", "refund", "settings"];
+const ACTION_ORDER = [
+  "read", "create", "update", "delete", "manage",
+  "submit", "signoff", "acknowledge", "run", "markNoShow",
+  "checkin", "checkout", "cancel", "refund", "settings",
+];
 
 // Modules to exclude entirely from the permissions UI.
 const HIDDEN_MODULES = new Set(["audit"]);
@@ -273,6 +277,8 @@ export default function SettingsPage() {
   // ── Operations form ─────────────────────────────────────────────────────────
   const [ops, setOps] = useState({
     checkInTime: "14:00", checkOutTime: "12:00",
+    shiftMorningStart: "06:00", shiftEveningStart: "14:00", shiftNightStart: "22:00",
+    requireIndependentShiftSignoff: false,
     lateCheckoutFee: "", earlyCheckinFee: "",
     defaultSource: "WALK_IN",
     autoConfirm: false, maxAdvanceDays: "365",
@@ -461,6 +467,10 @@ export default function SettingsPage() {
     setOps({
       checkInTime:     String(s.checkInTime   ?? "14:00"),
       checkOutTime:    String(s.checkOutTime  ?? "12:00"),
+      shiftMorningStart: String(s.shiftMorningStart ?? "06:00"),
+      shiftEveningStart: String(s.shiftEveningStart ?? "14:00"),
+      shiftNightStart: String(s.shiftNightStart ?? "22:00"),
+      requireIndependentShiftSignoff: Boolean(s.requireIndependentShiftSignoff),
       lateCheckoutFee: String(s.lateCheckoutFee ?? ""),
       earlyCheckinFee: String(s.earlyCheckinFee ?? ""),
       defaultSource:   String(s.defaultSource   ?? "WALK_IN"),
@@ -529,10 +539,25 @@ export default function SettingsPage() {
   }
 
   async function saveOps() {
+    const toMinutes = (value: string) => {
+      const [hour, minute] = value.split(":").map(Number);
+      return hour * 60 + minute;
+    };
+    if (!(
+      toMinutes(ops.shiftMorningStart) < toMinutes(ops.shiftEveningStart)
+      && toMinutes(ops.shiftEveningStart) < toMinutes(ops.shiftNightStart)
+    )) {
+      addToast("Shift starts must be ordered Morning, Evening, then Night", "error");
+      return;
+    }
     setOpsSaving(true);
     try {
       const dto: UpdateSettingsDto = {
         checkInTime: ops.checkInTime, checkOutTime: ops.checkOutTime,
+        shiftMorningStart: ops.shiftMorningStart,
+        shiftEveningStart: ops.shiftEveningStart,
+        shiftNightStart: ops.shiftNightStart,
+        requireIndependentShiftSignoff: ops.requireIndependentShiftSignoff,
         defaultSource: ops.defaultSource, autoConfirm: ops.autoConfirm,
         maxAdvanceDays: parseInt(ops.maxAdvanceDays, 10) || 365,
         lateCheckoutFee: ops.lateCheckoutFee ? parseInt(ops.lateCheckoutFee, 10) : 0,
@@ -1038,6 +1063,37 @@ export default function SettingsPage() {
                       placeholder="0"
                     />
                     <p className="mt-1 text-[12px] text-ink-faint">Automatically added to the folio when check-in happens before the configured time. Set to 0 to disable.</p>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-line-soft bg-mist p-4">
+                  <div className="mb-1 text-[13.5px] font-semibold text-ink">Shift schedule</div>
+                  <p className="mb-4 text-[12px] leading-relaxed text-ink-faint">
+                    InnFlo uses these tenant-specific boundaries for handover counts, cash reconciliation, and the earliest time Night Audit can close the day.
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {([
+                      ["Morning starts", "shiftMorningStart"],
+                      ["Evening starts", "shiftEveningStart"],
+                      ["Night starts", "shiftNightStart"],
+                    ] as const).map(([label, key]) => (
+                      <div key={key}>
+                        <label className={labelCls}>{label}</label>
+                        <input
+                          type="time"
+                          className={inputCls}
+                          value={ops[key]}
+                          onChange={(event) => setOps((current) => ({ ...current, [key]: event.target.value }))}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 border-t border-line-soft pt-3">
+                    <Toggle
+                      checked={ops.requireIndependentShiftSignoff}
+                      onChange={(value) => setOps((current) => ({ ...current, requireIndependentShiftSignoff: value }))}
+                      label="Require a different person to sign off"
+                      subtext="When enabled, the staff member who submits a handover cannot approve their own cash count"
+                    />
                   </div>
                 </div>
                 <div>

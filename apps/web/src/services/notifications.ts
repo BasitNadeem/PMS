@@ -25,7 +25,7 @@ export function notificationHref(notification: AppNotification): string {
   if (notification.type === "HOUSEKEEPING") return "/housekeeping";
   if (notification.type === "QR_ORDER") return "/qr-orders";
   if (notification.type === "MAINTENANCE" || notification.type === "MAINTENANCE_URGENT") return "/maintenance";
-  if (notification.type === "SHIFT_CASH_DISCREPANCY") return "/reports/shifts";
+  if (notification.type === "SHIFT_CASH_DISCREPANCY") return "/operations/shift-handover?tab=reports";
   if (entityType === "group"       && entityId) return `/groups/${entityId}`;
   if (entityType === "reservation" && entityId) return `/reservations/${entityId}`;
   return "/notifications";

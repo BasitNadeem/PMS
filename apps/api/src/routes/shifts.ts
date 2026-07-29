@@ -9,50 +9,56 @@ import {
   prefillQuerySchema,
   signOffSchema,
 } from "../schemas/shifts";
+import { requirePermission } from "../middleware/permission";
 
 const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
 
-router.get("/prefill", async (req, res) => {
+router.get("/context", requirePermission("shiftHandover:read"), async (req, res) => {
+  const data = await ShiftService.getCurrentContext(req.withTenant, req.user!.hotelId);
+  res.json({ data });
+});
+
+router.get("/prefill", requirePermission("shiftHandover:read"), async (req, res) => {
   const query = prefillQuerySchema.parse(req.query);
-  const data = await ShiftService.getPrefillData(req.withTenant, query.date, query.shiftType);
+  const data = await ShiftService.getPrefillData(req.withTenant, req.user!.hotelId, query.date, query.shiftType);
   res.json({ data });
 });
 
-router.get("/handover-briefing", async (req, res) => {
+router.get("/handover-briefing", requirePermission("shiftHandover:read"), async (req, res) => {
   const query = briefingQuerySchema.parse(req.query);
-  const data = await ShiftService.getHandoverBriefing(req.withTenant, req.user!.hotelId, query.date);
+  const data = await ShiftService.getHandoverBriefing(req.withTenant, req.user!.hotelId, query.date, query.shiftType);
   res.json({ data });
 });
 
-router.get("/discrepancy-count", async (req, res) => {
+router.get("/discrepancy-count", requirePermission("shiftHandover:read"), async (req, res) => {
   const count = await ShiftService.getDiscrepancyAlertCount(req.withTenant, req.user!.hotelId);
   res.json({ data: { count } });
 });
 
-router.get("/", async (req, res) => {
+router.get("/", requirePermission("shiftHandover:read"), async (req, res) => {
   const query = listShiftsSchema.parse(req.query);
   const result = await ShiftService.list(req.withTenant, req.user!.hotelId, query);
   res.json(result);
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", requirePermission("shiftHandover:read"), async (req, res) => {
   const data = await ShiftService.getOne(req.withTenant, req.user!.hotelId, req.params.id as string);
   res.json({ data });
 });
 
-router.post("/", async (req, res) => {
+router.post("/", requirePermission("shiftHandover:submit"), async (req, res) => {
   const dto = createShiftReportSchema.parse(req.body);
   const data = await ShiftService.createShiftReport(req.withTenant, req.user!.hotelId, dto, req.user!.userId);
   res.status(201).json({ data });
 });
 
-router.patch("/:id/acknowledge", async (req, res) => {
-  await ShiftService.acknowledgeDiscrepancy(req.withTenant, req.user!.hotelId, req.params.id as string);
+router.patch("/:id/acknowledge", requirePermission("shiftHandover:acknowledge"), async (req, res) => {
+  await ShiftService.acknowledgeDiscrepancy(req.withTenant, req.user!.hotelId, req.params.id as string, req.user!.userId);
   res.json({ data: { acknowledged: true } });
 });
 
-router.patch("/:id/signoff", async (req, res) => {
+router.patch("/:id/signoff", requirePermission("shiftHandover:signoff"), async (req, res) => {
   const dto = signOffSchema.parse(req.body);
   const data = await ShiftService.signOff(req.withTenant, req.user!.hotelId, req.params.id as string, dto, req.user!.userId);
   res.json({ data });

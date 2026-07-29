@@ -103,6 +103,7 @@ interface NavSubItem {
   label: string;
   icon: React.ElementType;
   permission: string;
+  featureGate?: string;
 }
 
 interface NavItem {
@@ -135,6 +136,13 @@ const NAV_ITEMS: NavItem[] = [
   },
   { to: "/housekeeping", label: "Housekeeping", icon: Sparkles, permission: "housekeeping:read" },
   { to: "/maintenance",  label: "Maintenance",  icon: Wrench, permission: "maintenance:read" },
+  {
+    to: "/operations", label: "Operations", icon: ClipboardList, permission: "shiftHandover:read",
+    children: [
+      { to: "/operations/shift-handover", label: "Shift Handover", icon: ClipboardList, permission: "shiftHandover:read" },
+      { to: "/operations/night-audit", label: "Night Audit", icon: Moon, permission: "nightAudit:read", featureGate: "nightAudit" },
+    ],
+  },
   { to: "/team",         label: "Team",         icon: Users2, permission: "team:read" },
   { to: "/pos",          label: "POS",       icon: ShoppingCart,  permission: "pos:read" },
   { to: "/qr-orders",    label: "QR Orders", icon: ClipboardList, permission: "pos:read" },
@@ -143,7 +151,6 @@ const NAV_ITEMS: NavItem[] = [
     to: "/reports", label: "Reports", icon: FileBarChart, permission: "reports:read",
     children: [
       { to: "/reports",             label: "All Reports", icon: FileBarChart, permission: "reports:read" },
-      { to: "/reports/night-audit", label: "Night Audit", icon: Moon,         permission: "reports:read" },
     ],
   },
   { to: "/rate-plans",      label: "Rate Plans", icon: Tag,     permission: "rates:read",      featureGate: "ratePlans" },
@@ -297,8 +304,15 @@ function SidebarContent({
         : has(item.permission);
     })
     .map((item) => item.children
-      ? { ...item, children: item.children.filter((c) => has(c.permission)) }
-      : item);
+      ? {
+          ...item,
+          children: item.children.filter((child) =>
+            has(child.permission)
+            && (!child.featureGate || !planFeatures || planFeatures[child.featureGate] === true),
+          ),
+        }
+      : item)
+    .filter((item) => !item.children || item.children.length > 0);
 
   return (
     <div className="flex flex-col h-full">

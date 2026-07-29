@@ -35,6 +35,10 @@ export interface UpdateSettingsDto {
   timezone?: string;
   checkInTime?: string;
   checkOutTime?: string;
+  shiftMorningStart?: string;
+  shiftEveningStart?: string;
+  shiftNightStart?: string;
+  requireIndependentShiftSignoff?: boolean;
   lateCheckoutFee?: number;
   earlyCheckinFee?: number;
   defaultSource?: string;

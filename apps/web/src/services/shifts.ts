@@ -15,7 +15,18 @@ export interface ShiftPrefill {
   newBookings: number;
   posOrders: number;
   cashCollected: number;
+  cashExpenses: number;
   suggestedOpeningBalance: number;
+}
+
+export interface ShiftContext {
+  shiftDate: string;
+  shiftType: ShiftType;
+  schedule: {
+    morningStart: string;
+    eveningStart: string;
+    nightStart: string;
+  };
 }
 
 // Snapshot items inside the frozen handoverBriefing JSON
@@ -122,6 +133,11 @@ export interface ListShiftsParams {
 }
 
 export const shiftsService = {
+  getCurrentContext: async (): Promise<ShiftContext> => {
+    const res = await api.get("/api/shifts/context");
+    return res.data.data;
+  },
+
   getPrefill: async (date: string, shiftType: ShiftType): Promise<ShiftPrefill> => {
     const res = await api.get("/api/shifts/prefill", { params: { date, shiftType } });
     return res.data.data;

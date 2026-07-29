@@ -378,7 +378,11 @@ function PmsRoutes() {
           }
         />
         <Route
-          path="/reports/shifts"
+          path="/operations"
+          element={<Navigate to="/operations/shift-handover" replace />}
+        />
+        <Route
+          path="/operations/shift-handover"
           element={
             <PrivateRoute>
               <AppLayout>
@@ -386,6 +390,14 @@ function PmsRoutes() {
               </AppLayout>
             </PrivateRoute>
           }
+        />
+        <Route
+          path="/operations/night-audit"
+          element={<PrivateRoute><AppLayout><NightAuditPage /></AppLayout></PrivateRoute>}
+        />
+        <Route
+          path="/reports/shifts"
+          element={<Navigate to="/operations/shift-handover" replace />}
         />
         <Route
           path="/reports/revenue-source"
@@ -536,7 +548,7 @@ function PmsRoutes() {
         <Route path="/reports/low-stock-reorder" element={<PrivateRoute><AppLayout><LowStockReorderPage /></AppLayout></PrivateRoute>} />
         <Route path="/reports/pos-sales" element={<PrivateRoute><AppLayout><POSSalesPage /></AppLayout></PrivateRoute>} />
         <Route path="/reports/qr-orders" element={<PrivateRoute><AppLayout><QROrdersReportPage /></AppLayout></PrivateRoute>} />
-        <Route path="/reports/night-audit" element={<PrivateRoute><AppLayout><NightAuditPage /></AppLayout></PrivateRoute>} />
+        <Route path="/reports/night-audit" element={<Navigate to="/operations/night-audit" replace />} />
         <Route
           path="/notifications"
           element={

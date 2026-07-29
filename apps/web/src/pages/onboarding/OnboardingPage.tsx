@@ -316,6 +316,9 @@ type ProfileForm = {
   email: string;
   checkInTime: string;
   checkOutTime: string;
+  shiftMorningStart: string;
+  shiftEveningStart: string;
+  shiftNightStart: string;
   description: string;
   gstEnabled: boolean;
   gstRate: string;
@@ -339,6 +342,9 @@ function StepHotelProfile({ onBack, onNext }: { onBack: () => void; onNext: () =
     email: "",
     checkInTime: "14:00",
     checkOutTime: "12:00",
+    shiftMorningStart: "06:00",
+    shiftEveningStart: "14:00",
+    shiftNightStart: "22:00",
     description: "",
     gstEnabled: false,
     gstRate: "0",
@@ -362,6 +368,9 @@ function StepHotelProfile({ onBack, onNext }: { onBack: () => void; onNext: () =
       email: settings.email ?? "",
       checkInTime: String(values.checkInTime ?? "14:00"),
       checkOutTime: String(values.checkOutTime ?? "12:00"),
+      shiftMorningStart: String(values.shiftMorningStart ?? "06:00"),
+      shiftEveningStart: String(values.shiftEveningStart ?? "14:00"),
+      shiftNightStart: String(values.shiftNightStart ?? "22:00"),
       description: settings.description ?? "",
       gstEnabled: booleanSetting(values.gstEnabled, false),
       gstRate: String(numberSetting(values.gstRate, 0)),
@@ -387,6 +396,17 @@ function StepHotelProfile({ onBack, onNext }: { onBack: () => void; onNext: () =
       setError("Tax rates must be between 0 and 100.");
       return;
     }
+    const toMinutes = (value: string) => {
+      const [hour, minute] = value.split(":").map(Number);
+      return hour * 60 + minute;
+    };
+    if (!(
+      toMinutes(form.shiftMorningStart) < toMinutes(form.shiftEveningStart)
+      && toMinutes(form.shiftEveningStart) < toMinutes(form.shiftNightStart)
+    )) {
+      setError("Shift starts must be ordered Morning, Evening, then Night.");
+      return;
+    }
 
     setError(null);
     setPhoneError(null);
@@ -401,6 +421,9 @@ function StepHotelProfile({ onBack, onNext }: { onBack: () => void; onNext: () =
         email: form.email.trim(),
         checkInTime: form.checkInTime,
         checkOutTime: form.checkOutTime,
+        shiftMorningStart: form.shiftMorningStart,
+        shiftEveningStart: form.shiftEveningStart,
+        shiftNightStart: form.shiftNightStart,
         description: form.description.trim(),
         gstEnabled: form.gstEnabled,
         gstRate: form.gstEnabled ? gstRate : 0,
@@ -516,6 +539,35 @@ function StepHotelProfile({ onBack, onNext }: { onBack: () => void; onNext: () =
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-line bg-card p-5">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-coral-soft">
+              <Clock3 className="h-4 w-4 text-coral-dark" />
+            </div>
+            <div>
+              <p className="text-[13px] font-bold">Staff shifts</p>
+              <p className="text-[10px] text-ink-mute">Optional defaults — change them any time in Settings</p>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {([
+              ["Morning starts", "shiftMorningStart"],
+              ["Evening starts", "shiftEveningStart"],
+              ["Night starts", "shiftNightStart"],
+            ] as const).map(([label, key]) => (
+              <label key={key} className={labelCls}>
+                {label}
+                <input
+                  type="time"
+                  className={cn(inputCls, "mt-1.5")}
+                  value={form[key]}
+                  onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}
+                />
+              </label>
+            ))}
           </div>
         </div>
 

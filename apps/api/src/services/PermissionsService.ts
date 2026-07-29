@@ -18,6 +18,8 @@ const VISIBLE_PERMISSION_KEYS = new Set([
   "bookingEngine:read", "bookingEngine:manage",
   "team:read", "team:create", "team:update", "team:delete",
   "reports:read",
+  "shiftHandover:read", "shiftHandover:submit", "shiftHandover:signoff", "shiftHandover:acknowledge",
+  "nightAudit:read", "nightAudit:run", "nightAudit:markNoShow",
   "settings:read", "settings:update",
 ]);
 

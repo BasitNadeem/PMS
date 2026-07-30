@@ -161,10 +161,10 @@ const NAV_ITEMS: NavItem[] = [
 function Logo({ size = 38 }: { size?: number }) {
   return (
     <img
-      src="/brand/app-icon-dark.svg"
+      src="/brand/mark-clay-tight.svg"
       alt=""
       aria-hidden="true"
-      className="shrink-0 rounded-2xl"
+      className="shrink-0"
       style={{ width: size, height: size }}
     />
   );

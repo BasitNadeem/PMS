@@ -53,7 +53,7 @@ export default function Footer() {
           <div className="grid gap-10 py-11 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.15fr]">
             <div>
               <Link to="/" className="inline-flex items-center gap-3" aria-label="InnFlo home">
-                <img src="/brand/mark-clay.svg" alt="" aria-hidden="true" className="h-10 w-10" />
+                <img src="/brand/mark-clay-tight.svg" alt="" aria-hidden="true" className="h-10 w-10" />
                 <span className="font-display text-[30px] font-medium italic text-paper">InnFlo</span>
               </Link>
               <p className="mt-4 max-w-[300px] text-[14px] leading-relaxed" style={{ color: SOFT }}>

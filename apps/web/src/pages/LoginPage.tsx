@@ -20,18 +20,12 @@ function InnFloMark({ tone = "light" }: { tone?: "light" | "dark" }) {
 
   return (
     <div className="flex items-center gap-3">
-      <div
-        className={`grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-[15px] ${
-          dark ? "bg-white/[0.06] ring-1 ring-white/10" : "shadow-[0_10px_24px_rgba(33,30,26,0.18)]"
-        }`}
-      >
-        <img
-          src={dark ? "/brand/mark-clay.svg" : "/brand/app-icon-dark.svg"}
-          alt=""
-          aria-hidden="true"
-          className={dark ? "h-8 w-8" : "h-11 w-11"}
-        />
-      </div>
+      <img
+        src="/brand/mark-clay-tight.svg"
+        alt=""
+        aria-hidden="true"
+        className="h-11 w-11 shrink-0"
+      />
       <div>
         <div className={`serif text-[25px] font-semibold italic tracking-[-0.035em] ${dark ? "text-white" : "text-ink"}`}>
           InnFlo

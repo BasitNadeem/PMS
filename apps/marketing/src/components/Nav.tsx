@@ -129,18 +129,12 @@ export default function Nav() {
       >
         <div className={`flex items-center justify-between transition-[height,padding] duration-500 ${scrolled ? "h-[66px] px-3.5 sm:px-4" : "h-24 px-1 sm:px-2"}`}>
           <Link to="/" onPointerEnter={() => void preloadRoute("/")} onFocus={() => void preloadRoute("/")} className="group flex shrink-0 items-center gap-2.5" aria-label="InnFlo home">
-            <span className={`relative grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-[13px] transition-colors ${darkMode ? "bg-coral" : "bg-transparent"}`}>
+            <span className="grid h-10 w-10 shrink-0 place-items-center">
               <img
-                src="/brand/app-icon-dark.svg"
+                src="/brand/mark-clay-tight.svg"
                 alt=""
                 aria-hidden="true"
-                className={`absolute inset-0 h-9 w-9 transition-opacity duration-300 ${darkMode ? "opacity-0" : "opacity-100"}`}
-              />
-              <img
-                src="/brand/mark-reverse.svg"
-                alt=""
-                aria-hidden="true"
-                className={`h-[22px] w-[22px] transition-opacity duration-300 ${darkMode ? "opacity-100" : "opacity-0"}`}
+                className="h-10 w-10"
               />
             </span>
             <span className={`font-display text-[24px] font-medium italic tracking-[-.025em] transition-colors ${darkMode ? "text-white" : "text-ink"}`}>

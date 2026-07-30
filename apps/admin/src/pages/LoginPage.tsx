@@ -36,7 +36,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-100">
       <div className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
         <div className="flex items-center gap-3">
-          <img src="/brand/app-icon-dark.svg" alt="" aria-hidden="true" className="h-11 w-11 rounded-2xl" />
+          <img src="/brand/mark-clay-tight.svg" alt="" aria-hidden="true" className="h-11 w-11" />
           <div>
             <h1 className="text-xl font-bold leading-tight text-gray-900">InnFlo</h1>
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">Super admin</p>

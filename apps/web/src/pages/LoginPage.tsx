@@ -3,14 +3,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
   Building2,
-  Check,
   Eye,
   EyeOff,
   KeyRound,
   LockKeyhole,
   Mail,
   ShieldCheck,
-  Sparkles,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { unlockNotificationSound } from "@/lib/notificationSound";
@@ -28,7 +26,7 @@ function InnFloMark({ tone = "light" }: { tone?: "light" | "dark" }) {
       />
       <div>
         <div className={`serif text-[25px] font-semibold italic tracking-[-0.035em] ${dark ? "text-white" : "text-ink"}`}>
-          InnFlo
+          Innflo
         </div>
         <div className={`-mt-1 text-[10px] font-bold uppercase tracking-[0.2em] ${dark ? "text-white/45" : "text-ink-faint"}`}>
           Hotel operations
@@ -79,8 +77,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-mist lg:grid lg:grid-cols-[minmax(420px,0.92fr)_minmax(560px,1.08fr)]">
-      <section className="relative hidden min-h-screen overflow-hidden bg-ink px-12 py-10 text-white lg:flex lg:flex-col xl:px-16 xl:py-12">
+    <main className="min-h-screen bg-mist lg:grid lg:grid-cols-[minmax(320px,3fr)_minmax(0,7fr)]">
+      <section className="relative hidden min-h-screen overflow-hidden bg-ink px-8 py-8 text-white lg:flex lg:flex-col xl:px-11 xl:py-10">
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.08]"
           style={{
@@ -96,44 +94,26 @@ export default function LoginPage() {
           <InnFloMark tone="dark" />
         </a>
 
-        <div className="relative z-10 my-auto max-w-[520px] py-16">
-          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.07] px-3.5 py-2 text-[12px] font-semibold text-white/75 backdrop-blur">
-            <Sparkles size={14} className="text-[#F4A184]" />
-            One clear view of your entire property
-          </div>
-          <h1 className="serif max-w-[500px] text-[52px] font-medium leading-[1.02] tracking-[-0.035em] xl:text-[60px]">
+        <div className="relative z-10 my-auto max-w-[390px] py-12">
+          <p className="mb-5 text-[11px] font-bold uppercase tracking-[0.17em] text-[#F4A184]">
+            Your property workspace
+          </p>
+          <h1 className="serif text-[42px] font-medium leading-[1.02] tracking-[-0.035em] xl:text-[48px]">
             Your hotel,
             <br />
-            <span className="italic text-[#F4A184]">beautifully in flow.</span>
+            <span className="italic text-[#F4A184]">in flow.</span>
           </h1>
-          <p className="mt-6 max-w-[450px] text-[16px] leading-7 text-white/58">
-            Reservations, guests, billing, housekeeping and daily operations—connected in one calm workspace.
+          <p className="mt-6 max-w-[350px] text-[14px] leading-6 text-white/58">
+            One calm place for the work your team handles every day.
           </p>
-
-          <div className="mt-10 grid max-w-[470px] grid-cols-2 gap-3">
-            {[
-              "Live room visibility",
-              "Faster front desk",
-              "Mobile housekeeping",
-              "Direct booking engine",
-            ].map((feature) => (
-              <div key={feature} className="flex items-center gap-2.5 text-[13px] font-medium text-white/72">
-                <span className="grid h-5 w-5 place-items-center rounded-full bg-coral/20 text-[#F4A184]">
-                  <Check size={12} strokeWidth={3} />
-                </span>
-                {feature}
-              </div>
-            ))}
-          </div>
         </div>
 
-        <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-6 text-[11px] text-white/35">
+        <div className="relative z-10 border-t border-white/10 pt-5 text-[11px] text-white/35">
           <span>Built for independent hotels</span>
-          <span>Simple · Secure · Always on</span>
         </div>
       </section>
 
-      <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-5 py-8 sm:px-10 lg:px-14">
+      <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-5 py-8 sm:px-10 lg:px-14 xl:px-20">
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-coral-soft/75 blur-3xl lg:hidden" />
         <div className="relative w-full max-w-[480px]">
           <div className="mb-10 flex items-center justify-between lg:hidden">
@@ -147,9 +127,6 @@ export default function LoginPage() {
           </div>
 
           <div className="mb-9">
-            <div className="mb-5 hidden lg:block">
-              <InnFloMark />
-            </div>
             <p className="mb-3 text-[12px] font-bold uppercase tracking-[0.18em] text-coral">
               Property workspace
             </p>
@@ -256,7 +233,7 @@ export default function LoginPage() {
                 </>
               ) : (
                 <>
-                  Sign in to InnFlo
+                  Sign in to Innflo
                   <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
                 </>
               )}

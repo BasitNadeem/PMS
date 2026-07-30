@@ -127,23 +127,20 @@ export default function Nav() {
               : "mt-0 max-w-7xl rounded-none border-transparent bg-transparent shadow-none"
         } border`}
       >
-        <div className={`flex items-center justify-between transition-[height,padding] duration-500 ${scrolled ? "h-[66px] px-3.5 sm:px-4" : "h-24 px-1 sm:px-2"}`}>
-          <Link to="/" onPointerEnter={() => void preloadRoute("/")} onFocus={() => void preloadRoute("/")} className="group flex shrink-0 items-center gap-2.5" aria-label="InnFlo home">
-            <span className="grid h-10 w-10 shrink-0 place-items-center">
+        <div className={`relative flex items-center transition-[height,padding] duration-500 ${scrolled ? "h-[66px] px-3.5 sm:px-4" : "h-24 px-1 sm:px-2"}`}>
+          <Link to="/" onPointerEnter={() => void preloadRoute("/")} onFocus={() => void preloadRoute("/")} className="group flex shrink-0 items-center" aria-label="Innflo home">
+            <span className="grid h-[46px] w-[46px] shrink-0 place-items-center transition-transform duration-300 group-hover:scale-[1.04] sm:h-12 sm:w-12">
               <img
                 src="/brand/mark-clay-tight.svg"
                 alt=""
                 aria-hidden="true"
-                className="h-10 w-10"
+                className="h-full w-full"
               />
-            </span>
-            <span className={`font-display text-[24px] font-medium italic tracking-[-.025em] transition-colors ${darkMode ? "text-white" : "text-ink"}`}>
-              InnFlo
             </span>
           </Link>
 
           <nav
-            className={`relative hidden items-center rounded-full border transition-[gap,padding,background-color,border-color,box-shadow] duration-500 lg:flex ${
+            className={`absolute left-1/2 hidden -translate-x-1/2 items-center rounded-full border transition-[gap,padding,background-color,border-color,box-shadow] duration-500 lg:flex ${
               darkMode
                 ? "gap-0.5 border-white/15 bg-white/[.06] p-1.5"
                 : "gap-1 border-transparent bg-transparent p-0 xl:gap-3"
@@ -319,7 +316,7 @@ export default function Nav() {
             <NavLink to="/about" onPointerEnter={() => void preloadRoute("/about")} onFocus={() => void preloadRoute("/about")} className={({ isActive }) => desktopLinkClass(isActive)}>About</NavLink>
           </nav>
 
-          <div className="hidden shrink-0 items-center gap-2 lg:flex">
+          <div className="ml-auto hidden shrink-0 items-center gap-2 lg:flex">
             <a
               href="https://app.innflo.co/login"
               className={`flex h-10 items-center rounded-full px-4 text-[12px] font-bold transition-colors ${
@@ -337,7 +334,7 @@ export default function Nav() {
           <button
             type="button"
             onClick={() => setMobileOpen((current) => !current)}
-            className={`grid h-10 w-10 place-items-center rounded-full transition-colors lg:hidden ${
+            className={`ml-auto grid h-10 w-10 place-items-center rounded-full transition-colors lg:hidden ${
               darkMode ? "bg-white/10 text-white" : "bg-ink text-white"
             }`}
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
@@ -358,15 +355,15 @@ export default function Nav() {
             >
               <div className="mx-3 max-h-[calc(100vh-100px)] overflow-y-auto border-t border-line-soft px-1 pb-6 pt-4 sm:mx-5">
                 <p className="mb-2 px-2 text-[9px] font-black uppercase tracking-[.18em] text-ink-faint">Product</p>
-                <div className="grid gap-2 rounded-2xl border border-[#e6d8cc] bg-[#f1e5dc] p-2 sm:grid-cols-3">
+                <div className="grid gap-1.5 rounded-2xl border border-[#e6d8cc] bg-[#f1e5dc] p-2 sm:grid-cols-3 sm:gap-2">
                   {PRODUCT_LINKS.map((item) => (
-                    <Link key={item.to} to={item.to} className="rounded-2xl border border-[#eadfd4] bg-[#fbf7f2] p-4 text-ink">
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-coral-soft text-coral-dark"><item.icon className="h-[18px] w-[18px]" /></span>
-                        <span className={`rounded-full px-2 py-1 text-[7px] font-black uppercase tracking-[.14em] ${item.status === "Live" ? "bg-emerald-50 text-emerald-700" : "bg-white text-coral-dark"}`}>{item.status}</span>
+                    <Link key={item.to} to={item.to} className="relative grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-[#eadfd4] bg-[#fbf7f2] p-3 text-ink sm:block sm:p-4">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] bg-coral-soft text-coral-dark sm:h-10 sm:w-10 sm:rounded-[13px]"><item.icon className="h-[17px] w-[17px] sm:h-[18px] sm:w-[18px]" /></span>
+                      <div className="min-w-0 sm:contents">
+                        <p className="text-[12px] font-black sm:mt-3 sm:text-[13px]">{item.label}</p>
+                        <p className="mt-0.5 line-clamp-1 text-[9.5px] leading-relaxed text-ink-mute sm:mt-1 sm:line-clamp-none sm:text-[10px]">{item.short}</p>
                       </div>
-                      <p className="mt-3 text-[13px] font-black">{item.label}</p>
-                      <p className="mt-1 text-[10px] leading-relaxed text-ink-mute">{item.short}</p>
+                      <span className={`rounded-full px-2 py-1 text-[7px] font-black uppercase tracking-[.14em] sm:absolute sm:right-4 sm:top-4 ${item.status === "Live" ? "bg-emerald-50 text-emerald-700" : "bg-white text-coral-dark"}`}>{item.status}</span>
                     </Link>
                   ))}
                 </div>

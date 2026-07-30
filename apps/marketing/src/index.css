@@ -16,6 +16,7 @@
     color: #211E1A;
     font-weight: 500;
     margin: 0;
+    overflow-x: clip;
   }
 
   ::selection {

@@ -35,7 +35,13 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100">
       <div className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
-        <h1 className="text-xl font-bold text-gray-900">PMS Admin</h1>
+        <div className="flex items-center gap-3">
+          <img src="/brand/app-icon-dark.svg" alt="" aria-hidden="true" className="h-11 w-11 rounded-2xl" />
+          <div>
+            <h1 className="text-xl font-bold leading-tight text-gray-900">InnFlo</h1>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">Super admin</p>
+          </div>
+        </div>
         <p className="mt-1 text-sm text-gray-500">Internal administration panel</p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">

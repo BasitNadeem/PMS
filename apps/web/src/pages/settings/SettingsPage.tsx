@@ -279,6 +279,9 @@ export default function SettingsPage() {
     checkInTime: "14:00", checkOutTime: "12:00",
     shiftMorningStart: "06:00", shiftEveningStart: "14:00", shiftNightStart: "22:00",
     requireIndependentShiftSignoff: false,
+    shiftHandoverRemindersEnabled: true,
+    nightAuditRemindersEnabled: true,
+    shiftReminderLeadMinutes: "30",
     lateCheckoutFee: "", earlyCheckinFee: "",
     defaultSource: "WALK_IN",
     autoConfirm: false, maxAdvanceDays: "365",
@@ -471,6 +474,9 @@ export default function SettingsPage() {
       shiftEveningStart: String(s.shiftEveningStart ?? "14:00"),
       shiftNightStart: String(s.shiftNightStart ?? "22:00"),
       requireIndependentShiftSignoff: Boolean(s.requireIndependentShiftSignoff),
+      shiftHandoverRemindersEnabled: s.shiftHandoverRemindersEnabled !== false,
+      nightAuditRemindersEnabled: s.nightAuditRemindersEnabled !== false,
+      shiftReminderLeadMinutes: String(s.shiftReminderLeadMinutes ?? "30"),
       lateCheckoutFee: String(s.lateCheckoutFee ?? ""),
       earlyCheckinFee: String(s.earlyCheckinFee ?? ""),
       defaultSource:   String(s.defaultSource   ?? "WALK_IN"),
@@ -498,6 +504,7 @@ export default function SettingsPage() {
       // under this key — without this, a theme (or any settings) change stays
       // stale there until the 5-minute staleTime lapses or a hard refresh.
       qc.invalidateQueries({ queryKey: ["hotel"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 
@@ -558,6 +565,9 @@ export default function SettingsPage() {
         shiftEveningStart: ops.shiftEveningStart,
         shiftNightStart: ops.shiftNightStart,
         requireIndependentShiftSignoff: ops.requireIndependentShiftSignoff,
+        shiftHandoverRemindersEnabled: ops.shiftHandoverRemindersEnabled,
+        nightAuditRemindersEnabled: ops.nightAuditRemindersEnabled,
+        shiftReminderLeadMinutes: Number(ops.shiftReminderLeadMinutes) as 15 | 30 | 60,
         defaultSource: ops.defaultSource, autoConfirm: ops.autoConfirm,
         maxAdvanceDays: parseInt(ops.maxAdvanceDays, 10) || 365,
         lateCheckoutFee: ops.lateCheckoutFee ? parseInt(ops.lateCheckoutFee, 10) : 0,
@@ -1094,6 +1104,52 @@ export default function SettingsPage() {
                       label="Require a different person to sign off"
                       subtext="When enabled, the staff member who submits a handover cannot approve their own cash count"
                     />
+                  </div>
+                  <div className="mt-2 border-t border-line-soft pt-4">
+                    <div className="mb-1 text-[13.5px] font-semibold text-ink">Operational reminders</div>
+                    <p className="mb-2 text-[12px] leading-relaxed text-ink-faint">
+                      Show permission-aware dashboard reminders using this hotel&apos;s shift schedule and business date.
+                    </p>
+                    <div className="divide-y divide-line-soft">
+                      <Toggle
+                        checked={ops.shiftHandoverRemindersEnabled}
+                        onChange={(value) => setOps((current) => ({
+                          ...current,
+                          shiftHandoverRemindersEnabled: value,
+                        }))}
+                        label="Shift handover reminders"
+                        subtext="Appears before a shift ends and stays visible if its handover becomes overdue"
+                      />
+                      {ops.shiftHandoverRemindersEnabled && (
+                        <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+                          <div>
+                            <div className="text-[13px] font-semibold text-ink-soft">Reminder lead time</div>
+                            <div className="mt-0.5 text-[12px] text-ink-mute">How early the dashboard should prompt the active shift</div>
+                          </div>
+                          <select
+                            value={ops.shiftReminderLeadMinutes}
+                            onChange={(event) => setOps((current) => ({
+                              ...current,
+                              shiftReminderLeadMinutes: event.target.value,
+                            }))}
+                            className={cn(inputCls, "w-auto min-w-[150px] cursor-pointer")}
+                          >
+                            <option value="15">15 minutes before</option>
+                            <option value="30">30 minutes before</option>
+                            <option value="60">60 minutes before</option>
+                          </select>
+                        </div>
+                      )}
+                      <Toggle
+                        checked={ops.nightAuditRemindersEnabled}
+                        onChange={(value) => setOps((current) => ({
+                          ...current,
+                          nightAuditRemindersEnabled: value,
+                        }))}
+                        label="Night Audit reminders"
+                        subtext="Appears when the configured Night shift opens the audit, and remains until the business day is closed"
+                      />
+                    </div>
                   </div>
                 </div>
                 <div>

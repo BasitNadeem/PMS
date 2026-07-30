@@ -263,7 +263,11 @@ export const ShiftService = {
     const authoritative = await this.getPrefillData(withTenant, hotelId, dto.shiftDate, dto.shiftType);
     const closingBalance = dto.openingBalance + authoritative.cashCollected - authoritative.cashExpenses;
     const report = await withTenant(async (db) => {
-      await db.$queryRaw`
+      // pg_advisory_xact_lock returns PostgreSQL void. $queryRaw attempts to
+      // deserialize that value and fails with P2010, rolling the handover back.
+      // $executeRaw acquires the same transaction-scoped lock without decoding
+      // the result row.
+      await db.$executeRaw`
         SELECT pg_advisory_xact_lock(hashtext(${`${hotelId}:${dto.shiftDate}:${dto.shiftType}`}))
       `;
       const existing = await db.shiftReport.findFirst({

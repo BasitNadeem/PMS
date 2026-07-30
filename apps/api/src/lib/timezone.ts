@@ -19,8 +19,8 @@ export function getPKTRangeFromStrings(startDate: string, endDate: string): { st
   };
 }
 
-export function getCurrentPKTDate(): string {
-  const pktNow = new Date(Date.now() + PKT_OFFSET_MS);
+export function getCurrentPKTDate(now = new Date()): string {
+  const pktNow = new Date(now.getTime() + PKT_OFFSET_MS);
   return `${pktNow.getUTCFullYear()}-${String(pktNow.getUTCMonth() + 1).padStart(2, "0")}-${String(pktNow.getUTCDate()).padStart(2, "0")}`;
 }
 

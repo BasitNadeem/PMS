@@ -39,6 +39,9 @@ export interface UpdateSettingsDto {
   shiftEveningStart?: string;
   shiftNightStart?: string;
   requireIndependentShiftSignoff?: boolean;
+  shiftHandoverRemindersEnabled?: boolean;
+  nightAuditRemindersEnabled?: boolean;
+  shiftReminderLeadMinutes?: 15 | 30 | 60;
   lateCheckoutFee?: number;
   earlyCheckinFee?: number;
   defaultSource?: string;

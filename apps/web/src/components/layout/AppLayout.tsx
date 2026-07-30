@@ -160,16 +160,13 @@ const NAV_ITEMS: NavItem[] = [
 
 function Logo({ size = 38 }: { size?: number }) {
   return (
-    <div
-      className="grid place-items-center rounded-2xl bg-ink shrink-0"
+    <img
+      src="/brand/app-icon-dark.svg"
+      alt=""
+      aria-hidden="true"
+      className="shrink-0 rounded-2xl"
       style={{ width: size, height: size }}
-    >
-      <svg width={size * 0.56} height={size * 0.56} viewBox="0 0 24 24" fill="none">
-        <path d="M3 19 L9 7 L13 14 L16 9 L21 19 Z" fill="rgb(var(--color-accent))" />
-        <path d="M9 7 L11 11 L9.6 11.6 Z" fill="#fff" fillOpacity="0.85" />
-        <circle cx="17.5" cy="6" r="1.6" fill="#F6C453" />
-      </svg>
-    </div>
+    />
   );
 }
 

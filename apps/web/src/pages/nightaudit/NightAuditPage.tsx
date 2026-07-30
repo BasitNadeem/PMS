@@ -75,6 +75,7 @@ function ReviewModal({ businessDate, preflight, onClose, onSuccess }: ReviewModa
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["night-audit-business-date"] });
       qc.invalidateQueries({ queryKey: ["night-audit-history"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
       onSuccess();
     },
     onError: (err: { response?: { data?: { error?: string } } }) => {

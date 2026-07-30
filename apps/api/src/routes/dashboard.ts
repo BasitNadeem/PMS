@@ -3,11 +3,17 @@ import { HousekeepingTaskStatus, MaintenanceStatus, PaymentStatus, Prisma } from
 import { authenticate } from "../middleware/auth";
 import { tenantMiddleware } from "../middleware/tenant";
 import { computeMaintenanceSummary } from "../services/MaintenanceService";
+import { OperationalReminderService } from "../services/OperationalReminderService";
 
 const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
 
 router.get("/", async (req, res) => {
+  const operationalRemindersPromise = OperationalReminderService.getForDashboard(
+    req.withTenant,
+    req.user!.hotelId,
+    req.user!.permissions,
+  );
   const todayStart = new Date();
   todayStart.setUTCHours(0, 0, 0, 0);
   const todayEnd = new Date();
@@ -25,7 +31,7 @@ router.get("/", async (req, res) => {
   const upcomingEnd = new Date(todayEnd);
   upcomingEnd.setUTCDate(upcomingEnd.getUTCDate() + 7);
 
-  const data = await req.withTenant(async (db) => {
+  const dataPromise = req.withTenant(async (db) => {
     const [
       totalRooms,
       occupiedRooms,
@@ -358,7 +364,11 @@ router.get("/", async (req, res) => {
     };
   });
 
-  res.json({ data });
+  const [data, operationalReminders] = await Promise.all([
+    dataPromise,
+    operationalRemindersPromise,
+  ]);
+  res.json({ data: { ...data, operationalReminders } });
 });
 
 const REVENUE_TREND_RANGES = { "14d": 14, "30d": 30, "6m": 182 } as const;

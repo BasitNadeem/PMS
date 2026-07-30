@@ -9,6 +9,8 @@ const SETTINGS_JSON_KEYS = [
   "checkInTime", "checkOutTime",
   "shiftMorningStart", "shiftEveningStart", "shiftNightStart",
   "requireIndependentShiftSignoff",
+  "shiftHandoverRemindersEnabled", "nightAuditRemindersEnabled",
+  "shiftReminderLeadMinutes",
   "lateCheckoutFee", "earlyCheckinFee",
   "defaultSource", "autoConfirm", "maxAdvanceDays",
   "gstEnabled", "gstRate", "pstEnabled", "pstRate",

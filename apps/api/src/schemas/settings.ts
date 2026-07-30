@@ -26,6 +26,13 @@ export const updateSettingsSchema = z.object({
   shiftEveningStart: hotelTimeSchema.optional(),
   shiftNightStart:   hotelTimeSchema.optional(),
   requireIndependentShiftSignoff: z.boolean().optional(),
+  shiftHandoverRemindersEnabled: z.boolean().optional(),
+  nightAuditRemindersEnabled:    z.boolean().optional(),
+  shiftReminderLeadMinutes: z.union([
+    z.literal(15),
+    z.literal(30),
+    z.literal(60),
+  ]).optional(),
   lateCheckoutFee:   z.number().int().min(0).optional(),
   earlyCheckinFee:   z.number().int().min(0).optional(),
   defaultSource:     z.enum(["WALK_IN", "PHONE", "WHATSAPP", "BOOKING_COM", "AGODA", "EXPEDIA"]).optional(),

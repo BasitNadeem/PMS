@@ -19,7 +19,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     <div className="flex min-h-screen bg-gray-50">
       <aside className="fixed inset-y-0 left-0 flex w-60 flex-col bg-gray-900 text-gray-300">
         <div className="px-5 py-6">
-          <span className="text-lg font-bold text-white">&#x2B21; PMS Admin</span>
+          <Link to="/hotels" className="flex items-center gap-3">
+            <img src="/brand/app-icon-dark.svg" alt="" aria-hidden="true" className="h-9 w-9 rounded-xl ring-1 ring-white/10" />
+            <span>
+              <span className="block text-lg font-bold leading-tight text-white">InnFlo</span>
+              <span className="block text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-500">Super admin</span>
+            </span>
+          </Link>
         </div>
 
         <nav className="flex-1 px-3 space-y-1">

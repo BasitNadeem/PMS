@@ -242,7 +242,10 @@ export const NightAuditService = {
 
     try {
       const result = await withTenant(async (db) => {
-        await db.$queryRaw`
+        // pg_advisory_xact_lock returns PostgreSQL void. $queryRaw cannot
+        // deserialize it; $executeRaw acquires the lock without decoding the
+        // result and keeps it scoped to this transaction.
+        await db.$executeRaw`
           SELECT pg_advisory_xact_lock(hashtext(${`night-audit:${hotelId}:${businessDate}`}))
         `;
         const freshHotel = await db.hotel.findUniqueOrThrow({

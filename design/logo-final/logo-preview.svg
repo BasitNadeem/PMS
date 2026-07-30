@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">InnFlo approved symmetrical logo — production preview</title>
+  <desc id="desc">Primary, dark, monochrome, small-size and app-icon treatments of the approved four-quadrant mark.</desc>
+  <defs>
+    <path id="quadrant" d="M164 36 215 86 183 137 234 105 284 156H204C188 156 164 132 164 116Z"/>
+    <g id="approved-mark">
+      <use href="#quadrant"/>
+      <use href="#quadrant" transform="rotate(90 160 160)"/>
+      <use href="#quadrant" transform="rotate(180 160 160)"/>
+      <use href="#quadrant" transform="rotate(270 160 160)"/>
+    </g>
+  </defs>
+
+  <rect width="1600" height="1000" fill="#F5EBE4"/>
+  <text x="110" y="103" fill="#211E1A" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" letter-spacing="6">APPROVED SYMMETRICAL MARK</text>
+  <text x="110" y="147" fill="#938C81" font-family="Arial, Helvetica, sans-serif" font-size="19">One mirrored diagonal quadrant × four exact 90° rotations · Warm Clay system</text>
+
+  <g transform="translate(110 210)">
+    <rect width="650" height="500" rx="30" fill="#FAF8F4"/>
+    <text x="38" y="55" fill="#938C81" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700" letter-spacing="3">PRIMARY / WARM CLAY</text>
+    <g transform="translate(165 80) scale(1.25)" fill="#E0532B">
+      <use href="#approved-mark"/>
+    </g>
+  </g>
+
+  <g transform="translate(840 210)">
+    <rect width="650" height="500" rx="30" fill="#211E1A"/>
+    <text x="38" y="55" fill="#B8B1A6" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700" letter-spacing="3">DARK / WARM CLAY</text>
+    <g transform="translate(165 80) scale(1.25)" fill="#E0532B">
+      <use href="#approved-mark"/>
+    </g>
+  </g>
+
+  <g transform="translate(110 770)">
+    <text x="0" y="0" fill="#938C81" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700" letter-spacing="3">SMALL-SIZE + APP ICON CHECK</text>
+    <g transform="translate(0 38)" fill="#E0532B">
+      <g transform="scale(.32)">
+        <use href="#approved-mark"/>
+      </g>
+      <g transform="translate(145 25) scale(.16)">
+        <use href="#approved-mark"/>
+      </g>
+    </g>
+
+    <g transform="translate(280 15)">
+      <rect width="132" height="132" rx="29" fill="#FAF8F4"/>
+      <g transform="translate(12 12) scale(.3375)" fill="#E0532B">
+        <use href="#approved-mark"/>
+      </g>
+    </g>
+
+    <g transform="translate(450 15)">
+      <rect width="132" height="132" rx="29" fill="#211E1A"/>
+      <g transform="translate(12 12) scale(.3375)" fill="#E0532B">
+        <use href="#approved-mark"/>
+      </g>
+    </g>
+
+    <g transform="translate(690 29)" fill="#211E1A">
+      <g transform="scale(.23)">
+        <use href="#approved-mark"/>
+      </g>
+      <text x="100" y="45" fill="#4A453E" font-family="Arial, Helvetica, sans-serif" font-size="18">Monochrome-ready</text>
+      <text x="100" y="78" fill="#938C81" font-family="Arial, Helvetica, sans-serif" font-size="16">#E0532B · #F5EBE4 · #211E1A</text>
+    </g>
+  </g>
+</svg>

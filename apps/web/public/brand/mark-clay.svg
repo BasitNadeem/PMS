@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-labelledby="title desc">
+  <title id="title">InnFlo symmetrical mark — Warm Clay</title>
+  <desc id="desc">Four identical diagonal quadrants rotated around a curved four-point center.</desc>
+  <defs>
+    <path id="quadrant" d="M164 36 215 86 183 137 234 105 284 156H204C188 156 164 132 164 116Z"/>
+  </defs>
+  <g fill="#E0532B">
+    <use href="#quadrant"/>
+    <use href="#quadrant" transform="rotate(90 160 160)"/>
+    <use href="#quadrant" transform="rotate(180 160 160)"/>
+    <use href="#quadrant" transform="rotate(270 160 160)"/>
+  </g>
+</svg>

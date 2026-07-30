@@ -557,6 +557,7 @@ function SubmitTab() {
       setCreated(report);
       qc.invalidateQueries({ queryKey: ["shifts"] });
       qc.invalidateQueries({ queryKey: ["shift-discrepancy-count"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 

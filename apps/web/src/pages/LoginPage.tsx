@@ -15,27 +15,31 @@ import {
 import { api } from "@/lib/api";
 import { unlockNotificationSound } from "@/lib/notificationSound";
 
-function InnFloMark({ compact = false }: { compact?: boolean }) {
+function InnFloMark({ tone = "light" }: { tone?: "light" | "dark" }) {
+  const dark = tone === "dark";
+
   return (
     <div className="flex items-center gap-3">
-      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[15px] bg-ink shadow-[0_10px_24px_rgba(33,30,26,0.18)]">
-        <svg width="27" height="27" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-          <path d="M6 23V7.8C6 6.81 6.81 6 7.8 6h9.4c.99 0 1.8.81 1.8 1.8V23" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" />
-          <path d="M11 23V11.4c0-.77.63-1.4 1.4-1.4h5.2c.77 0 1.4.63 1.4 1.4V23" fill="rgb(var(--color-accent))" />
-          <path d="M3.5 23c3.7-5.1 7.6-5.2 11.4-1.5 2.6 2.5 5.4 2.5 9.6-1.4" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" />
-          <circle cx="16.1" cy="15.2" r="1" fill="#fff" />
-        </svg>
+      <div
+        className={`grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-[15px] ${
+          dark ? "bg-white/[0.06] ring-1 ring-white/10" : "shadow-[0_10px_24px_rgba(33,30,26,0.18)]"
+        }`}
+      >
+        <img
+          src={dark ? "/brand/mark-clay.svg" : "/brand/app-icon-dark.svg"}
+          alt=""
+          aria-hidden="true"
+          className={dark ? "h-8 w-8" : "h-11 w-11"}
+        />
       </div>
-      {!compact && (
-        <div>
-          <div className="text-[22px] font-extrabold tracking-[-0.04em] text-ink">
-            Inn<span className="text-coral">Flo</span>
-          </div>
-          <div className="-mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-ink-faint">
-            Hotel operations
-          </div>
+      <div>
+        <div className={`serif text-[25px] font-semibold italic tracking-[-0.035em] ${dark ? "text-white" : "text-ink"}`}>
+          InnFlo
         </div>
-      )}
+        <div className={`-mt-1 text-[10px] font-bold uppercase tracking-[0.2em] ${dark ? "text-white/45" : "text-ink-faint"}`}>
+          Hotel operations
+        </div>
+      </div>
     </div>
   );
 }
@@ -95,22 +99,7 @@ export default function LoginPage() {
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-[#EAB28E]/10 blur-3xl" />
 
         <a href="https://innflo.co" className="relative z-10 flex w-fit items-center gap-3" aria-label="InnFlo home">
-          <div className="grid h-11 w-11 place-items-center rounded-[15px] bg-white/10 ring-1 ring-white/15 backdrop-blur">
-            <svg width="27" height="27" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-              <path d="M6 23V7.8C6 6.81 6.81 6 7.8 6h9.4c.99 0 1.8.81 1.8 1.8V23" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" />
-              <path d="M11 23V11.4c0-.77.63-1.4 1.4-1.4h5.2c.77 0 1.4.63 1.4 1.4V23" fill="rgb(var(--color-accent))" />
-              <path d="M3.5 23c3.7-5.1 7.6-5.2 11.4-1.5 2.6 2.5 5.4 2.5 9.6-1.4" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" />
-              <circle cx="16.1" cy="15.2" r="1" fill="#fff" />
-            </svg>
-          </div>
-          <div>
-            <div className="text-[22px] font-extrabold tracking-[-0.04em]">
-              Inn<span className="text-coral">Flo</span>
-            </div>
-            <div className="-mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
-              Hotel operations
-            </div>
-          </div>
+          <InnFloMark tone="dark" />
         </a>
 
         <div className="relative z-10 my-auto max-w-[520px] py-16">

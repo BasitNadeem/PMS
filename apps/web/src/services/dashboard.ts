@@ -91,6 +91,26 @@ export interface DashboardScheduleEvent {
   balanceDue?: number;    // paise; > 0 means outstanding balance on departure
 }
 
+export type DashboardOperationalReminder =
+  | {
+      id: string;
+      kind: "SHIFT_HANDOVER";
+      status: "DUE_SOON" | "OVERDUE";
+      shiftDate: string;
+      shiftType: "MORNING" | "EVENING" | "NIGHT";
+      endsAt: string;
+      minutesFromEnd: number;
+      url: string;
+    }
+  | {
+      id: string;
+      kind: "NIGHT_AUDIT";
+      status: "READY" | "OVERDUE";
+      businessDate: string;
+      openedAt: string;
+      url: string;
+    };
+
 export interface DashboardData {
   occupancy:           DashboardOccupancy;
   today:               DashboardToday;
@@ -103,6 +123,7 @@ export interface DashboardData {
   upcomingReservations: DashboardRecentReservation[];
   departuresToCollect: DashboardDeparturesToCollect;
   schedule:            DashboardScheduleEvent[];
+  operationalReminders: DashboardOperationalReminder[];
 }
 
 export type RevenueTrendRange = "14d" | "30d" | "6m";

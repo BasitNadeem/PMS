@@ -5,7 +5,7 @@ import {
   PlaneLanding, PlaneTakeoff, Banknote, Wallet, Sparkles,
   Calendar, Sun, ArrowRight, LogIn, Plus, Check, X,
   ClipboardList, Package, AlertTriangle, Star,
-  Crown, Waves, Moon, BedDouble, Eye, CheckCircle2,
+  Crown, Waves, Moon, BedDouble, Eye, CheckCircle2, Clock3,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceDot, ResponsiveContainer } from "recharts";
 import { Card } from "@/components/ui/Card";
@@ -18,6 +18,7 @@ import {
   type DashboardRecentReservation,
   type DashboardDeparturesToCollect,
   type DashboardScheduleEvent,
+  type DashboardOperationalReminder,
   type RevenueTrendRange,
 } from "@/services/dashboard";
 import { notesService, type FrontDeskNote } from "@/services/notes";
@@ -53,6 +54,124 @@ const STATUS_LABEL: Record<string, string> = {
   ENQUIRY: "Pending", CONFIRMED: "Confirmed", CHECKED_IN: "Checked In",
   CHECKED_OUT: "Checked Out", CANCELLED: "Cancelled",
 };
+
+const REMINDER_SNOOZE_KEY = "innflo:operational-reminder-snoozes";
+
+function reminderDate(value: string): string {
+  return new Intl.DateTimeFormat("en-PK", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${value}T00:00:00.000Z`));
+}
+
+function OperationalReminderBanners({
+  reminders,
+  onOpen,
+}: {
+  reminders: DashboardOperationalReminder[];
+  onOpen: (url: string) => void;
+}) {
+  const [snoozedUntil, setSnoozedUntil] = useState<Record<string, number>>(() => {
+    try {
+      const stored = sessionStorage.getItem(REMINDER_SNOOZE_KEY);
+      return stored ? JSON.parse(stored) as Record<string, number> : {};
+    } catch {
+      return {};
+    }
+  });
+  const visible = reminders.filter((reminder) =>
+    (snoozedUntil[reminder.id] ?? 0) <= Date.now()
+  );
+
+  function snooze(id: string) {
+    const next = { ...snoozedUntil, [id]: Date.now() + 10 * 60_000 };
+    setSnoozedUntil(next);
+    try {
+      sessionStorage.setItem(REMINDER_SNOOZE_KEY, JSON.stringify(next));
+    } catch {
+      // A blocked storage API should not stop the in-memory snooze.
+    }
+  }
+
+  if (visible.length === 0) return null;
+
+  return (
+    <div className="mb-5 space-y-3">
+      {visible.map((reminder) => {
+        const isOverdue = reminder.status === "OVERDUE";
+        const isShift = reminder.kind === "SHIFT_HANDOVER";
+        const title = isShift
+          ? isOverdue
+            ? `${reminder.shiftType.charAt(0) + reminder.shiftType.slice(1).toLowerCase()} handover is overdue`
+            : `${reminder.shiftType.charAt(0) + reminder.shiftType.slice(1).toLowerCase()} shift ends in ${reminder.minutesFromEnd} min`
+          : isOverdue
+            ? `Night Audit is overdue for ${reminderDate(reminder.businessDate)}`
+            : `Night Audit is ready for ${reminderDate(reminder.businessDate)}`;
+        const description = isShift
+          ? "Review the calculated activity, add anything the next shift should know, and submit the handover."
+          : "Review outstanding exceptions and close the hotel business day when everything is accounted for.";
+
+        return (
+          <div
+            key={reminder.id}
+            className={cn(
+              "flex flex-col gap-4 rounded-2xl border px-5 py-4 shadow-sm sm:flex-row sm:items-center",
+              isOverdue
+                ? "border-red-300 bg-gradient-to-r from-red-50 to-white"
+                : isShift
+                  ? "border-amber/30 bg-gradient-to-r from-amber/10 to-white"
+                  : "border-pine/25 bg-gradient-to-r from-pine/10 to-white",
+            )}
+          >
+            <span className={cn(
+              "grid h-10 w-10 shrink-0 place-items-center rounded-xl",
+              isOverdue
+                ? "bg-red-100 text-red-600"
+                : isShift
+                  ? "bg-amber/15 text-amber"
+                  : "bg-pine/15 text-pine",
+            )}>
+              {isShift ? <Clock3 size={19} /> : <Moon size={19} />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className={cn(
+                "text-[14px] font-bold",
+                isOverdue ? "text-red-900" : "text-ink",
+              )}>
+                {title}
+              </p>
+              <p className="mt-0.5 text-[12.5px] leading-relaxed text-ink-mute">
+                {description}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => snooze(reminder.id)}
+                className="h-9 rounded-full px-3 text-[12.5px] font-semibold text-ink-mute hover:bg-white/70 hover:text-ink"
+              >
+                Remind in 10 min
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpen(reminder.url)}
+                className={cn(
+                  "inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[12.5px] font-semibold text-white shadow-sm",
+                  isOverdue ? "bg-red-600 hover:bg-red-700" : "bg-ink hover:bg-ink/90",
+                )}
+              >
+                {isShift ? "Open handover" : "Open Night Audit"}
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // Day-over-day comparison badges for the KPI row — real deltas, not decorative.
 function countDelta(today: number, yesterday: number): { dir: "up" | "down"; value: string } | undefined {
@@ -976,6 +1095,11 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      <OperationalReminderBanners
+        reminders={dash?.operationalReminders ?? []}
+        onOpen={navigate}
+      />
 
       {/* Shift discrepancy alert — shows when ≥1 cash variance in last 3 days */}
       {canReadShiftHandovers && shiftDiscrepancyCount > 0 && (

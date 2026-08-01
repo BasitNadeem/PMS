@@ -3,26 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { api } from "@/lib/api";
-import type { ResetOwnerPasswordResult, SubscriptionPlan } from "@/types";
-
-const FEATURE_KEYS = [
-  { key: "whatsappBriefing",    label: "WhatsApp Briefing" },
-  { key: "reportsExport",       label: "Reports Export" },
-  { key: "inventoryManagement", label: "Inventory Management" },
-  { key: "groupBookings",       label: "Group Bookings" },
-  { key: "maintenanceTickets",  label: "Maintenance Tickets" },
-  { key: "housekeepingPWA",     label: "Housekeeping PWA" },
-  { key: "posModule",           label: "POS Module" },
-  { key: "qrOrdering",          label: "QR Ordering" },
-  { key: "kitchenDisplay",      label: "Kitchen Display" },
-  { key: "nightAudit",          label: "Night Audit" },
-  { key: "auditLog",            label: "Audit Log" },
-  { key: "ratePlans",           label: "Rate Plans" },
-  { key: "bookingEngine",       label: "Booking Engine" },
-  { key: "channelManager",      label: "Channel Manager" },
-  { key: "customDomain",        label: "Custom Domain" },
-  { key: "corporateBilling",    label: "Corporate Billing" },
-] as const;
+import type { PlanMetadata, ResetOwnerPasswordResult, SubscriptionPlan } from "@/types";
 
 interface HotelDetail {
   id: string;
@@ -36,10 +17,11 @@ interface HotelDetail {
   subscriptionPlanId: string | null;
   subscriptionPlan: {
     id: string; name: string; slug: string;
-    priceMonthly: number; maxRooms: number; maxUsers: number;
+    priceMonthly: number; limits: Record<string, number | null>;
     features: Record<string, boolean>;
+    isActive: boolean;
   } | null;
-  roomLimitOverride: number | null;
+  limitOverrides: Record<string, number | null> | null;
   featureOverrides: Record<string, boolean> | null;
   _count: { rooms: number; reservations: number; users: number };
   users: { role: string; user: { id: string; name: string; email: string; isFirstLogin: boolean } }[];
@@ -53,7 +35,7 @@ export default function HotelDetailPage() {
 
   // Subscription edit state
   const [subPlanId, setSubPlanId] = useState<string>("");
-  const [roomOverride, setRoomOverride] = useState<string>("");
+  const [limitOverrides, setLimitOverrides] = useState<Record<string, string>>({});
   const [featureOverrides, setFeatureOverrides] = useState<Record<string, boolean>>({});
   const [subSaving, setSubSaving] = useState(false);
   const [subError, setSubError] = useState<string | null>(null);
@@ -66,7 +48,10 @@ export default function HotelDetailPage() {
       const h = res.data.data;
       // Initialize subscription edit state from fetched data
       setSubPlanId(h.subscriptionPlanId ?? "");
-      setRoomOverride(h.roomLimitOverride != null ? String(h.roomLimitOverride) : "");
+      setLimitOverrides(Object.fromEntries(Object.entries(h.limitOverrides ?? {}).map(([key, value]) => [
+        key,
+        value === null ? "unlimited" : String(value),
+      ])));
       setFeatureOverrides(h.featureOverrides ?? {});
       return h;
     },
@@ -76,6 +61,13 @@ export default function HotelDetailPage() {
     queryKey: ["admin", "plans"],
     queryFn: async () => {
       const res = await api.get<{ data: SubscriptionPlan[] }>("/api/admin/plans");
+      return res.data.data;
+    },
+  });
+  const { data: metadata } = useQuery<PlanMetadata>({
+    queryKey: ["admin", "plans", "meta"],
+    queryFn: async () => {
+      const res = await api.get<{ data: PlanMetadata }>("/api/admin/plans/meta");
       return res.data.data;
     },
   });
@@ -102,10 +94,19 @@ export default function HotelDetailPage() {
     setSubError(null);
     setSubSaved(false);
     try {
+      const targetPlan = plans.find((plan) => plan.id === subPlanId);
+      const cleanedFeatureOverrides = Object.fromEntries(
+        Object.entries(featureOverrides).filter(([key, value]) => value !== (targetPlan?.features?.[key] ?? false)),
+      );
       await api.patch(`/api/admin/hotels/${id}`, {
         subscriptionPlanId: subPlanId || null,
-        roomLimitOverride: roomOverride ? Number(roomOverride) : null,
-        featureOverrides: Object.keys(featureOverrides).length > 0 ? featureOverrides : null,
+        limitOverrides: Object.keys(limitOverrides).length > 0
+          ? Object.fromEntries(Object.entries(limitOverrides).map(([key, value]) => [
+              key,
+              value === "unlimited" ? null : Number(value),
+            ]))
+          : null,
+        featureOverrides: Object.keys(cleanedFeatureOverrides).length > 0 ? cleanedFeatureOverrides : null,
       });
       setSubSaved(true);
       void qc.invalidateQueries({ queryKey: ["admin", "hotels", id] });
@@ -118,13 +119,14 @@ export default function HotelDetailPage() {
     }
   }
 
-  const effectiveFeatures = hotel
+  const selectedPlan = plans.find((plan) => plan.id === subPlanId) ?? hotel?.subscriptionPlan ?? null;
+  const effectiveFeatures = hotel && metadata
     ? Object.fromEntries(
-        FEATURE_KEYS.map(({ key }) => [
+        metadata.features.map(({ key }) => [
           key,
           key in featureOverrides
             ? featureOverrides[key]
-            : (hotel.subscriptionPlan?.features?.[key] ?? false),
+            : (selectedPlan?.features?.[key] ?? false),
         ])
       )
     : {};
@@ -230,34 +232,57 @@ export default function HotelDetailPage() {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">No Plan</option>
-                    {plans.map((p) => (
+                    {plans.filter((p) => p.isActive || p.id === hotel.subscriptionPlanId).map((p) => (
                       <option key={p.id} value={p.id}>{p.name} ({p.slug})</option>
                     ))}
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Room Limit Override <span className="text-gray-400">(leave blank to use plan default)</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={roomOverride}
-                    onChange={(e) => setRoomOverride(e.target.value)}
-                    placeholder="e.g. 20"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
               </div>
+
+              {metadata && (
+                <div className="mt-4">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-700">Limit overrides</h3>
+                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    {metadata.limits.map(({ key, label, minimum }) => {
+                      const override = limitOverrides[key];
+                      const planLimit = selectedPlan?.limits?.[key] ?? null;
+                      return (
+                        <div key={key} className="rounded-lg border border-gray-200 p-3">
+                          <label className="text-xs font-medium text-gray-700">{label}</label>
+                          <select
+                            value={override === undefined ? "inherit" : override === "unlimited" ? "unlimited" : "custom"}
+                            onChange={(e) => {
+                              const next = { ...limitOverrides };
+                              if (e.target.value === "inherit") delete next[key];
+                              else next[key] = e.target.value === "unlimited" ? "unlimited" : String(planLimit ?? Math.max(1, minimum));
+                              setLimitOverrides(next);
+                            }}
+                            className="mt-2 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs"
+                          >
+                            <option value="inherit">Plan default ({planLimit ?? "Unlimited"})</option>
+                            <option value="unlimited">Unlimited override</option>
+                            <option value="custom">Custom limit</option>
+                          </select>
+                          {override !== undefined && override !== "unlimited" && (
+                            <input type="number" min={minimum} value={override}
+                              onChange={(e) => setLimitOverrides({ ...limitOverrides, [key]: e.target.value })}
+                              className="mt-2 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="mt-4">
                 <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
                   Feature Overrides <span className="text-gray-400 normal-case">(checked = enabled regardless of plan)</span>
                 </h3>
                 <div className="grid grid-cols-3 gap-2">
-                  {FEATURE_KEYS.map(({ key, label }) => {
-                    const planDefault = hotel.subscriptionPlan?.features?.[key] ?? false;
+                  {metadata?.features.map(({ key, label }) => {
+                    const planDefault = selectedPlan?.features?.[key] ?? false;
                     const isOverridden = key in featureOverrides;
                     const effectiveValue = effectiveFeatures[key] ?? false;
                     return (
@@ -267,8 +292,7 @@ export default function HotelDetailPage() {
                           checked={effectiveValue}
                           onChange={(e) => {
                             const newOverrides = { ...featureOverrides };
-                            if (e.target.checked === planDefault && !isOverridden) {
-                              // No change from plan default, remove override
+                            if (e.target.checked === planDefault) {
                               delete newOverrides[key];
                             } else {
                               newOverrides[key] = e.target.checked;

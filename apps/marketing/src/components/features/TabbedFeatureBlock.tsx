@@ -38,13 +38,13 @@ export default function TabbedFeatureBlock({
 
   const mockupCol = (
     <div
-      className="relative flex w-full min-w-0 max-w-full items-center justify-center overflow-x-hidden"
+      className="relative flex w-full min-w-0 max-w-full items-center justify-center overflow-hidden"
       style={{ height: mockupMinHeight }}
     >
       <AnimatePresence mode="wait">
         <motion.div
           key={tab.label}
-          className="relative w-full min-w-0 max-w-full overflow-x-hidden"
+          className="relative w-full min-w-0 max-w-full overflow-hidden"
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
@@ -137,7 +137,7 @@ export default function TabbedFeatureBlock({
               id={`feature-panel-${active}`}
               role="tabpanel"
               aria-labelledby={`feature-tab-${active}`}
-              className="grid w-full min-w-0 max-w-full grid-cols-1 items-stretch gap-8 overflow-x-hidden px-1 pb-1 pt-6 sm:px-3 sm:pt-8 lg:grid-cols-[minmax(0,1.18fr)_minmax(0,.82fr)] lg:gap-14"
+              className="grid w-full min-w-0 max-w-full grid-cols-1 items-stretch gap-8 overflow-hidden px-1 pb-1 pt-6 sm:px-3 sm:pt-8 lg:grid-cols-[minmax(0,1.18fr)_minmax(0,.82fr)] lg:gap-14"
               style={{ minHeight: mockupMinHeight }}
             >
               {mockupSide === "left" ? (

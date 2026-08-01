@@ -867,7 +867,7 @@ export default function Statistics() {
       </section>
 
       {/* ── FAQ ──────────────────────────────────────────────────────────────── */}
-      <section className="bg-white px-6 py-24">
+      <section className="bg-paper px-6 py-24">
         <div className="mx-auto max-w-4xl">
           <Reveal variant="fade" className="text-center mb-10">
             <h2 className="font-display text-[clamp(30px,4vw,44px)] font-medium leading-tight text-ink">

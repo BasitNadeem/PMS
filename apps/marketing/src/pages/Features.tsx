@@ -51,7 +51,7 @@ function PmsHeroMockup() {
   ];
 
   return (
-    <div className="relative pb-8 pt-3 sm:pl-5 lg:-mr-8">
+    <div className="relative mx-auto w-full max-w-[760px] min-w-0 pb-8 pt-3 sm:pl-5">
       <div className="overflow-hidden rounded-[26px] border border-line bg-white shadow-[0_32px_90px_rgba(68,43,30,.18)]">
         <div className="flex h-11 items-center justify-between border-b border-line-soft bg-[#FBF8F4] px-4">
           <div className="flex items-center gap-3">
@@ -653,7 +653,7 @@ function HousekeepingPwaMockup() {
           </div>
         </div>
 
-        <div className="flex-1 bg-[#F9F9FB] p-3 space-y-3 overflow-y-auto pb-10">
+        <div className="no-scrollbar flex-1 bg-[#F9F9FB] p-3 space-y-3 overflow-y-auto pb-10">
           {[
             { room: "101", type: "Checkout Clean", time: "ASAP", status: "done" },
             { room: "102", type: "Stayover Refresh", time: "Morning", status: "done" },
@@ -1109,7 +1109,7 @@ function OneCalendarMockup() {
 
       {/* Grid */}
       <div className="overflow-x-auto">
-        <div style={{ minWidth: ROOM_W + COL * days.length + 2 }}>
+        <div className="relative overflow-hidden" style={{ minWidth: ROOM_W + COL * days.length + 2 }}>
           {/* Header row — days */}
           <div className="flex bg-mist border-b border-line-soft sticky top-0 z-10">
             <div style={{ width: ROOM_W, minWidth: ROOM_W }} className="px-3 py-2 text-[9px] font-bold text-ink-mute uppercase tracking-wider shrink-0">
@@ -1457,15 +1457,15 @@ export default function Features() {
     <div className="bg-paper text-ink">
 
       {/* ── HERO ───────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-grid px-6 pb-24 pt-36 lg:min-h-[88vh] lg:pt-40">
+      <section className="relative overflow-hidden bg-grid px-4 pb-24 pt-32 sm:px-6 sm:pt-36 xl:min-h-[88vh] xl:pt-40">
         <div
           className="absolute pointer-events-none"
           style={{ top: "-15%", right: "-10%", width: "55%", height: "70%", background: "radial-gradient(ellipse, rgba(224,83,43,0.09), transparent 65%)" }}
         />
         <div className="absolute -left-24 bottom-0 h-[420px] w-[520px] rounded-full bg-[#0A8272]/[.055] blur-3xl" />
 
-        <div className="relative mx-auto grid max-w-7xl items-center gap-16 lg:grid-cols-[.82fr_1.18fr] xl:gap-20">
-          <div>
+        <div className="relative mx-auto grid max-w-7xl items-center gap-12 xl:grid-cols-[.82fr_1.18fr] xl:gap-16 2xl:gap-20">
+          <div className="min-w-0">
             <Reveal variant="fade">
               <p className="eyebrow mb-6">Hotel Property Management System · Live</p>
             </Reveal>
@@ -1503,7 +1503,7 @@ export default function Features() {
             </Reveal>
           </div>
 
-          <Reveal variant="scale" delay={0.14}>
+          <Reveal variant="scale" delay={0.14} className="min-w-0">
             <PmsHeroMockup />
           </Reveal>
         </div>

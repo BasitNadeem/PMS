@@ -1,14 +1,12 @@
 import type { TenantTx } from "@pms/db";
 import { getEffectiveLimits } from "../lib/subscription";
-import { getCurrentPKTDate } from "../lib/timezone";
 import {
+  getNightAuditReminderTiming,
   getShiftReminderCandidates,
   readOperationalReminderSettings,
 } from "../lib/operationalReminders";
 import {
-  getShiftWindow,
-  hasNightAuditWindowOpened,
-  readShiftSchedule,
+  getOperationalBusinessDate,
   type ShiftType,
 } from "../lib/shiftSchedule";
 
@@ -28,7 +26,7 @@ export type OperationalReminder =
   | {
       id: string;
       kind: "NIGHT_AUDIT";
-      status: "READY" | "OVERDUE";
+      status: "DUE_SOON" | "OVERDUE";
       businessDate: string;
       openedAt: string;
       url: string;
@@ -52,25 +50,21 @@ export const OperationalReminderService = {
       }),
     );
     const reminderSettings = readOperationalReminderSettings(hotel.settings);
-    const shiftCandidates = canSubmitHandover
-      ? getShiftReminderCandidates(hotel.settings, now)
-      : [];
-
     let nightAuditEnabled = false;
     if (canRunNightAudit && reminderSettings.nightAuditEnabled) {
       const { features } = await getEffectiveLimits(hotelId);
       nightAuditEnabled = features.nightAudit;
     }
 
-    const currentPKTDate = getCurrentPKTDate(now);
     const businessDate =
-      hotel.currentBusinessDate?.toISOString().slice(0, 10) ?? currentPKTDate;
-    const nightAuditOpened =
-      nightAuditEnabled
-      && (
-        businessDate < currentPKTDate
-        || hasNightAuditWindowOpened(businessDate, hotel.settings, now)
-      );
+      hotel.currentBusinessDate?.toISOString().slice(0, 10)
+      ?? getOperationalBusinessDate(hotel.settings, now);
+    const shiftCandidates = canSubmitHandover
+      ? getShiftReminderCandidates(hotel.settings, now, businessDate)
+      : [];
+    const nightAuditTiming = nightAuditEnabled
+      ? getNightAuditReminderTiming(hotel.settings, businessDate, now)
+      : null;
 
     const { completedShiftKeys, nightAuditComplete } = await withTenant(async (db) => {
       const reports = shiftCandidates.length === 0
@@ -85,7 +79,7 @@ export const OperationalReminderService = {
             select: { shiftDate: true, shiftType: true },
           });
 
-      const audit = nightAuditOpened
+      const audit = nightAuditTiming
         ? await db.nightAuditRecord.findFirst({
             where: {
               hotelId,
@@ -122,17 +116,13 @@ export const OperationalReminderService = {
         url: "/operations/shift-handover",
       }));
 
-    if (nightAuditOpened && !nightAuditComplete) {
+    if (nightAuditTiming && !nightAuditComplete) {
       reminders.push({
         id: `night-audit:${businessDate}:${hotelId}`,
         kind: "NIGHT_AUDIT",
-        status: businessDate < currentPKTDate ? "OVERDUE" : "READY",
+        status: nightAuditTiming.status,
         businessDate,
-        openedAt: getShiftWindow(
-          businessDate,
-          "NIGHT",
-          readShiftSchedule(hotel.settings),
-        ).start.toISOString(),
+        openedAt: nightAuditTiming.closesAt.toISOString(),
         url: "/operations/night-audit",
       });
     }

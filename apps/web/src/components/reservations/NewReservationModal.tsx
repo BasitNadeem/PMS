@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { getPhoneErrorMessage } from "@/lib/validation";
+import { getEmailErrorMessage, getPhoneErrorMessage, isValidEmail } from "@/lib/validation";
 import { useMutation, useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { X, ChevronLeft, Check, CalendarPlus, CheckCircle2, ArrowRight, Minus, Plus, ChevronDown, Search, ShieldAlert, Star, Loader2, Tag } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -165,8 +165,8 @@ function VipToggleRow({ checked, onToggle }: { checked: boolean; onToggle: () =>
 interface WizardState {
   checkIn: string; checkOut: string; roomId: string; roomTypeFilter: string;
   ratePerNight: number; // paisas; editable, seeded from suggest endpoint
-  guestId: string; guestName: string; guestCity: string; guestStays: number; guestBlacklisted: boolean;
-  newFirstName: string; newLastName: string; newPhone: string;
+  guestId: string; guestName: string; guestEmail: string; guestCity: string; guestStays: number; guestBlacklisted: boolean;
+  newFirstName: string; newLastName: string; newPhone: string; newEmail: string;
   newDocType: string; newDocNumber: string;
   useNewGuest: boolean;
   adults: number; children: number; source: BookingSource; specialRequests: string;
@@ -180,6 +180,7 @@ export interface NewReservationModalProps {
   initialCheckInDate?: string;
   initialCheckOutDate?: string;
   initialSource?: BookingSource;
+  initialGuest?: GuestSummary;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -190,25 +191,26 @@ function addOneDay(isoDate: string): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, initialCheckOutDate, initialSource }: NewReservationModalProps) {
+export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, initialCheckOutDate, initialSource, initialGuest }: NewReservationModalProps) {
   useEscapeKey(onClose);
   const qc = useQueryClient();
   const [step, setStep] = useState(0);
   const [stepError, setStepError] = useState("");
   const [duplicateGuestWarning, setDuplicateGuestWarning] = useState("");
   const [newPhoneError, setNewPhoneError] = useState("");
+  const [newEmailError, setNewEmailError] = useState("");
 
   const [form, setForm] = useState<WizardState>({
     checkIn:  initialCheckInDate  ?? "",
     checkOut: initialCheckOutDate ?? (initialCheckInDate ? addOneDay(initialCheckInDate) : ""),
     roomId: "", roomTypeFilter: "",
     ratePerNight: 0,
-    guestId: "", guestName: "", guestCity: "", guestStays: 0, guestBlacklisted: false,
-    useNewGuest: true,
-    newFirstName: "", newLastName: "", newPhone: "", newDocType: "CNIC", newDocNumber: "",
+    guestId: initialGuest?.id ?? "", guestName: initialGuest?.fullName ?? "", guestEmail: initialGuest?.email ?? "", guestCity: initialGuest?.city ?? "", guestStays: initialGuest?.totalStays ?? 0, guestBlacklisted: initialGuest?.isBlacklisted ?? false,
+    useNewGuest: !initialGuest,
+    newFirstName: "", newLastName: "", newPhone: "", newEmail: "", newDocType: "CNIC", newDocNumber: "",
     adults: 2, children: 0, source: initialSource ?? "WALK_IN", specialRequests: "",
     advancePayment: "", advancePaymentMethod: "CASH",
-    isVip: false,
+    isVip: (initialGuest?.vipLevel ?? 0) > 0,
   });
 
   function set<K extends keyof WizardState>(key: K, value: WizardState[K]) {
@@ -340,20 +342,23 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
   // Layer 2 — blacklist check for new guest by document/phone
   const newGuestDoc   = form.newDocNumber.trim();
   const newGuestPhone = form.newPhone.trim();
+  const newGuestEmail = form.newEmail.trim();
+  const blacklistEmail = isValidEmail(newGuestEmail) ? newGuestEmail : "";
   const [blacklistKey, setBlacklistKey] = useState("");
   useEffect(() => {
     if (!form.useNewGuest) { setBlacklistKey(""); return; }
-    const t = setTimeout(() => setBlacklistKey(`${newGuestDoc}|${newGuestPhone}`), 500);
+    const t = setTimeout(() => setBlacklistKey(`${newGuestDoc}|${newGuestPhone}|${newGuestEmail}`), 500);
     return () => clearTimeout(t);
-  }, [form.useNewGuest, newGuestDoc, newGuestPhone]);
+  }, [form.useNewGuest, newGuestDoc, newGuestPhone, newGuestEmail]);
 
   const { data: blacklistResult } = useQuery({
     queryKey: ["blacklist-check", blacklistKey],
     queryFn: () => guestsService.checkBlacklist({
       documentNumber: newGuestDoc || undefined,
       phone:          newGuestPhone || undefined,
+      email:          blacklistEmail || undefined,
     }),
-    enabled: form.useNewGuest && (newGuestDoc.length >= 3 || newGuestPhone.length >= 4),
+    enabled: form.useNewGuest && (newGuestDoc.length >= 3 || newGuestPhone.length >= 4 || !!blacklistEmail),
     staleTime: 30_000,
   });
 
@@ -408,6 +413,8 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
       if (!form.newPhone.trim())     return "Phone is required";
       const phoneErr = getPhoneErrorMessage(form.newPhone);
       if (phoneErr) { setNewPhoneError(phoneErr); return phoneErr; }
+      const emailErr = getEmailErrorMessage(form.newEmail);
+      if (emailErr) { setNewEmailError(emailErr); return emailErr; }
       if (!form.newDocNumber.trim()) return `${form.newDocType === "CNIC" ? "CNIC number" : "ID number"} is required`;
     } else {
       if (!form.guestId) return "Please select a guest";
@@ -439,6 +446,7 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
     return {
       firstName: form.newFirstName.trim(), lastName: form.newLastName.trim(),
       phone: form.newPhone.trim(),
+      email: form.newEmail.trim() || undefined,
       documentType: form.newDocType as "CNIC" | "PASSPORT" | "DRIVING_LICENSE" | "NRIC" | "OTHER",
       documentNumber: form.newDocNumber.trim(),
       ...(allowDuplicate && { allowDuplicate: true }),
@@ -688,7 +696,7 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                       type="text"
                       value={guestSearchInput}
                       onChange={(e) => setGuestSearchInput(e.target.value)}
-                      placeholder="Search by name or phone…"
+                      placeholder="Search by name, phone or email…"
                       className="w-full h-10 rounded-xl border border-line bg-white pl-9 pr-3.5 text-[13.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all"
                     />
                     {guestsFetching && (
@@ -711,6 +719,7 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                             onClick={() => {
                               set("guestId", g.id);
                               set("guestName", g.fullName);
+                              set("guestEmail", g.email ?? "");
                               set("guestCity", g.city ?? "");
                               set("guestStays", g.totalStays);
                               set("guestBlacklisted", g.isBlacklisted);
@@ -773,7 +782,7 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
               ) : (
                 <>
                   {/* New guest form */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">First name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                       <input type="text" value={form.newFirstName} onChange={(e) => set("newFirstName", e.target.value)} placeholder="Ahmed" className={inputCls} />
@@ -782,7 +791,7 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                       <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Last name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                       <input type="text" value={form.newLastName} onChange={(e) => set("newLastName", e.target.value)} placeholder="Raza" className={inputCls} />
                     </div>
-                    <div className="col-span-2">
+                    <div>
                       <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Phone <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
                       <input
                         type="tel" value={form.newPhone}
@@ -792,6 +801,19 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                         className={cn(inputCls, newPhoneError && "border-clay/50")}
                       />
                       {newPhoneError && <p className="mt-1 text-[12px] text-clay">{newPhoneError}</p>}
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Email <span className="font-normal text-ink-faint">(for confirmation)</span></label>
+                      <input
+                        type="email"
+                        value={form.newEmail}
+                        onChange={(e) => { set("newEmail", e.target.value); setNewEmailError(""); }}
+                        onBlur={() => { if (form.newEmail.trim()) setNewEmailError(getEmailErrorMessage(form.newEmail) ?? ""); }}
+                        placeholder="guest@example.com"
+                        autoComplete="email"
+                        className={cn(inputCls, newEmailError && "border-clay/50")}
+                      />
+                      {newEmailError && <p className="mt-1 text-[12px] text-clay">{newEmailError}</p>}
                     </div>
                     <div>
                       <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">ID type <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
@@ -866,6 +888,11 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                       {form.adults} adult{form.adults !== 1 ? "s" : ""}
                       {form.children > 0 ? ` · ${form.children} children` : ""}
                     </div>
+                    {(form.useNewGuest ? form.newEmail : form.guestEmail) && (
+                      <div className="mt-1 truncate text-[12px] text-pine-deep">
+                        Confirmation email: {form.useNewGuest ? form.newEmail : form.guestEmail}
+                      </div>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
                     <div className="text-[12px] text-ink-mute">Room {selectedRoom.number}</div>

@@ -11,6 +11,7 @@ import { adminPrisma } from "@pms/db";
 import { verifyRoomQuerySchema, placeOrderSchema } from "../schemas/qrMenu";
 import { QrMenuService } from "../services/QrMenuService";
 import { QrOrderService } from "../services/QrOrderService";
+import { getEffectiveLimits } from "../lib/subscription";
 
 const router: Router = Router();
 
@@ -31,12 +32,17 @@ function getPosTaxRate(settings: unknown): number {
     : 0;
 }
 
+async function qrOrderingIsAvailable(hotelId: string): Promise<boolean> {
+  const { features } = await getEffectiveLimits(hotelId);
+  return features.qrOrdering;
+}
+
 // GET /api/qr-public/:hotelSlug/menu
 // Returns all available categories + items for the guest menu.
 // Respects availability flags and time windows.
 router.get("/:hotelSlug/menu", async (req, res) => {
   const hotel = await resolveHotel(req.params.hotelSlug as string);
-  if (!hotel?.isActive) {
+  if (!hotel?.isActive || !(await qrOrderingIsAvailable(hotel.id))) {
     res.status(404).json({ error: "Hotel not found" });
     return;
   }
@@ -53,7 +59,7 @@ router.get("/:hotelSlug/menu", async (req, res) => {
 // autofill the guest details form, so this endpoint does expose guest PII.
 router.get("/:hotelSlug/verify-room", async (req, res) => {
   const hotel = await resolveHotel(req.params.hotelSlug as string);
-  if (!hotel?.isActive) {
+  if (!hotel?.isActive || !(await qrOrderingIsAvailable(hotel.id))) {
     res.status(404).json({ error: "Hotel not found" });
     return;
   }
@@ -67,7 +73,7 @@ router.get("/:hotelSlug/verify-room", async (req, res) => {
 // folio failure never blocks order). Returns order number + estimated wait.
 router.post("/:hotelSlug/order", async (req, res) => {
   const hotel = await resolveHotel(req.params.hotelSlug as string);
-  if (!hotel?.isActive) {
+  if (!hotel?.isActive || !(await qrOrderingIsAvailable(hotel.id))) {
     res.status(404).json({ error: "Hotel not found" });
     return;
   }
@@ -80,7 +86,7 @@ router.post("/:hotelSlug/order", async (req, res) => {
 // Public order tracking — returns status and items. No PII exposed.
 router.get("/:hotelSlug/track", async (req, res) => {
   const hotel = await resolveHotel(req.params.hotelSlug as string);
-  if (!hotel?.isActive) {
+  if (!hotel?.isActive || !(await qrOrderingIsAvailable(hotel.id))) {
     res.status(404).json({ error: "Hotel not found" });
     return;
   }

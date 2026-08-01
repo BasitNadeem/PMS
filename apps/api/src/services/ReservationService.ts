@@ -2,6 +2,7 @@ import type { TenantTx } from "@pms/db";
 import { ReservationStatus, FolioItemType, RoomStatus, MaintenanceStatus, Prisma } from "@pms/db";
 import type { JwtPayload } from "../middleware/auth";
 import { recalculateFolioTotals } from "../utils/folioTotals";
+import { recalculateGuestStats } from "../utils/guestStats";
 import { createLedgerEntryFromPayment } from "./CashBookService";
 import type {
   ListReservationsQuery,
@@ -609,6 +610,12 @@ export const ReservationService = {
           },
         });
         checkoutCleanRoomNumber = reservationRoom.room.number;
+      }
+
+      // Lifetime stay count, spend and VIP level are only meaningful once the
+      // stay is complete, so they are recomputed here rather than at booking.
+      if (newStatus === "CHECKED_OUT") {
+        await recalculateGuestStats(db, existing.guestId);
       }
 
       await db.auditLog.create({

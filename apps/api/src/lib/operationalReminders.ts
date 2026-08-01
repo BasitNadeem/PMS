@@ -1,4 +1,5 @@
 import {
+  getBusinessDayEnd,
   getCurrentShiftContext,
   getShiftWindow,
   type ShiftSchedule,
@@ -22,6 +23,11 @@ export interface ShiftReminderCandidate {
   minutesFromEnd: number;
 }
 
+export interface NightAuditReminderTiming {
+  status: "DUE_SOON" | "OVERDUE";
+  closesAt: Date;
+}
+
 export const DEFAULT_OPERATIONAL_REMINDER_SETTINGS: OperationalReminderSettings = {
   shiftHandoverEnabled: true,
   nightAuditEnabled: true,
@@ -39,25 +45,6 @@ export function readOperationalReminderSettings(settings: unknown): OperationalR
     nightAuditEnabled: values.nightAuditRemindersEnabled !== false,
     shiftLeadMinutes: lead === 15 || lead === 30 || lead === 60 ? lead : 30,
   };
-}
-
-function addDays(date: string, days: number): string {
-  const [year, month, day] = date.split("-").map(Number);
-  const value = new Date(Date.UTC(year, month - 1, day + days));
-  return [
-    value.getUTCFullYear(),
-    String(value.getUTCMonth() + 1).padStart(2, "0"),
-    String(value.getUTCDate()).padStart(2, "0"),
-  ].join("-");
-}
-
-function previousShift(
-  shiftDate: string,
-  shiftType: ShiftType,
-): { shiftDate: string; shiftType: ShiftType } {
-  if (shiftType === "EVENING") return { shiftDate, shiftType: "MORNING" };
-  if (shiftType === "NIGHT") return { shiftDate, shiftType: "EVENING" };
-  return { shiftDate: addDays(shiftDate, -1), shiftType: "NIGHT" };
 }
 
 function candidate(
@@ -79,45 +66,68 @@ function candidate(
 }
 
 /**
- * Returns at most the immediately previous overdue shift and the current shift
- * when it is inside the hotel's configured reminder window. Completion is
- * checked separately against shift_reports so this remains deterministic.
+ * Returns every elapsed shift for the active business date plus the current
+ * shift when it enters the hotel's reminder window. Completion is checked
+ * separately against shift_reports so an overdue handover remains visible.
  */
 export function getShiftReminderCandidates(
   settings: unknown,
   now = new Date(),
+  businessDate?: string,
 ): ShiftReminderCandidate[] {
   const reminderSettings = readOperationalReminderSettings(settings);
   if (!reminderSettings.shiftHandoverEnabled) return [];
 
   const current = getCurrentShiftContext(settings, now);
-  const currentWindow = getShiftWindow(current.shiftDate, current.shiftType, current.schedule);
-  const previous = previousShift(current.shiftDate, current.shiftType);
-  const previousWindow = getShiftWindow(previous.shiftDate, previous.shiftType, current.schedule);
+  const reminderDate = businessDate ?? current.shiftDate;
   const candidates: ShiftReminderCandidate[] = [];
 
-  if (now >= previousWindow.end) {
-    candidates.push(candidate(
-      previous.shiftDate,
-      previous.shiftType,
-      current.schedule,
-      "OVERDUE",
-      now,
-    ));
-  }
+  for (const shiftType of ["MORNING", "EVENING", "NIGHT"] as const) {
+    const window = getShiftWindow(reminderDate, shiftType, current.schedule);
+    if (now >= window.end) {
+      candidates.push(candidate(
+        reminderDate,
+        shiftType,
+        current.schedule,
+        "OVERDUE",
+        now,
+      ));
+      continue;
+    }
 
-  const leadStartsAt = new Date(
-    currentWindow.end.getTime() - reminderSettings.shiftLeadMinutes * 60_000,
-  );
-  if (now >= leadStartsAt && now < currentWindow.end) {
-    candidates.push(candidate(
-      current.shiftDate,
-      current.shiftType,
-      current.schedule,
-      "DUE_SOON",
-      now,
-    ));
+    const leadStartsAt = new Date(
+      window.end.getTime() - reminderSettings.shiftLeadMinutes * 60_000,
+    );
+    if (now >= leadStartsAt) {
+      candidates.push(candidate(
+        reminderDate,
+        shiftType,
+        current.schedule,
+        "DUE_SOON",
+        now,
+      ));
+    }
   }
 
   return candidates;
+}
+
+export function getNightAuditReminderTiming(
+  settings: unknown,
+  businessDate: string,
+  now = new Date(),
+): NightAuditReminderTiming | null {
+  const reminderSettings = readOperationalReminderSettings(settings);
+  if (!reminderSettings.nightAuditEnabled) return null;
+
+  const closesAt = getBusinessDayEnd(businessDate, settings);
+  const reminderStartsAt = new Date(
+    closesAt.getTime() - reminderSettings.shiftLeadMinutes * 60_000,
+  );
+  if (now < reminderStartsAt) return null;
+
+  return {
+    status: now >= closesAt ? "OVERDUE" : "DUE_SOON",
+    closesAt,
+  };
 }

@@ -15,8 +15,11 @@ router.use(async (req, _res, next) => {
 
 // GET /api/night-audit/business-date
 router.get("/business-date", requirePermission("nightAudit:read"), async (req, res) => {
-  const businessDate = await NightAuditService.getBusinessDate(req.withTenant, req.user!.hotelId);
-  res.json({ data: { businessDate } });
+  const data = await NightAuditService.getBusinessDateContext(
+    req.withTenant,
+    req.user!.hotelId,
+  );
+  res.json({ data });
 });
 
 // GET /api/night-audit/preflight?date=YYYY-MM-DD

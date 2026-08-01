@@ -4,6 +4,8 @@ import { AppLayout } from "./components/layout/AppLayout";
 import { getCurrentUserRole } from "./lib/jwt";
 import { isMobileDevice } from "./lib/device";
 import { resolveAppMode } from "./lib/hostname";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "./lib/api";
 
 // Every page is lazy-loaded so a given user's initial bundle only contains the
 // pages they actually visit (e.g. housekeeping staff never pull in the 20+
@@ -36,6 +38,7 @@ const PaymentMethodsPage           = lazy(() => import("./pages/reports/PaymentM
 const OutstandingBalancesPage      = lazy(() => import("./pages/reports/OutstandingBalancesPage"));
 const VoidRefundLogPage            = lazy(() => import("./pages/reports/VoidRefundLogPage"));
 const CashReconciliationPage       = lazy(() => import("./pages/reports/CashReconciliationPage"));
+const AccountingExportPage         = lazy(() => import("./pages/reports/AccountingExportPage"));
 const OccupancyTrendPage           = lazy(() => import("./pages/reports/OccupancyTrendPage"));
 const ADRRevPARPage                = lazy(() => import("./pages/reports/ADRRevPARPage"));
 const RoomTypePerformancePage      = lazy(() => import("./pages/reports/RoomTypePerformancePage"));
@@ -71,9 +74,22 @@ const NightAuditPage               = lazy(() => import("./pages/nightaudit/Night
 const BookingLandingPage           = lazy(() => import("./pages/booking-engine/BookingLandingPage"));
 const BookingFormPage              = lazy(() => import("./pages/booking-engine/BookingFormPage"));
 
+function usePlanFeatures(enabled: boolean) {
+  return useQuery<Record<string, boolean>>({
+    queryKey: ["settings", "plan", "features"],
+    queryFn: () => api.get<{ data: { features: Record<string, boolean> } }>("/api/settings/plan")
+      .then((response) => response.data.data.features),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem("accessToken");
   const location = useLocation();
+  const role = getCurrentUserRole();
+  const mobileHousekeeper = role === "HOUSEKEEPING" && isMobileDevice();
+  const { data: planFeatures, isPending: planPending } = usePlanFeatures(Boolean(token) && mobileHousekeeper);
 
   if (!token) return <Navigate to="/login" replace />;
 
@@ -90,8 +106,8 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   // Housekeeping staff on a phone land on the mobile PWA instead of the
   // desktop layout — everywhere except the mobile route itself (which has
   // its own role/device guard below).
-  const role = getCurrentUserRole();
-  if (role === "HOUSEKEEPING" && isMobileDevice() && location.pathname !== "/housekeeping/mobile") {
+  if (mobileHousekeeper && planPending) return <RouteFallback />;
+  if (mobileHousekeeper && planFeatures?.housekeepingPWA === true && location.pathname !== "/housekeeping/mobile") {
     return <Navigate to="/housekeeping/mobile" replace />;
   }
 
@@ -101,8 +117,12 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 function HousekeepingMobileRoute() {
   const role = getCurrentUserRole();
   const canUseMobile = role === "HOUSEKEEPING" || role === "MANAGER" || role === "OWNER";
+  const token = localStorage.getItem("accessToken");
+  const { data: planFeatures, isPending } = usePlanFeatures(Boolean(token) && canUseMobile);
 
   if (!canUseMobile) return <Navigate to="/housekeeping" replace />;
+  if (isPending) return <RouteFallback />;
+  if (planFeatures?.housekeepingPWA !== true) return <Navigate to="/housekeeping" replace />;
 
   // Managers/owners get the richer desktop view when they're actually on a
   // desktop — the mobile PWA is for HOUSEKEEPING staff and for managers
@@ -435,6 +455,16 @@ function PmsRoutes() {
             <PrivateRoute>
               <AppLayout>
                 <VoidRefundLogPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/reports/accounting-export"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <AccountingExportPage />
               </AppLayout>
             </PrivateRoute>
           }

@@ -57,10 +57,16 @@ export interface NightAuditRecordDetail extends NightAuditRecord {
   snapshot: unknown;
 }
 
+export interface NightAuditBusinessDateContext {
+  businessDate: string;
+  closesAt: string;
+  canClose: boolean;
+}
+
 export const nightAuditService = {
-  getBusinessDate: async (): Promise<string> => {
+  getBusinessDate: async (): Promise<NightAuditBusinessDateContext> => {
     const res = await api.get("/api/night-audit/business-date");
-    return res.data.data.businessDate;
+    return res.data.data;
   },
 
   getPreflightCheck: async (date: string): Promise<PreflightCheck> => {

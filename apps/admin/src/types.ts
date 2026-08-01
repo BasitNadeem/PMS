@@ -3,12 +3,16 @@ export interface SubscriptionPlan {
   name: string;
   slug: string;
   priceMonthly: number;
-  maxRooms: number;
-  maxUsers: number;
+  limits: Record<string, number | null>;
   features: Record<string, boolean>;
   isActive: boolean;
   displayOrder: number;
   _count: { hotels: number };
+}
+
+export interface PlanMetadata {
+  features: Array<{ key: string; label: string; built: boolean }>;
+  limits: Array<{ key: string; label: string; minimum: number; fallback: number }>;
 }
 
 export interface Hotel {
@@ -26,11 +30,10 @@ export interface Hotel {
     name: string;
     slug: string;
     priceMonthly: number;
-    maxRooms: number;
-    maxUsers: number;
+    limits: Record<string, number | null>;
     features: Record<string, boolean>;
   } | null;
-  roomLimitOverride: number | null;
+  limitOverrides: Record<string, number | null> | null;
   featureOverrides: Record<string, boolean> | null;
   _count: {
     rooms: number;

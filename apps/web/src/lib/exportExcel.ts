@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { api, getErrorMessage } from "@/lib/api";
 import type { ExportAllData } from "@/services/settings";
 import type { LedgerEntry, LedgerSummary } from "@/services/cashbook";
 import type {
@@ -32,6 +33,20 @@ import type {
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 type Cell = string | number | null;
+
+function writeSubscriptionFile(workbook: XLSX.WorkBook, filename: string): void {
+  void api.get<{ data: { features: Record<string, boolean> } }>("/api/settings/plan")
+    .then(({ data }) => {
+      if (data.data.features.reportsExport !== true) {
+        window.alert("Report exports are not included in this subscription plan.");
+        return;
+      }
+      XLSX.writeFile(workbook, filename);
+    })
+    .catch((error: unknown) => {
+      window.alert(getErrorMessage(error, "Unable to verify report export access. Please try again."));
+    });
+}
 
 function rupees(paisas: number): number {
   return Math.floor(paisas / 100);
@@ -265,7 +280,7 @@ export function exportDailyReportExcel(report: DailyReport) {
   setColWidths(ws6, [24, 18, 18, 18, 22]);
   XLSX.utils.book_append_sheet(wb, ws6, "Operations");
 
-  XLSX.writeFile(wb, `Daily-Report-${slugify(report.hotel.name)}-${report.date}.xlsx`);
+  writeSubscriptionFile(wb, `Daily-Report-${slugify(report.hotel.name)}-${report.date}.xlsx`);
 }
 
 // ── MONTHLY REPORT ────────────────────────────────────────────────────────────
@@ -451,7 +466,7 @@ export function exportMonthlyReportExcel(report: MonthlyReport) {
   setColWidths(ws6, [28, 18, 20, 22, 20]);
   XLSX.utils.book_append_sheet(wb, ws6, "Operations");
 
-  XLSX.writeFile(wb, `Monthly-Report-${slugify(report.hotel.name)}-${report.monthName}-${report.year}.xlsx`);
+  writeSubscriptionFile(wb, `Monthly-Report-${slugify(report.hotel.name)}-${report.monthName}-${report.year}.xlsx`);
 }
 
 // ── REVENUE BY SOURCE ─────────────────────────────────────────────────────────
@@ -506,7 +521,7 @@ export function exportRevenueSourceToExcel(
   setColWidths(ws1, [14, 18, 16, 18, 16]);
   XLSX.utils.book_append_sheet(wb, ws1, "Revenue by Source");
 
-  XLSX.writeFile(wb, `Revenue-by-Source-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `Revenue-by-Source-${startDate}-to-${endDate}.xlsx`);
 }
 
 // ── PAYMENT METHODS ───────────────────────────────────────────────────────────
@@ -550,7 +565,7 @@ export function exportPaymentMethodsToExcel(
   setColWidths(ws, [22, 16, 18, 14]);
   XLSX.utils.book_append_sheet(wb, ws, "Payment Methods");
 
-  XLSX.writeFile(wb, `Payment-Methods-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `Payment-Methods-${startDate}-to-${endDate}.xlsx`);
 }
 
 // ── OUTSTANDING BALANCES ──────────────────────────────────────────────────────
@@ -602,7 +617,7 @@ export function exportOutstandingBalancesToExcel(report: OutstandingBalancesRepo
   setColWidths(ws, [14, 28, 14, 20, 14, 18, 16]);
   XLSX.utils.book_append_sheet(wb, ws, "Outstanding Balances");
 
-  XLSX.writeFile(wb, `Outstanding-Balances-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  writeSubscriptionFile(wb, `Outstanding-Balances-${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 // ── VOID & REFUND LOG ─────────────────────────────────────────────────────────
@@ -647,7 +662,7 @@ export function exportVoidRefundLogToExcel(
   setColWidths(ws, [20, 10, 32, 16, 18, 22, 28]);
   XLSX.utils.book_append_sheet(wb, ws, "Void & Refund Log");
 
-  XLSX.writeFile(wb, `Void-Refund-Log-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `Void-Refund-Log-${startDate}-to-${endDate}.xlsx`);
 }
 
 // ── CASH RECONCILIATION ───────────────────────────────────────────────────────
@@ -703,7 +718,7 @@ export function exportCashReconciliationToExcel(
     XLSX.utils.book_append_sheet(wb, ws, "Cash Reconciliation");
   }
 
-  XLSX.writeFile(wb, `Cash-Reconciliation-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `Cash-Reconciliation-${startDate}-to-${endDate}.xlsx`);
 }
 
 // ── OCCUPANCY TREND ───────────────────────────────────────────────────────────
@@ -735,7 +750,7 @@ export function exportOccupancyTrendToExcel(report: OccupancyTrendReport, startD
   );
   setColWidths(ws, [14, 14, 12, 14]);
   XLSX.utils.book_append_sheet(wb, ws, "Occupancy Trend");
-  XLSX.writeFile(wb, `Occupancy-Trend-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `Occupancy-Trend-${startDate}-to-${endDate}.xlsx`);
 }
 
 // ── ADR / RevPAR ──────────────────────────────────────────────────────────────
@@ -771,7 +786,7 @@ export function exportADRRevPARToExcel(report: ADRRevPARReport, startDate: strin
   );
   setColWidths(ws, [14, 14, 22, 16, 16]);
   XLSX.utils.book_append_sheet(wb, ws, "ADR RevPAR");
-  XLSX.writeFile(wb, `ADR-RevPAR-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `ADR-RevPAR-${startDate}-to-${endDate}.xlsx`);
 }
 
 // ── ROOM TYPE PERFORMANCE ─────────────────────────────────────────────────────
@@ -797,7 +812,7 @@ export function exportRoomTypePerformanceToExcel(rows: RoomTypePerformanceRow[],
   );
   setColWidths(ws, [24, 14, 18, 14, 18, 16]);
   XLSX.utils.book_append_sheet(wb, ws, "Room Type Performance");
-  XLSX.writeFile(wb, `Room-Type-Performance-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `Room-Type-Performance-${startDate}-to-${endDate}.xlsx`);
 }
 
 // ── SOURCE OF BUSINESS ────────────────────────────────────────────────────────
@@ -839,7 +854,7 @@ export function exportSourceOfBusinessToExcel(rows: SourceOfBusinessRow[], start
   );
   setColWidths(ws, [22, 12, 14, 18, 24, 14]);
   XLSX.utils.book_append_sheet(wb, ws, "Source of Business");
-  XLSX.writeFile(wb, `Source-of-Business-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `Source-of-Business-${startDate}-to-${endDate}.xlsx`);
 }
 
 // ── LENGTH OF STAY ────────────────────────────────────────────────────────────
@@ -870,7 +885,7 @@ export function exportLengthOfStayToExcel(report: LengthOfStayReport, startDate:
   );
   setColWidths(ws, [20, 12, 14, 22]);
   XLSX.utils.book_append_sheet(wb, ws, "Length of Stay");
-  XLSX.writeFile(wb, `Length-of-Stay-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `Length-of-Stay-${startDate}-to-${endDate}.xlsx`);
 }
 
 // ── GUEST DIRECTORY ───────────────────────────────────────────────────────────
@@ -904,7 +919,7 @@ export function exportGuestDirectoryToExcel(report: GuestDirectoryReport, search
   );
   setColWidths(ws, [26, 16, 28, 18, 18, 8, 20, 12, 12, 14]);
   XLSX.utils.book_append_sheet(wb, ws, "Guest Directory");
-  XLSX.writeFile(wb, `Guest-Directory-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  writeSubscriptionFile(wb, `Guest-Directory-${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 // ── REPEAT GUESTS ─────────────────────────────────────────────────────────────
@@ -936,7 +951,7 @@ export function exportRepeatGuestsToExcel(report: RepeatGuestsReport, minStays: 
   );
   setColWidths(ws, [8, 28, 14, 22, 26, 16]);
   XLSX.utils.book_append_sheet(wb, ws, "Repeat Guests");
-  XLSX.writeFile(wb, `Repeat-Guests-min${minStays}-stays.xlsx`);
+  writeSubscriptionFile(wb, `Repeat-Guests-min${minStays}-stays.xlsx`);
 }
 
 // ── GUEST BLACKLIST ───────────────────────────────────────────────────────────
@@ -973,7 +988,7 @@ export function exportGuestBlacklistToExcel(report: GuestBlacklistReport) {
   );
   setColWidths(ws, [26, 16, 18, 14, 40, 16]);
   XLSX.utils.book_append_sheet(wb, ws, "Guest Blacklist");
-  XLSX.writeFile(wb, `Guest-Blacklist-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  writeSubscriptionFile(wb, `Guest-Blacklist-${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 // ── GUEST DEMOGRAPHICS ────────────────────────────────────────────────────────
@@ -1021,7 +1036,7 @@ export function exportGuestDemographicsToExcel(
   );
   setColWidths(ws, [28, 14, 14]);
   XLSX.utils.book_append_sheet(wb, ws, "Guest Demographics");
-  XLSX.writeFile(wb, `Guest-Demographics-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `Guest-Demographics-${startDate}-to-${endDate}.xlsx`);
 }
 
 // ── Phase 3 exports ───────────────────────────────────────────────────────────
@@ -1063,7 +1078,7 @@ export function exportHousekeepingPerformanceToExcel(
   );
   setColWidths(ws, [28, 16, 20]);
   XLSX.utils.book_append_sheet(wb, ws, "HK Performance");
-  XLSX.writeFile(wb, `Housekeeping-Performance-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `Housekeeping-Performance-${startDate}-to-${endDate}.xlsx`);
 }
 
 export function exportMaintenanceSummaryToExcel(
@@ -1107,7 +1122,7 @@ export function exportMaintenanceSummaryToExcel(
   );
   setColWidths(ws, [28, 16]);
   XLSX.utils.book_append_sheet(wb, ws, "Maintenance Summary");
-  XLSX.writeFile(wb, `Maintenance-Summary-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `Maintenance-Summary-${startDate}-to-${endDate}.xlsx`);
 }
 
 export function exportStaffActivityToExcel(
@@ -1147,7 +1162,7 @@ export function exportStaffActivityToExcel(
   );
   setColWidths(ws, [28, 14, 10, 10, 10, 20]);
   XLSX.utils.book_append_sheet(wb, ws, "Staff Activity");
-  XLSX.writeFile(wb, `Staff-Activity-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `Staff-Activity-${startDate}-to-${endDate}.xlsx`);
 }
 
 export function exportGroupBookingsSummaryToExcel(
@@ -1192,7 +1207,7 @@ export function exportGroupBookingsSummaryToExcel(
   );
   setColWidths(ws, [28, 24, 14, 14, 16, 16]);
   XLSX.utils.book_append_sheet(wb, ws, "Group Bookings");
-  XLSX.writeFile(wb, `Group-Bookings-Summary-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `Group-Bookings-Summary-${startDate}-to-${endDate}.xlsx`);
 }
 
 export function exportStockConsumptionToExcel(
@@ -1235,7 +1250,7 @@ export function exportStockConsumptionToExcel(
   );
   setColWidths(ws, [28, 18, 10, 18, 16]);
   XLSX.utils.book_append_sheet(wb, ws, "Stock Consumption");
-  XLSX.writeFile(wb, `Stock-Consumption-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `Stock-Consumption-${startDate}-to-${endDate}.xlsx`);
 }
 
 export function exportWasteLossToExcel(
@@ -1274,7 +1289,7 @@ export function exportWasteLossToExcel(
   );
   setColWidths(ws, [28, 18, 10, 14, 16, 10]);
   XLSX.utils.book_append_sheet(wb, ws, "Waste & Loss");
-  XLSX.writeFile(wb, `Waste-Loss-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `Waste-Loss-${startDate}-to-${endDate}.xlsx`);
 }
 
 export function exportLowStockReorderToExcel(report: LowStockReorderReport) {
@@ -1313,7 +1328,7 @@ export function exportLowStockReorderToExcel(report: LowStockReorderReport) {
   );
   setColWidths(ws, [28, 18, 10, 14, 14, 10, 10, 14, 22]);
   XLSX.utils.book_append_sheet(wb, ws, "Low Stock Reorder");
-  XLSX.writeFile(wb, `Low-Stock-Reorder.xlsx`);
+  writeSubscriptionFile(wb, `Low-Stock-Reorder.xlsx`);
 }
 
 export function exportPOSSalesToExcel(
@@ -1354,7 +1369,7 @@ export function exportPOSSalesToExcel(
   );
   setColWidths(ws, [32, 18, 12, 16]);
   XLSX.utils.book_append_sheet(wb, ws, "POS Sales");
-  XLSX.writeFile(wb, `POS-Sales-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `POS-Sales-${startDate}-to-${endDate}.xlsx`);
 }
 
 // ── CASH BOOK EXPORT ─────────────────────────────────────────────────────────
@@ -1436,7 +1451,7 @@ export function exportCashBookToExcel(
   XLSX.utils.book_append_sheet(wb, ws, "Balance Book");
 
   const filename = `Balance-Book-${(filters.startDate ?? "all").slice(0, 10)}-to-${(filters.endDate ?? "all").slice(0, 10)}.xlsx`;
-  XLSX.writeFile(wb, filename);
+  writeSubscriptionFile(wb, filename);
 }
 
 // ── FULL DATA EXPORT ──────────────────────────────────────────────────────────
@@ -1547,7 +1562,7 @@ export function exportAllDataToExcel(data: ExportAllData) {
   setColWidths(wsLedger, [12, 12, 20, 16, 36, 18, 16]);
   XLSX.utils.book_append_sheet(wb, wsLedger, "Cash Book");
 
-  XLSX.writeFile(wb, `${slugify(hotelName)}-Full-Export-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  writeSubscriptionFile(wb, `${slugify(hotelName)}-Full-Export-${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 export function exportQROrdersToExcel(
@@ -1587,5 +1602,5 @@ export function exportQROrdersToExcel(
   );
   setColWidths(ws, [28, 12, 16]);
   XLSX.utils.book_append_sheet(wb, ws, "QR Orders");
-  XLSX.writeFile(wb, `QR-Orders-${startDate}-to-${endDate}.xlsx`);
+  writeSubscriptionFile(wb, `QR-Orders-${startDate}-to-${endDate}.xlsx`);
 }

@@ -105,7 +105,7 @@ export type DashboardOperationalReminder =
   | {
       id: string;
       kind: "NIGHT_AUDIT";
-      status: "READY" | "OVERDUE";
+      status: "DUE_SOON" | "OVERDUE";
       businessDate: string;
       openedAt: string;
       url: string;

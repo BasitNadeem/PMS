@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "apply-rls": "dotenv -e ../../.env -- tsx apply-rls.ts"
+    "apply-rls": "dotenv -e ../../.env -- tsx apply-rls.ts",
+    "backfill-guest-stats": "dotenv -e ../../.env -- tsx backfill-guest-stats.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.7",

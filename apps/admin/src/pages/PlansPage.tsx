@@ -2,60 +2,31 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { api } from "@/lib/api";
+import type { PlanMetadata, SubscriptionPlan } from "@/types";
 
-const FEATURE_KEYS = [
-  // Built features
-  { key: "whatsappBriefing",    label: "WhatsApp Briefing",      built: true },
-  { key: "reportsExport",       label: "Reports Export",          built: true },
-  { key: "inventoryManagement", label: "Inventory Management",    built: true },
-  { key: "groupBookings",       label: "Group Bookings",          built: true },
-  { key: "maintenanceTickets",  label: "Maintenance Tickets",     built: true },
-  { key: "housekeepingPWA",     label: "Housekeeping Mobile App", built: true },
-  { key: "posModule",           label: "POS Module",              built: true },
-  { key: "qrOrdering",          label: "QR Ordering",             built: true },
-  { key: "kitchenDisplay",      label: "Kitchen Display",         built: true },
-  { key: "nightAudit",          label: "Night Audit",             built: true },
-  { key: "auditLog",            label: "Audit Log",               built: true },
-  { key: "ratePlans",           label: "Rate Plans",              built: true },
-  // Coming soon
-  { key: "bookingEngine",       label: "Booking Engine",          built: false },
-  { key: "channelManager",      label: "Channel Manager",         built: false },
-  { key: "customDomain",        label: "Custom Domain",           built: false },
-  { key: "corporateBilling",    label: "Corporate Billing",       built: false },
-] as const;
-
-interface Plan {
-  id: string;
-  name: string;
-  slug: string;
-  priceMonthly: number;
-  maxRooms: number;
-  maxUsers: number;
-  features: Record<string, boolean>;
-  isActive: boolean;
-  displayOrder: number;
-  _count: { hotels: number };
-}
+type Plan = SubscriptionPlan;
 
 type PlanForm = {
   name: string;
   slug: string;
   priceMonthly: string;
-  maxRooms: string;
-  maxUsers: string;
+  limits: Record<string, string>;
   features: Record<string, boolean>;
   isActive: boolean;
   displayOrder: string;
 };
 
-function defaultForm(plan?: Plan): PlanForm {
-  const features = Object.fromEntries(FEATURE_KEYS.map(({ key }) => [key, plan?.features?.[key] ?? false]));
+function defaultForm(metadata: PlanMetadata, plan?: Plan): PlanForm {
+  const features = Object.fromEntries(metadata.features.map(({ key }) => [key, plan?.features?.[key] ?? false]));
+  const limits = Object.fromEntries(metadata.limits.map(({ key }) => [
+    key,
+    plan?.limits?.[key] == null ? "" : String(plan.limits[key]),
+  ]));
   return {
     name:         plan?.name         ?? "",
     slug:         plan?.slug         ?? "",
     priceMonthly: plan ? String(Math.round(plan.priceMonthly / 100)) : "",
-    maxRooms:     plan ? String(plan.maxRooms) : "",
-    maxUsers:     plan ? String(plan.maxUsers) : "",
+    limits,
     features,
     isActive:     plan?.isActive     ?? true,
     displayOrder: plan ? String(plan.displayOrder) : "0",
@@ -68,14 +39,16 @@ function slugify(name: string): string {
 
 function PlanFormModal({
   plan,
+  metadata,
   onClose,
   onSaved,
 }: {
   plan?: Plan;
+  metadata: PlanMetadata;
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [form, setForm] = useState<PlanForm>(() => defaultForm(plan));
+  const [form, setForm] = useState<PlanForm>(() => defaultForm(metadata, plan));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -95,8 +68,10 @@ function PlanFormModal({
         name:         form.name,
         slug:         form.slug,
         priceMonthly: Math.round(Number(form.priceMonthly) * 100),
-        maxRooms:     Number(form.maxRooms),
-        maxUsers:     Number(form.maxUsers),
+        limits: Object.fromEntries(Object.entries(form.limits).map(([key, value]) => [
+          key,
+          value.trim() === "" ? null : Number(value),
+        ])),
         features:     form.features,
         isActive:     form.isActive,
         displayOrder: Number(form.displayOrder),
@@ -115,8 +90,8 @@ function PlanFormModal({
     }
   }
 
-  const builtFeatures = FEATURE_KEYS.filter((f) => f.built);
-  const comingSoon    = FEATURE_KEYS.filter((f) => !f.built);
+  const builtFeatures = metadata.features.filter((f) => f.built);
+  const comingSoon = metadata.features.filter((f) => !f.built);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -150,16 +125,16 @@ function PlanFormModal({
               <input type="number" min="0" value={form.displayOrder} onChange={(e) => setField("displayOrder", e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Max Rooms</label>
-              <input type="number" min="1" value={form.maxRooms} onChange={(e) => setField("maxRooms", e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Max Users</label>
-              <input type="number" min="1" value={form.maxUsers} onChange={(e) => setField("maxUsers", e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
+            {metadata.limits.map(({ key, label, minimum }) => (
+              <div key={key}>
+                <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+                <input type="number" min={minimum} value={form.limits[key] ?? ""}
+                  onChange={(e) => setField("limits", { ...form.limits, [key]: e.target.value })}
+                  placeholder="Unlimited"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <p className="mt-1 text-[11px] text-gray-400">Leave blank for unlimited.</p>
+              </div>
+            ))}
           </div>
 
           <div className="flex items-center gap-2">
@@ -219,6 +194,13 @@ export default function PlansPage() {
       return res.data.data;
     },
   });
+  const { data: metadata } = useQuery<PlanMetadata>({
+    queryKey: ["admin", "plans", "meta"],
+    queryFn: async () => {
+      const res = await api.get<{ data: PlanMetadata }>("/api/admin/plans/meta");
+      return res.data.data;
+    },
+  });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => api.delete(`/api/admin/plans/${id}`),
@@ -248,8 +230,8 @@ export default function PlansPage() {
             <tr>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Price</th>
-              <th className="px-4 py-3">Max Rooms</th>
-              <th className="px-4 py-3">Max Users</th>
+              <th className="px-4 py-3">Rooms</th>
+              <th className="px-4 py-3">Users</th>
               <th className="px-4 py-3">Hotels Using</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Actions</th>
@@ -263,8 +245,8 @@ export default function PlansPage() {
               <tr key={plan.id}>
                 <td className="px-4 py-3 font-medium text-gray-900">{plan.name} <span className="text-gray-400 text-xs">/{plan.slug}</span></td>
                 <td className="px-4 py-3 text-gray-600">PKR {Math.round(plan.priceMonthly / 100).toLocaleString()}/mo</td>
-                <td className="px-4 py-3 text-gray-600">{plan.maxRooms === 999 ? "Unlimited" : plan.maxRooms}</td>
-                <td className="px-4 py-3 text-gray-600">{plan.maxUsers === 999 ? "Unlimited" : plan.maxUsers}</td>
+                <td className="px-4 py-3 text-gray-600">{plan.limits.maxRooms ?? "Unlimited"}</td>
+                <td className="px-4 py-3 text-gray-600">{plan.limits.maxUsers ?? "Unlimited"}</td>
                 <td className="px-4 py-3 text-gray-600">{plan._count.hotels}</td>
                 <td className="px-4 py-3">
                   <span className={`rounded-full px-2 py-1 text-xs font-medium ${plan.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
@@ -293,9 +275,10 @@ export default function PlansPage() {
         </table>
       </div>
 
-      {modal.open && (
+      {modal.open && metadata && (
         <PlanFormModal
           plan={modal.plan}
+          metadata={metadata}
           onClose={() => setModal({ open: false })}
           onSaved={onSaved}
         />

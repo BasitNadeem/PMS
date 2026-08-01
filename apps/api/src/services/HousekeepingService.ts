@@ -14,6 +14,7 @@ import type {
 } from "../schemas/housekeeping";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
+import { getEffectiveLimits } from "../lib/subscription";
 
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
 
@@ -65,6 +66,11 @@ export async function notifyHousekeepingStaff(
   // so this is the only signal that a broadcast was even attempted at all.
   console.log("notifyHousekeepingStaff called:", { hotelId, excludeUserId, title: payload.title });
   try {
+    const { features } = await getEffectiveLimits(hotelId);
+    if (!features.housekeepingPWA) {
+      console.log("notifyHousekeepingStaff: mobile notifications disabled by subscription", { hotelId });
+      return;
+    }
     const staff = await adminPrisma.hotelUser.findMany({
       where:  { hotelId, role: UserRole.HOUSEKEEPING, isActive: true },
       select: { userId: true },

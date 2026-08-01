@@ -2,7 +2,11 @@ import { adminPrisma, FolioItemType, PaymentStatus, Prisma } from "@pms/db";
 import type { TenantTx } from "@pms/db";
 import { AppError } from "../utils/AppError";
 import { getPKTDayRange, getCurrentPKTDate } from "../lib/timezone";
-import { hasNightAuditWindowOpened } from "../lib/shiftSchedule";
+import {
+  getBusinessDayEnd,
+  getOperationalBusinessDate,
+  hasBusinessDayEnded,
+} from "../lib/shiftSchedule";
 import { notifyHotelDataChanged } from "../lib/realtime";
 import { paginationMeta } from "../utils/pagination";
 
@@ -152,14 +156,29 @@ function exceptionCount(preflight: Awaited<ReturnType<typeof buildPreflight>>, s
 }
 
 export const NightAuditService = {
-  async getBusinessDate(withTenant: WithTenantFn, hotelId: string): Promise<string> {
+  async getBusinessDateContext(
+    withTenant: WithTenantFn,
+    hotelId: string,
+    now = new Date(),
+  ): Promise<{ businessDate: string; closesAt: string; canClose: boolean }> {
     const hotel = await withTenant((db) =>
       db.hotel.findUniqueOrThrow({
         where: { id: hotelId },
-        select: { currentBusinessDate: true },
+        select: { currentBusinessDate: true, settings: true },
       }),
     );
-    return hotel.currentBusinessDate?.toISOString().slice(0, 10) ?? getCurrentPKTDate();
+    const businessDate = hotel.currentBusinessDate?.toISOString().slice(0, 10)
+      ?? getOperationalBusinessDate(hotel.settings, now);
+    const closesAt = getBusinessDayEnd(businessDate, hotel.settings);
+    return {
+      businessDate,
+      closesAt: closesAt.toISOString(),
+      canClose: now >= closesAt,
+    };
+  },
+
+  async getBusinessDate(withTenant: WithTenantFn, hotelId: string): Promise<string> {
+    return (await this.getBusinessDateContext(withTenant, hotelId)).businessDate;
   },
 
   async getPreflightCheck(withTenant: WithTenantFn, hotelId: string, businessDate: string) {
@@ -231,8 +250,8 @@ export const NightAuditService = {
     const hotel = await withTenant((db) =>
       db.hotel.findUniqueOrThrow({ where: { id: hotelId }, select: { settings: true } }),
     );
-    if (businessDate === currentPKTDate && !hasNightAuditWindowOpened(businessDate, hotel.settings)) {
-      throw new AppError(409, "Night Audit opens when the configured Night shift begins");
+    if (!hasBusinessDayEnded(businessDate, hotel.settings)) {
+      throw new AppError(409, "Night Audit opens when the configured business day ends");
     }
 
     const { start, end } = getPKTDayRange(businessDate);

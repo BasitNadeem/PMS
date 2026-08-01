@@ -568,7 +568,9 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
       setAppliedPromoCode(result.code);
       sessionStorage.setItem(PROMO_KEY(hotelSlug), result.code);
       setPromoCode(result.code);
-      setPromoMessage(`${result.label || result.ratePlanName} applied`);
+      setPromoMessage(result.discountPercent
+        ? `${result.discountPercent}% personal offer applied — prices updated`
+        : `${result.label || result.ratePlanName || "Code"} applied — prices updated`);
       setShowPromoInput(false);
     } catch {
       setAppliedPromoCode("");

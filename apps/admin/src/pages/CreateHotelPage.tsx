@@ -34,11 +34,11 @@ export default function CreateHotelPage() {
       const res = await api.get<{ data: SubscriptionPlan[] }>("/api/admin/plans");
       const allPlans = res.data.data;
       // Default to trial plan
-      const trial = allPlans.find((p) => p.slug === "trial");
+      const trial = allPlans.find((p) => p.slug === "trial" && p.isActive);
       if (trial && !subscriptionPlanId) {
         setSubscriptionPlanId(trial.id);
       }
-      return allPlans;
+      return allPlans.filter((plan) => plan.isActive);
     },
   });
 

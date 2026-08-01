@@ -21,6 +21,7 @@ import { Segmented } from "@/components/ui/Segmented";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { usePermissions } from "@/hooks/usePermissions";
+import { guestsService } from "@/services/guests";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -241,7 +242,7 @@ export default function ReservationsPage() {
   const [sortBy, setSortBy]         = useState<"checkIn" | "checkOut" | "created" | "status">("checkIn");
   const [sortDir, setSortDir]       = useState<"asc" | "desc">("desc");
   const [showChooser, setShowChooser]   = useState(() => searchParams.get("new") === "1");
-  const [showNew, setShowNew]           = useState(false);
+  const [showNew, setShowNew]           = useState(() => searchParams.get("new") === "single");
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [newCheckIn,  setNewCheckIn]    = useState<string | undefined>(undefined);
   const [newCheckOut, setNewCheckOut]   = useState<string | undefined>(undefined);
@@ -253,12 +254,21 @@ export default function ReservationsPage() {
   const [calMonth, setCalMonth]     = useState(new Date().getMonth() + 1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Clear ?new=1 / ?view=calendar from URL once consumed
+  const initialGuestId = searchParams.get("guestId");
+  const { data: initialGuest } = useQuery({
+    queryKey: ["guest", initialGuestId],
+    queryFn: () => guestsService.getGuest(initialGuestId!),
+    enabled: Boolean(initialGuestId),
+  });
+
+  // Clear ordinary launch params once consumed. Guest-prefill parameters stay
+  // for this page lifetime so the modal never loses its selected guest while
+  // its query is resolving.
   useEffect(() => {
     if (searchParams.get("new") === "1" || searchParams.get("view")) {
       setSearchParams({}, { replace: true });
     }
-  }, []);
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -331,6 +341,7 @@ export default function ReservationsPage() {
   }
 
   const monthName = new Date(calYear, calMonth - 1).toLocaleDateString("en-PK", { month: "long", year: "numeric" });
+  const timelineMonthName = new Date(calYear, calMonth - 1).toLocaleDateString("en-PK", { month: "long" });
 
   return (
     <div>
@@ -403,30 +414,40 @@ export default function ReservationsPage() {
 
       {view === "timeline" && (
         <Card pad={false} className="anim-fade-up overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-5 border-b border-line-soft">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-line-soft bg-card">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-ink-faint mb-1">Room Timeline</p>
-              <div className="flex items-center gap-3">
+              <div className="flex items-baseline gap-2">
+                <h3 className="serif text-[28px] leading-none text-ink">{timelineMonthName}</h3>
+                <span className="serif text-[21px] text-ink-mute">{calYear}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { const now = new Date(); handleMonthChange(now.getFullYear(), now.getMonth() + 1); }}
+                className="h-8 rounded-full border border-line px-3 text-[11px] font-semibold text-ink-mute hover:bg-mist hover:text-ink transition-colors"
+              >
+                Today
+              </button>
+              <div className="flex items-center rounded-full border border-line bg-mist p-0.5">
                 <button
                   onClick={() => handleMonthChange(calYear, calMonth - 1)}
-                  className="grid place-items-center h-7 w-7 rounded-full hover:bg-line-soft text-ink-mute transition-colors"
+                  aria-label="Previous month"
+                  className="grid place-items-center h-7 w-7 rounded-full text-ink-mute hover:bg-card hover:text-ink transition-colors"
                 >
                   <ChevronLeft size={15} />
                 </button>
-                <h3 className="serif text-[32px] leading-none text-ink">
-                  {monthName}
-                  <span className="text-ink-mute ml-2.5 text-[24px]">{calYear}</span>
-                </h3>
                 <button
                   onClick={() => handleMonthChange(calYear, calMonth + 1)}
-                  className="grid place-items-center h-7 w-7 rounded-full hover:bg-line-soft text-ink-mute transition-colors"
+                  aria-label="Next month"
+                  className="grid place-items-center h-7 w-7 rounded-full text-ink-mute hover:bg-card hover:text-ink transition-colors"
                 >
                   <ChevronRight size={15} />
                 </button>
               </div>
             </div>
           </div>
-          <TimelineView year={calYear} month={calMonth} onMonthChange={handleMonthChange} onReservationClick={setOpenDrawerId} />
+          <TimelineView year={calYear} month={calMonth} onReservationClick={setOpenDrawerId} />
         </Card>
       )}
 
@@ -619,6 +640,7 @@ export default function ReservationsPage() {
 
       {showNew && (
         <NewReservationModal
+          initialGuest={initialGuest}
           initialCheckInDate={newCheckIn}
           initialCheckOutDate={newCheckOut}
           onClose={() => { setShowNew(false); setNewCheckIn(undefined); setNewCheckOut(undefined); clearSelection(); }}

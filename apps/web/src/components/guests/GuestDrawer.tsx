@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { X, Phone, Mail, BadgeCheck, MapPin, Pencil, CalendarPlus } from "lucide-react";
+import { X, Phone, Mail, BadgeCheck, MapPin, Pencil, CalendarPlus, Gift } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { guestsService } from "@/services/guests";
 import { Drawer } from "@/components/ui/Drawer";
 import { Avatar } from "@/components/ui/Avatar";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { VipBadge } from "./VipBadge";
+import { IssueOfferModal } from "./IssueOfferModal";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -49,9 +52,12 @@ export interface GuestDrawerProps {
   guestId: string | null;
   onClose: () => void;
   onEdit?: (id: string) => void;
+  canIssueOffer?: boolean;
+  onNotify?: (message: string) => void;
 }
 
-export function GuestDrawer({ guestId, onClose, onEdit }: GuestDrawerProps) {
+export function GuestDrawer({ guestId, onClose, onEdit, canIssueOffer = false, onNotify }: GuestDrawerProps) {
+  const [showIssueOffer, setShowIssueOffer] = useState(false);
   const { data: guest, isLoading } = useQuery({
     queryKey: ["guest", guestId],
     queryFn: () => guestsService.getGuest(guestId!),
@@ -81,10 +87,13 @@ export function GuestDrawer({ guestId, onClose, onEdit }: GuestDrawerProps) {
               <Avatar
                 name={guest.fullName}
                 size={56}
-                vip={guest.vipLevel > 0 || guest.totalStays >= 5}
+                vip={guest.vipLevel > 0}
               />
               <div className="flex-1 min-w-0">
-                <h3 className="serif text-[24px] leading-tight text-ink">{guest.fullName}</h3>
+                <h3 className="serif text-[24px] leading-tight text-ink flex items-center gap-2 flex-wrap">
+                  {guest.fullName}
+                  <VipBadge level={guest.vipLevel} size="sm" />
+                </h3>
                 {(guest.city || guest.nationality) && (
                   <div className="mt-0.5 flex items-center gap-1.5 text-[13px] text-ink-mute">
                     <MapPin size={13} />
@@ -147,7 +156,7 @@ export function GuestDrawer({ guestId, onClose, onEdit }: GuestDrawerProps) {
                 <span className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">
                   Stay history
                 </span>
-                <span className="text-[12px] text-ink-mute">{guest.reservations.length} bookings</span>
+                <span className="text-[12px] text-ink-mute">{guest.reservationCount} bookings</span>
               </div>
               {guest.reservations.length === 0 ? (
                 <div className="rounded-xl2 border border-dashed border-line p-6 text-center text-[13px] text-ink-mute">
@@ -189,16 +198,38 @@ export function GuestDrawer({ guestId, onClose, onEdit }: GuestDrawerProps) {
           </div>
 
           {/* Footer */}
-          <div className="border-t border-line bg-card p-4">
+          <div className="border-t border-line bg-card p-4 space-y-2.5">
             <Link
-              to="/reservations"
+              to={`/reservations?new=single&guestId=${guest.id}`}
               onClick={onClose}
               className="flex items-center justify-center gap-2 w-full h-11 rounded-full bg-coral text-white text-sm font-semibold hover:bg-coral-dark transition-colors"
             >
               <CalendarPlus size={17} />
               New reservation for {guest.firstName}
             </Link>
+            {/* One click from the guest list, rather than list → profile →
+                Offers tab. */}
+            {canIssueOffer && !guest.isBlacklisted && (
+              <button
+                onClick={() => setShowIssueOffer(true)}
+                className="flex items-center justify-center gap-2 w-full h-11 rounded-full border border-line text-ink-soft text-sm font-semibold hover:bg-mist hover:text-ink transition-colors"
+              >
+                <Gift size={17} />
+                Issue an offer
+              </button>
+            )}
           </div>
+
+          {showIssueOffer && (
+            <IssueOfferModal
+              guestId={guest.id}
+              guestName={guest.fullName}
+              guestEmail={guest.email}
+              marketingOptIn={guest.marketingOptIn}
+              onClose={() => setShowIssueOffer(false)}
+              onSuccess={(message) => onNotify?.(message)}
+            />
+          )}
         </>
       )}
     </Drawer>

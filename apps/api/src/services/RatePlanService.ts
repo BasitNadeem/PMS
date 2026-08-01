@@ -10,7 +10,11 @@ import type {
 } from "../schemas/ratePlans";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
-import { getEffectiveLimits } from "../lib/subscription";
+import {
+  acquireSubscriptionQuotaLock,
+  checkSubscriptionLimit,
+  getEffectiveLimits,
+} from "../lib/subscription";
 import { publicWithTenant } from "../lib/publicTenant";
 import { notifyHotelDataChanged } from "../lib/realtime";
 import { getCurrentPKTDate } from "../lib/timezone";
@@ -57,17 +61,42 @@ function codeIsAvailableToday(code: { validFrom: Date | null; validTo: Date | nu
   return (!code.validFrom || code.validFrom <= today) && (!code.validTo || code.validTo >= today);
 }
 
+/**
+ * Personal codes issued to one guest carry `maxUses`; the shared corporate and
+ * promo codes this table has always held leave it null and stay unlimited.
+ */
+function codeHasUsesLeft(code: { maxUses: number | null; usedCount: number }): boolean {
+  return code.maxUses === null || code.usedCount < code.maxUses;
+}
+
 // Extracted core — callable with any WithTenantFn (authenticated or public).
 async function suggestRateCore(wt: WithTenantFn, query: SuggestRateQuery, hotelId: string) {
   const { features } = await getEffectiveLimits(hotelId);
   if (!features.ratePlans) {
-    if (query.promoCode) throw new AppError(400, "Promo or corporate code is invalid or unavailable");
     const roomType = await wt((db) =>
       db.roomType.findUnique({ where: { id: query.roomTypeId }, select: { defaultRate: true } })
     );
     if (!roomType) throw new AppError(404, "Room type not found");
+    if (query.promoCode) {
+      const personalOffer = await wt((db) => db.ratePlanCode.findFirst({
+        where: { hotelId, code: query.promoCode, isActive: true, discountPercent: { not: null } },
+      }));
+      if (!personalOffer || personalOffer.discountPercent === null || !codeIsAvailableToday(personalOffer) || !codeHasUsesLeft(personalOffer)) {
+        throw new AppError(400, "Promo or corporate code is invalid or unavailable");
+      }
+      return {
+        suggestedRate: Math.round(roomType.defaultRate * (100 - personalOffer.discountPercent) / 100),
+        baseRate: roomType.defaultRate,
+        discountPercent: personalOffer.discountPercent,
+        matchedPlan: null,
+        allMatchingPlans: [] as { id: string; name: string; rate: number }[],
+        appliedCode: personalOffer.code,
+      };
+    }
     return {
       suggestedRate: roomType.defaultRate,
+      baseRate: roomType.defaultRate,
+      discountPercent: null,
       matchedPlan: null,
       allMatchingPlans: [] as { id: string; name: string; rate: number }[],
       appliedCode: null,
@@ -127,6 +156,9 @@ async function suggestRateCore(wt: WithTenantFn, query: SuggestRateQuery, hotelI
   );
   if (!roomType) throw new AppError(404, "Room type not found");
 
+  const bestPlan = eligible[0];
+  const baseRate = bestPlan ? bestPlan.items[0].rate : roomType.defaultRate;
+
   let noDedicatedRateHint: string | null = null;
   if (query.bookingContext === "TOUR_AGENCY" || query.bookingContext === "CORPORATE") {
     const dedicatedType = query.bookingContext === "TOUR_AGENCY" ? "TRAVEL_AGENT" : "CORPORATE";
@@ -143,7 +175,6 @@ async function suggestRateCore(wt: WithTenantFn, query: SuggestRateQuery, hotelI
           hotelId,
           code: query.promoCode,
           isActive: true,
-          ratePlan: { isActive: true, codeRequired: true },
         },
         include: {
           ratePlan: {
@@ -158,7 +189,28 @@ async function suggestRateCore(wt: WithTenantFn, query: SuggestRateQuery, hotelI
       })
     );
 
-    if (!accessCode || !codeIsAvailableToday(accessCode) || !planAppliesToStay(accessCode.ratePlan, checkIn, checkOut, nights)) {
+    if (!accessCode || !codeIsAvailableToday(accessCode) || !codeHasUsesLeft(accessCode)) {
+      throw new AppError(400, "Promo or corporate code is invalid or unavailable");
+    }
+
+    if (accessCode.discountPercent !== null) {
+      const suggestedRate = Math.round(baseRate * (100 - accessCode.discountPercent) / 100);
+      return {
+        suggestedRate,
+        baseRate,
+        discountPercent: accessCode.discountPercent,
+        matchedPlan: bestPlan ? { id: bestPlan.id, name: bestPlan.name, type: bestPlan.type } : null,
+        allMatchingPlans: eligible.map((p) => ({ id: p.id, name: p.name, rate: p.items[0].rate })),
+        noDedicatedRateHint,
+        appliedCode: accessCode.code,
+      };
+    }
+
+    if (
+      !accessCode.ratePlan ||
+      !accessCode.ratePlan.codeRequired ||
+      !planAppliesToStay(accessCode.ratePlan, checkIn, checkOut, nights)
+    ) {
       throw new AppError(400, "Promo or corporate code is invalid or unavailable");
     }
 
@@ -166,6 +218,8 @@ async function suggestRateCore(wt: WithTenantFn, query: SuggestRateQuery, hotelI
     if (codeRate !== undefined) {
       return {
         suggestedRate: codeRate,
+        baseRate,
+        discountPercent: null,
         matchedPlan: { id: accessCode.ratePlan.id, name: accessCode.ratePlan.name, type: accessCode.ratePlan.type },
         allMatchingPlans: [{ id: accessCode.ratePlan.id, name: accessCode.ratePlan.name, rate: codeRate }],
         noDedicatedRateHint: null,
@@ -174,11 +228,10 @@ async function suggestRateCore(wt: WithTenantFn, query: SuggestRateQuery, hotelI
     }
   }
 
-  const bestPlan      = eligible[0];
-  const suggestedRate = bestPlan ? bestPlan.items[0].rate : roomType.defaultRate;
-
   return {
-    suggestedRate,
+    suggestedRate:      baseRate,
+    baseRate,
+    discountPercent:    null,
     matchedPlan:        bestPlan ? { id: bestPlan.id, name: bestPlan.name, type: bestPlan.type } : null,
     allMatchingPlans:   eligible.map((p) => ({ id: p.id, name: p.name, rate: p.items[0].rate })),
     noDedicatedRateHint,
@@ -239,6 +292,10 @@ export const RatePlanService = {
     actor: JwtPayload
   ) {
     return withTenant(async (db) => {
+      await acquireSubscriptionQuotaLock(db, hotelId, "maxActiveRatePlans");
+      const activeCount = await db.ratePlan.count({ where: { isActive: true } });
+      await checkSubscriptionLimit(hotelId, "maxActiveRatePlans", activeCount);
+
       const plan = await db.ratePlan.create({
         data: {
           hotelId,
@@ -357,6 +414,12 @@ export const RatePlanService = {
       const existing = await db.ratePlan.findUnique({ where: { id } });
       if (!existing) throw new AppError(404, "Rate plan not found");
 
+      if (!existing.isActive) {
+        await acquireSubscriptionQuotaLock(db, hotelId, "maxActiveRatePlans");
+        const activeCount = await db.ratePlan.count({ where: { isActive: true } });
+        await checkSubscriptionLimit(hotelId, "maxActiveRatePlans", activeCount);
+      }
+
       await db.ratePlan.update({ where: { id }, data: { isActive: true } });
 
       await db.auditLog.create({
@@ -411,14 +474,12 @@ export const RatePlanService = {
 
   async validateAccessCodePublic(hotelId: string, code: string, checkIn: string, checkOut: string) {
     const { features } = await getEffectiveLimits(hotelId);
-    if (!features.ratePlans) throw new AppError(400, "Promo or corporate code is invalid or unavailable");
     const accessCode = await publicWithTenant(hotelId)((db) =>
       db.ratePlanCode.findFirst({
         where: {
           hotelId,
           code,
           isActive: true,
-          ratePlan: { isActive: true, codeRequired: true },
         },
         include: { ratePlan: true },
       })
@@ -427,7 +488,25 @@ export const RatePlanService = {
     const end = new Date(checkOut);
     const nights = Math.round((end.getTime() - start.getTime()) / 86_400_000);
 
-    if (!accessCode || !codeIsAvailableToday(accessCode) || !planAppliesToStay(accessCode.ratePlan, start, end, nights)) {
+    if (!accessCode || !codeIsAvailableToday(accessCode) || !codeHasUsesLeft(accessCode)) {
+      throw new AppError(400, "Promo or corporate code is invalid or unavailable");
+    }
+
+
+    if (accessCode.discountPercent !== null) {
+      return {
+        code: accessCode.code,
+        label: accessCode.label,
+        ratePlanName: null,
+        ratePlanType: null,
+        discountPercent: accessCode.discountPercent,
+        personalOffer: accessCode.guestId !== null,
+      };
+    }
+
+    if (!features.ratePlans) throw new AppError(400, "Promo or corporate code is invalid or unavailable");
+
+    if (!accessCode.ratePlan || !accessCode.ratePlan.codeRequired || !planAppliesToStay(accessCode.ratePlan, start, end, nights)) {
       throw new AppError(400, "Promo or corporate code is invalid or unavailable");
     }
 
@@ -436,6 +515,8 @@ export const RatePlanService = {
       label: accessCode.label,
       ratePlanName: accessCode.ratePlan.name,
       ratePlanType: accessCode.ratePlan.type,
+      discountPercent: null,
+      personalOffer: false,
     };
   },
 
@@ -450,6 +531,17 @@ export const RatePlanService = {
       const plan = await db.ratePlan.findFirst({ where: { id: ratePlanId, hotelId } });
       if (!plan) throw new AppError(404, "Rate plan not found");
       if (!plan.codeRequired) throw new AppError(400, "Enable code-required access on this rate plan before adding codes");
+
+      await acquireSubscriptionQuotaLock(db, hotelId, "maxActivePromoCodes");
+      const today = new Date(`${getCurrentPKTDate()}T00:00:00.000Z`);
+      const activeCount = await db.ratePlanCode.count({ where: {
+        isActive: true,
+        AND: [
+          { OR: [{ validTo: null }, { validTo: { gte: today } }] },
+          { OR: [{ maxUses: null }, { usedCount: 0 }] },
+        ],
+      } });
+      await checkSubscriptionLimit(hotelId, "maxActivePromoCodes", activeCount);
 
       try {
         const accessCode = await db.ratePlanCode.create({
@@ -496,6 +588,19 @@ export const RatePlanService = {
     return withTenant(async (db) => {
       const existing = await db.ratePlanCode.findFirst({ where: { id: codeId, ratePlanId, hotelId } });
       if (!existing) throw new AppError(404, "Access code not found");
+
+      if (data.isActive === true && !existing.isActive) {
+        await acquireSubscriptionQuotaLock(db, hotelId, "maxActivePromoCodes");
+        const today = new Date(`${getCurrentPKTDate()}T00:00:00.000Z`);
+        const activeCount = await db.ratePlanCode.count({ where: {
+          isActive: true,
+          AND: [
+            { OR: [{ validTo: null }, { validTo: { gte: today } }] },
+            { OR: [{ maxUses: null }, { usedCount: 0 }] },
+          ],
+        } });
+        await checkSubscriptionLimit(hotelId, "maxActivePromoCodes", activeCount);
+      }
 
       try {
         const accessCode = await db.ratePlanCode.update({

@@ -3,11 +3,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Building2, Clock, Receipt, AlertTriangle, ChevronLeft, Check,
-  MessageSquare, Info, ShieldCheck, KeyRound, Eye, EyeOff, History, QrCode, Copy, Download, CreditCard, Lock, Loader2, ImagePlus,
+  MessageSquare, Info, ShieldCheck, KeyRound, Eye, EyeOff, History, QrCode, Copy, Download, CreditCard, Lock, Loader2, ImagePlus, Gift,
 } from "lucide-react";
 import QRCode from "qrcode";
 import { cn } from "@/lib/cn";
-import { settingsService, type UpdateSettingsDto, type RolePermissions, type ThemeKey } from "@/services/settings";
+import { settingsService, type PlanInfo, type UpdateSettingsDto, type RolePermissions, type ThemeKey } from "@/services/settings";
 import { getPhoneErrorMessage, getEmailErrorMessage } from "@/lib/validation";
 import { exportAllDataToExcel } from "@/lib/exportExcel";
 import { getCurrentUserRole } from "@/lib/jwt";
@@ -253,12 +253,7 @@ export default function SettingsPage() {
     queryKey: ["settings", "plan"],
     queryFn: async () => {
       const { api } = await import("@/lib/api");
-      const res = await api.get<{ data: {
-        planName: string; planSlug: string | null; priceMonthly: number;
-        isTrialAccount: boolean; trialEndsAt: string | null;
-        maxRooms: number; maxUsers: number; currentRooms: number; currentUsers: number;
-        features: Record<string, boolean>;
-      } }>("/api/settings/plan");
+      const res = await api.get<{ data: PlanInfo }>("/api/settings/plan");
       return res.data.data;
     },
     staleTime: 60_000,
@@ -305,7 +300,15 @@ export default function SettingsPage() {
   const [notifSaving,     setNotifSaving]     = useState(false);
   const [notifSaved,      setNotifSaved]      = useState(false);
   const [testSending,     setTestSending]     = useState(false);
+  const [occasionSweepRunning, setOccasionSweepRunning] = useState(false);
   const [whatsappError,   setWhatsappError]   = useState<string | null>(null);
+  const [occasionOffers, setOccasionOffers] = useState({
+    birthdayEnabled: false,
+    anniversaryEnabled: false,
+    discountPercent: "10",
+    leadDays: "3",
+    validityDays: "45",
+  });
   const [profilePhoneError, setProfilePhoneError] = useState<string | null>(null);
   const [profileEmailError, setProfileEmailError] = useState<string | null>(null);
 
@@ -494,6 +497,13 @@ export default function SettingsPage() {
       posTaxRate:   String(s.posTaxRate  ?? "0"),
     });
     setWhatsappNumber(String(s.ownerWhatsappNumber ?? ""));
+    setOccasionOffers({
+      birthdayEnabled: s.birthdayOffersEnabled === true,
+      anniversaryEnabled: s.anniversaryOffersEnabled === true,
+      discountPercent: String(s.occasionOfferDiscountPercent ?? "10"),
+      leadDays: String(s.occasionOfferLeadDays ?? "3"),
+      validityDays: String(s.occasionOfferValidityDays ?? "45"),
+    });
   }, [settings]);
 
   const updateMutation = useMutation({
@@ -602,9 +612,28 @@ export default function SettingsPage() {
       const err = getPhoneErrorMessage(whatsappNumber);
       if (err) { setWhatsappError(err); return; }
     }
+    const discount = Number(occasionOffers.discountPercent);
+    const leadDays = Number(occasionOffers.leadDays);
+    const validityDays = Number(occasionOffers.validityDays);
+    if (!Number.isInteger(discount) || discount < 1 || discount > 90) {
+      addToast("Occasion discount must be between 1% and 90%", "error"); return;
+    }
+    if (!Number.isInteger(leadDays) || leadDays < 0 || leadDays > 90) {
+      addToast("Offer lead time must be between 0 and 90 days", "error"); return;
+    }
+    if (!Number.isInteger(validityDays) || validityDays < 1 || validityDays > 365) {
+      addToast("Offer validity must be between 1 and 365 days", "error"); return;
+    }
     setNotifSaving(true);
     try {
-      await updateMutation.mutateAsync({ ownerWhatsappNumber: whatsappNumber || null } as UpdateSettingsDto);
+      await updateMutation.mutateAsync({
+        ownerWhatsappNumber: whatsappNumber || null,
+        birthdayOffersEnabled: occasionOffers.birthdayEnabled,
+        anniversaryOffersEnabled: occasionOffers.anniversaryEnabled,
+        occasionOfferDiscountPercent: discount,
+        occasionOfferLeadDays: leadDays,
+        occasionOfferValidityDays: validityDays,
+      });
       if (whatsappNumber) await settingsService.scheduleBriefing();
       setNotifSaved(true);
       setTimeout(() => setNotifSaved(false), 2000);
@@ -626,6 +655,18 @@ export default function SettingsPage() {
       addToast(msg ?? "Failed to send test briefing", "error");
     } finally {
       setTestSending(false);
+    }
+  }
+
+  async function runOccasionSweep() {
+    setOccasionSweepRunning(true);
+    try {
+      await settingsService.runOccasionSweep();
+      addToast("Occasion sweep queued. Eligible offer emails will appear in guest profiles shortly.");
+    } catch (error) {
+      addToast((error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Could not run occasion offers", "error");
+    } finally {
+      setOccasionSweepRunning(false);
     }
   }
 
@@ -711,36 +752,36 @@ export default function SettingsPage() {
                         </div>
                       )}
                     </div>
-                    <span className="rounded-full bg-pine/10 text-pine text-[12px] font-bold px-3 py-1">
-                      {plan.isTrialAccount ? "Trial" : "Active"}
+                    <span className={cn(
+                      "rounded-full text-[12px] font-bold px-3 py-1",
+                      plan.trialExpired ? "bg-red-100 text-red-700" : "bg-pine/10 text-pine",
+                    )}>
+                      {plan.trialExpired ? "Trial expired" : plan.isTrialAccount ? "Trial" : "Active"}
                     </span>
                   </div>
 
                   <div className="space-y-3">
-                    <div>
-                      <div className="flex justify-between text-[13px] font-semibold text-ink-soft mb-1">
-                        <span>Rooms</span>
-                        <span>{plan.currentRooms} / {plan.maxRooms === 999 ? "Unlimited" : plan.maxRooms}</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-line-soft overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-coral transition-all duration-700"
-                          style={{ width: plan.maxRooms === 999 ? "4%" : `${Math.min(100, Math.round((plan.currentRooms / plan.maxRooms) * 100))}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-[13px] font-semibold text-ink-soft mb-1">
-                        <span>Users</span>
-                        <span>{plan.currentUsers} / {plan.maxUsers === 999 ? "Unlimited" : plan.maxUsers}</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-line-soft overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-coral transition-all duration-700"
-                          style={{ width: plan.maxUsers === 999 ? "4%" : `${Math.min(100, Math.round((plan.currentUsers / plan.maxUsers) * 100))}%` }}
-                        />
-                      </div>
-                    </div>
+                    {([
+                      ["maxRooms", "Active rooms"],
+                      ["maxUsers", "Active users"],
+                      ["maxActiveRatePlans", "Active rate plans"],
+                      ["maxActivePromoCodes", "Active promo / corporate codes"],
+                    ] as const).map(([key, label]) => {
+                      const current = plan.usage[key];
+                      const limit = plan.limits[key];
+                      const width = limit === null ? (current > 0 ? 8 : 0) : Math.min(100, Math.round((current / Math.max(limit, 1)) * 100));
+                      return (
+                        <div key={key}>
+                          <div className="flex justify-between text-[13px] font-semibold text-ink-soft mb-1">
+                            <span>{label}</span>
+                            <span>{current} / {limit ?? "Unlimited"}</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-line-soft overflow-hidden">
+                            <div className="h-full rounded-full bg-coral transition-all duration-700" style={{ width: `${width}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {(() => {
@@ -1147,7 +1188,7 @@ export default function SettingsPage() {
                           nightAuditRemindersEnabled: value,
                         }))}
                         label="Night Audit reminders"
-                        subtext="Appears when the configured Night shift opens the audit, and remains until the business day is closed"
+                        subtext="Appears before the next Morning shift begins, and remains overdue until the business day is closed"
                       />
                     </div>
                   </div>
@@ -1383,6 +1424,7 @@ export default function SettingsPage() {
 
           {/* ── Notifications & Alerts ───────────────────────────────────── */}
           {activeSection === "notifications" && isOwner && (
+            <div>
             <div className={sectionCardCls}>
               <h2 className="serif text-[22px] text-ink mb-1">WhatsApp Nightly Briefing</h2>
               <p className="text-[13px] text-ink-mute mb-5">
@@ -1453,6 +1495,29 @@ export default function SettingsPage() {
                   </p>
                 </div>
               </div>
+            </div>
+            <div className={sectionCardCls}>
+              <div className="flex items-start gap-3 mb-5">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-coral/10 text-coral"><Gift size={18} /></div>
+                <div>
+                  <h2 className="serif text-[22px] text-ink mb-1">Guest occasion offers</h2>
+                  <p className="text-[13px] text-ink-mute">Automatically create a personal, single-use discount on the best available rate. Emails are sent only to opted-in guests.</p>
+                </div>
+              </div>
+              <div className="divide-y divide-line-soft rounded-xl border border-line px-4 mb-5">
+                <Toggle checked={occasionOffers.birthdayEnabled} onChange={(v) => setOccasionOffers((s) => ({ ...s, birthdayEnabled: v }))} label="Birthday offers" subtext="Send before a guest’s saved birthday." />
+                <Toggle checked={occasionOffers.anniversaryEnabled} onChange={(v) => setOccasionOffers((s) => ({ ...s, anniversaryEnabled: v }))} label="Anniversary offers" subtext="Send before a guest’s saved anniversary." />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div><label className={labelCls}>Discount</label><div className="relative"><input type="number" min="1" max="90" className={cn(inputCls, "pr-8 tnum")} value={occasionOffers.discountPercent} onChange={(e) => setOccasionOffers((s) => ({ ...s, discountPercent: e.target.value }))} /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-mute">%</span></div></div>
+                <div><label className={labelCls}>Send before</label><div className="relative"><input type="number" min="0" max="90" className={cn(inputCls, "pr-12 tnum")} value={occasionOffers.leadDays} onChange={(e) => setOccasionOffers((s) => ({ ...s, leadDays: e.target.value }))} /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-ink-mute">days</span></div></div>
+                <div><label className={labelCls}>Code validity</label><div className="relative"><input type="number" min="1" max="365" className={cn(inputCls, "pr-12 tnum")} value={occasionOffers.validityDays} onChange={(e) => setOccasionOffers((s) => ({ ...s, validityDays: e.target.value }))} /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-ink-mute">days</span></div></div>
+              </div>
+              {canUpdateSettings && <div className="mt-6 flex flex-wrap justify-end gap-3">
+                <button type="button" onClick={runOccasionSweep} disabled={occasionSweepRunning || (!occasionOffers.birthdayEnabled && !occasionOffers.anniversaryEnabled)} className="h-10 px-5 rounded-full border border-line text-ink-soft text-[13.5px] font-semibold hover:bg-mist transition-colors disabled:opacity-40">{occasionSweepRunning ? "Queuing…" : "Run sweep now"}</button>
+                <SaveButton saving={notifSaving} saved={notifSaved} onClick={saveNotifications} />
+              </div>}
+            </div>
             </div>
           )}
 

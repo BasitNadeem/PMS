@@ -47,15 +47,19 @@ export interface AvailabilityResult {
 
 export interface SuggestRateResult {
   suggestedRate: number; // PKR
+  baseRate: number; // PKR, before a personal percentage offer
   matchedPlan: { id: string; name: string; type: string } | null;
   appliedCode: string | null;
+  discountPercent: number | null;
 }
 
 export interface PromoCodeValidation {
   code: string;
   label: string | null;
-  ratePlanName: string;
-  ratePlanType: string;
+  ratePlanName: string | null;
+  ratePlanType: string | null;
+  discountPercent: number | null;
+  personalOffer: boolean;
 }
 
 export interface BookingRequest {

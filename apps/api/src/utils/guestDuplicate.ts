@@ -7,14 +7,27 @@ import { AppError } from "./AppError";
 // guest profile.
 export async function assertNoDuplicateGuest(
   db: TenantTx,
-  phone: string,
-  documentNumber: string,
+  phone: string | null | undefined,
+  documentNumber: string | null | undefined,
   allowDuplicate?: boolean,
+  excludeGuestId?: string,
 ): Promise<void> {
   if (allowDuplicate) return;
 
+  // Only match on values we actually have. A null arm would become
+  // `OR: [{ phone: null }]`, which matches every guest missing a phone number
+  // and reports them all as duplicates of each other.
+  const conditions = [
+    ...(phone ? [{ phone }] : []),
+    ...(documentNumber ? [{ documentNumber }] : []),
+  ];
+  if (conditions.length === 0) return;
+
   const existing = await db.guest.findFirst({
-    where: { OR: [{ phone }, { documentNumber }] },
+    where: {
+      ...(excludeGuestId ? { id: { not: excludeGuestId } } : {}),
+      OR: conditions,
+    },
     select: { id: true, fullName: true, phone: true, documentNumber: true },
   });
   if (!existing) return;

@@ -1,4 +1,4 @@
-import type { ReservationEmailJobData, ReservationEmailKind } from "../jobs/queues";
+import type { ReservationEmailJobData, ReservationEmailKind, PromoEmailJobData, PromoEmailReason } from "../jobs/queues";
 
 export type ReservationEmailData = Omit<ReservationEmailJobData, "guestEmail"> & {
   checkInDate:  string;
@@ -436,6 +436,141 @@ export function reservationLifecycleEmail(data: ReservationEmailData): string {
               </div>
               <div style="height:1px; background:#31524f; margin:24px auto 18px; max-width:450px;"></div>
               <p style="margin:0; color:#8fb4ae; font-size:11px;">© ${year} ${escapeHtml(data.hotelName)} &nbsp;·&nbsp; <a href="https://innflo.co" style="color:#b8cbc7; text-decoration:none;">Powered by InnFlo</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+// ── Promo code email ─────────────────────────────────────────────────────────
+
+const PROMO_COPY: Record<PromoEmailReason, { eyebrow: string; heading: string; intro: string; footer: string }> = {
+  BIRTHDAY: {
+    eyebrow: "A gift for your birthday",
+    heading: "Happy birthday from all of us.",
+    intro: "We hope the year ahead treats you kindly. Here is a little something for the next time you stay with us.",
+    footer: "Wishing you a wonderful year ahead.",
+  },
+  ANNIVERSARY: {
+    eyebrow: "Happy anniversary",
+    heading: "Here’s to the occasion.",
+    intro: "Congratulations on your anniversary. We would love to help you mark it — this offer is our small part in it.",
+    footer: "Here’s to many more.",
+  },
+  VIP_REWARD: {
+    eyebrow: "A thank you",
+    heading: "Thank you for coming back.",
+    intro: "You have stayed with us often enough that we wanted to say thank you properly. This offer is yours alone.",
+    footer: "It is always good to see you.",
+  },
+  WIN_BACK: {
+    eyebrow: "It has been a while",
+    heading: "We would love to see you again.",
+    intro: "It has been some time since your last stay. Whenever you are ready, this offer is waiting for you.",
+    footer: "The door is always open.",
+  },
+  MANUAL: {
+    eyebrow: "An offer for you",
+    heading: "A little something for your next stay.",
+    intro: "We have set aside a personal offer for your next booking with us.",
+    footer: "We look forward to welcoming you.",
+  },
+};
+
+export type PromoEmailData = Omit<PromoEmailJobData, "guestEmail">;
+
+export function promoCodeEmail(data: PromoEmailData): string {
+  const copy      = PROMO_COPY[data.reason];
+  const year      = new Date().getFullYear();
+  const logoUrl   = safeImageUrl(data.hotelLogoUrl);
+  const website   = safeLink(data.hotelWebsite);
+  const phoneHref = data.hotelPhone ? `tel:${escapeHtml(data.hotelPhone.replace(/[^\d+]/g, ""))}` : null;
+  const validTo   = new Intl.DateTimeFormat("en-PK", {
+    day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Karachi",
+  }).format(new Date(data.validTo));
+  const heading   = data.occasionLabel
+    ? `${copy.heading}`
+    : copy.heading;
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(data.hotelName)}</title>
+  <style>
+    @media only screen and (max-width:620px) {
+      .shell { width:100% !important; }
+      .pad   { padding-left:22px !important; padding-right:22px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0; padding:0; background:#f4f2ee;">
+  <div style="display:none; max-height:0; overflow:hidden; opacity:0;">${escapeHtml(copy.eyebrow)} · ${escapeHtml(data.code)} · valid until ${escapeHtml(validTo)}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f2ee;">
+    <tr>
+      <td align="center" style="padding:24px 10px;">
+        <table role="presentation" class="shell" width="640" cellpadding="0" cellspacing="0" style="width:640px; max-width:640px; background:#ffffff; border-radius:22px; overflow:hidden; font-family:Arial, Helvetica, sans-serif; box-shadow:0 10px 35px rgba(27,34,31,0.08);">
+          <tr>
+            <td class="pad" style="padding:28px 38px 22px; border-bottom:1px solid #e6e3dd; text-align:center;">
+              ${logoUrl
+                ? `<img src="${logoUrl}" alt="${escapeHtml(data.hotelName)}" style="display:inline-block; max-height:58px; max-width:190px; width:auto;">`
+                : `<div style="font-family:Georgia, 'Times New Roman', serif; color:#17211e; font-size:25px; font-weight:bold;">${escapeHtml(data.hotelName)}</div>`}
+            </td>
+          </tr>
+
+          <tr>
+            <td class="pad" style="padding:46px 38px 10px;">
+              <p style="margin:0 0 14px; color:${data.accentColor}; font-size:11px; font-weight:bold; letter-spacing:1.8px; text-transform:uppercase;">${escapeHtml(copy.eyebrow)}</p>
+              <h1 style="margin:0; max-width:500px; color:#183b38; font-family:Georgia, 'Times New Roman', serif; font-size:42px; line-height:50px; font-weight:normal;">${escapeHtml(heading)}</h1>
+              <p style="margin:28px 0 0; color:#293330; font-size:16px; line-height:26px;">Hello ${escapeHtml(data.guestName)},</p>
+              <p style="margin:12px 0 0; color:#59615e; font-size:15px; line-height:24px;">${escapeHtml(copy.intro)}</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="pad" style="padding:26px 38px 10px;">
+              <div style="border:2px dashed ${data.accentColor}; border-radius:16px; padding:26px 22px; text-align:center; background:#faf8f5;">
+                <p style="margin:0 0 8px; color:#626967; font-size:12px; letter-spacing:1px; text-transform:uppercase;">Your personal code</p>
+                <div style="color:${data.accentColor}; font-size:34px; font-weight:bold; letter-spacing:3px; font-family:Georgia, 'Times New Roman', serif;">${escapeHtml(data.code)}</div>
+                <p style="margin:14px 0 0; color:#626967; font-size:13px; line-height:20px;">${escapeHtml(data.offerName)}</p>
+              </div>
+              <p style="margin:16px 0 0; text-align:center; color:#8d3322; font-size:13.5px; font-weight:bold;">
+                Valid until ${escapeHtml(validTo)}
+              </p>
+              <p style="margin:8px 0 0; text-align:center; color:#8b918f; font-size:12px; line-height:19px;">
+                This code was issued to you and can be used once. Enter it when booking.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="pad" style="padding:30px 38px 46px; text-align:center;">
+              ${website ? `
+                <a href="${website}" style="display:inline-block; background:${data.accentColor}; border-radius:999px; padding:14px 30px; color:#ffffff; text-decoration:none; font-size:15px; font-weight:bold;">
+                  Book your stay
+                </a>` : phoneHref ? `
+                <a href="${phoneHref}" style="display:inline-block; border:1px solid #183b38; border-radius:999px; padding:12px 22px; color:#183b38; text-decoration:none; font-size:15px; font-weight:bold;">
+                  &#9742;&nbsp;&nbsp;${escapeHtml(data.hotelPhone ?? "Call hotel")}
+                </a>` : ""}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background:#183b38; padding:34px 28px; text-align:center;">
+              <p style="margin:0; color:#ffffff; font-family:Georgia, 'Times New Roman', serif; font-size:22px; font-style:italic;">${escapeHtml(copy.footer)}</p>
+              <div style="margin-top:16px;">
+                ${phoneHref ? contactLink(data.hotelPhone ?? "Call hotel", phoneHref) : ""}
+                ${data.hotelEmail ? contactLink(data.hotelEmail, `mailto:${escapeHtml(data.hotelEmail)}`) : ""}
+                ${website ? contactLink("Visit website", website) : ""}
+              </div>
+              <div style="height:1px; background:#31524f; margin:24px auto 18px; max-width:450px;"></div>
+              <p style="margin:0; color:#8fb4ae; font-size:11px;">© ${year} ${escapeHtml(data.hotelName)} &nbsp;·&nbsp; <a href="https://innflo.co" style="color:#b8cbc7; text-decoration:none;">Powered by InnFlo</a></p>
+              <p style="margin:10px 0 0; color:#8fb4ae; font-size:11px;">You are receiving this because you asked us to keep in touch. Reply to this email to opt out.</p>
             </td>
           </tr>
         </table>

@@ -16,6 +16,8 @@ const SETTINGS_JSON_KEYS = [
   "gstEnabled", "gstRate", "pstEnabled", "pstRate",
   "taxInclusive", "fbrEnabled", "invoicePrefix",
   "ownerWhatsappNumber", "themeKey", "posTaxRate", "logoUrl",
+  "birthdayOffersEnabled", "anniversaryOffersEnabled",
+  "occasionOfferDiscountPercent", "occasionOfferLeadDays", "occasionOfferValidityDays",
 ] as const;
 
 const HOTEL_MODEL_KEYS = [

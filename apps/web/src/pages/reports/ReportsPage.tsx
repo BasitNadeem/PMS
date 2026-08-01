@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   CalendarDays, BarChart3, ClipboardList,
   TrendingUp, ShoppingCart, ReceiptText, CreditCard,
-  AlertCircle, RotateCcw, Scale,
+  AlertCircle, RotateCcw, Scale, FileSpreadsheet,
   BedDouble, Users, Wrench, Package, Utensils,
   ChevronDown, ChevronRight, Search,
   Banknote, LogIn, LogOut, Sparkles, Moon,
@@ -110,6 +110,13 @@ const CATEGORIES: Category[] = [
         description: "Balance Book account flows and net positions",
         icon: Scale,
         route: "/reports/cash-reconciliation",
+      },
+      {
+        id: "accounting-export",
+        name: "Accounting Export",
+        description: "Journal file for Tally, Excel or any accounting package",
+        icon: FileSpreadsheet,
+        route: "/reports/accounting-export",
       },
     ],
   },

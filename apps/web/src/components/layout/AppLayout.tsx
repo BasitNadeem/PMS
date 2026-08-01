@@ -119,8 +119,8 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: "/kitchen/dashboard", label: "Kitchen Dashboard", icon: ChefHat,   permission: "pos:read",    roleOnly: "KITCHEN" },
-  { to: "/kitchen/display",   label: "Display Mode",      icon: Monitor,   permission: "pos:read",    roleOnly: "KITCHEN", newTab: true },
+  { to: "/kitchen/dashboard", label: "Kitchen Dashboard", icon: ChefHat, permission: "pos:read", roleOnly: "KITCHEN", featureGate: "posModule" },
+  { to: "/kitchen/display", label: "Display Mode", icon: Monitor, permission: "pos:read", roleOnly: "KITCHEN", newTab: true, featureGate: "kitchenDisplay" },
   { to: "/",             label: "Dashboard",    icon: LayoutDashboard, end: true, permission: "dashboard:read" },
   { to: "/reservations", label: "Reservations", icon: CalendarCheck, permission: "reservations:read" },
   { to: "/rooms",        label: "Rooms",        icon: BedDouble, permission: "rooms:read" },
@@ -135,7 +135,7 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   { to: "/housekeeping", label: "Housekeeping", icon: Sparkles, permission: "housekeeping:read" },
-  { to: "/maintenance",  label: "Maintenance",  icon: Wrench, permission: "maintenance:read" },
+  { to: "/maintenance", label: "Maintenance", icon: Wrench, permission: "maintenance:read", featureGate: "maintenanceTickets" },
   {
     to: "/operations", label: "Operations", icon: ClipboardList, permission: "shiftHandover:read",
     children: [
@@ -144,9 +144,9 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   { to: "/team",         label: "Team",         icon: Users2, permission: "team:read" },
-  { to: "/pos",          label: "POS",       icon: ShoppingCart,  permission: "pos:read" },
-  { to: "/qr-orders",    label: "QR Orders", icon: ClipboardList, permission: "pos:read" },
-  { to: "/inventory",    label: "Inventory", icon: Package,       permission: "pos:read" },
+  { to: "/pos", label: "POS", icon: ShoppingCart, permission: "pos:read", featureGate: "posModule" },
+  { to: "/qr-orders", label: "QR Orders", icon: ClipboardList, permission: "pos:read", featureGate: "qrOrdering" },
+  { to: "/inventory", label: "Inventory", icon: Package, permission: "pos:read", featureGate: "inventoryManagement" },
   {
     to: "/reports", label: "Reports", icon: FileBarChart, permission: "reports:read",
     children: [
@@ -161,7 +161,7 @@ const NAV_ITEMS: NavItem[] = [
 function Logo({ size = 38 }: { size?: number }) {
   return (
     <img
-      src="/brand/mark-clay-tight.svg"
+      src="/brand/mark-ink-tight.svg"
       alt=""
       aria-hidden="true"
       className="shrink-0"
@@ -295,7 +295,7 @@ function SidebarContent({
   const navItems = NAV_ITEMS
     .filter((item) => {
       if (item.roleOnly && item.roleOnly !== userRole) return false;
-      if (item.featureGate && planFeatures && planFeatures[item.featureGate] !== true) return false;
+      if (item.featureGate && planFeatures?.[item.featureGate] !== true) return false;
       return item.children
         ? hasAny(item.children.map((c) => c.permission))
         : has(item.permission);
@@ -305,7 +305,7 @@ function SidebarContent({
           ...item,
           children: item.children.filter((child) =>
             has(child.permission)
-            && (!child.featureGate || !planFeatures || planFeatures[child.featureGate] === true),
+            && (!child.featureGate || planFeatures?.[child.featureGate] === true),
           ),
         }
       : item)

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { X, Users2, LogIn } from "lucide-react";
+import { X, Users2, LogIn, BedDouble } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   reservationsService,
@@ -10,28 +10,51 @@ import {
 import { roomsService } from "@/services/rooms";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 
-const COL_WIDTH  = 52;
-const ROOM_COL   = 152;
-const ROW_HEIGHT = 58;
-const BAR_HEIGHT = 36;
+const COL_WIDTH  = 54;
+const ROOM_COL   = 184;
+const ROW_HEIGHT = 64;
+const BAR_HEIGHT = 40;
 
-// Warm earthy palette — all muted, all readable with white text
-const STATUS_STYLE: Record<string, { bg: string; shadow: string; dot: string; label: string }> = {
-  ENQUIRY:     { bg: "#D97706", shadow: "rgba(217,119,6,0.32)",   dot: "#FCD34D", label: "Enquiry"     },
-  CONFIRMED:   { bg: "#2563EB", shadow: "rgba(37,99,235,0.32)",   dot: "#93C5FD", label: "Confirmed"   },
-  CHECKED_IN:  { bg: "#059669", shadow: "rgba(5,150,105,0.32)",   dot: "#6EE7B7", label: "Checked In"  },
-  CHECKED_OUT: { bg: "#64748B", shadow: "rgba(100,116,139,0.32)", dot: "#CBD5E1", label: "Checked Out" },
-  CANCELLED:   { bg: "#E11D48", shadow: "rgba(225,29,72,0.32)",   dot: "#FDA4AF", label: "Cancelled"   },
+// Mid-saturation fills keep reservation state immediately scannable without
+// returning to the previous neon palette. A darker rail reinforces each state.
+const STATUS_STYLE: Record<string, {
+  bg: string; fg: string; rail: string; border: string; shadow: string; label: string;
+}> = {
+  ENQUIRY:     { bg: "#E3A43B", fg: "#352408", rail: "#9B650D", border: "#C9871C", shadow: "rgba(155,101,13,0.24)", label: "Enquiry" },
+  CONFIRMED:   { bg: "#557896", fg: "#FFFFFF", rail: "#29465E", border: "#3E627F", shadow: "rgba(41,70,94,0.25)", label: "Confirmed" },
+  CHECKED_IN:  { bg: "#438469", fg: "#FFFFFF", rail: "#205D45", border: "#317158", shadow: "rgba(32,93,69,0.25)", label: "Checked In" },
+  CHECKED_OUT: { bg: "#82786D", fg: "#FFFFFF", rail: "#504941", border: "#6C6258", shadow: "rgba(80,73,65,0.23)", label: "Checked Out" },
+  CANCELLED:   { bg: "#C65D47", fg: "#FFFFFF", rail: "#8E3827", border: "#AD4834", shadow: "rgba(142,56,39,0.24)", label: "Cancelled" },
+  NO_SHOW:     { bg: "#995445", fg: "#FFFFFF", rail: "#653226", border: "#7D4033", shadow: "rgba(101,50,38,0.24)", label: "No Show" },
+  WAITLISTED:  { bg: "#75669A", fg: "#FFFFFF", rail: "#4B3D70", border: "#625286", shadow: "rgba(75,61,112,0.24)", label: "Waitlisted" },
+};
+
+const ROOM_STATUS_STYLE: Record<string, {
+  label: string; bg: string; fg: string; border: string; dot: string;
+}> = {
+  VACANT_CLEAN: { label: "Clean", bg: "#DDF2E6", fg: "#1D6747", border: "#A9D7BE", dot: "#2E8A5F" },
+  VACANT_DIRTY: { label: "Dirty", bg: "#FFF0CD", fg: "#875400", border: "#E8C46F", dot: "#D88900" },
+  OCCUPIED: { label: "Occupied", bg: "#E4ECF3", fg: "#315069", border: "#B9CAD8", dot: "#557A98" },
+  OUT_OF_ORDER: { label: "Out of order", bg: "#F7E1DB", fg: "#8B3929", border: "#E3B2A6", dot: "#BE4C37" },
 };
 
 function styleOf(status: string) {
   return STATUS_STYLE[status] ?? STATUS_STYLE.CONFIRMED;
 }
 
+function roomStatusOf(status: string) {
+  return ROOM_STATUS_STYLE[status] ?? {
+    label: status.replace(/_/g, " "),
+    bg: "#EFECE7",
+    fg: "#625C54",
+    border: "#D9D2C9",
+    dot: "#8A8177",
+  };
+}
+
 export interface TimelineViewProps {
   year: number;
   month: number;
-  onMonthChange: (year: number, month: number) => void;
   onReservationClick?: (id: string) => void;
 }
 
@@ -79,17 +102,20 @@ function getArrivalsOnDay(
   day: number,
 ): CalendarReservation[] {
   return reservations.filter((r) => {
+    if (["CANCELLED", "NO_SHOW", "WAITLISTED"].includes(r.status)) return false;
     const d = new Date(r.checkIn);
     return d.getUTCFullYear() === year && d.getUTCMonth() + 1 === month && d.getUTCDate() === day;
   });
 }
 
 function OccupancyBar({ pct }: { pct: number }) {
-  const color = pct >= 0.75 ? "#4A7A5A" : pct >= 0.4 ? "#9C6B3C" : pct > 0 ? "#8C4A48" : "transparent";
-  const h     = pct > 0 ? Math.max(Math.round(pct * 22), 4) : 0;
+  const h = pct > 0 ? Math.max(Math.round(pct * 20), 4) : 0;
   return (
-    <div className="flex items-end justify-center w-full h-full pb-1">
-      <div className="w-[5px] rounded-full transition-all" style={{ height: h, background: color }} />
+    <div className="flex h-full w-full items-end justify-center pb-1.5">
+      <div
+        className="w-[6px] rounded-full bg-coral transition-all"
+        style={{ height: h, opacity: pct > 0 ? 0.45 + pct * 0.55 : 0 }}
+      />
     </div>
   );
 }
@@ -97,7 +123,6 @@ function OccupancyBar({ pct }: { pct: number }) {
 export function TimelineView({
   year,
   month,
-  onMonthChange: _onMonthChange,
   onReservationClick,
 }: TimelineViewProps) {
   const navigate    = useNavigate();
@@ -141,6 +166,7 @@ export function TimelineView({
     const dayEnd   = new Date(Date.UTC(year, month - 1, day + 1));
     const occupied = rooms.filter((room) =>
       (resByRoom.get(room.id) ?? []).some((r) => {
+        if (["CANCELLED", "NO_SHOW", "WAITLISTED"].includes(r.status)) return false;
         const ci = new Date(r.checkIn);
         const co = new Date(r.checkOut);
         return ci < dayEnd && co > dayStart;
@@ -148,6 +174,9 @@ export function TimelineView({
     ).length;
     return occupied / rooms.length;
   });
+  const averageOccupancy = occupancyByDay.length > 0
+    ? Math.round((occupancyByDay.reduce((total, pct) => total + pct, 0) / occupancyByDay.length) * 100)
+    : 0;
 
   const monthLabel = new Date(year, month - 1).toLocaleString("en-PK", { month: "long" });
   const dayArrivals = selectedDay !== null
@@ -160,10 +189,19 @@ export function TimelineView({
         <div style={{ minWidth: ROOM_COL + daysInMonth * COL_WIDTH }}>
 
           {/* ── Date header ────────────────────────────────────── */}
-          <div
-            className="flex sticky top-0 z-10 bg-white border-b-2 border-line shadow-sm"
-            style={{ paddingLeft: ROOM_COL }}
-          >
+          <div className="flex sticky top-0 z-20 bg-card border-b border-line shadow-sm">
+            <div
+              className="sticky left-0 z-30 shrink-0 flex items-center gap-2.5 border-r border-line bg-card px-4"
+              style={{ width: ROOM_COL }}
+            >
+              <span className="grid h-8 w-8 place-items-center rounded-xl bg-coral-soft text-coral">
+                <BedDouble size={16} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink">Rooms</p>
+                <p className="text-[10px] text-ink-faint">{rooms.length} active</p>
+              </div>
+            </div>
             {days.map((d) => {
               const isToday   = isThisMonth && d === todayDay;
               const weekend   = isWeekend(year, month, d);
@@ -177,14 +215,14 @@ export function TimelineView({
                     isToday
                       ? "bg-coral/8 hover:bg-coral/12"
                       : weekend
-                      ? "bg-slate-50 hover:bg-slate-100/80"
+                      ? "bg-mist/70 hover:bg-mist"
                       : "hover:bg-mist/60",
                   )}
                   style={{ width: COL_WIDTH }}
                 >
                   <span className={cn(
                     "text-[10px] font-bold uppercase tracking-wide",
-                    weekend ? "text-slate-400" : "text-ink-faint",
+                    "text-ink-faint",
                     isToday && "text-coral",
                   )}>
                     {dayLabel}
@@ -193,7 +231,7 @@ export function TimelineView({
                     "text-[14px] font-bold tnum leading-none",
                     isToday
                       ? "bg-coral text-white h-6 w-6 rounded-full flex items-center justify-center text-[12px]"
-                      : weekend ? "text-slate-500" : "text-ink-soft",
+                      : weekend ? "text-ink-mute" : "text-ink-soft",
                   )}>
                     {d}
                   </span>
@@ -203,10 +241,14 @@ export function TimelineView({
           </div>
 
           {/* ── Occupancy sparkline row ─────────────────────────── */}
-          <div
-            className="relative flex items-end border-b border-line-soft bg-slate-50/60"
-            style={{ paddingLeft: ROOM_COL, height: 40 }}
-          >
+          <div className="relative flex items-end border-b border-line-soft bg-mist/45" style={{ height: 42 }}>
+            <div
+              className="sticky left-0 z-[8] shrink-0 flex items-center justify-between border-r border-line-soft bg-mist px-4"
+              style={{ width: ROOM_COL, height: 42 }}
+            >
+              <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-ink-faint">Occupancy</span>
+              <span className="text-[10px] font-bold tnum text-coral">{averageOccupancy}% avg</span>
+            </div>
             {days.map((d, i) => {
               const isToday = isThisMonth && d === todayDay;
               const weekend = isWeekend(year, month, d);
@@ -216,21 +258,15 @@ export function TimelineView({
                   key={d}
                   className={cn(
                     "shrink-0 flex items-end justify-center pb-1",
-                    isToday ? "bg-coral/5" : weekend ? "bg-slate-100/50" : "",
+                    isToday ? "bg-coral/5" : weekend ? "bg-mist" : "",
                   )}
-                  style={{ width: COL_WIDTH, height: 40 }}
+                  style={{ width: COL_WIDTH, height: 42 }}
+                  title={`${Math.round(pct * 100)}% occupied`}
                 >
                   <OccupancyBar pct={pct} />
                 </div>
               );
             })}
-            {/* Occupancy label pinned left — shown as room col overlay */}
-            <div
-              className="absolute left-0 flex items-center px-3 h-10 z-[6]"
-              style={{ width: ROOM_COL, background: "rgba(248,249,250,0.97)" }}
-            >
-              <span className="text-[10px] font-bold uppercase tracking-widest text-ink-faint">Occupancy</span>
-            </div>
           </div>
 
           {/* ── Room rows ───────────────────────────────────────── */}
@@ -246,7 +282,7 @@ export function TimelineView({
                     className={cn(
                       "shrink-0 border-r",
                       isToday      ? "border-coral/30 bg-coral/4" :
-                      weekend      ? "border-slate-200  bg-slate-50/70" :
+                      weekend      ? "border-line-soft bg-mist/55" :
                                      "border-line-soft",
                     )}
                     style={{ width: COL_WIDTH }}
@@ -255,56 +291,53 @@ export function TimelineView({
               })}
             </div>
 
+            {isThisMonth && (
+              <div
+                className="absolute bottom-0 top-0 z-[4] w-px bg-coral/55 pointer-events-none"
+                style={{ left: ROOM_COL + (todayDay - 1) * COL_WIDTH + COL_WIDTH / 2 }}
+              >
+                <span className="absolute -left-[3px] top-0 h-[7px] w-[7px] rounded-full bg-coral shadow-sm" />
+              </div>
+            )}
+
             {rooms.length === 0 ? (
               <div className="py-16 text-center text-[13px] text-ink-mute">No rooms configured</div>
             ) : (
               rooms.map((room, rowIdx) => {
                 const roomRes = resByRoom.get(room.id) ?? [];
                 const isEven  = rowIdx % 2 === 0;
+                const roomStatus = roomStatusOf(room.status);
                 return (
                   <div
                     key={room.id}
                     className={cn(
                       "flex items-center border-b border-line-soft relative group",
-                      isEven ? "bg-white" : "bg-slate-50/40",
+                      isEven ? "bg-card" : "bg-mist/30",
                     )}
                     style={{ height: ROW_HEIGHT }}
                   >
-                    {/* Today line */}
-                    {isThisMonth && (
-                      <div
-                        className="absolute top-0 bottom-0 w-[2px] bg-coral/40 z-[4] pointer-events-none"
-                        style={{ left: ROOM_COL + (todayDay - 1) * COL_WIDTH + COL_WIDTH / 2 }}
-                      />
-                    )}
-
                     {/* Sticky room label */}
                     <div
                       className={cn(
                         "shrink-0 flex items-center gap-2.5 px-3 sticky left-0 z-[5] h-full border-r border-line-soft",
-                        isEven ? "bg-white" : "bg-slate-50/80",
+                        isEven ? "bg-card" : "bg-mist",
                       )}
                       style={{ width: ROOM_COL }}
                     >
-                      <div className="flex flex-col items-center justify-center h-9 w-10 rounded-xl bg-ink text-white shrink-0">
-                        <span className="text-[13px] font-bold tnum leading-none">{room.number}</span>
+                      <div className="flex flex-col items-center justify-center h-9 w-10 rounded-xl border border-line bg-paper text-ink shrink-0 shadow-sm">
+                        <span className="text-[13px] font-extrabold tnum leading-none">{room.number}</span>
                       </div>
                       <div className="min-w-0">
                         <div className="text-[12px] font-semibold text-ink truncate leading-tight">
                           {room.roomType?.name ?? room.roomType?.typeName ?? "Room"}
                         </div>
-                        <div className={cn(
-                          "text-[10px] font-bold uppercase tracking-wide mt-0.5",
-                          room.status === "VACANT_CLEAN"   ? "text-emerald-500" :
-                          room.status === "VACANT_DIRTY"   ? "text-amber-500"   :
-                          room.status === "OCCUPIED"        ? "text-blue-500"    :
-                          room.status === "OUT_OF_ORDER"    ? "text-red-400"     : "text-ink-faint",
-                        )}>
-                          {room.status === "VACANT_CLEAN"  ? "Clean"       :
-                           room.status === "VACANT_DIRTY"  ? "Dirty"       :
-                           room.status === "OCCUPIED"       ? "Occupied"    :
-                           room.status === "OUT_OF_ORDER"   ? "Out of order" : room.status}
-                        </div>
+                        <span
+                          className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border px-1.5 py-[3px] text-[8.5px] font-extrabold uppercase tracking-[0.08em] leading-none"
+                          style={{ background: roomStatus.bg, color: roomStatus.fg, borderColor: roomStatus.border }}
+                        >
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: roomStatus.dot }} />
+                          <span className="truncate">{roomStatus.label}</span>
+                        </span>
                       </div>
                     </div>
 
@@ -320,11 +353,10 @@ export function TimelineView({
                         const isHovered   = hoveredRes === r.id;
                         const showName    = geo.width > 48;
                         const showLast    = geo.width > 130 && lastInitial;
-                        // Pill radius: full (999) on months that start/end here, flat (3) for continuation
-                        const rTL = geo.startsThisMonth ? "999px" : "3px";
-                        const rBL = geo.startsThisMonth ? "999px" : "3px";
-                        const rTR = geo.endsThisMonth   ? "999px" : "3px";
-                        const rBR = geo.endsThisMonth   ? "999px" : "3px";
+                        const rTL = geo.startsThisMonth ? "11px" : "3px";
+                        const rBL = geo.startsThisMonth ? "11px" : "3px";
+                        const rTR = geo.endsThisMonth   ? "11px" : "3px";
+                        const rBR = geo.endsThisMonth   ? "11px" : "3px";
                         return (
                           <button
                             key={r.id}
@@ -332,32 +364,35 @@ export function TimelineView({
                             onMouseLeave={() => setHoveredRes(null)}
                             onClick={() => r.groupId ? navigate(`/groups/${r.groupId}`) : onReservationClick?.(r.id)}
                             title={`${r.guest.fullName} · ${r.confirmationNumber}${r.groupId ? " · Group" : ""}`}
-                            className="absolute flex items-center gap-2 px-3 overflow-hidden anim-fade-in"
+                            className="absolute flex items-center gap-2 overflow-hidden px-3 text-left anim-fade-in"
                             style={{
                               left:         geo.left,
                               width:        geo.width,
                               height:       BAR_HEIGHT,
                               top:          (ROW_HEIGHT - BAR_HEIGHT) / 2,
                               background:   s.bg,
+                              color:        s.fg,
+                              border:       `1px solid ${s.border}`,
+                              borderLeft:   `4px solid ${s.rail}`,
                               borderRadius: `${rTL} ${rTR} ${rBR} ${rBL}`,
                               boxShadow:    isHovered
-                                ? `0 4px 12px ${s.shadow}, inset 0 1px 0 rgba(255,255,255,0.15)`
-                                : `0 1px 3px ${s.shadow}, inset 0 1px 0 rgba(255,255,255,0.10)`,
+                                ? `0 7px 18px ${s.shadow}`
+                                : `0 2px 7px ${s.shadow}`,
                               transform:    isHovered ? "translateY(-1px)" : "none",
                               transition:   "box-shadow 0.15s ease, transform 0.15s ease",
                               zIndex:       isHovered ? 20 : 10,
                             }}
                           >
                             {showName && (
-                              <span className="text-[11px] font-semibold tracking-wide truncate leading-none text-white">
+                              <span className="text-[11px] font-bold tracking-[0.01em] truncate leading-none">
                                 {firstName}
                                 {showLast && (
-                                  <span className="opacity-60"> {lastInitial}.</span>
+                                  <span className="opacity-65"> {lastInitial}.</span>
                                 )}
                               </span>
                             )}
                             {r.groupId && (
-                              <Users2 size={10} className="shrink-0 ml-auto text-white/60" />
+                              <Users2 size={11} className="shrink-0 ml-auto opacity-60" />
                             )}
                           </button>
                         );
@@ -370,18 +405,18 @@ export function TimelineView({
           </div>
 
           {/* ── Legend ─────────────────────────────────────────── */}
-          <div className="flex items-center gap-3 px-4 py-3 border-t border-line-soft bg-slate-50/50 flex-wrap">
+          <div className="flex items-center gap-2 px-4 py-3 border-t border-line-soft bg-mist/45 flex-wrap">
             {Object.entries(STATUS_STYLE).map(([, s]) => (
-              <div key={s.label} className="flex items-center gap-1.5">
+              <div key={s.label} className="flex items-center gap-1.5 rounded-full border border-line-soft bg-card px-2.5 py-1">
                 <span
-                  className="h-3 w-5 rounded-full shrink-0"
-                  style={{ background: s.bg }}
+                  className="h-2 w-2 rounded-full shrink-0"
+                  style={{ background: s.rail }}
                 />
                 <span className="text-[11px] font-medium text-ink-mute">{s.label}</span>
               </div>
             ))}
             <div className="ml-auto flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm bg-slate-200 shrink-0" />
+              <span className="h-2.5 w-2.5 rounded-sm bg-line shrink-0" />
               <span className="text-[11px] font-medium text-ink-mute">Weekend</span>
             </div>
           </div>
@@ -441,7 +476,7 @@ export function TimelineView({
                       }}
                       className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-mist transition-colors"
                     >
-                      <span className="shrink-0 grid place-items-center h-9 w-10 rounded-xl bg-ink text-white text-[12px] font-bold tnum">
+                      <span className="shrink-0 grid place-items-center h-9 w-10 rounded-xl border border-line bg-mist text-ink text-[12px] font-bold tnum">
                         {room}
                       </span>
                       <div className="flex-1 min-w-0">
@@ -454,8 +489,8 @@ export function TimelineView({
                         </p>
                       </div>
                       <span
-                        className="shrink-0 text-[11px] font-semibold rounded-full px-2.5 py-1 text-white"
-                        style={{ background: s.bg }}
+                        className="shrink-0 text-[11px] font-semibold rounded-full border px-2.5 py-1"
+                        style={{ background: s.bg, color: s.fg, borderColor: s.border }}
                       >
                         {s.label}
                       </span>

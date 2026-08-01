@@ -4,7 +4,7 @@ import type { TenantTx } from "@pms/db";
 import type { JwtPayload } from "../middleware/auth";
 import { AppError } from "../utils/AppError";
 import type { CreateUserDto, UpdateUserDto, ResetPasswordDto } from "../schemas/users";
-import { checkUserLimit } from "../lib/subscription";
+import { acquireSubscriptionQuotaLock, checkUserLimit } from "../lib/subscription";
 
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
 
@@ -42,10 +42,6 @@ export const UserService = {
   },
 
   async createUser(withTenant: WithTenantFn, actor: JwtPayload, dto: CreateUserDto) {
-    // Enforce user limit from subscription plan
-    const userCount = await adminPrisma.hotelUser.count({ where: { hotelId: actor.hotelId } });
-    await checkUserLimit(actor.hotelId, userCount);
-
     const role = await adminPrisma.role.findFirst({
       where: {
         id: dto.roleId,
@@ -54,52 +50,22 @@ export const UserService = {
     });
     if (!role) throw new AppError(400, "Invalid role");
 
-    const existingUser = await adminPrisma.user.findUnique({ where: { email: dto.email } });
-
-    if (existingUser) {
-      // Check if this user is already linked to this hotel
-      const existing = await adminPrisma.hotelUser.findUnique({
-        where: { hotelId_userId: { hotelId: actor.hotelId, userId: existingUser.id } },
-      });
-      if (existing) throw new AppError(409, "This user is already a member of this hotel");
-
-      // Link existing user to this hotel
-      const hotelUser = await adminPrisma.hotelUser.create({
-        data: {
-          hotelId:  actor.hotelId,
-          userId:   existingUser.id,
-          role:     role.name as UserRole,
-          roleId:   role.id,
-          isActive: true,
-        },
-        include: HOTEL_USER_INCLUDE,
-      });
-
-      await withTenant((db) =>
-        db.auditLog.create({
-          data: {
-            hotelId:  actor.hotelId,
-            userId:   actor.userId,
-            action:   "USER_CREATE",
-            entity:   "hotelUser",
-            entityId: hotelUser.id,
-            after:    JSON.parse(JSON.stringify({ email: dto.email, roleId: dto.roleId, linked: true })),
-          },
-        }),
-      );
-
-      return hotelUser;
-    }
-
-    // Create brand-new user + hotel link in one admin transaction
     const passwordHash = await bcrypt.hash(dto.password, 10);
-
     const hotelUser = await adminPrisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          name: dto.name, email: dto.email, passwordHash,
-          ...(dto.phone ? { phone: dto.phone } : {}),
-        },
+      await acquireSubscriptionQuotaLock(tx, actor.hotelId, "maxUsers");
+      const userCount = await tx.hotelUser.count({ where: { hotelId: actor.hotelId, isActive: true } });
+      await checkUserLimit(actor.hotelId, userCount);
+
+      const existingUser = await tx.user.findUnique({ where: { email: dto.email } });
+      if (existingUser) {
+        const existing = await tx.hotelUser.findUnique({
+          where: { hotelId_userId: { hotelId: actor.hotelId, userId: existingUser.id } },
+        });
+        if (existing) throw new AppError(409, "This user is already a member of this hotel");
+      }
+
+      const user = existingUser ?? await tx.user.create({
+        data: { name: dto.name, email: dto.email, passwordHash, ...(dto.phone ? { phone: dto.phone } : {}) },
       });
 
       return tx.hotelUser.create({
@@ -136,40 +102,37 @@ export const UserService = {
     hotelUserId: string,
     dto: UpdateUserDto,
   ) {
-    return withTenant(async (db) => {
-      const existing = await db.hotelUser.findUnique({
-        where:   { id: hotelUserId },
-        include: { user: { select: { id: true } } },
-      });
-      if (!existing) throw new AppError(404, "Team member not found");
+    const existing = await adminPrisma.hotelUser.findFirst({
+      where: { id: hotelUserId, hotelId: actor.hotelId },
+      include: { user: { select: { id: true } } },
+    });
+    if (!existing) throw new AppError(404, "Team member not found");
 
       // Self-deactivation guard
-      if (dto.isActive === false && existing.userId === actor.userId) {
-        throw new AppError(400, "You cannot deactivate your own account");
-      }
+    if (dto.isActive === false && existing.userId === actor.userId) {
+      throw new AppError(400, "You cannot deactivate your own account");
+    }
 
-      // Resolve new role if changing
-      let newRole: { id: string; name: string } | null = null;
-      if (dto.roleId) {
-        newRole = await adminPrisma.role.findFirst({
+    let newRole: { id: string; name: string } | null = null;
+    if (dto.roleId) {
+      newRole = await adminPrisma.role.findFirst({
           where: {
             id: dto.roleId,
             OR: [{ hotelId: null }, { hotelId: actor.hotelId }],
           },
         });
-        if (!newRole) throw new AppError(400, "Invalid role");
-      }
+      if (!newRole) throw new AppError(400, "Invalid role");
+    }
 
-      // Update name on the User record (global)
-      if (dto.name) {
-        await adminPrisma.user.update({
-          where: { id: existing.userId },
-          data:  { name: dto.name },
-        });
+    const updated = await adminPrisma.$transaction(async (tx) => {
+      if (dto.isActive === true && !existing.isActive) {
+        await acquireSubscriptionQuotaLock(tx, actor.hotelId, "maxUsers");
+        const activeCount = await tx.hotelUser.count({ where: { hotelId: actor.hotelId, isActive: true } });
+        await checkUserLimit(actor.hotelId, activeCount);
       }
+      if (dto.name) await tx.user.update({ where: { id: existing.userId }, data: { name: dto.name } });
 
-      // Update HotelUser record
-      const updated = await db.hotelUser.update({
+      return tx.hotelUser.update({
         where: { id: hotelUserId },
         data: {
           ...(newRole && { roleId: newRole.id, role: newRole.name as UserRole }),
@@ -177,8 +140,9 @@ export const UserService = {
         },
         include: HOTEL_USER_INCLUDE,
       });
+    });
 
-      await db.auditLog.create({
+    await withTenant((db) => db.auditLog.create({
         data: {
           hotelId:  actor.hotelId,
           userId:   actor.userId,
@@ -188,10 +152,8 @@ export const UserService = {
           before:   JSON.parse(JSON.stringify({ role: existing.role, isActive: existing.isActive })),
           after:    JSON.parse(JSON.stringify(dto)),
         },
-      });
-
-      return updated;
-    });
+      }));
+    return updated;
   },
 
   async resetPassword(

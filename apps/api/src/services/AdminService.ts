@@ -1,6 +1,13 @@
 import bcrypt from "bcryptjs";
 import jwt, { type SignOptions } from "jsonwebtoken";
-import { adminPrisma, Prisma } from "@pms/db";
+import {
+  adminPrisma,
+  FEATURE_DEFINITIONS,
+  LIMIT_DEFINITIONS,
+  normalizeFeatureFlags,
+  normalizeSubscriptionLimits,
+  Prisma,
+} from "@pms/db";
 import { env } from "../lib/env";
 import { AppError } from "../utils/AppError";
 import type { AdminLoginDto, CreateHotelDto, UpdateHotelDto, CreatePlanDto, UpdatePlanDto } from "../schemas/admin";
@@ -65,7 +72,7 @@ export const AdminService = {
           },
         },
         subscriptionPlan: {
-          select: { id: true, name: true, slug: true, priceMonthly: true, maxRooms: true, maxUsers: true, features: true },
+          select: { id: true, name: true, slug: true, priceMonthly: true, limits: true, features: true, isActive: true },
         },
       },
     });
@@ -83,12 +90,18 @@ export const AdminService = {
     const ownerRole = await adminPrisma.role.findFirst({ where: { name: "OWNER", hotelId: null } });
     if (!ownerRole) throw new AppError(500, "OWNER role not found — run the seed script");
 
-    // If no plan specified, use the trial plan
+    // If no plan is specified, assign the active Trial plan.
     let resolvedPlanId = dto.subscriptionPlanId;
     if (!resolvedPlanId) {
       const trialPlan = await adminPrisma.subscriptionPlan.findUnique({ where: { slug: "trial" } });
+      if (!trialPlan?.isActive) throw new AppError(409, "No active Trial plan is configured");
       resolvedPlanId = trialPlan?.id;
     }
+    const selectedPlan = resolvedPlanId
+      ? await adminPrisma.subscriptionPlan.findUnique({ where: { id: resolvedPlanId } })
+      : null;
+    if (!selectedPlan?.isActive) throw new AppError(400, "Selected subscription plan is inactive or missing");
+    const isTrial = selectedPlan.slug === "trial";
 
     const result = await adminPrisma.$transaction(async (tx) => {
       const hotel = await tx.hotel.create({
@@ -100,7 +113,9 @@ export const AdminService = {
           propertyType: dto.propertyType,
           isActive: true,
           onboardingCompleted: false,
-          ...(resolvedPlanId ? { subscriptionPlanId: resolvedPlanId } : {}),
+          subscriptionPlanId: selectedPlan.id,
+          isTrialAccount: isTrial,
+          trialEndsAt: isTrial ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
         },
       });
 
@@ -139,6 +154,21 @@ export const AdminService = {
     const hotel = await adminPrisma.hotel.findUnique({ where: { id } });
     if (!hotel) throw new AppError(404, "Hotel not found");
 
+    let planLifecycle: { isTrialAccount: boolean; trialEndsAt: Date | null } | undefined;
+    if (dto.subscriptionPlanId !== undefined && dto.subscriptionPlanId !== hotel.subscriptionPlanId) {
+      if (dto.subscriptionPlanId === null) {
+        planLifecycle = { isTrialAccount: false, trialEndsAt: null };
+      } else {
+        const selectedPlan = await adminPrisma.subscriptionPlan.findUnique({ where: { id: dto.subscriptionPlanId } });
+        if (!selectedPlan?.isActive) throw new AppError(400, "Selected subscription plan is inactive or missing");
+        const isTrial = selectedPlan.slug === "trial";
+        planLifecycle = {
+          isTrialAccount: isTrial,
+          trialEndsAt: isTrial ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
+        };
+      }
+    }
+
     return adminPrisma.hotel.update({
       where: { id },
       data: {
@@ -148,7 +178,10 @@ export const AdminService = {
             ? { connect: { id: dto.subscriptionPlanId } }
             : { disconnect: true },
         }),
-        ...(dto.roomLimitOverride !== undefined && { roomLimitOverride: dto.roomLimitOverride }),
+        ...(planLifecycle ?? {}),
+        ...(dto.limitOverrides !== undefined && {
+          limitOverrides: dto.limitOverrides === null ? Prisma.JsonNull : dto.limitOverrides,
+        }),
         ...(dto.featureOverrides !== undefined && {
           featureOverrides: dto.featureOverrides === null ? Prisma.JsonNull : dto.featureOverrides,
         }),
@@ -188,16 +221,35 @@ export const AdminService = {
     });
   },
 
+  getPlanMetadata() {
+    return { features: FEATURE_DEFINITIONS, limits: LIMIT_DEFINITIONS };
+  },
+
   async createPlan(dto: CreatePlanDto) {
     const existing = await adminPrisma.subscriptionPlan.findUnique({ where: { slug: dto.slug } });
     if (existing) throw new AppError(409, "Plan slug already taken");
-    return adminPrisma.subscriptionPlan.create({ data: dto });
+    return adminPrisma.subscriptionPlan.create({
+      data: {
+        ...dto,
+        features: normalizeFeatureFlags(dto.features),
+        limits: normalizeSubscriptionLimits(dto.limits),
+      },
+    });
   },
 
   async updatePlan(id: string, dto: UpdatePlanDto) {
     const plan = await adminPrisma.subscriptionPlan.findUnique({ where: { id } });
     if (!plan) throw new AppError(404, "Plan not found");
-    return adminPrisma.subscriptionPlan.update({ where: { id }, data: dto });
+    const currentFeatures = normalizeFeatureFlags(plan.features);
+    const currentLimits = normalizeSubscriptionLimits(plan.limits);
+    return adminPrisma.subscriptionPlan.update({
+      where: { id },
+      data: {
+        ...dto,
+        ...(dto.features && { features: normalizeFeatureFlags({ ...currentFeatures, ...dto.features }) }),
+        ...(dto.limits && { limits: normalizeSubscriptionLimits(dto.limits, currentLimits) }),
+      },
+    });
   },
 
   async deletePlan(id: string) {

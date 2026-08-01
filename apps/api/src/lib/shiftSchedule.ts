@@ -118,10 +118,30 @@ export function getCurrentShiftContext(
   };
 }
 
-export function hasNightAuditWindowOpened(
+/**
+ * The operating date follows the active shift. Between midnight and the next
+ * Morning boundary, activity still belongs to the previous hotel's business
+ * date rather than the new calendar date.
+ */
+export function getOperationalBusinessDate(
+  settings: unknown,
+  now = new Date(),
+): string {
+  return getCurrentShiftContext(settings, now).shiftDate;
+}
+
+/** The hotel business day closes when its following Morning shift begins. */
+export function getBusinessDayEnd(
+  businessDate: string,
+  settings: unknown,
+): Date {
+  return getShiftWindow(businessDate, "NIGHT", readShiftSchedule(settings)).end;
+}
+
+export function hasBusinessDayEnded(
   businessDate: string,
   settings: unknown,
   now = new Date(),
 ): boolean {
-  return now >= getShiftWindow(businessDate, "NIGHT", readShiftSchedule(settings)).start;
+  return now >= getBusinessDayEnd(businessDate, settings);
 }

@@ -56,6 +56,11 @@ export interface UpdateSettingsDto {
   invoicePrefix?: string;
   posTaxRate?: number;
   ownerWhatsappNumber?: string | null;
+  birthdayOffersEnabled?: boolean;
+  anniversaryOffersEnabled?: boolean;
+  occasionOfferDiscountPercent?: number;
+  occasionOfferLeadDays?: number;
+  occasionOfferValidityDays?: number;
   themeKey?: ThemeKey;
   logoUrl?: string | null;
   onboardingStep?: number;
@@ -91,10 +96,9 @@ export interface PlanInfo {
   priceMonthly:   number;
   isTrialAccount: boolean;
   trialEndsAt:    string | null;
-  maxRooms:       number;
-  maxUsers:       number;
-  currentRooms:   number;
-  currentUsers:   number;
+  trialExpired:   boolean;
+  limits: Record<"maxRooms" | "maxUsers" | "maxActiveRatePlans" | "maxActivePromoCodes", number | null>;
+  usage: Record<"maxRooms" | "maxUsers" | "maxActiveRatePlans" | "maxActivePromoCodes", number>;
   features:       Record<string, boolean>;
 }
 
@@ -174,6 +178,9 @@ export const settingsService = {
   testBriefing: async (): Promise<TestBriefingResult> => {
     const res = await api.post("/api/settings/test-briefing");
     return res.data.data;
+  },
+  runOccasionSweep: async (): Promise<void> => {
+    await api.post("/api/settings/run-occasion-sweep");
   },
   getPermissions: async (): Promise<RolePermissions[]> => {
     const res = await api.get("/api/settings/permissions");

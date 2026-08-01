@@ -55,6 +55,10 @@ router.get("/plans", adminAuth, async (_req, res) => {
   res.json({ data: plans });
 });
 
+router.get("/plans/meta", adminAuth, (_req, res) => {
+  res.json({ data: AdminService.getPlanMetadata() });
+});
+
 // POST /api/admin/plans
 router.post("/plans", adminAuth, async (req, res) => {
   const body = createPlanSchema.parse(req.body);

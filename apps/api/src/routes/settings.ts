@@ -11,6 +11,8 @@ import { sendWhatsappMessage } from "../jobs/sendWhatsappMessage";
 import { scheduleHotelBriefing } from "../jobs/briefingScheduler";
 import { getEffectiveLimits, checkFeatureAccess } from "../lib/subscription";
 import { adminPrisma } from "@pms/db";
+import { getCurrentPKTDate } from "../lib/timezone";
+import { occasionQueue } from "../jobs/queues";
 
 const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
@@ -81,6 +83,21 @@ router.post("/test-briefing", async (req, res) => {
   });
 });
 
+// POST /api/settings/run-occasion-sweep
+// Owner-only manual trigger so a hotel can verify its occasion configuration
+// without waiting for the daily scheduler. It uses the same worker as cron.
+router.post("/run-occasion-sweep", async (req, res) => {
+  if (req.user!.role !== "OWNER") {
+    throw new AppError(403, "Only owners can run occasion offers");
+  }
+  const hotel = await SettingsService.getSettings(req.withTenant, req.user!.hotelId);
+  await occasionQueue.add("occasion-sweep-manual", {
+    hotelId: req.user!.hotelId,
+    hotelName: hotel.name,
+  }, { jobId: `occasion-manual-${req.user!.hotelId}-${Date.now()}` });
+  res.json({ data: { queued: true } });
+});
+
 // GET /api/settings/permissions
 // Returns every non-OWNER system role with its full permission matrix.
 router.get("/permissions", async (req, res) => {
@@ -105,10 +122,19 @@ router.patch("/permissions/:roleId", async (req, res) => {
 
 // GET /api/settings/plan — current plan + usage (read-only, any authenticated user)
 router.get("/plan", async (req, res) => {
-  const [limits, roomCount, userCount] = await Promise.all([
+  const today = new Date(`${getCurrentPKTDate()}T00:00:00.000Z`);
+  const [subscription, roomCount, userCount, ratePlanCount, promoCodeCount] = await Promise.all([
     getEffectiveLimits(req.user!.hotelId),
-    req.withTenant((db) => db.room.count()),
-    adminPrisma.hotelUser.count({ where: { hotelId: req.user!.hotelId } }),
+    req.withTenant((db) => db.room.count({ where: { isActive: true } })),
+    adminPrisma.hotelUser.count({ where: { hotelId: req.user!.hotelId, isActive: true } }),
+    req.withTenant((db) => db.ratePlan.count({ where: { isActive: true } })),
+    req.withTenant((db) => db.ratePlanCode.count({ where: {
+      isActive: true,
+      AND: [
+        { OR: [{ validTo: null }, { validTo: { gte: today } }] },
+        { OR: [{ maxUses: null }, { usedCount: 0 }] },
+      ],
+    } })),
   ]);
 
   const hotel = await adminPrisma.hotel.findUnique({
@@ -127,11 +153,15 @@ router.get("/plan", async (req, res) => {
       priceMonthly: hotel?.subscriptionPlan?.priceMonthly ?? 0,
       isTrialAccount: hotel?.isTrialAccount ?? false,
       trialEndsAt: hotel?.trialEndsAt ?? null,
-      maxRooms: limits.maxRooms,
-      maxUsers: limits.maxUsers,
-      currentRooms: roomCount,
-      currentUsers: userCount,
-      features: limits.features,
+      trialExpired: subscription.trialExpired,
+      limits: subscription.limits,
+      usage: {
+        maxRooms: roomCount,
+        maxUsers: userCount,
+        maxActiveRatePlans: ratePlanCount,
+        maxActivePromoCodes: promoCodeCount,
+      },
+      features: subscription.features,
     },
   });
 });
@@ -141,6 +171,7 @@ router.get("/export", async (req, res) => {
   if (req.user!.role !== "OWNER") {
     throw new AppError(403, "Only the hotel owner can export data");
   }
+  await checkFeatureAccess(req.user!.hotelId, "reportsExport");
 
   const hotelId = req.user!.hotelId;
 

@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DEFAULT_SHIFT_SCHEDULE,
+  getBusinessDayEnd,
   getCurrentShiftContext,
+  getOperationalBusinessDate,
   getShiftWindow,
+  hasBusinessDayEnded,
   isValidShiftSchedule,
   readShiftSchedule,
 } from "./shiftSchedule";
@@ -27,6 +30,28 @@ test("night shift after midnight belongs to the previous operating date", () => 
   );
   assert.equal(context.shiftType, "NIGHT");
   assert.equal(context.shiftDate, "2026-07-29");
+});
+
+test("operating date remains on the previous day until Morning begins", () => {
+  assert.equal(
+    getOperationalBusinessDate({}, new Date("2026-07-31T00:30:00.000Z")),
+    "2026-07-30",
+  );
+});
+
+test("business day ends at the following configured Morning boundary", () => {
+  assert.equal(
+    getBusinessDayEnd("2026-07-30", {}).toISOString(),
+    "2026-07-31T01:00:00.000Z",
+  );
+  assert.equal(
+    hasBusinessDayEnded("2026-07-30", {}, new Date("2026-07-31T00:59:59.999Z")),
+    false,
+  );
+  assert.equal(
+    hasBusinessDayEnded("2026-07-30", {}, new Date("2026-07-31T01:00:00.000Z")),
+    true,
+  );
 });
 
 test("custom schedule produces contiguous PKT windows", () => {

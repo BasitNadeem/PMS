@@ -1,6 +1,6 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { adminPrisma, UserRole } from "./index";
+import { adminPrisma, FEATURE_DEFINITIONS, LIMIT_KEYS, UserRole } from "./index";
 
 const DEMO_SLUG     = "demo-hotel";
 const DEMO_EMAIL    = "admin@demo-hotel.com";
@@ -436,33 +436,18 @@ async function main() {
   // ── 7. Subscription plans ────────────────────────────────────────────────────
   console.log("💳  Seeding subscription plans…");
 
-  const trialFeatures = {
-    whatsappBriefing: true,
-    reportsExport: true,
-    inventoryManagement: true,
-    groupBookings: true,
-    maintenanceTickets: true,
-    housekeepingPWA: true,
-    posModule: true,
-    qrOrdering: true,
-    kitchenDisplay: true,
-    nightAudit: true,
-    auditLog: true,
-    ratePlans: true,
-    bookingEngine: true,
-    channelManager: true,
-    customDomain: true,
-    corporateBilling: true,
-  };
+  const trialFeatures = Object.fromEntries(
+    FEATURE_DEFINITIONS.map(({ key, built }) => [key, built]),
+  );
+  const trialLimits = Object.fromEntries(LIMIT_KEYS.map((key) => [key, null]));
 
   const trialPlan = await adminPrisma.subscriptionPlan.upsert({
     where: { slug: "trial" },
     update: {
       name: "Trial",
       priceMonthly: 0,
-      maxRooms: 999,
-      maxUsers: 999,
       features: trialFeatures,
+      limits: trialLimits,
       isActive: true,
       displayOrder: 0,
     },
@@ -470,9 +455,8 @@ async function main() {
       name: "Trial",
       slug: "trial",
       priceMonthly: 0,
-      maxRooms: 999,
-      maxUsers: 999,
       features: trialFeatures,
+      limits: trialLimits,
       isActive: true,
       displayOrder: 0,
     },
@@ -482,6 +466,14 @@ async function main() {
   await adminPrisma.hotel.updateMany({
     where: { subscriptionPlanId: null },
     data: { subscriptionPlanId: trialPlan.id },
+  });
+  await adminPrisma.hotel.update({
+    where: { id: hotel.id },
+    data: {
+      subscriptionPlanId: trialPlan.id,
+      isTrialAccount: true,
+      trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    },
   });
   console.log(`✅ Trial plan seeded (id: ${trialPlan.id}), backfilled hotels with no plan`);
 

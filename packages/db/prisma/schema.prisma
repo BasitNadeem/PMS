@@ -3,7 +3,7 @@
 //
 //   Raw-SQL tables managed OUTSIDE this schema (via migration files only):
 //     expenses, cash_accounts, ledger_entries, whatsapp_briefing_logs,
-//     menu_categories, menu_items, qr_orders, qr_order_items, subscription_plans
+//     menu_categories, menu_items, qr_orders, qr_order_items
 //
 //   `prisma db push` syncs the DB to match THIS file exactly, which means
 //   it SILENTLY DROPS every table not listed here — including all of the above.
@@ -237,6 +237,29 @@ enum DocumentType {
   OTHER
 }
 
+enum SpecialDateKind {
+  BIRTHDAY
+  ANNIVERSARY
+  CUSTOM
+}
+
+// Why a promo code was handed out. Drives the email wording and lets a hotel
+// see which occasions actually bring guests back.
+enum PromoIssueReason {
+  BIRTHDAY
+  ANNIVERSARY
+  VIP_REWARD
+  WIN_BACK
+  MANUAL
+}
+
+enum PromoEmailStatus {
+  NOT_REQUESTED
+  QUEUED
+  SENT
+  FAILED
+}
+
 enum PropertyType {
   HOTEL
   GUESTHOUSE
@@ -389,6 +412,9 @@ model Hotel {
   roomTypes             RoomType[]
   rooms                 Room[]
   guests                Guest[]
+  guestSpecialDates     GuestSpecialDate[]
+  accountingAccounts    AccountingAccount[]
+  accountingExports     AccountingExport[]
   reservations          Reservation[]
   folios                Folio[]
   payments              Payment[]
@@ -417,7 +443,7 @@ model Hotel {
   nightAuditRecords     NightAuditRecord[]
   subscriptionPlanId    String?            @db.Uuid @map("subscription_plan_id")
   subscriptionPlan      SubscriptionPlan?  @relation(fields: [subscriptionPlanId], references: [id])
-  roomLimitOverride     Int?               @map("room_limit_override")
+  limitOverrides        Json?              @map("limit_overrides")
   featureOverrides      Json?              @map("feature_overrides")
 
   @@index([slug])
@@ -452,8 +478,7 @@ model SubscriptionPlan {
   name          String
   slug          String   @unique
   priceMonthly  Int      @map("price_monthly")
-  maxRooms      Int      @map("max_rooms")
-  maxUsers      Int      @map("max_users")
+  limits        Json     @default("{}")
   features      Json
   isActive      Boolean  @default(true) @map("is_active")
   displayOrder  Int      @default(0)    @map("display_order")
@@ -626,6 +651,15 @@ model Guest {
   vipLevel         Int          @default(0) @map("vip_level")
   tags             String[]
   internalNotes    String? @map("internal_notes")
+
+  // Set when a guest has been asked for a birthday/anniversary and chose not to
+  // share it. Without this, "no date on file" is indistinguishable from "never
+  // asked" and the front desk keeps re-asking the same guest every visit.
+  specialDatesDeclinedAt DateTime? @map("special_dates_declined_at")
+  // Explicit permission to send greetings. Holding a date — often captured off
+  // a CNIC for compliance — is not the same as consent to market to someone.
+  marketingOptIn   Boolean      @default(false) @map("marketing_opt_in")
+  marketingOptInAt DateTime? @map("marketing_opt_in_at")
   isBlacklisted    Boolean      @default(false) @map("is_blacklisted")
   blacklistReason  String? @map("blacklist_reason")
 
@@ -639,6 +673,8 @@ model Guest {
   groupMembers     GroupMember[]
   conversations    Conversation[]
   blacklistEntries GuestBlacklist[]
+  specialDates     GuestSpecialDate[]
+  promoCodes       RatePlanCode[]
 
   searchVector     Unsupported("tsvector")? @map("search_vector")
 
@@ -673,6 +709,114 @@ model GuestBlacklist {
   @@index([guestId])
   @@index([isShared, documentNumber])
   @@map("guest_blacklist")
+}
+
+/// A birthday, anniversary or other date the hotel greets a guest on.
+///
+/// Month and day are stored separately from the year, and the year is optional,
+/// because plenty of guests will give "14 August" but not the year — age is
+/// sensitive information. A single DATE column would force us to invent a year
+/// and then someone would compute an age from the fabricated value.
+///
+/// Deliberately separate from `Guest.dateOfBirth`: that field is compliance data
+/// captured off an identity document, whereas this is opt-in relationship data.
+/// Scanning a CNIC must not silently enrol someone into birthday emails.
+model GuestSpecialDate {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId   String          @db.Uuid @map("hotel_id")
+  guestId   String          @db.Uuid @map("guest_id")
+
+  kind      SpecialDateKind @default(BIRTHDAY)
+  /// Free-text name for a CUSTOM occasion ("First stay with us").
+  label     String?
+
+  month     Int
+  day       Int
+  /// Null when the guest shared the day and month but not the year.
+  year      Int?
+
+  /// Where the date came from — "GUEST", "FRONT_DESK", "BOOKING" — so a hotel
+  /// can tell volunteered dates from inferred ones.
+  source    String?
+
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  hotel     Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  guest     Guest           @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@unique([guestId, kind, month, day])
+  /// Drives the daily "whose occasion is coming up" sweep.
+  @@index([hotelId, month, day])
+  @@index([guestId])
+  @@map("guest_special_dates")
+}
+
+// ============================================================================
+// ACCOUNTING EXPORT
+// ============================================================================
+
+/// Maps a PMS concept onto a line in the hotel's own chart of accounts.
+///
+/// `scope` names what kind of thing `key` is, because the key spaces overlap and
+/// are not all enums — expense categories are free text, so a single flat key
+/// column would collide (a "TRANSPORT" folio item vs a "Transport" expense).
+///
+///   FOLIO_ITEM_TYPE  → FolioItemType   ("ROOM_CHARGE")
+///   TAX_TYPE         → TaxType         ("GST")
+///   PAYMENT_METHOD   → PaymentMethod   ("JAZZCASH")
+///   EXPENSE_CATEGORY → free text       ("Utilities")
+///   SYSTEM           → fixed accounts  ("ACCOUNTS_RECEIVABLE")
+model AccountingAccount {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String   @db.Uuid @map("hotel_id")
+
+  scope       String
+  key         String
+  accountCode String @map("account_code")
+  accountName String @map("account_name")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, scope, key])
+  @@index([hotelId])
+  @@map("accounting_accounts")
+}
+
+/// One record per generated export file.
+///
+/// Exists to catch the worst failure mode of file-based accounting sync: the
+/// same period exported twice and imported twice, silently doubling a month of
+/// revenue. The UI warns on a period that already has a record, and the hash
+/// lets us tell a genuine re-export from an identical re-download.
+model AccountingExport {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId       String   @db.Uuid @map("hotel_id")
+
+  periodStart   DateTime @db.Date @map("period_start")
+  periodEnd     DateTime @db.Date @map("period_end")
+  format        String
+  basis         String
+  granularity   String
+
+  lineCount     Int @map("line_count")
+  /// Minor units. Debits and credits are stored separately so an unbalanced
+  /// batch is visible in the history rather than hidden behind a net figure.
+  totalDebit    Int @map("total_debit")
+  totalCredit   Int @map("total_credit")
+  contentHash   String @map("content_hash")
+
+  generatedById String?  @db.Uuid @map("generated_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, periodStart])
+  @@index([hotelId, createdAt])
+  @@map("accounting_exports")
 }
 
 // ============================================================================
@@ -1351,21 +1495,42 @@ model RatePlan {
 model RatePlanCode {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   hotelId     String    @db.Uuid @map("hotel_id")
-  ratePlanId  String    @db.Uuid @map("rate_plan_id")
+  ratePlanId  String?   @db.Uuid @map("rate_plan_id")
   code        String
   label       String?
   validFrom   DateTime? @db.Date @map("valid_from")
   validTo     DateTime? @db.Date @map("valid_to")
   isActive    Boolean   @default(true) @map("is_active")
+
+  // ── Per-guest issuance ────────────────────────────────────────────────────
+  // A hotel-wide code spreads on WhatsApp the moment it is sent to anyone. A
+  // code issued to one guest, capped at one use, cannot be forwarded usefully —
+  // and tells the hotel exactly who redeemed which offer.
+  /// Null for the ordinary shared corporate/promo codes this table already held.
+  guestId     String?   @db.Uuid @map("guest_id")
+  issueReason PromoIssueReason? @map("issue_reason")
+  /// Percentage-off guest offers apply to the best public rate for the stay.
+  /// Null preserves the fixed linked-rate behaviour of existing access codes.
+  discountPercent Int? @map("discount_percent")
+  /// Null means unlimited, preserving the behaviour of existing shared codes.
+  maxUses     Int? @map("max_uses")
+  usedCount   Int       @default(0) @map("used_count")
+  lastUsedAt  DateTime? @map("last_used_at")
+  emailStatus PromoEmailStatus @default(NOT_REQUESTED) @map("email_status")
+  emailSentAt DateTime? @map("email_sent_at")
+  emailError  String? @map("email_error")
+
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   hotel    Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  ratePlan RatePlan @relation(fields: [ratePlanId], references: [id], onDelete: Cascade)
+  ratePlan RatePlan? @relation(fields: [ratePlanId], references: [id], onDelete: Cascade)
+  guest    Guest?   @relation(fields: [guestId], references: [id], onDelete: SetNull)
 
   @@unique([hotelId, code])
   @@index([hotelId, isActive])
   @@index([ratePlanId])
+  @@index([guestId])
   @@map("rate_plan_codes")
 }
 

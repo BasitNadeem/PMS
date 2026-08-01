@@ -108,10 +108,12 @@ function OperationalReminderBanners({
             : `${reminder.shiftType.charAt(0) + reminder.shiftType.slice(1).toLowerCase()} shift ends in ${reminder.minutesFromEnd} min`
           : isOverdue
             ? `Night Audit is overdue for ${reminderDate(reminder.businessDate)}`
-            : `Night Audit is ready for ${reminderDate(reminder.businessDate)}`;
+            : `Prepare Night Audit for ${reminderDate(reminder.businessDate)}`;
         const description = isShift
           ? "Review the calculated activity, add anything the next shift should know, and submit the handover."
-          : "Review outstanding exceptions and close the hotel business day when everything is accounted for.";
+          : isOverdue
+            ? "Review outstanding exceptions and close the hotel business day when everything is accounted for."
+            : "Review the preflight now. The business day can be closed when the next Morning shift begins.";
 
         return (
           <div

@@ -24,6 +24,7 @@ import dashboardRouter from "./routes/dashboard";
 import usersRouter from "./routes/users";
 import posRouter from "./routes/pos";
 import reportsRouter from "./routes/reports";
+import accountingRouter from "./routes/accounting";
 import nightAuditRouter from "./routes/nightAudit";
 import notificationsRouter from "./routes/notifications";
 import notesRouter from "./routes/notes";
@@ -50,6 +51,9 @@ import bookingEngineHubRouter from "./routes/bookingEngineHub";
 import { briefingWorker } from "./jobs/briefingWorker";
 import { scheduleBriefings } from "./jobs/briefingScheduler";
 import { emailWorker } from "./jobs/sendBookingConfirmationEmail";
+import { promoEmailWorker } from "./jobs/sendPromoCodeEmail";
+import { occasionWorker } from "./jobs/occasionWorker";
+import { scheduleOccasionSweeps } from "./jobs/occasionScheduler";
 
 const app = express();
 
@@ -107,6 +111,7 @@ app.use("/api/dashboard",   dashboardRouter);
 app.use("/api/users",       usersRouter);
 app.use("/api/pos",         posRouter);
 app.use("/api/reports",        reportsRouter);
+app.use("/api/accounting",     accountingRouter);
 app.use("/api/night-audit",    nightAuditRouter);
 app.use("/api/notifications",  notificationsRouter);
 app.use("/api/notes",          notesRouter);
@@ -136,12 +141,15 @@ app.use(errorHandler);
 // Start background jobs (skip in test environment)
 if (env.NODE_ENV !== "test") {
   scheduleBriefings().catch(console.error);
+  scheduleOccasionSweeps().catch(console.error);
 }
 
 process.on("SIGTERM", async () => {
   console.log("SIGTERM received — shutting down gracefully");
   await briefingWorker.close();
   await emailWorker.close();
+  await promoEmailWorker.close();
+  await occasionWorker.close();
   process.exit(0);
 });
 

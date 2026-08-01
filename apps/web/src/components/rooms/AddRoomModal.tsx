@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, BedDouble } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { getErrorMessage } from "@/lib/api";
 import { roomsService, type RoomStatus, type CreateRoomDto } from "@/services/rooms";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 
@@ -100,7 +101,7 @@ export function AddRoomModal({ onClose }: AddRoomModalProps) {
 
           {mutation.isError && (
             <div className="bg-clay-soft border border-clay/20 text-clay text-[13px] rounded-xl px-4 py-3">
-              Something went wrong. Please try again.
+              {getErrorMessage(mutation.error)}
             </div>
           )}
 

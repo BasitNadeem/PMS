@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, Star, Users } from "lucide-react";
+import { X, Star, Users, Mail } from "lucide-react";
 import { cn } from "../../lib/cn";
-import { guestsService, type GuestDetail, type UpdateGuestDto, type DocumentType } from "../../services/guests";
+import { guestsService, vipLabel, type GuestDetail, type UpdateGuestDto, type DocumentType } from "../../services/guests";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { getPhoneErrorMessage, getEmailErrorMessage } from "@/lib/validation";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { TagEditor } from "./TagEditor";
+import { SpecialDatesEditor } from "./SpecialDatesEditor";
+
+const VIP_LEVELS = [0, 1, 2, 3] as const;
 
 const DOC_TYPES: { value: DocumentType; label: string }[] = [
   { value: "CNIC",            label: "CNIC" },
@@ -46,8 +50,13 @@ export function EditGuestModal({ guest, onClose, onSuccess }: EditGuestModalProp
     address:        guest.address ?? "",
     documentType:   guest.documentType,
     documentNumber: guest.documentNumber ?? "",
+    documentExpiry: guest.documentExpiry ? guest.documentExpiry.split("T")[0] : "",
     internalNotes:  guest.internalNotes ?? "",
-    isVip:          guest.vipLevel > 0,
+    vipLevel:       guest.vipLevel,
+    tags:           guest.tags ?? [],
+    specialDates:   guest.specialDates ?? [],
+    specialDatesDeclined: Boolean(guest.specialDatesDeclinedAt),
+    marketingOptIn: guest.marketingOptIn ?? false,
   });
 
   const [errors, setErrors] = useState<{ phone?: string; email?: string }>({});
@@ -57,6 +66,7 @@ export function EditGuestModal({ guest, onClose, onSuccess }: EditGuestModalProp
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["guests"] });
       qc.invalidateQueries({ queryKey: ["guest", guest.id] });
+      qc.invalidateQueries({ queryKey: ["guest-tags"] });
       onSuccess("Guest updated successfully");
       onClose();
     },
@@ -84,9 +94,14 @@ export function EditGuestModal({ guest, onClose, onSuccess }: EditGuestModalProp
       dateOfBirth:    form.dateOfBirth || undefined,
       documentType:   form.documentType,
       documentNumber: form.documentNumber.trim() || undefined,
+      documentExpiry: form.documentExpiry || undefined,
       address:        form.address.trim() || undefined,
       internalNotes:  form.internalNotes.trim() || undefined,
-      vipLevel:       form.isVip ? 1 : 0,
+      vipLevel:       form.vipLevel,
+      tags:           form.tags,
+      specialDates:   form.specialDates,
+      specialDatesDeclined: form.specialDatesDeclined,
+      marketingOptIn: form.marketingOptIn,
     });
   }
 
@@ -119,29 +134,91 @@ export function EditGuestModal({ guest, onClose, onSuccess }: EditGuestModalProp
         {/* Scrollable body */}
         <form id="edit-guest-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto scroll-area px-6 py-5 space-y-5">
 
-          {/* VIP toggle */}
-          <button
-            type="button"
-            onClick={() => set("isVip", !form.isVip)}
-            className={cn(
-              "flex items-center justify-between w-full rounded-xl border px-3.5 py-2.5 transition-colors",
-              form.isVip ? "border-amber/40 bg-amber-soft" : "border-line bg-mist hover:border-line-soft",
-            )}
-          >
-            <span className="flex items-center gap-2 text-[13.5px] font-semibold text-ink-soft">
-              <Star size={15} className={form.isVip ? "text-amber fill-amber" : "text-ink-faint"} />
-              Mark this guest as VIP
-            </span>
-            <span className={cn(
-              "w-11 h-6 rounded-full transition-colors duration-200 flex items-center flex-shrink-0",
-              form.isVip ? "bg-amber" : "bg-line-soft",
-            )}>
+          {/* Recognition tier. A plain on/off toggle used to live here, but it
+              wrote level 1 on save — which silently demoted a Gold or Platinum
+              guest every time someone edited an unrelated field. */}
+          <div className={cn(
+            "rounded-xl border px-3.5 py-3 transition-colors",
+            form.vipLevel > 0 ? "border-amber/40 bg-amber-soft" : "border-line bg-mist",
+          )}>
+            <div className="flex items-center gap-2 mb-2.5">
+              <Star size={15} className={form.vipLevel > 0 ? "text-amber fill-amber" : "text-ink-faint"} />
+              <span className="text-[13.5px] font-semibold text-ink-soft">Recognition tier</span>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              {VIP_LEVELS.map((level) => (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => set("vipLevel", level)}
+                  className={cn(
+                    "h-9 rounded-lg text-[12.5px] font-semibold border transition-colors",
+                    form.vipLevel === level
+                      ? "border-amber bg-amber text-white"
+                      : "border-line bg-paper text-ink-mute hover:text-ink hover:border-ink-faint",
+                  )}
+                >
+                  {vipLabel(level) ?? "None"}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[11.5px] text-ink-mute">
+              Earned automatically from completed stays. Set it higher by hand to
+              recognise a guest early — stay counts will never lower it again.
+            </p>
+          </div>
+
+          {/* Tags */}
+          <div>
+            <p className={sectionCls}>Tags</p>
+            <TagEditor value={form.tags} onChange={(tags) => set("tags", tags)} />
+          </div>
+
+          {/* Special dates */}
+          <div>
+            <p className={sectionCls}>Special Dates</p>
+            <SpecialDatesEditor
+              value={form.specialDates}
+              onChange={(dates) => set("specialDates", dates)}
+              declined={form.specialDatesDeclined}
+              onDeclinedChange={(v) => set("specialDatesDeclined", v)}
+            />
+          </div>
+
+          {/* Marketing consent. Holding a birthday is not the same as being
+              allowed to email about it, so consent is captured separately. */}
+          <div>
+            <p className={sectionCls}>Keeping in Touch</p>
+            <button
+              type="button"
+              onClick={() => set("marketingOptIn", !form.marketingOptIn)}
+              className={cn(
+                "flex items-center justify-between w-full rounded-xl border px-3.5 py-2.5 transition-colors text-left",
+                form.marketingOptIn ? "border-pine/40 bg-pine-soft" : "border-line bg-mist hover:border-line-soft",
+              )}
+            >
+              <span className="flex items-start gap-2 pr-3">
+                <Mail size={15} className={cn("mt-0.5 shrink-0", form.marketingOptIn ? "text-pine-deep" : "text-ink-faint")} />
+                <span>
+                  <span className="block text-[13.5px] font-semibold text-ink-soft">
+                    Guest agreed to receive offers
+                  </span>
+                  <span className="block text-[11.5px] text-ink-mute">
+                    Required before any greeting or promo code email is sent.
+                  </span>
+                </span>
+              </span>
               <span className={cn(
-                "w-5 h-5 bg-white rounded-full shadow transition-transform duration-200",
-                form.isVip ? "translate-x-5" : "translate-x-0.5",
-              )} />
-            </span>
-          </button>
+                "w-11 h-6 rounded-full transition-colors duration-200 flex items-center flex-shrink-0",
+                form.marketingOptIn ? "bg-pine" : "bg-line-soft",
+              )}>
+                <span className={cn(
+                  "w-5 h-5 bg-white rounded-full shadow transition-transform duration-200",
+                  form.marketingOptIn ? "translate-x-5" : "translate-x-0.5",
+                )} />
+              </span>
+            </button>
+          </div>
 
           {/* Personal Information */}
           <div>
@@ -232,6 +309,11 @@ export function EditGuestModal({ guest, onClose, onSuccess }: EditGuestModalProp
                   <input type="text" value={form.documentNumber} placeholder="35202-•••••••-7"
                     onChange={(e) => set("documentNumber", e.target.value)} className={inputCls} />
                 </div>
+              </div>
+              <div>
+                <label className={labelCls}>ID expiry <span className="normal-case tracking-normal text-ink-faint font-normal">(optional)</span></label>
+                <DatePicker value={form.documentExpiry}
+                  onChange={(v) => set("documentExpiry", v)} className="w-full" />
               </div>
               <div>
                 <label className={labelCls}>Internal notes <span className="normal-case tracking-normal text-ink-faint font-normal">(not visible to guest)</span></label>

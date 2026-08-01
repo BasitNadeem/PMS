@@ -3,6 +3,7 @@ import { adminPrisma } from "@pms/db";
 import { authenticate } from "../middleware/auth";
 import { env } from "../lib/env";
 import { subscribePushSchema, unsubscribePushSchema } from "../schemas/push";
+import { checkFeatureAccess } from "../lib/subscription";
 
 const router: Router = Router();
 
@@ -15,6 +16,7 @@ router.use(authenticate);
 
 // POST /api/push/subscribe
 router.post("/subscribe", async (req, res) => {
+  await checkFeatureAccess(req.user!.hotelId, "housekeepingPWA");
   const body = subscribePushSchema.parse(req.body);
 
   await adminPrisma.pushSubscription.upsert({

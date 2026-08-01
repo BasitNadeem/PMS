@@ -27,6 +27,7 @@ import {
   bookMultiSchema,
 } from "../schemas/bookingPublic";
 import { AppError } from "../utils/AppError";
+import { assertPromoCodeGuest, consumePromoCode } from "../utils/promoCodes";
 
 const router: Router = Router();
 
@@ -173,8 +174,10 @@ router.get("/:hotelSlug/suggest-rate", async (req, res) => {
   res.json({
     data: {
       suggestedRate: result.suggestedRate / 100, // paisas → PKR
+      baseRate:      result.baseRate / 100,
       matchedPlan:   result.matchedPlan,
       appliedCode:   result.appliedCode,
+      discountPercent: result.discountPercent,
     },
   });
 });
@@ -294,6 +297,14 @@ router.post("/:hotelSlug/book", bookSubmitLimit, async (req, res) => {
       // Matched existing guest — record submitted name only if it differs
       if (dto.guestName.trim().toLowerCase() !== (guest.fullName ?? "").trim().toLowerCase()) {
         bookingContactName = dto.guestName.trim();
+      }
+    }
+
+    if (rateResult.appliedCode) {
+      await assertPromoCodeGuest(db, hotel.id, rateResult.appliedCode, guest.id);
+      const consumed = await consumePromoCode(db, hotel.id, rateResult.appliedCode);
+      if (!consumed) {
+        throw new AppError(409, "This offer was just used or is no longer available. Please recalculate your booking.");
       }
     }
 
@@ -507,6 +518,15 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
     } else {
       if (dto.guestName.trim().toLowerCase() !== (guest.fullName ?? "").trim().toLowerCase()) {
         bookingContactName = dto.guestName.trim();
+      }
+    }
+
+    const appliedCode = [...rateMap.values()].find((rate) => rate.appliedCode)?.appliedCode;
+    if (appliedCode) {
+      await assertPromoCodeGuest(db, hotel.id, appliedCode, guest.id);
+      const consumed = await consumePromoCode(db, hotel.id, appliedCode);
+      if (!consumed) {
+        throw new AppError(409, "This offer was just used or is no longer available. Please recalculate your booking.");
       }
     }
 

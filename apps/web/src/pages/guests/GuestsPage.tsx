@@ -6,12 +6,16 @@ import { cn } from "@/lib/cn";
 import { guestsService, type GuestSummary } from "@/services/guests";
 import { AddGuestModal } from "@/components/guests/AddGuestModal";
 import { GuestDrawer } from "@/components/guests/GuestDrawer";
+import { VipBadge } from "@/components/guests/VipBadge";
+import { UpcomingOccasions } from "@/components/guests/UpcomingOccasions";
 import { Card } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useToast } from "@/hooks/useToast";
+import { ToastContainer } from "@/components/ui/ToastContainer";
 
 function maskId(doc: string | null): string {
   if (!doc) return "—";
@@ -29,14 +33,24 @@ function GuestRow({ guest, onOpen, onEdit, canEdit }: { guest: GuestSummary; onO
         <div className="min-w-0">
           <div className="text-[14.5px] font-semibold text-ink truncate flex items-center gap-1.5">
             {guest.fullName}
-            {guest.totalStays >= 5 && (
-              <span className="text-[10px] font-bold text-amber bg-amber/10 px-1.5 py-0.5 rounded">VIP</span>
-            )}
+            <VipBadge level={guest.vipLevel} size="sm" />
             {guest.isBlacklisted && (
               <StatusBadge status="Blacklisted" size="sm" dot={false} />
             )}
           </div>
           <div className="text-[12px] text-ink-mute md:hidden">{guest.phone ?? "—"}</div>
+          {guest.tags.length > 0 && (
+            <div className="mt-1 flex items-center gap-1 flex-wrap">
+              {guest.tags.slice(0, 3).map((tag) => (
+                <span key={tag} className="text-[10.5px] font-semibold text-ink-mute bg-mist border border-line-soft rounded-full px-1.5 py-0.5">
+                  {tag}
+                </span>
+              ))}
+              {guest.tags.length > 3 && (
+                <span className="text-[10.5px] text-ink-faint">+{guest.tags.length - 3}</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
       <div className="hidden md:block">
@@ -73,6 +87,7 @@ export default function GuestsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { has } = usePermissions();
+  const { toasts, addToast, removeToast } = useToast();
   const canCreate = has("guests:create");
   const canEdit   = has("guests:update");
   const [openDrawerId, setOpenDrawerId] = useState<string | null>(null);
@@ -80,8 +95,21 @@ export default function GuestsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [onlyBlacklisted, setOnlyBlacklisted] = useState(false);
+  const [onlyVip, setOnlyVip] = useState(false);
+  const [activeTags, setActiveTags] = useState<string[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { data: knownTags = [] } = useQuery({
+    queryKey: ["guest-tags"],
+    queryFn:  guestsService.getTags,
+    staleTime: 5 * 60_000,
+  });
+
+  function toggleTag(tag: string) {
+    setActiveTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
+    setPage(1);
+  }
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -90,8 +118,15 @@ export default function GuestsPage() {
   }, [searchInput]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["guests", { search: debouncedSearch, page, onlyBlacklisted }],
-    queryFn: () => guestsService.getGuests({ search: debouncedSearch || undefined, page, limit: 20, blacklisted: onlyBlacklisted || undefined }),
+    queryKey: ["guests", { search: debouncedSearch, page, onlyBlacklisted, onlyVip, activeTags }],
+    queryFn: () => guestsService.getGuests({
+      search:      debouncedSearch || undefined,
+      page,
+      limit:       20,
+      blacklisted: onlyBlacklisted || undefined,
+      minVipLevel: onlyVip ? 1 : undefined,
+      tags:        activeTags.length > 0 ? activeTags : undefined,
+    }),
     refetchInterval: 15_000,
   });
 
@@ -121,6 +156,8 @@ export default function GuestsPage() {
         )}
       </div>
 
+      <UpcomingOccasions canIssue={canEdit} onNotify={addToast} className="anim-fade-up mb-5" />
+
       <Card pad={false} className="anim-fade-up overflow-hidden">
         {/* Search */}
         <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-line-soft">
@@ -131,6 +168,17 @@ export default function GuestsPage() {
               placeholder="Search by name, email, phone…"
               className="w-full sm:w-80"
             />
+            <button
+              onClick={() => { setOnlyVip((v) => !v); setPage(1); }}
+              className={cn(
+                "h-9 px-3.5 rounded-full text-[13px] font-semibold border transition-colors",
+                onlyVip
+                  ? "border-amber bg-amber-soft text-amber"
+                  : "border-line text-ink-mute hover:text-ink hover:border-ink-faint",
+              )}
+            >
+              VIP
+            </button>
             <button
               onClick={() => { setOnlyBlacklisted((v) => !v); setPage(1); }}
               className={cn(
@@ -147,6 +195,36 @@ export default function GuestsPage() {
             {meta?.total.toLocaleString() ?? "—"} guests
           </p>
         </div>
+
+        {/* Tag filters — only rendered once the hotel actually uses tags, so the
+            bar stays empty rather than showing a dead row on a fresh install. */}
+        {knownTags.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap px-4 pb-3 -mt-1">
+            {knownTags.slice(0, 12).map(({ tag, count }) => (
+              <button
+                key={tag}
+                onClick={() => toggleTag(tag)}
+                className={cn(
+                  "inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[12px] font-semibold border transition-colors",
+                  activeTags.includes(tag)
+                    ? "border-coral bg-coral/10 text-coral"
+                    : "border-line text-ink-mute hover:text-ink hover:border-ink-faint",
+                )}
+              >
+                {tag}
+                <span className="text-ink-faint tnum">{count}</span>
+              </button>
+            ))}
+            {activeTags.length > 0 && (
+              <button
+                onClick={() => { setActiveTags([]); setPage(1); }}
+                className="h-7 px-2.5 text-[12px] font-semibold text-ink-faint hover:text-ink transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Column headers */}
         <div className="hidden md:grid grid-cols-[1.8fr_1.2fr_1.4fr_1fr_0.7fr_auto] gap-3 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-ink-faint border-b border-line-soft">
@@ -240,7 +318,11 @@ export default function GuestsPage() {
         guestId={openDrawerId}
         onClose={() => setOpenDrawerId(null)}
         onEdit={canEdit ? (id) => { setOpenDrawerId(null); navigate(`/guests/${id}`); } : undefined}
+        canIssueOffer={canEdit}
+        onNotify={addToast}
       />
+
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

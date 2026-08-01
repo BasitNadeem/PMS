@@ -24,21 +24,24 @@ check_table() {
 check_rls() {
   local table="$1"
   docker exec pms_postgres psql -U pms_user -d hotel_pms -tAc \
-    "SELECT relrowsecurity FROM pg_class WHERE relname='$table'"
+    "SELECT c.relrowsecurity
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname='public' AND c.relname='$table'"
 }
 
 # ── Core Prisma tables (RLS expected) ──────────────────────────────────────────
 echo ""
 echo "── Core tables (RLS expected) ──"
 CORE_TABLES="hotels users roles permissions role_permissions hotel_users \
-room_types rooms guests guest_blacklist \
+room_types rooms guests guest_blacklist guest_special_dates \
 reservations reservation_rooms group_bookings group_members \
 folios folio_items folio_splits payments invoices \
 pos_categories pos_items pos_orders pos_order_items \
 housekeeping_tasks maintenance_tickets \
 inventory_items inventory_transactions \
 conversations messages \
-rate_plans rate_plan_items channel_configs \
+rate_plans rate_plan_items rate_plan_codes channel_configs \
 staff shift_reports tax_configs \
 audit_logs notifications \
 custom_field_definitions custom_field_values \
@@ -152,11 +155,25 @@ for col in booking_contact_name; do
     echo "  ❌ MISSING  reservations.$col"
   fi
 done
-for col in subdomain onboarding_completed onboarding_step subscription_plan_id room_limit_override feature_overrides description amenities; do
+for col in subdomain onboarding_completed onboarding_step subscription_plan_id limit_overrides feature_overrides description amenities; do
   if [ "$(check_col hotels $col)" = "1" ]; then
     echo "  ✅ hotels.$col"
   else
     echo "  ❌ MISSING  hotels.$col"
+  fi
+done
+for col in guest_id discount_percent email_status email_sent_at email_error; do
+  if [ "$(check_col rate_plan_codes $col)" = "1" ]; then
+    echo "  ✅ rate_plan_codes.$col"
+  else
+    echo "  ❌ MISSING  rate_plan_codes.$col"
+  fi
+done
+for col in features limits is_active; do
+  if [ "$(check_col subscription_plans $col)" = "1" ]; then
+    echo "  ✅ subscription_plans.$col"
+  else
+    echo "  ❌ MISSING  subscription_plans.$col"
   fi
 done
 for col in is_super_admin is_first_login; do

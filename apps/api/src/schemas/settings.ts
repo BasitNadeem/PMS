@@ -47,6 +47,11 @@ export const updateSettingsSchema = z.object({
   fbrEnabled:        z.boolean().optional(),
   invoicePrefix:          z.string().trim().optional(),
   ownerWhatsappNumber:    optionalPhoneSchema,
+  birthdayOffersEnabled:     z.boolean().optional(),
+  anniversaryOffersEnabled:  z.boolean().optional(),
+  occasionOfferDiscountPercent: z.number().int().min(1).max(90).optional(),
+  occasionOfferLeadDays:        z.number().int().min(0).max(90).optional(),
+  occasionOfferValidityDays:    z.number().int().min(1).max(365).optional(),
   themeKey:               z.enum(["WARM_CLAY", "PINE_TEAL", "AZURE_SLATE", "INDIGO_NIGHT"]).optional(),
   logoUrl:                z.string().nullable().optional(),
   // onboarding progress — Hotel model field

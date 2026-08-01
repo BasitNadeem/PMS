@@ -52,9 +52,8 @@ export default function Footer() {
 
           <div className="grid gap-10 py-11 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.15fr]">
             <div>
-              <Link to="/" className="inline-flex items-center gap-3" aria-label="InnFlo home">
-                <img src="/brand/mark-clay-tight.svg" alt="" aria-hidden="true" className="h-10 w-10" />
-                <span className="font-display text-[30px] font-medium italic text-paper">InnFlo</span>
+              <Link to="/" className="inline-flex items-center" aria-label="Innflo home">
+                <img src="/brand/mark-clay-tight.svg" alt="" aria-hidden="true" className="h-12 w-12" />
               </Link>
               <p className="mt-4 max-w-[300px] text-[14px] leading-relaxed" style={{ color: SOFT }}>
                 A manager-first hotel operating system for independent properties—starting in Pakistan.
@@ -111,7 +110,7 @@ export default function Footer() {
                 <MessageCircle className="h-4 w-4 text-coral" /> {CONTACT_PHONE_DISPLAY}
               </a>
               <a href={CONTACT_PHONE_HREF} className="mt-2 flex items-center gap-3 px-3 py-1 text-[11px] font-semibold hover:text-white" style={{ color: FAINT }}>
-                <Phone className="h-3.5 w-3.5 text-coral" /> Call InnFlo
+                <Phone className="h-3.5 w-3.5 text-coral" /> Call Innflo
               </a>
               <a href={`mailto:${SUPPORT_EMAIL}`} className="mt-1 flex items-center gap-3 px-3 py-1 text-[11px] font-semibold hover:text-white" style={{ color: FAINT }}>
                 <Mail className="h-3.5 w-3.5 text-coral" /> {SUPPORT_EMAIL}
@@ -121,7 +120,7 @@ export default function Footer() {
           </div>
 
           <div className="flex flex-col gap-2 border-t border-white/10 pt-5 text-[11px] sm:flex-row sm:items-center sm:justify-between" style={{ color: FAINT }}>
-            <p>© {new Date().getFullYear()} InnFlo. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} Innflo. All rights reserved.</p>
             <p>Built for real hotels, not demo workflows.</p>
           </div>
         </div>

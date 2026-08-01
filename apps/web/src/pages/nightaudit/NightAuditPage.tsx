@@ -37,12 +37,14 @@ function formatDateTime(iso: string): string {
 
 interface ReviewModalProps {
   businessDate: string;
+  closesAt: string;
+  canClose: boolean;
   preflight: PreflightCheck;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-function ReviewModal({ businessDate, preflight, onClose, onSuccess }: ReviewModalProps) {
+function ReviewModal({ businessDate, closesAt, canClose, preflight, onClose, onSuccess }: ReviewModalProps) {
   useEscapeKey(onClose);
   const qc = useQueryClient();
   const { has } = usePermissions();
@@ -91,7 +93,8 @@ function ReviewModal({ businessDate, preflight, onClose, onSuccess }: ReviewModa
     + preflight.unsignedShiftReports.length
     + preflight.unresolvedDiscrepancies
     + preflight.unpostedPosOrders;
-  const canConfirm = allActioned
+  const canConfirm = canClose
+    && allActioned
     && (unresolvedCount === 0 || exceptionReason.trim().length > 0)
     && !runMutation.isPending;
 
@@ -122,6 +125,12 @@ function ReviewModal({ businessDate, preflight, onClose, onSuccess }: ReviewModa
           {error && (
             <div className="rounded-xl bg-clay-soft border border-clay/20 text-clay text-[13px] px-4 py-3">
               {error}
+            </div>
+          )}
+
+          {!canClose && (
+            <div className="rounded-xl border border-amber/25 bg-amber-soft/30 px-4 py-3 text-[12.5px] leading-relaxed text-ink-soft">
+              Preparation is open. This business day can be closed at {formatDateTime(closesAt)}, when the next Morning shift begins.
             </div>
           )}
 
@@ -299,7 +308,10 @@ function ReviewModal({ businessDate, preflight, onClose, onSuccess }: ReviewModa
             {runMutation.isPending ? (
               <><Loader2 size={14} className="animate-spin" /> Closing…</>
             ) : (
-              <>Confirm &amp; Close {businessDate} <ChevronRight size={14} /></>
+              <>
+                {canClose ? `Confirm & Close ${businessDate}` : `Available ${formatDateTime(closesAt)}`}
+                <ChevronRight size={14} />
+              </>
             )}
           </button>
         </div>
@@ -425,10 +437,13 @@ export default function NightAuditPage() {
   const { has } = usePermissions();
   const canRun = has("nightAudit:run");
 
-  const { data: businessDate, isLoading: bdLoading, isError: businessDateError } = useQuery({
+  const { data: businessDateContext, isLoading: bdLoading, isError: businessDateError } = useQuery({
     queryKey: ["night-audit-business-date"],
     queryFn: nightAuditService.getBusinessDate,
+    refetchInterval: 15_000,
   });
+  const businessDate = businessDateContext?.businessDate;
+  const canCloseBusinessDate = businessDateContext?.canClose ?? false;
 
   const {
     data: preflight,
@@ -537,7 +552,7 @@ export default function NightAuditPage() {
           className="flex items-center gap-2 h-11 px-6 rounded-full bg-coral text-white text-[14px] font-semibold hover:bg-coral-dark transition-colors shadow-pop disabled:opacity-50 mb-6"
         >
           <Moon size={16} />
-          Run Night Audit for {businessDate ?? "…"}
+          {canCloseBusinessDate ? "Run Night Audit" : "Review Night Audit preparation"} for {businessDate ?? "…"}
         </button>
       )}
 
@@ -653,6 +668,8 @@ export default function NightAuditPage() {
         ) : preflight ? (
           <ReviewModal
             businessDate={businessDate}
+            closesAt={businessDateContext?.closesAt ?? ""}
+            canClose={canCloseBusinessDate}
             preflight={preflight}
             onClose={() => setShowReview(false)}
             onSuccess={handleAuditSuccess}

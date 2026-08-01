@@ -27,3 +27,20 @@ export * from "@prisma/client";
 export { withTenant } from "./tenant";
 export type { TenantTx } from "./tenant";
 export { adminPrisma } from "./admin";
+export {
+  FEATURE_DEFINITIONS,
+  FEATURE_KEYS,
+  LIMIT_DEFINITIONS,
+  LIMIT_KEYS,
+  FALLBACK_FEATURES,
+  FALLBACK_LIMITS,
+  normalizeFeatureFlags,
+  normalizeSubscriptionLimits,
+  hasTrialExpired,
+} from "./subscriptionConfig";
+export type {
+  FeatureKey,
+  FeatureFlags,
+  LimitKey,
+  SubscriptionLimits,
+} from "./subscriptionConfig";

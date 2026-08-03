@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "
 import { createPortal } from "react-dom";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, BedDouble, Users, Users2, CalendarCheck,
+  LayoutDashboard, BedDouble, Users, Users2, Building2, CalendarCheck,
   Landmark, Sparkles, ShoppingCart, FileBarChart, LogOut,
   ChevronsUpDown, PanelLeftClose, PanelLeftOpen, TrendingUp, Menu, X, Settings,
   Receipt, TrendingDown, BookOpen, Wrench, ClipboardList, ChefHat, Monitor, Package, Network, Moon, Tag, Globe,
@@ -125,6 +125,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/reservations", label: "Reservations", icon: CalendarCheck, permission: "reservations:read" },
   { to: "/rooms",        label: "Rooms",        icon: BedDouble, permission: "rooms:read" },
   { to: "/guests",       label: "Guests",       icon: Users, permission: "guests:read" },
+  { to: "/companies",    label: "Companies",    icon: Building2, permission: "companies:read" },
   {
     to: "/financials",   label: "Financials",   icon: Landmark,
     permission: "billing:read",

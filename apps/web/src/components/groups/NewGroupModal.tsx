@@ -20,6 +20,7 @@ import {
 import { Avatar } from "@/components/ui/Avatar";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { CompanyPicker } from "@/components/companies/CompanyPicker";
 import { settingsService } from "@/services/settings";
 import { calculateAccommodationCharges } from "@/lib/accommodationCharges";
 
@@ -103,6 +104,8 @@ interface AdditionalGuest {
 interface WizardState {
   name: string;
   payerType: PayerType;
+  /** Set when the payer is a company on file rather than a one-off name. */
+  companyId: string | null;
   payerName: string;
   payerContact: string;
   checkIn: string;
@@ -146,7 +149,7 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
   const [newPhoneError, setNewPhoneError] = useState("");
 
   const [form, setForm] = useState<WizardState>({
-    name: "", payerType: initialPayerType ?? "TOUR_AGENCY", payerName: "", payerContact: "",
+    name: "", payerType: initialPayerType ?? "TOUR_AGENCY", companyId: null, payerName: "", payerContact: "",
     checkIn: initialCheckIn ?? "", checkOut: initialCheckOut ?? "",
     billingType: "SINGLE", paymentTerms: "CASH", advancePercent: "", advancePaid: "0", notes: "",
     rooms: [],
@@ -336,6 +339,10 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
   );
   const estTotal = estimatedCharges.totalAmount;
   const today       = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
+  // Tour agencies, corporates, government departments and NGOs are all
+  // recurring counterparties worth keeping a record of. Only an
+  // individual/family payer is a genuine one-off.
+  const isOrganisationPayer = form.payerType !== "INDIVIDUAL";
   const showAdvance = form.paymentTerms === "ADVANCE_50" || form.paymentTerms === "ADVANCE_100" || form.paymentTerms === "ADVANCE_CUSTOM";
   const showAdvancePercent = form.paymentTerms === "ADVANCE_CUSTOM";
 
@@ -398,6 +405,7 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
     return {
       name: form.name.trim(),
       payerType: form.payerType,
+      companyId: form.companyId,
       payerName: form.payerName.trim(),
       payerContact: form.payerContact.trim() || undefined,
       billingType: form.billingType,
@@ -511,10 +519,38 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
                     <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-mute pointer-events-none" />
                   </div>
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Payer name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
-                  <input type="text" value={form.payerName} onChange={(e) => set("payerName", e.target.value)} placeholder="Company / agency name" className={inputCls} />
-                </div>
+                {/* An organisation is a company we should have on file, so it
+                    gets the picker. An individual/family payer is genuinely a
+                    one-off name and keeps the plain text box. */}
+                {isOrganisationPayer ? (
+                  <div className="col-span-2">
+                    <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">
+                      Company <span className="text-coral text-[15px] font-bold leading-none">*</span>
+                    </label>
+                    <CompanyPicker
+                      value={form.companyId}
+                      onChange={(company) => {
+                        setForm((f) => ({
+                          ...f,
+                          companyId:   company?.id ?? null,
+                          // Kept in sync so the group still reads correctly on
+                          // screens that show the free-text payer, and so an
+                          // unlinked group is still labelled.
+                          payerName:   company?.name ?? "",
+                          // A company with credit gets billed on its terms;
+                          // without one, guests settle at checkout.
+                          paymentTerms: company && company.creditLimit > 0 ? f.paymentTerms : "CASH",
+                        }));
+                      }}
+                      placeholder="Search agencies and corporate clients…"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Payer name <span className="text-coral text-[15px] font-bold leading-none">*</span></label>
+                    <input type="text" value={form.payerName} onChange={(e) => set("payerName", e.target.value)} placeholder="Name of the person paying" className={inputCls} />
+                  </div>
+                )}
                 <div className="col-span-2">
                   <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Payer contact</label>
                   <input type="text" value={form.payerContact} onChange={(e) => set("payerContact", e.target.value)} placeholder="Phone or email" className={inputCls} />

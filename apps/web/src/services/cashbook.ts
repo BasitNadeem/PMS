@@ -16,7 +16,7 @@ export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
 
 export const ENTRY_TYPES  = ["INCOMING", "OUTGOING"] as const;
 export const SOURCE_TYPES = [
-  "FOLIO_PAYMENT", "EXPENSE", "BANK_DEPOSIT", "CASH_WITHDRAWAL",
+  "FOLIO_PAYMENT", "PAYMENT_REFUND", "EXPENSE", "POS_SALE", "QR_ORDER_SALE", "ACCOUNT_TRANSFER", "BANK_DEPOSIT", "CASH_WITHDRAWAL",
   "OPENING_BALANCE", "ADJUSTMENT", "OTHER",
 ] as const;
 export type EntryType  = typeof ENTRY_TYPES[number];
@@ -24,7 +24,11 @@ export type SourceType = typeof SOURCE_TYPES[number];
 
 export const SOURCE_LABELS: Record<SourceType, string> = {
   FOLIO_PAYMENT:   "Folio",
+  PAYMENT_REFUND:  "Refund",
   EXPENSE:         "Expense",
+  POS_SALE:        "POS",
+  QR_ORDER_SALE:   "QR Order",
+  ACCOUNT_TRANSFER:"Transfer",
   BANK_DEPOSIT:    "Deposit",
   CASH_WITHDRAWAL: "Withdrawal",
   OPENING_BALANCE: "Opening",
@@ -47,7 +51,6 @@ export interface LedgerEntry {
   notes:          string | null;
   recorded_by_id: string;
   created_at:     string;
-  updated_at:     string;
   account_name:   string;
   account_type:   AccountType;
   recorder_name:  string | null;
@@ -81,6 +84,7 @@ export interface LedgerResponse {
 }
 
 export interface CreateEntryDto {
+  accountId:       string;
   entryType:       EntryType;
   amount:          number;
   description:     string;
@@ -89,7 +93,22 @@ export interface CreateEntryDto {
   entryDate?:      string;
 }
 
+export interface CashAccount {
+  id: string;
+  name: string;
+  account_type: AccountType;
+  balance: number;
+}
+
 export const cashbookService = {
+  reconcile: async (): Promise<{ scanned: number; repaired: number }> => {
+    const res = await api.post("/api/cashbook/reconcile");
+    return res.data.data;
+  },
+  getAccounts: async (): Promise<CashAccount[]> => {
+    const res = await api.get("/api/cashbook/accounts");
+    return res.data.data;
+  },
   getBalances: async (params: { asOf?: string }): Promise<AccountBalance[]> => {
     const res = await api.get("/api/cashbook/balances", { params });
     return res.data.data;
@@ -114,6 +133,13 @@ export const cashbookService = {
   createEntry: async (dto: CreateEntryDto): Promise<LedgerEntry> => {
     const res = await api.post("/api/cashbook/entries", dto);
     return res.data.data;
+  },
+
+  createTransfer: async (dto: {
+    fromAccountId: string; toAccountId: string; amount: number;
+    description: string; entryDate?: string; notes?: string;
+  }): Promise<void> => {
+    await api.post("/api/cashbook/transfers", dto);
   },
 
   exportLedger: async (params: {

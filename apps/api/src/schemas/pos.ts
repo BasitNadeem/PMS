@@ -74,7 +74,7 @@ export const createOrderSchema = z
       .min(1, "At least one item is required"),
     settlementType: z.enum(["FOLIO", "DIRECT"]),
     reservationId:  z.string().uuid().optional(),
-    paymentMethod:  z.string().trim().optional(),
+    paymentMethod:  z.enum(["CASH", "JAZZCASH", "EASYPAISA", "CREDIT_CARD", "DEBIT_CARD"]).optional(),
     notes:          z.string().trim().optional(),
   })
   .refine(

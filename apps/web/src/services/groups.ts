@@ -13,6 +13,7 @@ export interface Group {
   name: string;
   groupRef: string | null;
   payerType: PayerType;
+  companyId?: string | null;
   payerName: string | null;
   payerContact: string | null;
   billingType: BillingType;
@@ -82,6 +83,7 @@ export interface GroupDetail {
   name: string;
   groupRef: string | null;
   payerType: PayerType;
+  companyId?: string | null;
   payerName: string | null;
   payerContact: string | null;
   billingType: BillingType;
@@ -125,6 +127,7 @@ export interface CreateGroupDto {
   name: string;
   groupRef?: string;
   payerType: PayerType;
+  companyId?: string | null;
   payerName: string;
   payerContact?: string;
   billingType: BillingType;
@@ -142,6 +145,7 @@ export interface CreateGroupDto {
 export interface UpdateGroupDto {
   name?: string;
   payerType?: PayerType;
+  companyId?: string | null;
   payerName?: string;
   payerContact?: string;
   billingType?: BillingType;

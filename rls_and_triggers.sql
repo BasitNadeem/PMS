@@ -111,6 +111,9 @@ SELECT enable_hotel_rls('guests');
 SELECT enable_hotel_rls('guest_special_dates');
 SELECT enable_hotel_rls('accounting_accounts');
 SELECT enable_hotel_rls('accounting_exports');
+SELECT enable_hotel_rls('companies');
+SELECT enable_hotel_rls('company_ledger_entries');
+SELECT enable_hotel_rls('company_invoices');
 SELECT enable_hotel_rls('reservations');
 -- reservation_rooms has no hotel_id — handled in open-access section below
 SELECT enable_hotel_rls('group_bookings');

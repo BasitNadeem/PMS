@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Trash2, Check, Printer, LogOut, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Check, Printer, LogOut, AlertTriangle, Building2, RotateCcw } from "lucide-react";
 import { reservationsService } from "@/services/reservations";
 import { groupsService } from "@/services/groups";
 import { cn } from "@/lib/cn";
 import { folioService, type FolioLineItem, type FolioItemType, type PaymentMethod } from "@/services/folio";
 import { AddChargeModal } from "@/components/folio/AddChargeModal";
 import { RecordPaymentModal } from "@/components/folio/RecordPaymentModal";
+import { RefundPaymentModal } from "@/components/folio/RefundPaymentModal";
+import { BillToCompanyModal } from "@/components/companies/BillToCompanyModal";
 import { ReceiptView } from "@/components/pos/ReceiptView";
 import { FolioInvoiceView } from "@/components/folio/FolioInvoiceView";
 import { ToastContainer } from "@/components/ui/ToastContainer";
@@ -65,13 +67,17 @@ export default function FolioPage() {
   const { has } = usePermissions();
   const canCreateCharge = has("billing:create");
   const canRecordPayment = has("billing:create");
+  const canRefundPayment = has("billing:delete");
+  const canBillToCompany = has("companies:post");
   const canVoidCharge = has("billing:delete");
   const canCheckOut = has("reservations:update");
   const { toasts, addToast, removeToast } = useToast();
   const [showAddCharge,    setShowAddCharge]    = useState(false);
   const [showRecordPayment, setShowRecordPayment] = useState(false);
+  const [showBillToCompany, setShowBillToCompany] = useState(false);
   const [showFbReceipt,    setShowFbReceipt]    = useState(false);
   const [showInvoice,      setShowInvoice]      = useState(false);
+  const [refundPayment,    setRefundPayment]    = useState<{ id: string; amount: number } | null>(null);
 
   function invalidateFolioAndBilling() {
     // Folio mutations affect both the detail view and every filtered/sorted
@@ -349,16 +355,24 @@ export default function FolioPage() {
               <div className="rounded-xl2 border border-line bg-card divide-y divide-line-soft">
                 {folio.payments.map((p) => {
                   const methodLabel = PAYMENT_METHOD_CONFIG[p.method] ?? p.method;
+                  const refunded = !p.isRefund
+                    ? folio.payments.filter((item) => item.isRefund && item.originalPaymentId === p.id)
+                        .reduce((sum, item) => sum + item.amount, 0)
+                    : 0;
+                  const refundable = Math.max(0, p.amount - refunded);
                   return (
                     <div key={p.id} className="flex items-center gap-3 px-4 py-3">
-                      <span className="grid place-items-center h-8 w-8 rounded-lg bg-pine-soft text-pine shrink-0">
-                        <Check size={16} strokeWidth={2.5} />
+                      <span className={cn("grid place-items-center h-8 w-8 rounded-lg shrink-0", p.isRefund ? "bg-clay-soft text-clay" : "bg-pine-soft text-pine")}>
+                        {p.isRefund ? <RotateCcw size={15} /> : <Check size={16} strokeWidth={2.5} />}
                       </span>
                       <div className="flex-1">
-                        <div className="text-[13.5px] font-semibold text-ink">{methodLabel}</div>
-                        <div className="text-[12px] text-ink-mute tnum">{fmtDateTime(p.postedAt)}</div>
+                        <div className="text-[13.5px] font-semibold text-ink">{p.isRefund ? `${methodLabel} refund` : methodLabel}</div>
+                        <div className="text-[12px] text-ink-mute tnum">{fmtDateTime(p.postedAt)}{p.refundReason ? ` · ${p.refundReason}` : ""}</div>
                       </div>
-                      <span className="text-[14px] font-bold text-pine tnum">{fmtPkr(p.amount)}</span>
+                      {!p.isRefund && canRefundPayment && refundable > 0 && (
+                        <button onClick={() => setRefundPayment({ id: p.id, amount: refundable })} className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-ink-mute hover:border-clay/30 hover:text-clay">Refund</button>
+                      )}
+                      <span className={cn("text-[14px] font-bold tnum", p.isRefund ? "text-clay" : "text-pine")}>{p.isRefund ? "−" : ""}{fmtPkr(p.amount)}</span>
                     </div>
                   );
                 })}
@@ -403,14 +417,26 @@ export default function FolioPage() {
 
             <div className="pt-2 space-y-2">
               {folio.balanceDue > 0 && folio.isOpen ? (
-                canRecordPayment && (
-                  <button
-                    onClick={() => setShowRecordPayment(true)}
-                    className="w-full h-11 rounded-full bg-coral text-white font-semibold text-sm hover:bg-coral-dark transition-colors flex items-center justify-center gap-2"
-                  >
-                    Record payment
-                  </button>
-                )
+                <>
+                  {canRecordPayment && (
+                    <button
+                      onClick={() => setShowRecordPayment(true)}
+                      className="w-full h-11 rounded-full bg-coral text-white font-semibold text-sm hover:bg-coral-dark transition-colors flex items-center justify-center gap-2"
+                    >
+                      Record payment
+                    </button>
+                  )}
+                  {/* The alternative to taking money: move the balance to an
+                      agency's account so the guest can leave. */}
+                  {canBillToCompany && (
+                    <button
+                      onClick={() => setShowBillToCompany(true)}
+                      className="w-full h-11 rounded-full bg-card border border-line text-ink-soft font-semibold text-sm hover:border-ink-faint hover:text-ink transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Building2 size={15} /> Bill to a company
+                    </button>
+                  )}
+                </>
               ) : (
                 <div className="flex items-center justify-center gap-2 h-11 rounded-full bg-pine-soft text-pine-deep text-sm font-semibold">
                   <Check size={16} strokeWidth={2.5} /> Settled
@@ -514,8 +540,22 @@ export default function FolioPage() {
       {showAddCharge && (
         <AddChargeModal reservationId={reservationId!} onClose={() => setShowAddCharge(false)} />
       )}
+      {showBillToCompany && folio && (
+        <BillToCompanyModal
+          reservationId={reservationId!}
+          balanceDue={folio.balanceDue}
+          defaultCompanyId={res?.companyId ?? null}
+          onClose={() => setShowBillToCompany(false)}
+          onSuccess={(m) => addToast(m)}
+        />
+      )}
+
       {showRecordPayment && folio && (
         <RecordPaymentModal reservationId={reservationId!} balanceDue={folio.balanceDue} onClose={() => setShowRecordPayment(false)} />
+      )}
+      {refundPayment && (
+        <RefundPaymentModal reservationId={reservationId!} paymentId={refundPayment.id} refundableAmount={refundPayment.amount}
+          onClose={() => setRefundPayment(null)} onSuccess={() => addToast("Payment refunded and Balance Book updated.")} />
       )}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>

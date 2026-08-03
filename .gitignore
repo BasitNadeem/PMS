@@ -24,3 +24,9 @@ pnpm-debug.log*
 
 # Uploaded files (local dev only — use Cloudinary in production)
 apps/api/uploads/
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
+packages/ui/.ds-styles.css

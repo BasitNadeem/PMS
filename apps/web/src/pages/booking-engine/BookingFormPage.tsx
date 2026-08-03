@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle2, AlertTriangle, Minus, Plus, ChevronLeft, Lock, Calendar, FileText, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft, CheckCircle2, AlertTriangle, Minus, Plus, ChevronLeft, ChevronDown,
+  Lock, Calendar, FileText, ShieldCheck, UserRound, Users, Gift, Cake, Heart,
+} from "lucide-react";
 import {
   bookingEngineService,
   type BookMultiConfirmation,
@@ -369,6 +372,7 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
   const [form, setForm] = useState({
     guestName: "", guestPhone: "", guestEmail: "",
     adults: adultsFromUrl, children: childrenFromUrl, specialRequests: "",
+    dateOfBirth: "", anniversaryDate: "", marketingOptIn: false,
   });
   const [phoneError,  setPhoneError]  = useState<string | null>(null);
   const [emailError,  setEmailError]  = useState<string | null>(null);
@@ -403,6 +407,9 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
         adults:          form.adults,
         children:        form.children || undefined,
         specialRequests: form.specialRequests.trim() || undefined,
+        dateOfBirth:     form.dateOfBirth || undefined,
+        anniversaryDate: form.anniversaryDate || undefined,
+        marketingOptIn: form.marketingOptIn,
         promoCode:       promoCode || undefined,
         termsAccepted,
       });
@@ -426,7 +433,7 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm">
-        <div className="max-w-5xl mx-auto px-5 sm:px-6 h-14 flex items-center justify-between gap-4">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             {hotel?.logoUrl ? (
               <img src={hotel.logoUrl} alt={hotel.name} className="h-7 w-7 rounded-lg object-cover shrink-0" />
@@ -461,23 +468,23 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
       </div>
 
       {/* ── Content ─────────────────────────────────────────────────────────── */}
-      <div className="max-w-5xl mx-auto px-5 sm:px-6 py-8">
-        <div className="flex flex-col lg:flex-row gap-6 items-start">
+      <div className="max-w-6xl mx-auto px-4 py-6 sm:px-6 sm:py-9">
+        <div className="flex flex-col items-start gap-7 lg:flex-row lg:gap-8">
 
           {/* ── Form ──────────────────────────────────────────────────────── */}
           <div className="w-full lg:flex-1 min-w-0">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.05)] overflow-hidden">
+            <div className="overflow-hidden rounded-[1.75rem] border border-gray-100 bg-white shadow-[0_18px_50px_rgba(25,25,25,0.07)]">
 
               {/* Form header */}
-              <div className="px-6 pt-6 pb-5 border-b border-gray-50">
+              <div className="border-b border-gray-100 bg-gradient-to-br from-white via-white to-[rgb(var(--be-accent-soft))] px-5 pb-6 pt-7 sm:px-8 sm:pt-8">
                 <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[rgb(var(--be-accent))] mb-2"><span className="grid place-items-center h-5 w-5 rounded-full bg-[rgb(var(--be-accent-soft))]">2</span> Final step</div>
-                <h1 className="be-serif text-[26px] font-semibold text-gray-900 leading-tight">Review &amp; request booking</h1>
-                <p className="text-[13px] text-gray-400 mt-1">
-                  Submit a request — the hotel will confirm your booking shortly.
+                <h1 className="be-serif text-[29px] font-semibold leading-tight text-gray-900 sm:text-[32px]">Complete your booking request</h1>
+                <p className="mt-2 max-w-xl text-[13.5px] leading-6 text-gray-500">
+                  Tell the hotel who is arriving. No payment is collected until the property confirms your stay.
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="px-6 py-6 flex flex-col gap-5">
+              <form onSubmit={handleSubmit} className="flex flex-col gap-6 px-4 py-5 sm:px-8 sm:py-7">
 
                 {/* Error */}
                 {submitError && (
@@ -495,43 +502,67 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
                   </div>
                 )}
 
-                {/* Name */}
-                <Field label="Full Name" required>
-                  <Input
-                    type="text" required
-                    value={form.guestName}
-                    onChange={(e) => setForm((f) => ({ ...f, guestName: e.target.value }))}
-                    placeholder="Ahmed Hassan"
-                  />
-                </Field>
+                <section className="rounded-2xl border border-gray-200/80 bg-white p-4 sm:p-5">
+                  <div className="mb-5 flex items-start gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[rgb(var(--be-accent-soft))] text-[rgb(var(--be-accent))]">
+                      <UserRound size={17} />
+                    </span>
+                    <div>
+                      <h2 className="text-[15px] font-bold text-gray-900">Your contact details</h2>
+                      <p className="mt-0.5 text-[12px] text-gray-500">Used only for this stay unless you choose offers below.</p>
+                    </div>
+                  </div>
 
-                {/* Phone + Email row */}
-                <div className="grid sm:grid-cols-2 gap-5">
-                  <Field label="Phone Number" required error={phoneError}>
+                  <div className="space-y-5">
+                    <Field label="Full Name" required>
+                      <Input
+                        type="text" required autoComplete="name"
+                        value={form.guestName}
+                        onChange={(e) => setForm((f) => ({ ...f, guestName: e.target.value }))}
+                        placeholder="Ahmed Hassan"
+                      />
+                    </Field>
+
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      <Field label="Phone Number" required error={phoneError}>
                     <Input
-                      type="tel" required
+                      type="tel" required autoComplete="tel"
                       value={form.guestPhone}
                       error={phoneError}
                       onChange={(e) => { setForm((f) => ({ ...f, guestPhone: e.target.value })); setPhoneError(null); }}
                       onBlur={() => setPhoneError(getPhoneErrorMessage(form.guestPhone))}
                       placeholder="03XX XXXXXXX"
                     />
-                  </Field>
-                  <Field label="Email Address" optional error={emailError}>
-                    <Input
-                      type="email"
-                      value={form.guestEmail}
-                      error={emailError}
-                      onChange={(e) => { setForm((f) => ({ ...f, guestEmail: e.target.value })); setEmailError(null); }}
-                      onBlur={() => { if (form.guestEmail.trim()) setEmailError(getEmailErrorMessage(form.guestEmail)); }}
-                      placeholder="ahmed@example.com"
-                    />
-                  </Field>
-                </div>
+                      </Field>
+                      <Field label="Email Address" optional error={emailError}>
+                        <Input
+                          type="email" autoComplete="email"
+                          value={form.guestEmail}
+                          error={emailError}
+                          onChange={(e) => {
+                            const guestEmail = e.target.value;
+                            setForm((f) => ({ ...f, guestEmail, ...(!guestEmail.trim() ? { marketingOptIn: false } : {}) }));
+                            setEmailError(null);
+                          }}
+                          onBlur={() => { if (form.guestEmail.trim()) setEmailError(getEmailErrorMessage(form.guestEmail)); }}
+                          placeholder="ahmed@example.com"
+                        />
+                      </Field>
+                    </div>
+                  </div>
+                </section>
 
                 {/* Guests */}
-                <div>
-                  <p className="text-[13px] font-medium text-gray-700 mb-3">Number of Guests</p>
+                <section className="rounded-2xl border border-gray-200/80 bg-white p-4 sm:p-5">
+                  <div className="mb-5 flex items-start gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gray-100 text-gray-700">
+                      <Users size={17} />
+                    </span>
+                    <div>
+                      <h2 className="text-[15px] font-bold text-gray-900">Guests &amp; stay notes</h2>
+                      <p className="mt-0.5 text-[12px] text-gray-500">Confirm the party size and anything the hotel should prepare.</p>
+                    </div>
+                  </div>
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
                       <div>
@@ -556,30 +587,96 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
                       />
                     </div>
                   </div>
-                </div>
 
                 {/* Special requests */}
-                <Field label="Special Requests" optional>
-                  <Textarea
-                    rows={3}
-                    value={form.specialRequests}
-                    onChange={(e) => setForm((f) => ({ ...f, specialRequests: e.target.value }))}
-                    placeholder="Early check-in, high floor, dietary requirements, accessibility needs…"
-                  />
-                </Field>
+                  <div className="mt-5">
+                    <Field label="Special Requests" optional>
+                      <Textarea
+                        rows={3}
+                        value={form.specialRequests}
+                        onChange={(e) => setForm((f) => ({ ...f, specialRequests: e.target.value }))}
+                        placeholder="Early check-in, high floor, dietary requirements, accessibility needs…"
+                      />
+                    </Field>
+                  </div>
+                </section>
+
+                <section className="overflow-hidden rounded-2xl border border-[rgb(var(--be-accent))]/20 bg-[rgb(var(--be-accent-soft))]">
+                  <div className="flex items-start gap-3 px-4 pb-4 pt-5 sm:px-5">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/85 text-[rgb(var(--be-accent))] shadow-sm">
+                      <Gift size={17} />
+                    </span>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-[15px] font-bold text-gray-900">Make future stays more personal</h2>
+                        <span className="rounded-full bg-white/75 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gray-500">Optional</span>
+                      </div>
+                      <p className="mt-1 max-w-xl text-[12.5px] leading-5 text-gray-600">
+                        Share a special date if you would like this hotel to remember it for birthday or anniversary rewards.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 border-t border-[rgb(var(--be-accent))]/15 bg-white/55 px-4 py-4 sm:grid-cols-2 sm:px-5">
+                    <Field label="Birthday" optional>
+                      <span className="relative block">
+                        <Cake size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Input
+                          type="date" max={new Date().toISOString().slice(0, 10)}
+                          value={form.dateOfBirth}
+                          onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
+                          className="pl-10"
+                        />
+                      </span>
+                    </Field>
+                    <Field label="Anniversary" optional>
+                      <span className="relative block">
+                        <Heart size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Input
+                          type="date" max={new Date().toISOString().slice(0, 10)}
+                          value={form.anniversaryDate}
+                          onChange={(e) => setForm((f) => ({ ...f, anniversaryDate: e.target.value }))}
+                          className="pl-10"
+                        />
+                      </span>
+                    </Field>
+                  </div>
+
+                  <label className={cn(
+                    "flex items-start gap-3 border-t border-[rgb(var(--be-accent))]/15 px-4 py-4 sm:px-5",
+                    form.guestEmail.trim() ? "cursor-pointer" : "cursor-not-allowed opacity-60",
+                  )}>
+                    <input
+                      type="checkbox"
+                      checked={form.marketingOptIn}
+                      disabled={!form.guestEmail.trim()}
+                      onChange={(event) => setForm((f) => ({ ...f, marketingOptIn: event.target.checked }))}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-[rgb(var(--be-accent))]"
+                    />
+                    <span className="text-[12.5px] leading-5 text-gray-700">
+                      <strong className="font-semibold text-gray-900">Email me discounts, coupon codes, and occasion rewards from this hotel.</strong>
+                      <span className="block text-gray-500">
+                        {form.guestEmail.trim()
+                          ? "This is optional and does not affect your booking request."
+                          : "Add an email address above to receive offers."}
+                      </span>
+                    </span>
+                  </label>
+                </section>
 
                 {hasBookingTerms && (
-                  <section id="booking-terms" className="scroll-mt-36 rounded-2xl border border-gray-200 bg-gray-50/70 overflow-hidden">
-                    <div className="px-5 py-4 border-b border-gray-200 bg-white flex items-start gap-3">
+                  <details id="booking-terms" className="group scroll-mt-36 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50/70">
+                    <summary className="flex cursor-pointer list-none items-center gap-3 bg-white px-4 py-4 marker:hidden sm:px-5">
                       <span className="grid place-items-center h-9 w-9 rounded-xl bg-[rgb(var(--be-accent-soft))] shrink-0">
                         <FileText size={17} className="text-[rgb(var(--be-accent))]" />
                       </span>
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <h2 className="text-[15px] font-bold text-gray-900">Policies &amp; booking terms</h2>
-                        <p className="text-[12px] text-gray-500 mt-0.5">Please review the hotel’s terms before submitting.</p>
+                        <p className="mt-0.5 text-[12px] text-gray-500">Open and review the hotel’s full terms.</p>
                       </div>
-                    </div>
-                    <div className="px-5 py-5 space-y-5">
+                      <ChevronDown size={17} className="shrink-0 text-gray-400 transition-transform group-open:rotate-180" />
+                    </summary>
+                    <div className="space-y-5 border-t border-gray-200 px-4 py-5 sm:px-5">
                       {hotel?.cancellationPolicy && (
                         <div>
                           <h3 className="text-[13px] font-bold text-gray-800 mb-2">Cancellation policy</h3>
@@ -593,7 +690,7 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
                         </div>
                       )}
                     </div>
-                  </section>
+                  </details>
                 )}
 
                 {hasBookingTerms && (
@@ -633,7 +730,7 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
           </div>
 
           {/* ── Summary (desktop only) ─────────────────────────────────────── */}
-          <div className="hidden lg:block w-72 xl:w-80 shrink-0">
+          <div className="hidden w-80 shrink-0 lg:block xl:w-[22rem]">
             <SummaryCard
               cart={cart} checkIn={checkIn} checkOut={checkOut}
               nights={nights} adults={form.adults} children={form.children} promoCode={promoCode} accentColor={accentColor}

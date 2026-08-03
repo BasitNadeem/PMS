@@ -33,6 +33,14 @@ export const createReservationSchema = z
     advancePayment:       z.number().int().min(0).optional(),
     advancePaymentMethod: z.nativeEnum(PaymentMethod).optional(),
     isVip:           z.boolean().optional(),
+    // Corporate billing. billToCompany only means anything with a companyId —
+    // the refine below enforces that rather than silently ignoring it.
+    companyId:       z.string().uuid().nullish(),
+    billToCompany:   z.boolean().optional(),
+  })
+  .refine((d) => !d.billToCompany || Boolean(d.companyId), {
+    message: "Pick a company before billing this stay to a company account",
+    path: ["companyId"],
   })
   .refine((d) => new Date(d.checkOutDate) > new Date(d.checkInDate), {
     message: "Check-out must be after check-in",
@@ -52,5 +60,7 @@ export const updateReservationSchema = z.object({
   specialRequests: z.string().trim().optional(),
   internalNotes:   z.string().trim().optional(),
   isVip:           z.boolean().optional(),
+  companyId:       z.string().uuid().nullish(),
+  billToCompany:   z.boolean().optional(),
 });
 export type UpdateReservationDto = z.infer<typeof updateReservationSchema>;

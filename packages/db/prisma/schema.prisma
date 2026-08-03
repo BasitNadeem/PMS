@@ -41,8 +41,8 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")   // runtime: hotel_pms_app (subject to RLS)
-  directUrl = env("DIRECT_URL")     // migrations: pms_user superuser (bypasses RLS)
+  url       = env("DATABASE_URL") // runtime: hotel_pms_app (subject to RLS)
+  directUrl = env("DIRECT_URL") // migrations: pms_user superuser (bypasses RLS)
 }
 
 // ============================================================================
@@ -296,21 +296,21 @@ enum TaxType {
 // ============================================================================
 
 model Role {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId     String?  @db.Uuid @map("hotel_id")
+  id      String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId String? @map("hotel_id") @db.Uuid
 
-  name        String               // "OWNER" | "MANAGER" etc. — matches UserRole enum
-  displayName String @map("display_name") // "Front Desk Staff"
+  name        String // "OWNER" | "MANAGER" etc. — matches UserRole enum
+  displayName String  @map("display_name") // "Front Desk Staff"
   description String?
-  color       String   @default("#6B7280")
-  isSystem    Boolean  @default(true) @map("is_system")
-  isCustom    Boolean  @default(false) @map("is_custom")
-  sortOrder   Int      @default(0) @map("sort_order")
+  color       String  @default("#6B7280")
+  isSystem    Boolean @default(true) @map("is_system")
+  isCustom    Boolean @default(false) @map("is_custom")
+  sortOrder   Int     @default(0) @map("sort_order")
 
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  hotel       Hotel?         @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotel       Hotel?           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   permissions RolePermission[]
   hotelUsers  HotelUser[]
 
@@ -328,16 +328,16 @@ model Role {
 }
 
 model Permission {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  key         String   @unique   // "payments:refund" — matches TS Permission type
-  module      String             // "payments"
-  action      String             // "refund"
-  displayName String @map("display_name") // "Issue Refunds"
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key         String  @unique // "payments:refund" — matches TS Permission type
+  module      String // "payments"
+  action      String // "refund"
+  displayName String  @map("display_name") // "Issue Refunds"
   description String?
 
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  roles       RolePermission[]
+  roles RolePermission[]
 
   @@index([module])
   @@index([module, action])
@@ -346,13 +346,13 @@ model Permission {
 
 model RolePermission {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  roleId       String   @db.Uuid @map("role_id")
-  permissionId String   @db.Uuid @map("permission_id")
+  roleId       String   @map("role_id") @db.Uuid
+  permissionId String   @map("permission_id") @db.Uuid
   grantedAt    DateTime @default(now()) @map("granted_at")
-  grantedBy    String?  @db.Uuid @map("granted_by") // userId who granted
+  grantedBy    String?  @map("granted_by") @db.Uuid // userId who granted
 
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, permissionId])
   @@index([roleId])
@@ -365,47 +365,47 @@ model RolePermission {
 // ============================================================================
 
 model Hotel {
-  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name             String
-  slug             String       @unique
-  propertyType     PropertyType @default(HOTEL) @map("property_type")
-  description      String?
-  amenities        String[]     @default([])
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  slug         String       @unique
+  propertyType PropertyType @default(HOTEL) @map("property_type")
+  description  String?
+  amenities    String[]     @default([])
 
-  phone            String?
-  whatsappNumber   String? @map("whatsapp_number")
-  email            String?
-  website          String?
+  phone          String?
+  whatsappNumber String? @map("whatsapp_number")
+  email          String?
+  website        String?
 
-  address          String?
-  city             String?
-  region           String?
-  province         String?
-  country          String       @default("PK")
-  latitude         Decimal?     @db.Decimal(10, 7)
-  longitude        Decimal?     @db.Decimal(10, 7)
-  googlePlaceId    String? @map("google_place_id")
+  address       String?
+  city          String?
+  region        String?
+  province      String?
+  country       String   @default("PK")
+  latitude      Decimal? @db.Decimal(10, 7)
+  longitude     Decimal? @db.Decimal(10, 7)
+  googlePlaceId String?  @map("google_place_id")
 
-  ntn              String?
-  strn             String?
-  fbrPosId         String? @map("fbr_pos_id")
+  ntn      String?
+  strn     String?
+  fbrPosId String? @map("fbr_pos_id")
 
-  settings         Json         @default("{}")
-  cancellationPolicy   String?  @db.Text @map("cancellation_policy")
-  bookingPaymentTerms  String?  @db.Text @map("booking_payment_terms")
+  settings            Json    @default("{}")
+  cancellationPolicy  String? @map("cancellation_policy") @db.Text
+  bookingPaymentTerms String? @map("booking_payment_terms") @db.Text
 
-  isActive         Boolean      @default(true) @map("is_active")
-  isTrialAccount   Boolean      @default(true) @map("is_trial_account")
-  trialEndsAt      DateTime? @map("trial_ends_at")
-  onboardedAt      DateTime? @map("onboarded_at")
+  isActive       Boolean   @default(true) @map("is_active")
+  isTrialAccount Boolean   @default(true) @map("is_trial_account")
+  trialEndsAt    DateTime? @map("trial_ends_at")
+  onboardedAt    DateTime? @map("onboarded_at")
 
-  subdomain           String?  @unique @map("subdomain")
-  onboardingCompleted Boolean  @default(false) @map("onboarding_completed")
-  onboardingStep      Int      @default(0) @map("onboarding_step")
+  subdomain           String? @unique @map("subdomain")
+  onboardingCompleted Boolean @default(false) @map("onboarding_completed")
+  onboardingStep      Int     @default(0) @map("onboarding_step")
 
-  createdAt        DateTime     @default(now()) @map("created_at")
-  updatedAt        DateTime     @updatedAt @map("updated_at")
-  deletedAt        DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
   roles                 Role[]
   users                 HotelUser[]
@@ -413,6 +413,9 @@ model Hotel {
   rooms                 Room[]
   guests                Guest[]
   guestSpecialDates     GuestSpecialDate[]
+  companies             Company[]
+  companyLedgerEntries  CompanyLedgerEntry[]
+  companyInvoices       CompanyInvoice[]
   accountingAccounts    AccountingAccount[]
   accountingExports     AccountingExport[]
   reservations          Reservation[]
@@ -439,12 +442,12 @@ model Hotel {
   customFields          CustomFieldDefinition[]
   frontDeskNotes        FrontDeskNote[]
   pushSubscriptions     PushSubscription[]
-  currentBusinessDate   DateTime?          @db.Date @map("current_business_date")
+  currentBusinessDate   DateTime?               @map("current_business_date") @db.Date
   nightAuditRecords     NightAuditRecord[]
-  subscriptionPlanId    String?            @db.Uuid @map("subscription_plan_id")
-  subscriptionPlan      SubscriptionPlan?  @relation(fields: [subscriptionPlanId], references: [id])
-  limitOverrides        Json?              @map("limit_overrides")
-  featureOverrides      Json?              @map("feature_overrides")
+  subscriptionPlanId    String?                 @map("subscription_plan_id") @db.Uuid
+  subscriptionPlan      SubscriptionPlan?       @relation(fields: [subscriptionPlanId], references: [id])
+  limitOverrides        Json?                   @map("limit_overrides")
+  featureOverrides      Json?                   @map("feature_overrides")
 
   @@index([slug])
   @@index([isActive])
@@ -474,54 +477,54 @@ model NightAuditRecord {
 }
 
 model SubscriptionPlan {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name          String
-  slug          String   @unique
-  priceMonthly  Int      @map("price_monthly")
-  limits        Json     @default("{}")
-  features      Json
-  isActive      Boolean  @default(true) @map("is_active")
-  displayOrder  Int      @default(0)    @map("display_order")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-  hotels        Hotel[]
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  slug         String   @unique
+  priceMonthly Int      @map("price_monthly")
+  limits       Json     @default("{}")
+  features     Json
+  isActive     Boolean  @default(true) @map("is_active")
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  hotels       Hotel[]
 
   @@map("subscription_plans")
 }
 
 model User {
-  id                   String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email                String      @unique
-  phone                String?     @unique
-  passwordHash         String @map("password_hash")
-  name                 String
-  avatarUrl            String? @map("avatar_url")
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String  @unique
+  phone        String? @unique
+  passwordHash String  @map("password_hash")
+  name         String
+  avatarUrl    String? @map("avatar_url")
 
-  emailVerified        Boolean     @default(false) @map("email_verified")
-  phoneVerified        Boolean     @default(false) @map("phone_verified")
-  lastLoginAt          DateTime? @map("last_login_at")
-  refreshTokenHash     String? @map("refresh_token_hash")
-  passwordResetToken   String? @map("password_reset_token")
-  passwordResetExpiry  DateTime? @map("password_reset_expiry")
+  emailVerified       Boolean   @default(false) @map("email_verified")
+  phoneVerified       Boolean   @default(false) @map("phone_verified")
+  lastLoginAt         DateTime? @map("last_login_at")
+  refreshTokenHash    String?   @map("refresh_token_hash")
+  passwordResetToken  String?   @map("password_reset_token")
+  passwordResetExpiry DateTime? @map("password_reset_expiry")
 
-  preferredLanguage    String      @default("en") @map("preferred_language")
-  timezone             String      @default("Asia/Karachi")
+  preferredLanguage String @default("en") @map("preferred_language")
+  timezone          String @default("Asia/Karachi")
 
-  isSuperAdmin         Boolean     @default(false) @map("is_super_admin")
-  isFirstLogin         Boolean     @default(true)  @map("is_first_login")
-  tempPassword         String?     @map("temp_password")
+  isSuperAdmin Boolean @default(false) @map("is_super_admin")
+  isFirstLogin Boolean @default(true) @map("is_first_login")
+  tempPassword String? @map("temp_password")
 
-  createdAt            DateTime    @default(now()) @map("created_at")
-  updatedAt            DateTime    @updatedAt @map("updated_at")
-  deletedAt            DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
   hotels                HotelUser[]
   auditLogs             AuditLog[]
-  assignedTasks         HousekeepingTask[]   @relation("assignedTo")
-  assignedMaintenance   MaintenanceTicket[]  @relation("assignedMaintenance")
+  assignedTasks         HousekeepingTask[]  @relation("assignedTo")
+  assignedMaintenance   MaintenanceTicket[] @relation("assignedMaintenance")
   assignedConversations Conversation[]
-  notesCreated          FrontDeskNote[]      @relation("NoteCreatedBy")
-  notesCompleted        FrontDeskNote[]      @relation("NoteCompletedBy")
+  notesCreated          FrontDeskNote[]     @relation("NoteCreatedBy")
+  notesCompleted        FrontDeskNote[]     @relation("NoteCompletedBy")
   pushSubscriptions     PushSubscription[]
 
   @@index([deletedAt])
@@ -531,21 +534,21 @@ model User {
 // Updated in v2: adds roleId FK to Role table.
 // role (enum) is kept as fast cache for JWT — always in sync with Role.name.
 model HotelUser {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId     String    @db.Uuid @map("hotel_id")
-  userId      String    @db.Uuid @map("user_id")
-  role        UserRole            // fast enum cache for JWT and can() checks
-  roleId      String    @db.Uuid @map("role_id") // FK to Role table for DB-driven permissions
-  isActive    Boolean   @default(true) @map("is_active")
-  invitedAt   DateTime  @default(now()) @map("invited_at")
-  acceptedAt  DateTime? @map("accepted_at")
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId    String    @map("hotel_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  role       UserRole // fast enum cache for JWT and can() checks
+  roleId     String    @map("role_id") @db.Uuid // FK to Role table for DB-driven permissions
+  isActive   Boolean   @default(true) @map("is_active")
+  invitedAt  DateTime  @default(now()) @map("invited_at")
+  acceptedAt DateTime? @map("accepted_at")
 
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  hotel        Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assignedRole Role     @relation(fields: [roleId], references: [id])
+  hotel        Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  user         User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedRole Role  @relation(fields: [roleId], references: [id])
 
   @@unique([hotelId, userId])
   @@index([hotelId])
@@ -560,21 +563,21 @@ model HotelUser {
 // ============================================================================
 
 model RoomType {
-  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String       @db.Uuid @map("hotel_id")
-  name            String
-  typeName        RoomTypeName @default(DOUBLE) @map("type_name")
-  description     String?
-  maxOccupancy    Int @map("max_occupancy")
-  defaultRate     Int @map("default_rate")
-  extraBedRate    Int          @default(0) @map("extra_bed_rate")
-  amenities       String[]
-  photoUrls       String[] @map("photo_urls")
-  sortOrder       Int          @default(0) @map("sort_order")
-  isActive        Boolean      @default(true) @map("is_active")
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId      String       @map("hotel_id") @db.Uuid
+  name         String
+  typeName     RoomTypeName @default(DOUBLE) @map("type_name")
+  description  String?
+  maxOccupancy Int          @map("max_occupancy")
+  defaultRate  Int          @map("default_rate")
+  extraBedRate Int          @default(0) @map("extra_bed_rate")
+  amenities    String[]
+  photoUrls    String[]     @map("photo_urls")
+  sortOrder    Int          @default(0) @map("sort_order")
+  isActive     Boolean      @default(true) @map("is_active")
 
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   hotel            Hotel             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   rooms            Room[]
@@ -587,24 +590,24 @@ model RoomType {
 }
 
 model Room {
-  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String      @db.Uuid @map("hotel_id")
-  roomTypeId      String      @db.Uuid @map("room_type_id")
-  number          String
-  floor           Int?
-  status          RoomStatus  @default(VACANT_CLEAN)
-  notes           String?
-  isActive        Boolean     @default(true) @map("is_active")
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId    String     @map("hotel_id") @db.Uuid
+  roomTypeId String     @map("room_type_id") @db.Uuid
+  number     String
+  floor      Int?
+  status     RoomStatus @default(VACANT_CLEAN)
+  notes      String?
+  isActive   Boolean    @default(true) @map("is_active")
 
   lastCleanedAt   DateTime? @map("last_cleaned_at")
   lastCheckedAt   DateTime? @map("last_checked_at")
-  lastInspectedBy String?     @db.Uuid @map("last_inspected_by")
+  lastInspectedBy String?   @map("last_inspected_by") @db.Uuid
 
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  hotel              Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  roomType           RoomType           @relation(fields: [roomTypeId], references: [id])
+  hotel              Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  roomType           RoomType            @relation(fields: [roomTypeId], references: [id])
   reservationRooms   ReservationRoom[]
   housekeepingTasks  HousekeepingTask[]
   maintenanceTickets MaintenanceTicket[]
@@ -622,35 +625,35 @@ model Room {
 // ============================================================================
 
 model Guest {
-  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId          String       @db.Uuid @map("hotel_id")
+  id      String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId String @map("hotel_id") @db.Uuid
 
-  firstName        String @map("first_name")
-  lastName         String @map("last_name")
-  fullName         String @map("full_name")
-  email            String?
-  phone            String?
-  alternatePhone   String? @map("alternate_phone")
-  nationality      String?
-  isForeigner      Boolean      @default(false) @map("is_foreigner")
-  language         String?
+  firstName      String  @map("first_name")
+  lastName       String  @map("last_name")
+  fullName       String  @map("full_name")
+  email          String?
+  phone          String?
+  alternatePhone String? @map("alternate_phone")
+  nationality    String?
+  isForeigner    Boolean @default(false) @map("is_foreigner")
+  language       String?
 
-  documentType     DocumentType @default(CNIC) @map("document_type")
-  documentNumber   String? @map("document_number")
-  documentExpiry   DateTime? @map("document_expiry")
-  documentScanUrl  String? @map("document_scan_url")
-  dateOfBirth      DateTime? @map("date_of_birth")
-  gender           String?
+  documentType    DocumentType @default(CNIC) @map("document_type")
+  documentNumber  String?      @map("document_number")
+  documentExpiry  DateTime?    @map("document_expiry")
+  documentScanUrl String?      @map("document_scan_url")
+  dateOfBirth     DateTime?    @map("date_of_birth")
+  gender          String?
 
-  address          String?
-  city             String?
-  country          String?
+  address String?
+  city    String?
+  country String?
 
-  totalStays       Int          @default(0) @map("total_stays")
-  totalSpend       Int          @default(0) @map("total_spend")
-  vipLevel         Int          @default(0) @map("vip_level")
-  tags             String[]
-  internalNotes    String? @map("internal_notes")
+  totalStays    Int      @default(0) @map("total_stays")
+  totalSpend    Int      @default(0) @map("total_spend")
+  vipLevel      Int      @default(0) @map("vip_level")
+  tags          String[]
+  internalNotes String?  @map("internal_notes")
 
   // Set when a guest has been asked for a birthday/anniversary and chose not to
   // share it. Without this, "no date on file" is indistinguishable from "never
@@ -658,17 +661,17 @@ model Guest {
   specialDatesDeclinedAt DateTime? @map("special_dates_declined_at")
   // Explicit permission to send greetings. Holding a date — often captured off
   // a CNIC for compliance — is not the same as consent to market to someone.
-  marketingOptIn   Boolean      @default(false) @map("marketing_opt_in")
-  marketingOptInAt DateTime? @map("marketing_opt_in_at")
-  isBlacklisted    Boolean      @default(false) @map("is_blacklisted")
-  blacklistReason  String? @map("blacklist_reason")
+  marketingOptIn         Boolean   @default(false) @map("marketing_opt_in")
+  marketingOptInAt       DateTime? @map("marketing_opt_in_at")
+  isBlacklisted          Boolean   @default(false) @map("is_blacklisted")
+  blacklistReason        String?   @map("blacklist_reason")
 
-  source           BookingSource?
-  createdAt        DateTime     @default(now()) @map("created_at")
-  updatedAt        DateTime     @updatedAt @map("updated_at")
-  deletedAt        DateTime? @map("deleted_at")
+  source    BookingSource?
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+  deletedAt DateTime?      @map("deleted_at")
 
-  hotel            Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotel            Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   reservations     Reservation[]
   groupMembers     GroupMember[]
   conversations    Conversation[]
@@ -676,7 +679,7 @@ model Guest {
   specialDates     GuestSpecialDate[]
   promoCodes       RatePlanCode[]
 
-  searchVector     Unsupported("tsvector")? @map("search_vector")
+  searchVector Unsupported("tsvector")? @map("search_vector")
 
   @@index([hotelId])
   @@index([hotelId, documentNumber])
@@ -689,20 +692,20 @@ model Guest {
 }
 
 model GuestBlacklist {
-  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String       @db.Uuid @map("hotel_id")
-  guestId         String       @db.Uuid @map("guest_id")
-  documentNumber  String? @map("document_number")
-  documentType    DocumentType? @map("document_type")
-  reason          String
-  severity        Int          @default(1)
-  isShared        Boolean      @default(false) @map("is_shared")
-  sharedAt        DateTime? @map("shared_at")
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId        String        @map("hotel_id") @db.Uuid
+  guestId        String        @map("guest_id") @db.Uuid
+  documentNumber String?       @map("document_number")
+  documentType   DocumentType? @map("document_type")
+  reason         String
+  severity       Int           @default(1)
+  isShared       Boolean       @default(false) @map("is_shared")
+  sharedAt       DateTime?     @map("shared_at")
 
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  guest           Guest        @relation(fields: [guestId], references: [id])
+  guest Guest @relation(fields: [guestId], references: [id])
 
   @@index([documentNumber])
   @@index([hotelId])
@@ -722,28 +725,28 @@ model GuestBlacklist {
 /// captured off an identity document, whereas this is opt-in relationship data.
 /// Scanning a CNIC must not silently enrol someone into birthday emails.
 model GuestSpecialDate {
-  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId   String          @db.Uuid @map("hotel_id")
-  guestId   String          @db.Uuid @map("guest_id")
+  id      String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId String @map("hotel_id") @db.Uuid
+  guestId String @map("guest_id") @db.Uuid
 
-  kind      SpecialDateKind @default(BIRTHDAY)
+  kind  SpecialDateKind @default(BIRTHDAY)
   /// Free-text name for a CUSTOM occasion ("First stay with us").
-  label     String?
+  label String?
 
-  month     Int
-  day       Int
+  month Int
+  day   Int
   /// Null when the guest shared the day and month but not the year.
-  year      Int?
+  year  Int?
 
   /// Where the date came from — "GUEST", "FRONT_DESK", "BOOKING" — so a hotel
   /// can tell volunteered dates from inferred ones.
-  source    String?
+  source String?
 
-  createdAt DateTime        @default(now()) @map("created_at")
-  updatedAt DateTime        @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  hotel     Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  guest     Guest           @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  guest Guest @relation(fields: [guestId], references: [id], onDelete: Cascade)
 
   @@unique([guestId, kind, month, day])
   /// Drives the daily "whose occasion is coming up" sweep.
@@ -768,16 +771,16 @@ model GuestSpecialDate {
 ///   EXPENSE_CATEGORY → free text       ("Utilities")
 ///   SYSTEM           → fixed accounts  ("ACCOUNTS_RECEIVABLE")
 model AccountingAccount {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId     String   @db.Uuid @map("hotel_id")
+  id      String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId String @map("hotel_id") @db.Uuid
 
   scope       String
   key         String
   accountCode String @map("account_code")
   accountName String @map("account_name")
 
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 
@@ -793,23 +796,23 @@ model AccountingAccount {
 /// revenue. The UI warns on a period that already has a record, and the hash
 /// lets us tell a genuine re-export from an identical re-download.
 model AccountingExport {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId       String   @db.Uuid @map("hotel_id")
+  id      String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId String @map("hotel_id") @db.Uuid
 
-  periodStart   DateTime @db.Date @map("period_start")
-  periodEnd     DateTime @db.Date @map("period_end")
-  format        String
-  basis         String
-  granularity   String
+  periodStart DateTime @map("period_start") @db.Date
+  periodEnd   DateTime @map("period_end") @db.Date
+  format      String
+  basis       String
+  granularity String
 
-  lineCount     Int @map("line_count")
+  lineCount   Int    @map("line_count")
   /// Minor units. Debits and credits are stored separately so an unbalanced
   /// batch is visible in the history rather than hidden behind a net figure.
-  totalDebit    Int @map("total_debit")
-  totalCredit   Int @map("total_credit")
-  contentHash   String @map("content_hash")
+  totalDebit  Int    @map("total_debit")
+  totalCredit Int    @map("total_credit")
+  contentHash String @map("content_hash")
 
-  generatedById String?  @db.Uuid @map("generated_by_id")
+  generatedById String?  @map("generated_by_id") @db.Uuid
   createdAt     DateTime @default(now()) @map("created_at")
 
   hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
@@ -824,72 +827,79 @@ model AccountingExport {
 // ============================================================================
 
 model Reservation {
-  id                  String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId             String            @db.Uuid @map("hotel_id")
-  guestId             String            @db.Uuid @map("guest_id")
-  groupId             String?           @db.Uuid @map("group_id")
+  id            String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId       String  @map("hotel_id") @db.Uuid
+  guestId       String  @map("guest_id") @db.Uuid
+  groupId       String? @map("group_id") @db.Uuid
+  /// Set when the stay is booked by (and potentially billed to) a company.
+  companyId     String? @map("company_id") @db.Uuid
+  /// When true, an unpaid balance at checkout is transferred to the company
+  /// ledger instead of blocking checkout. Requires companyId.
+  billToCompany Boolean @default(false) @map("bill_to_company")
 
-  confirmationNumber  String            @unique @map("confirmation_number")
-  source              BookingSource     @default(WALK_IN)
-  otaBookingRef       String? @map("ota_booking_ref")
-  status              ReservationStatus @default(CONFIRMED)
-  guestType           GuestType         @default(INDIVIDUAL) @map("guest_type")
+  confirmationNumber String            @unique @map("confirmation_number")
+  source             BookingSource     @default(WALK_IN)
+  otaBookingRef      String?           @map("ota_booking_ref")
+  status             ReservationStatus @default(CONFIRMED)
+  guestType          GuestType         @default(INDIVIDUAL) @map("guest_type")
 
-  checkInDate         DateTime          @db.Date @map("check_in_date")
-  checkOutDate        DateTime          @db.Date @map("check_out_date")
-  actualCheckIn       DateTime? @map("actual_check_in")
-  actualCheckOut      DateTime? @map("actual_check_out")
+  checkInDate    DateTime  @map("check_in_date") @db.Date
+  checkOutDate   DateTime  @map("check_out_date") @db.Date
+  actualCheckIn  DateTime? @map("actual_check_in")
+  actualCheckOut DateTime? @map("actual_check_out")
 
-  adults              Int               @default(1)
-  children            Int               @default(0)
-  infants             Int               @default(0)
+  adults   Int @default(1)
+  children Int @default(0)
+  infants  Int @default(0)
 
-  quotedRate          Int               @default(0) @map("quoted_rate")
-  subtotalAmount      Int               @default(0) @map("subtotal_amount")
-  taxAmount           Int               @default(0) @map("tax_amount")
-  taxInclusive        Boolean           @default(false) @map("tax_inclusive")
-  taxBreakdown        Json?             @map("tax_breakdown")
-  totalAmount         Int               @default(0) @map("total_amount")
-  discountAmount      Int               @default(0) @map("discount_amount")
-  appliedRatePlanName String?           @map("applied_rate_plan_name")
-  promoCode           String?           @map("promo_code")
-  advancePaid         Int               @default(0) @map("advance_paid")
-  balanceDue          Int               @default(0) @map("balance_due")
+  quotedRate          Int     @default(0) @map("quoted_rate")
+  subtotalAmount      Int     @default(0) @map("subtotal_amount")
+  taxAmount           Int     @default(0) @map("tax_amount")
+  taxInclusive        Boolean @default(false) @map("tax_inclusive")
+  taxBreakdown        Json?   @map("tax_breakdown")
+  totalAmount         Int     @default(0) @map("total_amount")
+  discountAmount      Int     @default(0) @map("discount_amount")
+  appliedRatePlanName String? @map("applied_rate_plan_name")
+  promoCode           String? @map("promo_code")
+  advancePaid         Int     @default(0) @map("advance_paid")
+  balanceDue          Int     @default(0) @map("balance_due")
 
   bookingContactName  String? @map("booking_contact_name")
   bookingContactEmail String? @map("booking_contact_email")
 
-  specialRequests     String? @map("special_requests")
-  internalNotes       String? @map("internal_notes")
-  dietaryRequirements String? @map("dietary_requirements")
-  purposeOfVisit      String? @map("purpose_of_visit")
-  arrivalMode         String? @map("arrival_mode")
+  specialRequests      String?   @map("special_requests")
+  internalNotes        String?   @map("internal_notes")
+  dietaryRequirements  String?   @map("dietary_requirements")
+  purposeOfVisit       String?   @map("purpose_of_visit")
+  arrivalMode          String?   @map("arrival_mode")
   estimatedArrivalTime DateTime? @map("estimated_arrival_time")
 
-  cancellationReason  String? @map("cancellation_reason")
-  cancelledAt         DateTime? @map("cancelled_at")
-  cancelledBy         String?           @db.Uuid @map("cancelled_by")
-  cancellationFee     Int               @default(0) @map("cancellation_fee")
-  cancellationPolicySnapshot  String?   @db.Text @map("cancellation_policy_snapshot")
-  bookingPaymentTermsSnapshot String?   @db.Text @map("booking_payment_terms_snapshot")
+  cancellationReason          String?   @map("cancellation_reason")
+  cancelledAt                 DateTime? @map("cancelled_at")
+  cancelledBy                 String?   @map("cancelled_by") @db.Uuid
+  cancellationFee             Int       @default(0) @map("cancellation_fee")
+  cancellationPolicySnapshot  String?   @map("cancellation_policy_snapshot") @db.Text
+  bookingPaymentTermsSnapshot String?   @map("booking_payment_terms_snapshot") @db.Text
   termsAcceptedAt             DateTime? @map("terms_accepted_at")
 
-  isWalkIn            Boolean           @default(false) @map("is_walk_in")
-  requiresPickup      Boolean           @default(false) @map("requires_pickup")
-  isVip               Boolean           @default(false) @map("is_vip")
+  isWalkIn       Boolean @default(false) @map("is_walk_in")
+  requiresPickup Boolean @default(false) @map("requires_pickup")
+  isVip          Boolean @default(false) @map("is_vip")
 
-  createdAt           DateTime          @default(now()) @map("created_at")
-  updatedAt           DateTime          @updatedAt @map("updated_at")
-  createdBy           String?           @db.Uuid @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy String?  @map("created_by") @db.Uuid
 
-  hotel               Hotel             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  guest               Guest             @relation(fields: [guestId], references: [id])
-  group               GroupBooking?     @relation(fields: [groupId], references: [id])
-  rooms               ReservationRoom[]
-  folio               Folio?
-  payments            Payment[]
-  messages            Message[]
+  hotel    Hotel             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  guest    Guest             @relation(fields: [guestId], references: [id])
+  group    GroupBooking?     @relation(fields: [groupId], references: [id])
+  company  Company?          @relation(fields: [companyId], references: [id])
+  rooms    ReservationRoom[]
+  folio    Folio?
+  payments Payment[]
+  messages Message[]
 
+  @@index([hotelId, companyId])
   @@index([hotelId, status])
   @@index([hotelId, checkInDate])
   @@index([hotelId, checkOutDate])
@@ -902,24 +912,24 @@ model Reservation {
 }
 
 model ReservationRoom {
-  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  reservationId   String      @db.Uuid @map("reservation_id")
-  roomId          String      @db.Uuid @map("room_id")
-  roomTypeId      String      @db.Uuid @map("room_type_id")
-  guestId         String?     @db.Uuid @map("guest_id")
-  ratePerNight    Int @map("rate_per_night")
-  checkInDate     DateTime    @db.Date @map("check_in_date")
-  checkOutDate    DateTime    @db.Date @map("check_out_date")
-  actualCheckIn   DateTime? @map("actual_check_in")
-  actualCheckOut  DateTime? @map("actual_check_out")
-  notes           String?
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reservationId  String    @map("reservation_id") @db.Uuid
+  roomId         String    @map("room_id") @db.Uuid
+  roomTypeId     String    @map("room_type_id") @db.Uuid
+  guestId        String?   @map("guest_id") @db.Uuid
+  ratePerNight   Int       @map("rate_per_night")
+  checkInDate    DateTime  @map("check_in_date") @db.Date
+  checkOutDate   DateTime  @map("check_out_date") @db.Date
+  actualCheckIn  DateTime? @map("actual_check_in")
+  actualCheckOut DateTime? @map("actual_check_out")
+  notes          String?
 
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  reservation     Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
-  room            Room        @relation(fields: [roomId], references: [id])
-  roomType        RoomType    @relation(fields: [roomTypeId], references: [id])
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  room        Room        @relation(fields: [roomId], references: [id])
+  roomType    RoomType    @relation(fields: [roomTypeId], references: [id])
 
   @@index([reservationId])
   @@index([roomId])
@@ -929,44 +939,256 @@ model ReservationRoom {
 }
 
 // ============================================================================
+// CORPORATE BILLING / CREDIT ACCOUNTS
+// ============================================================================
+//
+// A Company is a durable counterparty — a tour agency, a corporate client, a
+// government department. Before this existed, the payer was free text on each
+// group booking ("Al-Habib Travels" retyped every time), so there was no way to
+// ask "what does this agency owe us?".
+//
+// The money model is a city ledger. Each stay keeps its own folio for
+// itemisation; at checkout an unpaid folio can be TRANSFERRED to the company,
+// which closes the folio and opens a CHARGE on the company ledger with a due
+// date derived from the company's payment terms. Payments arrive later against
+// the company, not the folio, and are allocated across open charges.
+
+enum CompanyType {
+  TOUR_AGENCY
+  CORPORATE
+  GOVERNMENT
+  NGO
+  OTHER
+}
+
+/// Net days until a transferred charge falls due. IMMEDIATE means the company
+/// is on the books for reporting but is not actually extended credit.
+enum CompanyPaymentTerms {
+  IMMEDIATE
+  NET_7
+  NET_15
+  NET_30
+  NET_45
+  NET_60
+  NET_90
+}
+
+enum CompanyLedgerEntryType {
+  CHARGE
+  PAYMENT
+  ADJUSTMENT
+  WRITE_OFF
+  CREDIT_REFUND
+}
+
+enum CompanyInvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  VOID
+}
+
+model Company {
+  id      String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId String @map("hotel_id") @db.Uuid
+
+  name         String
+  type         CompanyType @default(TOUR_AGENCY)
+  code         String?
+  contactName  String?     @map("contact_name")
+  contactPhone String?     @map("contact_phone")
+  contactEmail String?     @map("contact_email")
+  address      String?
+  city         String?
+
+  /// National Tax Number — printed on the consolidated invoice. Optional
+  /// because plenty of small agencies are not registered.
+  ntn  String?
+  /// Sales Tax Registration Number, likewise optional.
+  strn String?
+
+  /// Minor units (paisa). 0 means no credit — charges cannot be transferred.
+  creditLimit  BigInt              @default(0) @map("credit_limit")
+  paymentTerms CompanyPaymentTerms @default(NET_30) @map("payment_terms")
+
+  /// Denormalised running balance in paisa, kept in step with the ledger inside
+  /// the same transaction. Positive means the company owes the hotel.
+  balance BigInt @default(0)
+
+  /// Negotiated rate defaults. Either a rate plan the company always books on,
+  /// or a flat percentage off the applicable public rate. Both are only
+  /// defaults — the booking screen pre-fills from them and stays editable.
+  ratePlanId      String? @map("rate_plan_id") @db.Uuid
+  discountPercent Int?    @map("discount_percent")
+
+  isActive Boolean @default(true) @map("is_active")
+  notes    String?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  hotel         Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  ratePlan      RatePlan?            @relation(fields: [ratePlanId], references: [id])
+  ledgerEntries CompanyLedgerEntry[]
+  invoices      CompanyInvoice[]
+  reservations  Reservation[]
+  groupBookings GroupBooking[]
+
+  @@unique([hotelId, name])
+  @@index([hotelId])
+  @@index([hotelId, isActive])
+  @@index([hotelId, type])
+  @@map("companies")
+}
+
+model CompanyLedgerEntry {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId   String @map("hotel_id") @db.Uuid
+  companyId String @map("company_id") @db.Uuid
+
+  type        CompanyLedgerEntryType
+  /// Always positive, in paisa. The sign is implied by `type`: CHARGE and
+  /// ADJUSTMENT increase the balance, PAYMENT and WRITE_OFF decrease it.
+  /// Storing an unsigned amount keeps the aging maths from having to special
+  /// case negative charges.
+  amount      BigInt
+  description String
+
+  entryDate DateTime  @map("entry_date")
+  /// Set on CHARGE rows only, from the company's payment terms at transfer time.
+  dueDate   DateTime? @map("due_date")
+
+  /// CHARGE rows only: how much of `amount` has been covered by payments.
+  /// A charge is settled when settledAmount == amount.
+  settledAmount BigInt @default(0) @map("settled_amount")
+
+  /// Durable identity supplied by the client/workflow. Retries return the
+  /// original movement rather than duplicating company debt or a payment.
+  sourceKey String? @map("source_key")
+
+  /// Financial rows are never deleted. A mistaken payment is reversed by
+  /// marking the original and recording the compensating cash movement.
+  reversedAt     DateTime? @map("reversed_at")
+  reversedBy     String?   @map("reversed_by") @db.Uuid
+  reversalReason String?   @map("reversal_reason")
+
+  /// Provenance for CHARGE rows — the folio that was transferred here.
+  folioId       String?   @map("folio_id") @db.Uuid
+  reservationId String?   @map("reservation_id") @db.Uuid
+  /// Snapshot so the statement still reads correctly if the guest is renamed
+  /// or deleted years later.
+  guestName     String?   @map("guest_name")
+  roomNumber    String?   @map("room_number")
+  stayFrom      DateTime? @map("stay_from") @db.Date
+  stayTo        DateTime? @map("stay_to") @db.Date
+
+  /// PAYMENT rows only.
+  paymentMethod PaymentMethod? @map("payment_method")
+  reference     String?
+
+  invoiceId String? @map("invoice_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String?  @map("created_by") @db.Uuid
+
+  hotel   Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  folio   Folio?          @relation(fields: [folioId], references: [id])
+  invoice CompanyInvoice? @relation(fields: [invoiceId], references: [id])
+
+  @@index([hotelId])
+  @@index([companyId, entryDate])
+  @@index([companyId, type, settledAmount])
+  @@index([hotelId, dueDate])
+  @@index([invoiceId])
+  @@unique([hotelId, sourceKey])
+  @@map("company_ledger_entries")
+}
+
+model CompanyInvoice {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId   String @map("hotel_id") @db.Uuid
+  companyId String @map("company_id") @db.Uuid
+
+  invoiceNumber String               @map("invoice_number")
+  status        CompanyInvoiceStatus @default(DRAFT)
+
+  periodStart DateTime @map("period_start") @db.Date
+  periodEnd   DateTime @map("period_end") @db.Date
+
+  /// Totals in paisa, frozen when the invoice is issued.
+  subtotal    BigInt @default(0)
+  taxAmount   BigInt @default(0) @map("tax_amount")
+  totalAmount BigInt @default(0) @map("total_amount")
+  paidAmount  BigInt @default(0) @map("paid_amount")
+
+  issuedAt DateTime? @map("issued_at")
+  dueDate  DateTime? @map("due_date")
+  notes    String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy String?  @map("created_by") @db.Uuid
+
+  hotel   Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  company Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lines   CompanyLedgerEntry[]
+
+  @@index([hotelId])
+  @@index([companyId, periodEnd])
+  @@index([hotelId, status])
+  @@unique([hotelId, invoiceNumber])
+  @@map("company_invoices")
+}
+
+// ============================================================================
 // GROUP BOOKINGS
 // ============================================================================
 
 model GroupBooking {
-  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId          String    @db.Uuid @map("hotel_id")
-  name             String
-  groupRef         String? @map("group_ref")
-  tourOperatorId   String?   @db.Uuid @map("tour_operator_id")
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId        String  @map("hotel_id") @db.Uuid
+  name           String
+  groupRef       String? @map("group_ref")
+  tourOperatorId String? @map("tour_operator_id") @db.Uuid
 
-  billingType      String    @default("SPLIT") @map("billing_type")
-  payerType        String    @default("GUEST") @map("payer_type")
-  payerName        String? @map("payer_name")
-  payerContact     String? @map("payer_contact")
+  /// Preferred over the free-text payerName/payerContact below, which are kept
+  /// for groups booked before companies existed and for one-off payers that
+  /// nobody wants a permanent record for.
+  companyId String? @map("company_id") @db.Uuid
 
-  notes            String?
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
+  billingType  String  @default("SPLIT") @map("billing_type")
+  payerType    String  @default("GUEST") @map("payer_type")
+  payerName    String? @map("payer_name")
+  payerContact String? @map("payer_contact")
 
-  reservations     Reservation[]
-  members          GroupMember[]
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  reservations Reservation[]
+  members      GroupMember[]
+  company      Company?      @relation(fields: [companyId], references: [id])
 
   @@index([hotelId])
   @@index([hotelId, tourOperatorId])
+  @@index([hotelId, companyId])
   @@map("group_bookings")
 }
 
 model GroupMember {
-  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  groupId       String       @db.Uuid @map("group_id")
-  guestId       String       @db.Uuid @map("guest_id")
-  isLeader      Boolean      @default(false) @map("is_leader")
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId        String  @map("group_id") @db.Uuid
+  guestId        String  @map("guest_id") @db.Uuid
+  isLeader       Boolean @default(false) @map("is_leader")
   roomPreference String? @map("room_preference")
 
-  createdAt     DateTime     @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  group         GroupBooking @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  guest         Guest        @relation(fields: [guestId], references: [id])
+  group GroupBooking @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  guest Guest        @relation(fields: [guestId], references: [id])
 
   @@unique([groupId, guestId])
   @@index([groupId])
@@ -979,33 +1201,34 @@ model GroupMember {
 // ============================================================================
 
 model Folio {
-  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String    @db.Uuid @map("hotel_id")
-  reservationId   String    @unique @db.Uuid @map("reservation_id")
-  folioNumber     String    @unique @map("folio_number")
+  id            String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId       String @map("hotel_id") @db.Uuid
+  reservationId String @unique @map("reservation_id") @db.Uuid
+  folioNumber   String @unique @map("folio_number")
 
-  chargesTotal    Int       @default(0) @map("charges_total")
-  discountsTotal  Int       @default(0) @map("discounts_total")
-  taxTotal        Int       @default(0) @map("tax_total")
-  paymentsTotal   Int       @default(0) @map("payments_total")
-  balanceDue      Int       @default(0) @map("balance_due")
+  chargesTotal   Int @default(0) @map("charges_total")
+  discountsTotal Int @default(0) @map("discounts_total")
+  taxTotal       Int @default(0) @map("tax_total")
+  paymentsTotal  Int @default(0) @map("payments_total")
+  balanceDue     Int @default(0) @map("balance_due")
 
-  isOpen          Boolean   @default(true) @map("is_open")
-  closedAt        DateTime? @map("closed_at")
-  closedBy        String?   @db.Uuid @map("closed_by")
+  isOpen   Boolean   @default(true) @map("is_open")
+  closedAt DateTime? @map("closed_at")
+  closedBy String?   @map("closed_by") @db.Uuid
 
-  invoiceId       String?   @db.Uuid @map("invoice_id")
+  invoiceId String? @map("invoice_id") @db.Uuid
 
-  notes           String?
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  hotel       Hotel       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  reservation Reservation @relation(fields: [reservationId], references: [id])
-  items       FolioItem[]
-  payments    Payment[]
-  splitFolios FolioSplit[]
-  invoice     Invoice?    @relation(fields: [invoiceId], references: [id])
+  hotel                Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  reservation          Reservation          @relation(fields: [reservationId], references: [id])
+  items                FolioItem[]
+  payments             Payment[]
+  splitFolios          FolioSplit[]
+  companyLedgerEntries CompanyLedgerEntry[]
+  invoice              Invoice?             @relation(fields: [invoiceId], references: [id])
 
   @@index([hotelId])
   @@index([hotelId, isOpen])
@@ -1014,31 +1237,31 @@ model Folio {
 }
 
 model FolioItem {
-  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String        @db.Uuid @map("hotel_id")
-  folioId         String        @db.Uuid @map("folio_id")
-  type            FolioItemType
-  description     String
-  quantity        Int           @default(1)
-  unitAmount      Int @map("unit_amount")
-  amount          Int
-  discountAmount  Int           @default(0) @map("discount_amount")
-  taxAmount       Int           @default(0) @map("tax_amount")
-  netAmount       Int @map("net_amount")
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId        String        @map("hotel_id") @db.Uuid
+  folioId        String        @map("folio_id") @db.Uuid
+  type           FolioItemType
+  description    String
+  quantity       Int           @default(1)
+  unitAmount     Int           @map("unit_amount")
+  amount         Int
+  discountAmount Int           @default(0) @map("discount_amount")
+  taxAmount      Int           @default(0) @map("tax_amount")
+  netAmount      Int           @map("net_amount")
 
-  posOrderItemId  String?       @db.Uuid @map("pos_order_item_id")
-  roomId          String?       @db.Uuid @map("room_id")
-  staffId         String?       @db.Uuid @map("staff_id")
+  posOrderItemId String? @map("pos_order_item_id") @db.Uuid
+  roomId         String? @map("room_id") @db.Uuid
+  staffId        String? @map("staff_id") @db.Uuid
 
-  chargeDate      DateTime      @default(now()) @map("charge_date")
-  isVoided        Boolean       @default(false) @map("is_voided")
-  voidedAt        DateTime? @map("voided_at")
-  voidedBy        String?       @db.Uuid @map("voided_by")
-  voidReason      String? @map("void_reason")
+  chargeDate DateTime  @default(now()) @map("charge_date")
+  isVoided   Boolean   @default(false) @map("is_voided")
+  voidedAt   DateTime? @map("voided_at")
+  voidedBy   String?   @map("voided_by") @db.Uuid
+  voidReason String?   @map("void_reason")
 
-  notes           String?
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   folio        Folio         @relation(fields: [folioId], references: [id], onDelete: Cascade)
   posOrderItem PosOrderItem? @relation(fields: [posOrderItemId], references: [id])
@@ -1051,51 +1274,51 @@ model FolioItem {
 }
 
 model FolioSplit {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  folioId     String   @db.Uuid @map("folio_id")
-  payerName   String @map("payer_name")
-  payerType   String @map("payer_type")
-  payerRef    String? @map("payer_ref")
-  amount      Int
-  isPaid      Boolean  @default(false) @map("is_paid")
-  paidAt      DateTime? @map("paid_at")
-  notes       String?
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  folioId   String    @map("folio_id") @db.Uuid
+  payerName String    @map("payer_name")
+  payerType String    @map("payer_type")
+  payerRef  String?   @map("payer_ref")
+  amount    Int
+  isPaid    Boolean   @default(false) @map("is_paid")
+  paidAt    DateTime? @map("paid_at")
+  notes     String?
 
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  folio       Folio    @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  folio Folio @relation(fields: [folioId], references: [id], onDelete: Cascade)
 
   @@index([folioId])
   @@map("folio_splits")
 }
 
 model Payment {
-  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String        @db.Uuid @map("hotel_id")
-  folioId         String?       @db.Uuid @map("folio_id")
-  reservationId   String?       @db.Uuid @map("reservation_id")
-  method          PaymentMethod
-  status          PaymentStatus @default(PENDING)
-  amount          Int
-  currencyCode    String        @default("PKR") @map("currency_code")
-  exchangeRate    Decimal?      @db.Decimal(10, 4) @map("exchange_rate")
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId       String        @map("hotel_id") @db.Uuid
+  folioId       String?       @map("folio_id") @db.Uuid
+  reservationId String?       @map("reservation_id") @db.Uuid
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  amount        Int
+  currencyCode  String        @default("PKR") @map("currency_code")
+  exchangeRate  Decimal?      @map("exchange_rate") @db.Decimal(10, 4)
 
   transactionRef  String? @map("transaction_ref")
-  gatewayResponse Json? @map("gateway_response")
+  gatewayResponse Json?   @map("gateway_response")
 
-  cashDenominations Json? @map("cash_denominations")
-  receiptNumber   String? @map("receipt_number")
+  cashDenominations Json?   @map("cash_denominations")
+  receiptNumber     String? @map("receipt_number")
 
-  isRefund        Boolean       @default(false) @map("is_refund")
-  originalPaymentId String?     @db.Uuid @map("original_payment_id")
-  refundReason    String? @map("refund_reason")
+  isRefund          Boolean @default(false) @map("is_refund")
+  originalPaymentId String? @map("original_payment_id") @db.Uuid
+  refundReason      String? @map("refund_reason")
 
-  postedAt        DateTime      @default(now()) @map("posted_at")
-  postedBy        String?       @db.Uuid @map("posted_by")
-  notes           String?
+  postedAt DateTime @default(now()) @map("posted_at")
+  postedBy String?  @map("posted_by") @db.Uuid
+  notes    String?
 
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   hotel       Hotel        @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   folio       Folio?       @relation(fields: [folioId], references: [id])
@@ -1115,12 +1338,12 @@ model Payment {
 // ============================================================================
 
 model PosCategory {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId     String    @db.Uuid @map("hotel_id")
-  name        String
-  icon        String?
-  sortOrder   Int       @default(0) @map("sort_order")
-  isActive    Boolean   @default(true) @map("is_active")
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId   String  @map("hotel_id") @db.Uuid
+  name      String
+  icon      String?
+  sortOrder Int     @default(0) @map("sort_order")
+  isActive  Boolean @default(true) @map("is_active")
 
   // QR guest-menu visibility — independent of isActive (POS-facing).
   // availableFrom/availableUntil are "HH:MM" strings; both null = always available.
@@ -1128,11 +1351,11 @@ model PosCategory {
   availableFrom  String? @map("available_from")
   availableUntil String? @map("available_until")
 
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  hotel       Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  items       PosItem[]
+  hotel Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  items PosItem[]
 
   @@index([hotelId])
   @@index([hotelId, isActive])
@@ -1140,30 +1363,30 @@ model PosCategory {
 }
 
 model PosItem {
-  id                String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId           String      @db.Uuid @map("hotel_id")
-  categoryId        String      @db.Uuid @map("category_id")
-  name              String
-  nameUrdu          String? @map("name_urdu")
-  description       String?
-  price             Int
-  taxRate           Decimal     @default(0) @db.Decimal(5, 4) @map("tax_rate")
-  unit              String      @default("piece")
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String  @map("hotel_id") @db.Uuid
+  categoryId  String  @map("category_id") @db.Uuid
+  name        String
+  nameUrdu    String? @map("name_urdu")
+  description String?
+  price       Int
+  taxRate     Decimal @default(0) @map("tax_rate") @db.Decimal(5, 4)
+  unit        String  @default("piece")
 
-  inventoryItemId   String?     @db.Uuid @map("inventory_item_id")
-  inventoryQtyUsed  Decimal?    @db.Decimal(10, 3) @map("inventory_qty_used")
+  inventoryItemId  String?  @map("inventory_item_id") @db.Uuid
+  inventoryQtyUsed Decimal? @map("inventory_qty_used") @db.Decimal(10, 3)
 
-  isAvailable       Boolean     @default(true) @map("is_available")
-  isKitchenItem     Boolean     @default(true) @map("is_kitchen_item")
-  sortOrder         Int         @default(0) @map("sort_order")
-  photoUrl          String? @map("photo_url")
+  isAvailable   Boolean @default(true) @map("is_available")
+  isKitchenItem Boolean @default(true) @map("is_kitchen_item")
+  sortOrder     Int     @default(0) @map("sort_order")
+  photoUrl      String? @map("photo_url")
 
   // QR guest-menu visibility — independent of isAvailable (POS-facing).
-  isQrVisible       Boolean     @default(true) @map("is_qr_visible")
-  isFeatured        Boolean     @default(false) @map("is_featured")
+  isQrVisible Boolean @default(true) @map("is_qr_visible")
+  isFeatured  Boolean @default(false) @map("is_featured")
 
-  createdAt         DateTime    @default(now()) @map("created_at")
-  updatedAt         DateTime    @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   hotel         Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   category      PosCategory    @relation(fields: [categoryId], references: [id])
@@ -1178,26 +1401,26 @@ model PosItem {
 }
 
 model PosOrder {
-  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String    @db.Uuid @map("hotel_id")
-  orderNumber     String    @unique @map("order_number")
-  reservationId   String?   @db.Uuid @map("reservation_id")
-  folioId         String?   @db.Uuid @map("folio_id")
-  tableNumber     String? @map("table_number")
-  roomNumber      String? @map("room_number")
+  id            String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId       String  @map("hotel_id") @db.Uuid
+  orderNumber   String  @unique @map("order_number")
+  reservationId String? @map("reservation_id") @db.Uuid
+  folioId       String? @map("folio_id") @db.Uuid
+  tableNumber   String? @map("table_number")
+  roomNumber    String? @map("room_number")
 
-  subtotal        Int       @default(0)
-  taxAmount       Int       @default(0) @map("tax_amount")
-  discountAmount  Int       @default(0) @map("discount_amount")
-  total           Int       @default(0)
+  subtotal       Int @default(0)
+  taxAmount      Int @default(0) @map("tax_amount")
+  discountAmount Int @default(0) @map("discount_amount")
+  total          Int @default(0)
 
   isPostedToFolio Boolean   @default(false) @map("is_posted_to_folio")
   postedAt        DateTime? @map("posted_at")
-  servedBy        String?   @db.Uuid @map("served_by")
+  servedBy        String?   @map("served_by") @db.Uuid
   notes           String?
 
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   hotel Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   items PosOrderItem[]
@@ -1209,18 +1432,18 @@ model PosOrder {
 }
 
 model PosOrderItem {
-  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  orderId         String    @db.Uuid @map("order_id")
-  posItemId       String    @db.Uuid @map("pos_item_id")
-  name            String
-  quantity        Int
-  unitPrice       Int @map("unit_price")
-  taxRate         Decimal   @db.Decimal(5, 4) @map("tax_rate")
-  discountAmount  Int       @default(0) @map("discount_amount")
-  lineTotal       Int @map("line_total")
-  notes           String?
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId        String  @map("order_id") @db.Uuid
+  posItemId      String  @map("pos_item_id") @db.Uuid
+  name           String
+  quantity       Int
+  unitPrice      Int     @map("unit_price")
+  taxRate        Decimal @map("tax_rate") @db.Decimal(5, 4)
+  discountAmount Int     @default(0) @map("discount_amount")
+  lineTotal      Int     @map("line_total")
+  notes          String?
 
-  createdAt       DateTime  @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   order      PosOrder    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   posItem    PosItem     @relation(fields: [posItemId], references: [id])
@@ -1236,27 +1459,27 @@ model PosOrderItem {
 // ============================================================================
 
 model HousekeepingTask {
-  id              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String                 @db.Uuid @map("hotel_id")
-  roomId          String                 @db.Uuid @map("room_id")
-  assignedToId    String?                @db.Uuid @map("assigned_to_id")
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId      String  @map("hotel_id") @db.Uuid
+  roomId       String  @map("room_id") @db.Uuid
+  assignedToId String? @map("assigned_to_id") @db.Uuid
 
-  taskType        String @map("task_type")
-  status          HousekeepingTaskStatus @default(PENDING)
-  priority        Int                    @default(1)
+  taskType String                 @map("task_type")
+  status   HousekeepingTaskStatus @default(PENDING)
+  priority Int                    @default(1)
 
-  scheduledDate   DateTime               @db.Date @map("scheduled_date")
-  startedAt       DateTime? @map("started_at")
-  completedAt     DateTime? @map("completed_at")
+  scheduledDate DateTime  @map("scheduled_date") @db.Date
+  startedAt     DateTime? @map("started_at")
+  completedAt   DateTime? @map("completed_at")
 
-  hasIssue        Boolean                @default(false) @map("has_issue")
-  issueDescription String? @map("issue_description")
-  issuePhotoUrls  String[] @map("issue_photo_urls")
-  isEscalated     Boolean                @default(false) @map("is_escalated")
+  hasIssue         Boolean  @default(false) @map("has_issue")
+  issueDescription String?  @map("issue_description")
+  issuePhotoUrls   String[] @map("issue_photo_urls")
+  isEscalated      Boolean  @default(false) @map("is_escalated")
 
-  notes           String?
-  createdAt       DateTime               @default(now()) @map("created_at")
-  updatedAt       DateTime               @updatedAt @map("updated_at")
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   hotel      Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   room       Room  @relation(fields: [roomId], references: [id])
@@ -1275,32 +1498,32 @@ model HousekeepingTask {
 // ============================================================================
 
 model MaintenanceTicket {
-  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String              @db.Uuid @map("hotel_id")
-  roomId          String?             @db.Uuid @map("room_id")
-  reportedById    String?             @db.Uuid @map("reported_by_id")
-  assignedToId    String?             @db.Uuid @map("assigned_to_id")
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId      String  @map("hotel_id") @db.Uuid
+  roomId       String? @map("room_id") @db.Uuid
+  reportedById String? @map("reported_by_id") @db.Uuid
+  assignedToId String? @map("assigned_to_id") @db.Uuid
 
-  ticketNumber    String              @unique @map("ticket_number")
-  title           String
-  description     String?
-  category        String
-  status          MaintenanceStatus   @default(OPEN)
-  priority        MaintenancePriority @default(MEDIUM)
+  ticketNumber String              @unique @map("ticket_number")
+  title        String
+  description  String?
+  category     String
+  status       MaintenanceStatus   @default(OPEN)
+  priority     MaintenancePriority @default(MEDIUM)
 
   photoUrls       String[] @map("photo_urls")
-  resolutionNotes String? @map("resolution_notes")
+  resolutionNotes String?  @map("resolution_notes")
 
-  estimatedCost   Int? @map("estimated_cost")
-  actualCost      Int? @map("actual_cost")
-  partsUsed       Json? @map("parts_used")
+  estimatedCost Int?  @map("estimated_cost")
+  actualCost    Int?  @map("actual_cost")
+  partsUsed     Json? @map("parts_used")
 
-  scheduledFor    DateTime? @map("scheduled_for")
+  scheduledFor     DateTime? @map("scheduled_for")
   scheduledEndDate DateTime? @map("scheduled_end_date") @db.Date
-  resolvedAt      DateTime? @map("resolved_at")
+  resolvedAt       DateTime? @map("resolved_at")
 
-  createdAt       DateTime            @default(now()) @map("created_at")
-  updatedAt       DateTime            @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   hotel      Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   room       Room? @relation(fields: [roomId], references: [id])
@@ -1319,21 +1542,21 @@ model MaintenanceTicket {
 // ============================================================================
 
 model InventoryItem {
-  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String    @db.Uuid @map("hotel_id")
-  name            String
-  sku             String?
-  category        String
-  unit            String
-  currentStock    Decimal   @default(0) @db.Decimal(12, 3) @map("current_stock")
-  parLevel        Decimal   @default(0) @db.Decimal(12, 3) @map("par_level")
-  reorderLevel    Decimal   @default(0) @db.Decimal(12, 3) @map("reorder_level")
-  costPerUnit     Int       @default(0) @map("cost_per_unit")
-  supplier        String?
-  isActive        Boolean   @default(true) @map("is_active")
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId      String  @map("hotel_id") @db.Uuid
+  name         String
+  sku          String?
+  category     String
+  unit         String
+  currentStock Decimal @default(0) @map("current_stock") @db.Decimal(12, 3)
+  parLevel     Decimal @default(0) @map("par_level") @db.Decimal(12, 3)
+  reorderLevel Decimal @default(0) @map("reorder_level") @db.Decimal(12, 3)
+  costPerUnit  Int     @default(0) @map("cost_per_unit")
+  supplier     String?
+  isActive     Boolean @default(true) @map("is_active")
 
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   hotel        Hotel                  @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   transactions InventoryTransaction[]
@@ -1346,19 +1569,19 @@ model InventoryItem {
 }
 
 model InventoryTransaction {
-  id              String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String                   @db.Uuid @map("hotel_id")
-  itemId          String                   @db.Uuid @map("item_id")
-  type            InventoryTransactionType
-  quantity        Decimal                  @db.Decimal(12, 3)
-  unitCost        Int? @map("unit_cost")
-  totalCost       Int? @map("total_cost")
-  referenceId     String? @map("reference_id")
-  referenceType   String? @map("reference_type")
-  notes           String?
-  performedBy     String?                  @db.Uuid @map("performed_by")
+  id            String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId       String                   @map("hotel_id") @db.Uuid
+  itemId        String                   @map("item_id") @db.Uuid
+  type          InventoryTransactionType
+  quantity      Decimal                  @db.Decimal(12, 3)
+  unitCost      Int?                     @map("unit_cost")
+  totalCost     Int?                     @map("total_cost")
+  referenceId   String?                  @map("reference_id")
+  referenceType String?                  @map("reference_type")
+  notes         String?
+  performedBy   String?                  @map("performed_by") @db.Uuid
 
-  createdAt       DateTime                 @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   hotel Hotel         @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   item  InventoryItem @relation(fields: [itemId], references: [id])
@@ -1375,26 +1598,26 @@ model InventoryTransaction {
 // ============================================================================
 
 model Conversation {
-  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String          @db.Uuid @map("hotel_id")
-  guestId         String?         @db.Uuid @map("guest_id")
-  reservationId   String?         @db.Uuid @map("reservation_id")
-  assignedToId    String?         @db.Uuid @map("assigned_to_id")
-  subject         String?
-  channel         MessageChannel  @default(WHATSAPP)
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId       String         @map("hotel_id") @db.Uuid
+  guestId       String?        @map("guest_id") @db.Uuid
+  reservationId String?        @map("reservation_id") @db.Uuid
+  assignedToId  String?        @map("assigned_to_id") @db.Uuid
+  subject       String?
+  channel       MessageChannel @default(WHATSAPP)
 
-  isOpen          Boolean         @default(true) @map("is_open")
-  isRead          Boolean         @default(false) @map("is_read")
-  isSnoozed       Boolean         @default(false) @map("is_snoozed")
-  snoozedUntil    DateTime? @map("snoozed_until")
-  lastMessageAt   DateTime? @map("last_message_at")
-  unreadCount     Int             @default(0) @map("unread_count")
+  isOpen        Boolean   @default(true) @map("is_open")
+  isRead        Boolean   @default(false) @map("is_read")
+  isSnoozed     Boolean   @default(false) @map("is_snoozed")
+  snoozedUntil  DateTime? @map("snoozed_until")
+  lastMessageAt DateTime? @map("last_message_at")
+  unreadCount   Int       @default(0) @map("unread_count")
 
-  tags            String[]
-  internalNotes   String? @map("internal_notes")
+  tags          String[]
+  internalNotes String?  @map("internal_notes")
 
-  createdAt       DateTime        @default(now()) @map("created_at")
-  updatedAt       DateTime        @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   hotel      Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   guest      Guest?    @relation(fields: [guestId], references: [id])
@@ -1410,30 +1633,30 @@ model Conversation {
 }
 
 model Message {
-  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId           String           @db.Uuid @map("hotel_id")
-  conversationId    String           @db.Uuid @map("conversation_id")
-  reservationId     String?          @db.Uuid @map("reservation_id")
-  channel           MessageChannel
-  direction         MessageDirection
-  status            MessageStatus    @default(RECEIVED)
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId        String           @map("hotel_id") @db.Uuid
+  conversationId String           @map("conversation_id") @db.Uuid
+  reservationId  String?          @map("reservation_id") @db.Uuid
+  channel        MessageChannel
+  direction      MessageDirection
+  status         MessageStatus    @default(RECEIVED)
 
-  body              String
-  mediaUrls         String[] @map("media_urls")
-  isTemplate        Boolean          @default(false) @map("is_template")
-  templateName      String? @map("template_name")
+  body         String
+  mediaUrls    String[] @map("media_urls")
+  isTemplate   Boolean  @default(false) @map("is_template")
+  templateName String?  @map("template_name")
 
-  externalMessageId String? @map("external_message_id")
+  externalMessageId String?   @map("external_message_id")
   sentAt            DateTime? @map("sent_at")
   deliveredAt       DateTime? @map("delivered_at")
   readAt            DateTime? @map("read_at")
-  failureReason     String? @map("failure_reason")
+  failureReason     String?   @map("failure_reason")
 
-  senderName        String? @map("sender_name")
-  senderPhone       String? @map("sender_phone")
-  staffId           String?          @db.Uuid @map("staff_id")
+  senderName  String? @map("sender_name")
+  senderPhone String? @map("sender_phone")
+  staffId     String? @map("staff_id") @db.Uuid
 
-  createdAt         DateTime         @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   hotel        Hotel        @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -1451,35 +1674,36 @@ model Message {
 // ============================================================================
 
 model RatePlan {
-  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String       @db.Uuid @map("hotel_id")
-  name            String
-  type            RatePlanType @default(STANDARD)
-  description     String?
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String       @map("hotel_id") @db.Uuid
+  name        String
+  type        RatePlanType @default(STANDARD)
+  description String?
 
-  validFrom       DateTime?    @db.Date @map("valid_from")
-  validTo         DateTime?    @db.Date @map("valid_to")
-  daysOfWeek      Int[] @map("days_of_week")
+  validFrom  DateTime? @map("valid_from") @db.Date
+  validTo    DateTime? @map("valid_to") @db.Date
+  daysOfWeek Int[]     @map("days_of_week")
 
-  minLos          Int          @default(1) @map("min_los")
-  maxLos          Int? @map("max_los")
-  minAdvance      Int? @map("min_advance")
-  maxAdvance      Int? @map("max_advance")
-  minOccupancy    Int? @map("min_occupancy")
+  minLos       Int  @default(1) @map("min_los")
+  maxLos       Int? @map("max_los")
+  minAdvance   Int? @map("min_advance")
+  maxAdvance   Int? @map("max_advance")
+  minOccupancy Int? @map("min_occupancy")
 
-  modifierType    String       @default("FIXED") @map("modifier_type")
-  modifierValue   Int          @default(0) @map("modifier_value")
+  modifierType  String @default("FIXED") @map("modifier_type")
+  modifierValue Int    @default(0) @map("modifier_value")
 
-  isActive        Boolean      @default(true) @map("is_active")
-  codeRequired    Boolean      @default(false) @map("code_required")
-  priority        Int          @default(0)
+  isActive     Boolean @default(true) @map("is_active")
+  codeRequired Boolean @default(false) @map("code_required")
+  priority     Int     @default(0)
 
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  hotel Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  items RatePlanItem[]
-  codes RatePlanCode[]
+  hotel     Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  items     RatePlanItem[]
+  codes     RatePlanCode[]
+  companies Company[]
 
   @@index([hotelId])
   @@index([hotelId, isActive])
@@ -1493,39 +1717,39 @@ model RatePlan {
 // activating, expiring, or revoking each one independently. `code` is stored
 // normalized uppercase and is unique within a hotel.
 model RatePlanCode {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId     String    @db.Uuid @map("hotel_id")
-  ratePlanId  String?   @db.Uuid @map("rate_plan_id")
-  code        String
-  label       String?
-  validFrom   DateTime? @db.Date @map("valid_from")
-  validTo     DateTime? @db.Date @map("valid_to")
-  isActive    Boolean   @default(true) @map("is_active")
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId    String    @map("hotel_id") @db.Uuid
+  ratePlanId String?   @map("rate_plan_id") @db.Uuid
+  code       String
+  label      String?
+  validFrom  DateTime? @map("valid_from") @db.Date
+  validTo    DateTime? @map("valid_to") @db.Date
+  isActive   Boolean   @default(true) @map("is_active")
 
   // ── Per-guest issuance ────────────────────────────────────────────────────
   // A hotel-wide code spreads on WhatsApp the moment it is sent to anyone. A
   // code issued to one guest, capped at one use, cannot be forwarded usefully —
   // and tells the hotel exactly who redeemed which offer.
   /// Null for the ordinary shared corporate/promo codes this table already held.
-  guestId     String?   @db.Uuid @map("guest_id")
-  issueReason PromoIssueReason? @map("issue_reason")
+  guestId         String?           @map("guest_id") @db.Uuid
+  issueReason     PromoIssueReason? @map("issue_reason")
   /// Percentage-off guest offers apply to the best public rate for the stay.
   /// Null preserves the fixed linked-rate behaviour of existing access codes.
-  discountPercent Int? @map("discount_percent")
+  discountPercent Int?              @map("discount_percent")
   /// Null means unlimited, preserving the behaviour of existing shared codes.
-  maxUses     Int? @map("max_uses")
-  usedCount   Int       @default(0) @map("used_count")
-  lastUsedAt  DateTime? @map("last_used_at")
-  emailStatus PromoEmailStatus @default(NOT_REQUESTED) @map("email_status")
-  emailSentAt DateTime? @map("email_sent_at")
-  emailError  String? @map("email_error")
+  maxUses         Int?              @map("max_uses")
+  usedCount       Int               @default(0) @map("used_count")
+  lastUsedAt      DateTime?         @map("last_used_at")
+  emailStatus     PromoEmailStatus  @default(NOT_REQUESTED) @map("email_status")
+  emailSentAt     DateTime?         @map("email_sent_at")
+  emailError      String?           @map("email_error")
 
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  hotel    Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotel    Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   ratePlan RatePlan? @relation(fields: [ratePlanId], references: [id], onDelete: Cascade)
-  guest    Guest?   @relation(fields: [guestId], references: [id], onDelete: SetNull)
+  guest    Guest?    @relation(fields: [guestId], references: [id], onDelete: SetNull)
 
   @@unique([hotelId, code])
   @@index([hotelId, isActive])
@@ -1535,10 +1759,10 @@ model RatePlanCode {
 }
 
 model RatePlanItem {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ratePlanId  String    @db.Uuid @map("rate_plan_id")
-  roomTypeId  String    @db.Uuid @map("room_type_id")
-  rate        Int
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ratePlanId String @map("rate_plan_id") @db.Uuid
+  roomTypeId String @map("room_type_id") @db.Uuid
+  rate       Int
 
   ratePlan RatePlan @relation(fields: [ratePlanId], references: [id], onDelete: Cascade)
   roomType RoomType @relation(fields: [roomTypeId], references: [id])
@@ -1554,22 +1778,22 @@ model RatePlanItem {
 // ============================================================================
 
 model ChannelConfig {
-  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String      @db.Uuid @map("hotel_id")
-  channelType     ChannelType @map("channel_type")
-  isActive        Boolean     @default(false) @map("is_active")
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String      @map("hotel_id") @db.Uuid
+  channelType ChannelType @map("channel_type")
+  isActive    Boolean     @default(false) @map("is_active")
 
-  credentials     Json        @default("{}")
-  lastSyncAt      DateTime? @map("last_sync_at")
-  lastSyncStatus  String? @map("last_sync_status")
-  lastSyncError   String? @map("last_sync_error")
+  credentials    Json      @default("{}")
+  lastSyncAt     DateTime? @map("last_sync_at")
+  lastSyncStatus String?   @map("last_sync_status")
+  lastSyncError  String?   @map("last_sync_error")
 
-  syncInventory   Boolean     @default(true) @map("sync_inventory")
-  syncRates       Boolean     @default(true) @map("sync_rates")
-  commissionRate  Decimal     @default(0) @db.Decimal(5, 4) @map("commission_rate")
+  syncInventory  Boolean @default(true) @map("sync_inventory")
+  syncRates      Boolean @default(true) @map("sync_rates")
+  commissionRate Decimal @default(0) @map("commission_rate") @db.Decimal(5, 4)
 
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 
@@ -1584,18 +1808,18 @@ model ChannelConfig {
 // ============================================================================
 
 model Staff {
-  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String    @db.Uuid @map("hotel_id")
-  userId          String    @db.Uuid @map("user_id")
-  employeeId      String? @map("employee_id")
-  department      String?
-  designation     String?
-  joiningDate     DateTime? @db.Date @map("joining_date")
-  isActive        Boolean   @default(true) @map("is_active")
-  notes           String?
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String    @map("hotel_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  employeeId  String?   @map("employee_id")
+  department  String?
+  designation String?
+  joiningDate DateTime? @map("joining_date") @db.Date
+  isActive    Boolean   @default(true) @map("is_active")
+  notes       String?
 
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 
@@ -1607,33 +1831,33 @@ model Staff {
 }
 
 model ShiftReport {
-  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String    @db.Uuid @map("hotel_id")
-  staffId         String    @db.Uuid @map("staff_id")
-  shiftDate       DateTime  @db.Date @map("shift_date")
-  shiftType       String @map("shift_type")
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId   String   @map("hotel_id") @db.Uuid
+  staffId   String   @map("staff_id") @db.Uuid
+  shiftDate DateTime @map("shift_date") @db.Date
+  shiftType String   @map("shift_type")
 
-  openingBalance  Int       @default(0) @map("opening_balance")
-  cashCollected   Int       @default(0) @map("cash_collected")
-  cashExpenses    Int       @default(0) @map("cash_expenses")
-  closingBalance  Int       @default(0) @map("closing_balance")
-  expectedBalance Int       @default(0) @map("expected_balance")
-  variance        Int       @default(0)
+  openingBalance  Int @default(0) @map("opening_balance")
+  cashCollected   Int @default(0) @map("cash_collected")
+  cashExpenses    Int @default(0) @map("cash_expenses")
+  closingBalance  Int @default(0) @map("closing_balance")
+  expectedBalance Int @default(0) @map("expected_balance")
+  variance        Int @default(0)
 
-  checkIns        Int       @default(0) @map("check_ins")
-  checkOuts       Int       @default(0) @map("check_outs")
-  newBookings     Int       @default(0) @map("new_bookings")
-  posOrders       Int       @default(0) @map("pos_orders")
+  checkIns    Int @default(0) @map("check_ins")
+  checkOuts   Int @default(0) @map("check_outs")
+  newBookings Int @default(0) @map("new_bookings")
+  posOrders   Int @default(0) @map("pos_orders")
 
-  notes               String?
-  handoverBriefing    Json?     @map("handover_briefing")
-  varianceReason      String?   @map("variance_reason")
-  discrepancyAlerted  Boolean   @default(false) @map("discrepancy_alerted")
-  signedOffAt     DateTime? @map("signed_off_at")
-  signedOffBy     String?   @db.Uuid @map("signed_off_by")
+  notes              String?
+  handoverBriefing   Json?     @map("handover_briefing")
+  varianceReason     String?   @map("variance_reason")
+  discrepancyAlerted Boolean   @default(false) @map("discrepancy_alerted")
+  signedOffAt        DateTime? @map("signed_off_at")
+  signedOffBy        String?   @map("signed_off_by") @db.Uuid
 
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 
@@ -1648,16 +1872,16 @@ model ShiftReport {
 // ============================================================================
 
 model TaxConfig {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId     String    @db.Uuid @map("hotel_id")
-  taxType     TaxType @map("tax_type")
-  rate        Decimal   @db.Decimal(5, 4)
-  isInclusive Boolean   @default(false) @map("is_inclusive")
-  isActive    Boolean   @default(true) @map("is_active")
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String   @map("hotel_id") @db.Uuid
+  taxType     TaxType  @map("tax_type")
+  rate        Decimal  @db.Decimal(5, 4)
+  isInclusive Boolean  @default(false) @map("is_inclusive")
+  isActive    Boolean  @default(true) @map("is_active")
   appliesTo   String[] @map("applies_to")
 
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 
@@ -1667,25 +1891,25 @@ model TaxConfig {
 }
 
 model Invoice {
-  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId          String        @db.Uuid @map("hotel_id")
-  invoiceNumber    String        @unique @map("invoice_number")
-  status           InvoiceStatus @default(DRAFT)
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId       String        @map("hotel_id") @db.Uuid
+  invoiceNumber String        @unique @map("invoice_number")
+  status        InvoiceStatus @default(DRAFT)
 
-  fbrInvoiceNumber String? @map("fbr_invoice_number")
+  fbrInvoiceNumber String?   @map("fbr_invoice_number")
   fbrSubmittedAt   DateTime? @map("fbr_submitted_at")
-  fbrResponse      Json? @map("fbr_response")
+  fbrResponse      Json?     @map("fbr_response")
 
-  subtotal         Int
-  taxAmount        Int @map("tax_amount")
-  totalAmount      Int @map("total_amount")
+  subtotal    Int
+  taxAmount   Int @map("tax_amount")
+  totalAmount Int @map("total_amount")
 
-  issuedAt         DateTime      @default(now()) @map("issued_at")
-  dueAt            DateTime? @map("due_at")
-  notes            String?
+  issuedAt DateTime  @default(now()) @map("issued_at")
+  dueAt    DateTime? @map("due_at")
+  notes    String?
 
-  createdAt        DateTime      @default(now()) @map("created_at")
-  updatedAt        DateTime      @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   hotel  Hotel   @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   folios Folio[]
@@ -1701,19 +1925,19 @@ model Invoice {
 // ============================================================================
 
 model AuditLog {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId     String    @db.Uuid @map("hotel_id")
-  userId      String?   @db.Uuid @map("user_id")
-  action      String
-  entity      String
-  entityId    String    @db.Uuid @map("entity_id")
-  before      Json?
-  after       Json?
-  ipAddress   String? @map("ip_address")
-  userAgent   String? @map("user_agent")
-  notes       String?
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId   String  @map("hotel_id") @db.Uuid
+  userId    String? @map("user_id") @db.Uuid
+  action    String
+  entity    String
+  entityId  String  @map("entity_id") @db.Uuid
+  before    Json?
+  after     Json?
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+  notes     String?
 
-  createdAt   DateTime  @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   user  User? @relation(fields: [userId], references: [id])
@@ -1730,19 +1954,19 @@ model AuditLog {
 // ============================================================================
 
 model Notification {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId     String    @db.Uuid @map("hotel_id")
-  userId      String?   @db.Uuid @map("user_id")
-  type        String
-  title       String
-  body        String
-  metadata    Json?
-  isRead      Boolean   @default(false) @map("is_read")
-  readAt      DateTime? @map("read_at")
-  channel     String    @default("IN_APP")
-  sentAt      DateTime? @map("sent_at")
+  id       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId  String    @map("hotel_id") @db.Uuid
+  userId   String?   @map("user_id") @db.Uuid
+  type     String
+  title    String
+  body     String
+  metadata Json?
+  isRead   Boolean   @default(false) @map("is_read")
+  readAt   DateTime? @map("read_at")
+  channel  String    @default("IN_APP")
+  sentAt   DateTime? @map("sent_at")
 
-  createdAt   DateTime  @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 
@@ -1757,19 +1981,19 @@ model Notification {
 // ============================================================================
 
 model CustomFieldDefinition {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId     String   @db.Uuid @map("hotel_id")
-  entity      String
-  key         String
-  label       String
-  fieldType   String @map("field_type")
-  options     String[]
-  isRequired  Boolean  @default(false) @map("is_required")
-  sortOrder   Int      @default(0) @map("sort_order")
-  isActive    Boolean  @default(true) @map("is_active")
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId    String   @map("hotel_id") @db.Uuid
+  entity     String
+  key        String
+  label      String
+  fieldType  String   @map("field_type")
+  options    String[]
+  isRequired Boolean  @default(false) @map("is_required")
+  sortOrder  Int      @default(0) @map("sort_order")
+  isActive   Boolean  @default(true) @map("is_active")
 
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   hotel  Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   values CustomFieldValue[]
@@ -1780,13 +2004,13 @@ model CustomFieldDefinition {
 }
 
 model CustomFieldValue {
-  id           String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  definitionId String                @db.Uuid @map("definition_id")
-  entityId     String                @db.Uuid @map("entity_id")
+  id           String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  definitionId String @map("definition_id") @db.Uuid
+  entityId     String @map("entity_id") @db.Uuid
   value        String
 
-  createdAt    DateTime              @default(now()) @map("created_at")
-  updatedAt    DateTime              @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   definition CustomFieldDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
 
@@ -1802,18 +2026,18 @@ model CustomFieldValue {
 
 model FrontDeskNote {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId       String    @db.Uuid    @map("hotel_id")
+  hotelId       String    @map("hotel_id") @db.Uuid
   text          String
-  isCompleted   Boolean   @default(false)                               @map("is_completed")
-  completedAt   DateTime?                                               @map("completed_at")
-  completedById String?   @db.Uuid                                     @map("completed_by_id")
-  createdById   String    @db.Uuid                                     @map("created_by_id")
-  createdAt     DateTime  @default(now())                               @map("created_at")
-  updatedAt     DateTime  @updatedAt                                    @map("updated_at")
+  isCompleted   Boolean   @default(false) @map("is_completed")
+  completedAt   DateTime? @map("completed_at")
+  completedById String?   @map("completed_by_id") @db.Uuid
+  createdById   String    @map("created_by_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  hotel       Hotel  @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  createdBy   User   @relation("NoteCreatedBy", fields: [createdById], references: [id])
-  completedBy User?  @relation("NoteCompletedBy", fields: [completedById], references: [id])
+  hotel       Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  createdBy   User  @relation("NoteCreatedBy", fields: [createdById], references: [id])
+  completedBy User? @relation("NoteCompletedBy", fields: [completedById], references: [id])
 
   @@index([hotelId])
   @@index([hotelId, isCompleted])
@@ -1822,8 +2046,8 @@ model FrontDeskNote {
 
 model PushSubscription {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId   String   @db.Uuid @map("hotel_id")
-  userId    String   @db.Uuid @map("user_id")
+  hotelId   String   @map("hotel_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
   endpoint  String   @unique
   p256dh    String
   auth      String

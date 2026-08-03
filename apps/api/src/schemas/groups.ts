@@ -55,6 +55,9 @@ export const createGroupSchema = z
     name:           z.string().trim().min(1),
     groupRef:       z.string().trim().optional(),
     payerType:      payerTypeSchema,
+    // Preferred over the free-text payerName below. Set when the payer is a
+    // company on file, which is what links the group to a credit account.
+    companyId:      z.string().uuid().nullish(),
     payerName:      z.string().trim().min(1),
     payerContact:   optionalPhoneSchema,
     billingType:    billingTypeSchema.default("SINGLE"),
@@ -77,6 +80,7 @@ export type CreateGroupDto = z.infer<typeof createGroupSchema>;
 export const updateGroupSchema = z.object({
   name:           z.string().trim().min(1).optional(),
   payerType:      payerTypeSchema.optional(),
+  companyId:      z.string().uuid().nullish(),
   payerName:      z.string().trim().min(1).optional(),
   payerContact:   optionalPhoneSchema,
   billingType:    billingTypeSchema.optional(),

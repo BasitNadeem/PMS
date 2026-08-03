@@ -117,11 +117,8 @@ export const ExpenseService = {
 
     // Build SET clause dynamically
     const sets: Prisma.Sql[] = [];
-    if (dto.date          !== undefined) sets.push(Prisma.sql`date           = ${dto.date}::date`);
     if (dto.category      !== undefined) sets.push(Prisma.sql`category       = ${dto.category}`);
     if (dto.description   !== undefined) sets.push(Prisma.sql`description    = ${dto.description}`);
-    if (dto.amount        !== undefined) sets.push(Prisma.sql`amount         = ${dto.amount}::int`);
-    if (dto.paymentMethod !== undefined) sets.push(Prisma.sql`payment_method = ${dto.paymentMethod}`);
     if (dto.paidTo        !== undefined) sets.push(Prisma.sql`paid_to        = ${dto.paidTo}`);
     if (dto.receiptRef    !== undefined) sets.push(Prisma.sql`receipt_ref    = ${dto.receiptRef ?? null}`);
     if (dto.notes         !== undefined) sets.push(Prisma.sql`notes          = ${dto.notes ?? null}`);

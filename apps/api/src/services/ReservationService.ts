@@ -4,6 +4,7 @@ import type { JwtPayload } from "../middleware/auth";
 import { recalculateFolioTotals } from "../utils/folioTotals";
 import { recalculateGuestStats } from "../utils/guestStats";
 import { createLedgerEntryFromPayment } from "./CashBookService";
+import { assertCompanyBelongsToHotel, CompanyService } from "./CompanyService";
 import type {
   ListReservationsQuery,
   CreateReservationDto,
@@ -218,6 +219,10 @@ export const ReservationService = {
       }
       const balanceDue = totalAmount - advancePaid;
 
+      if (dto.companyId) {
+        await assertCompanyBelongsToHotel(db, actor.hotelId, dto.companyId);
+      }
+
       // Auto-inherit VIP status from the guest's profile unless explicitly overridden.
       let isVip = dto.isVip;
       if (isVip === undefined) {
@@ -246,6 +251,8 @@ export const ReservationService = {
           advancePaid,
           balanceDue,
           isVip,
+          companyId:     dto.companyId ?? null,
+          billToCompany: dto.billToCompany ?? false,
           rooms: {
             create: {
               roomId:       dto.roomId,
@@ -387,28 +394,57 @@ export const ReservationService = {
         throw new AppError(400, `Cannot transition from ${existing.status} to ${newStatus}`);
       }
 
-      // Block checkout when there is an outstanding folio balance.
+      // Block checkout when there is an outstanding folio balance — unless the
+      // stay is billed to a company on credit, in which case the balance is
+      // transferred to that company's ledger and the guest leaves settled.
       // For SINGLE billing groups, sub-reservations have no folio of their own —
       // we look up the shared group folio instead.
       if (newStatus === "CHECKED_OUT") {
         let folioBalance: number | null = null;
+        let folioId: string | null = null;
 
         if (existing.folio) {
           const folio = await db.folio.findUnique({
             where:  { id: existing.folio.id },
-            select: { balanceDue: true },
+            select: { id: true, balanceDue: true },
           });
           folioBalance = folio?.balanceDue ?? null;
+          folioId      = folio?.id ?? null;
         } else if (existing.groupId) {
           const masterRes = await db.reservation.findFirst({
             where:   { groupId: existing.groupId, folio: { isNot: null } },
-            include: { folio: { select: { balanceDue: true } } },
+            include: { folio: { select: { id: true, balanceDue: true } } },
           });
           folioBalance = masterRes?.folio?.balanceDue ?? null;
+          folioId      = masterRes?.folio?.id ?? null;
         }
 
         if (folioBalance !== null && folioBalance > 0) {
-          throw new AppError(400, "Cannot check out: the folio has an outstanding balance. Please settle the bill before checking out.");
+          const companyId = existing.companyId
+            ?? (existing.groupId
+              ? (await db.groupBooking.findUnique({
+                  where: { id: existing.groupId }, select: { companyId: true },
+                }))?.companyId ?? null
+              : null);
+
+          const billToCompany = existing.billToCompany && companyId !== null;
+
+          if (!billToCompany || !folioId) {
+            throw new AppError(400, "Cannot check out: the folio has an outstanding balance. Please settle the bill before checking out.");
+          }
+
+          // Gated separately from RESERVATION_CHECKOUT: extending credit is a
+          // different decision from letting a settled guest leave.
+          if (!actor.permissions.includes("COMPANY_LEDGER_POST")) {
+            throw new AppError(403, "You do not have permission to bill this folio to a company account. Ask a manager to complete the checkout.");
+          }
+
+          // Inside the same transaction as the status change, so a credit-limit
+          // rejection aborts the checkout rather than leaving a checked-out
+          // guest with an untransferred balance.
+          await CompanyService.transferFolio(db, actor, folioId, companyId!, {
+            idempotencyKey: `checkout:${folioId}`,
+          });
         }
       }
 
@@ -677,6 +713,10 @@ export const ReservationService = {
       const existing = await db.reservation.findUnique({ where: { id } });
       if (!existing) throw new AppError(404, "Reservation not found");
 
+      if (dto.companyId) {
+        await assertCompanyBelongsToHotel(db, actor.hotelId, dto.companyId);
+      }
+
       const updated = await db.reservation.update({
         where: { id },
         data: {
@@ -686,6 +726,8 @@ export const ReservationService = {
           ...(dto.specialRequests !== undefined && { specialRequests: dto.specialRequests }),
           ...(dto.internalNotes   !== undefined && { internalNotes:   dto.internalNotes }),
           ...(dto.isVip           !== undefined && { isVip:           dto.isVip }),
+          ...(dto.companyId       !== undefined && { companyId:       dto.companyId ?? null }),
+          ...(dto.billToCompany   !== undefined && { billToCompany:   dto.billToCompany }),
         },
       });
 

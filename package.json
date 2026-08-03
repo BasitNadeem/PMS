@@ -22,6 +22,7 @@
     "apply:rls": "tsx --env-file=.env scripts/apply-rls.ts",
     "backfill:guest-stats": "tsx --env-file=.env scripts/backfill-guest-stats.ts",
     "backfill:guest-birthdays": "tsx --env-file=.env scripts/backfill-guest-birthdays.ts",
+    "perms:companies": "tsx --env-file=.env scripts/add-company-permissions.ts",
     "setup": "pnpm docker:up && sleep 3 && pnpm db:migrate && pnpm apply:rls && pnpm db:generate && pnpm db:seed",
     "fresh-setup": "bash scripts/fresh-setup.sh",
     "verify-db": "bash scripts/verify-db.sh",

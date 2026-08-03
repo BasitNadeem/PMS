@@ -18,6 +18,12 @@ export const addPaymentSchema = z.object({
 });
 export type AddPaymentDto = z.infer<typeof addPaymentSchema>;
 
+export const refundPaymentSchema = z.object({
+  amount: z.number().int().positive("Refund amount must be positive"),
+  reason: z.string().trim().min(3, "Refund reason is required").max(500),
+});
+export type RefundPaymentDto = z.infer<typeof refundPaymentSchema>;
+
 export const billingListSchema = z.object({
   page:         z.coerce.number().int().min(1).default(1),
   limit:        z.coerce.number().int().min(1).max(100).default(20),

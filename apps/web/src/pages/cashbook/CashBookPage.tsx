@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BookOpen, ArrowDownLeft, ArrowUpRight, TrendingUp, TrendingDown,
-  Plus, ChevronLeft, ChevronRight, Wallet, Download, Loader2,
+  Plus, ChevronLeft, ChevronRight, Wallet, Download, Loader2, ArrowRightLeft,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -15,6 +15,7 @@ import {
 import { exportCashBookToExcel } from "@/lib/exportExcel";
 import { RecordEntryModal } from "@/components/cashbook/RecordEntryModal";
 import { BalancesDrawer } from "@/components/cashbook/BalancesDrawer";
+import { TransferAccountsModal } from "@/components/cashbook/TransferAccountsModal";
 import { useToast } from "@/hooks/useToast";
 import { ToastContainer } from "@/components/ui/ToastContainer";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -82,6 +83,10 @@ function fmtShortDate(iso: string) {
 function getSubText(entry: LedgerEntry): string {
   switch (entry.source_type) {
     case "FOLIO_PAYMENT":   return "Room payment";
+    case "PAYMENT_REFUND":  return "Payment refund";
+    case "POS_SALE":        return "POS sale";
+    case "QR_ORDER_SALE":   return "QR order";
+    case "ACCOUNT_TRANSFER":return "Account transfer";
     case "EXPENSE":         return "Expense";
     case "BANK_DEPOSIT":    return "Bank deposit";
     case "CASH_WITHDRAWAL": return "Cash withdrawal";
@@ -93,7 +98,11 @@ function getSubText(entry: LedgerEntry): string {
 
 const SOURCE_BADGE: Record<SourceType, { bg: string; text: string }> = {
   FOLIO_PAYMENT:   { bg: "bg-slate-soft",  text: "text-slate" },
+  PAYMENT_REFUND:  { bg: "bg-clay-soft",   text: "text-clay" },
   EXPENSE:         { bg: "bg-clay-soft",   text: "text-clay" },
+  POS_SALE:        { bg: "bg-pine-soft",   text: "text-pine" },
+  QR_ORDER_SALE:   { bg: "bg-pine-soft",   text: "text-pine" },
+  ACCOUNT_TRANSFER:{ bg: "bg-dusk-soft",   text: "text-dusk" },
   BANK_DEPOSIT:    { bg: "bg-dusk-soft",   text: "text-dusk" },
   CASH_WITHDRAWAL: { bg: "bg-amber-soft",  text: "text-amber" },
   OPENING_BALANCE: { bg: "bg-line-soft",   text: "text-ink-mute" },
@@ -138,7 +147,18 @@ export default function CashBookPage() {
   const [page,          setPage]          = useState(1);
   const [showRecord,    setShowRecord]    = useState(false);
   const [showBalances,  setShowBalances]  = useState(false);
+  const [showTransfer,  setShowTransfer]  = useState(false);
   const [exporting,     setExporting]     = useState(false);
+
+  // Verify automatic postings on every authorised visit. Unique source keys
+  // make this safe to repeat and repair any earlier secondary failure.
+  const reconciliation = useQuery({
+    queryKey: ["cashbook", "reconcile"],
+    queryFn: cashbookService.reconcile,
+    enabled: canCreate,
+    staleTime: 60_000,
+  });
+  const reconciliationFinished = !canCreate || reconciliation.isSuccess || reconciliation.isError;
 
   async function handleExport() {
     setExporting(true);
@@ -166,6 +186,7 @@ export default function CashBookPage() {
     queryFn:  () => cashbookService.getSummary({ startDate, endDate }),
     staleTime: 30_000,
     refetchInterval: 15_000,
+    enabled: reconciliationFinished,
   });
 
   const { data: ledgerData, isLoading } = useQuery({
@@ -178,6 +199,7 @@ export default function CashBookPage() {
       limit: PAGE_SIZE,
     }),
     refetchInterval: 15_000,
+    enabled: reconciliationFinished,
   });
 
   const entries = ledgerData?.data ?? [];
@@ -231,6 +253,11 @@ export default function CashBookPage() {
               ? <><Loader2 size={14} className="animate-spin" />Exporting…</>
               : <><Download size={14} />Export</>}
           </button>
+          {canCreate && (
+            <button onClick={() => setShowTransfer(true)} className="inline-flex h-10 items-center gap-2 rounded-full border border-line bg-card px-4 text-sm font-semibold text-ink-soft hover:bg-mist">
+              <ArrowRightLeft size={14} /> Transfer
+            </button>
+          )}
           {canCreate && (
             <button
               onClick={() => setShowRecord(true)}
@@ -492,6 +519,9 @@ export default function CashBookPage() {
       )}
       {showBalances && (
         <BalancesDrawer onClose={() => setShowBalances(false)} />
+      )}
+      {showTransfer && (
+        <TransferAccountsModal onClose={() => setShowTransfer(false)} onSuccess={() => addToast("Account transfer recorded.")} />
       )}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>

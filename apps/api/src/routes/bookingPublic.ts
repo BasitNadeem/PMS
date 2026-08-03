@@ -10,6 +10,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { adminPrisma, Prisma } from "@pms/db";
+import type { TenantTx } from "@pms/db";
 import { publicWithTenant } from "../lib/publicTenant";
 import { checkFeatureAccess } from "../lib/subscription";
 import { RoomService } from "../services/RoomService";
@@ -28,8 +29,97 @@ import {
 } from "../schemas/bookingPublic";
 import { AppError } from "../utils/AppError";
 import { assertPromoCodeGuest, consumePromoCode } from "../utils/promoCodes";
+import type { BookMultiDto, CreateBookingRequestDto } from "../schemas/bookingPublic";
 
 const router: Router = Router();
+
+type PublicGuestCrmDto = Pick<
+  CreateBookingRequestDto | BookMultiDto,
+  "guestEmail" | "dateOfBirth" | "anniversaryDate" | "marketingOptIn"
+>;
+
+function crmDateParts(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return { year: year!, month: month!, day: day! };
+}
+
+/**
+ * Adds volunteered CRM details to the matched guest without replacing data the
+ * hotel already trusts. Public booking data is additive: a guest can fill a
+ * missing birthday or anniversary and explicitly opt in, but cannot overwrite
+ * an existing profile date from an unauthenticated form.
+ */
+async function applyPublicGuestCrm(
+  db: TenantTx,
+  hotelId: string,
+  guestId: string,
+  dto: PublicGuestCrmDto,
+) {
+  const existing = await db.guest.findUniqueOrThrow({
+    where: { id: guestId },
+    select: {
+      email: true,
+      dateOfBirth: true,
+      marketingOptIn: true,
+      specialDates: {
+        where: { kind: { in: ["BIRTHDAY", "ANNIVERSARY"] } },
+        select: { kind: true },
+      },
+    },
+  });
+
+  const hasBirthday = existing.specialDates.some((date) => date.kind === "BIRTHDAY");
+  const hasAnniversary = existing.specialDates.some((date) => date.kind === "ANNIVERSARY");
+  const emailCaptured = Boolean(!existing.email && dto.guestEmail);
+  const birthDateCaptured = Boolean(!existing.dateOfBirth && dto.dateOfBirth);
+  const birthdayAdded = Boolean(dto.dateOfBirth && !hasBirthday);
+  const anniversaryAdded = Boolean(dto.anniversaryDate && !hasAnniversary);
+  const consentCaptured = dto.marketingOptIn && !existing.marketingOptIn;
+
+  if (emailCaptured || birthDateCaptured || consentCaptured) {
+    await db.guest.update({
+      where: { id: guestId },
+      data: {
+        ...(emailCaptured ? { email: dto.guestEmail } : {}),
+        ...(birthDateCaptured
+          ? { dateOfBirth: new Date(`${dto.dateOfBirth}T00:00:00.000Z`) }
+          : {}),
+        ...(consentCaptured ? { marketingOptIn: true, marketingOptInAt: new Date() } : {}),
+      },
+    });
+  }
+
+  const specialDates = [
+    ...(birthdayAdded
+      ? [{ hotelId, guestId, kind: "BIRTHDAY" as const, ...crmDateParts(dto.dateOfBirth!), source: "BOOKING_ENGINE" }]
+      : []),
+    ...(anniversaryAdded
+      ? [{ hotelId, guestId, kind: "ANNIVERSARY" as const, ...crmDateParts(dto.anniversaryDate!), source: "BOOKING_ENGINE" }]
+      : []),
+  ];
+  if (specialDates.length > 0) {
+    await db.guestSpecialDate.createMany({ data: specialDates, skipDuplicates: true });
+  }
+
+  if (emailCaptured || birthdayAdded || anniversaryAdded || consentCaptured) {
+    await db.auditLog.create({
+      data: {
+        hotelId,
+        userId: null,
+        action: "GUEST_PROFILE_UPDATED",
+        entity: "guest",
+        entityId: guestId,
+        after: {
+          source: "BOOKING_ENGINE",
+          emailCaptured,
+          birthdayAdded,
+          anniversaryAdded,
+          marketingOptInCaptured: consentCaptured,
+        },
+      },
+    });
+  }
+}
 
 // Tighter rate limit on the booking submission endpoint only.
 const bookSubmitLimit = rateLimit({
@@ -300,6 +390,8 @@ router.post("/:hotelSlug/book", bookSubmitLimit, async (req, res) => {
       }
     }
 
+    await applyPublicGuestCrm(db, hotel.id, guest.id, dto);
+
     if (rateResult.appliedCode) {
       await assertPromoCodeGuest(db, hotel.id, rateResult.appliedCode, guest.id);
       const consumed = await consumePromoCode(db, hotel.id, rateResult.appliedCode);
@@ -520,6 +612,8 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
         bookingContactName = dto.guestName.trim();
       }
     }
+
+    await applyPublicGuestCrm(db, hotel.id, guest.id, dto);
 
     const appliedCode = [...rateMap.values()].find((rate) => rate.appliedCode)?.appliedCode;
     if (appliedCode) {

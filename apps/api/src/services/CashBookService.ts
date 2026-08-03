@@ -1,49 +1,14 @@
 /**
- * CashBookService — uses adminPrisma.$queryRaw / $executeRaw
- *
- * Run this SQL in your DB if not already done:
- *
- * DROP TABLE IF EXISTS ledger_entries;
- * DROP TABLE IF EXISTS cash_accounts;
- *
- * CREATE TABLE cash_accounts (
- *   id           UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
- *   hotel_id     UUID         NOT NULL,
- *   name         VARCHAR(255) NOT NULL,
- *   account_type VARCHAR(50)  NOT NULL,
- *   balance      INTEGER      NOT NULL DEFAULT 0,
- *   created_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
- *   updated_at   TIMESTAMPTZ  NOT NULL DEFAULT now()
- * );
- * CREATE INDEX cash_accounts_hotel_id_idx ON cash_accounts(hotel_id);
- *
- * CREATE TABLE ledger_entries (
- *   id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
- *   hotel_id       UUID        NOT NULL,
- *   account_id     UUID        NOT NULL,
- *   entry_type     VARCHAR(20) NOT NULL,
- *   amount         INTEGER     NOT NULL,
- *   balance_after  INTEGER     NOT NULL,
- *   source_type    VARCHAR(50) NOT NULL DEFAULT 'OTHER',
- *   source_id      UUID,
- *   description    TEXT        NOT NULL,
- *   payment_method VARCHAR(50),
- *   entry_date     DATE        NOT NULL DEFAULT CURRENT_DATE,
- *   notes          TEXT,
- *   recorded_by_id UUID,
- *   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
- *   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
- * );
- * CREATE INDEX ledger_entries_hotel_id_idx  ON ledger_entries(hotel_id);
- * CREATE INDEX ledger_entries_account_id_idx ON ledger_entries(account_id);
- * CREATE INDEX ledger_entries_date_idx       ON ledger_entries(hotel_id, entry_date DESC);
+ * Balance Book over the deliberately raw-SQL cash_accounts/ledger_entries
+ * tables. Schema changes belong in committed Prisma migration SQL; never use
+ * prisma db push and never recreate these tables manually.
  */
 
 import { adminPrisma, Prisma } from "@pms/db";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
 import { notifyHotelDataChanged } from "../lib/realtime";
-import type { AccountType, BalancesQuery, CreateAccountDto, CreateEntryDto, LedgerQuery, SummaryQuery } from "../schemas/cashbook";
+import type { AccountType, BalancesQuery, CreateAccountDto, CreateEntryDto, LedgerQuery, SummaryQuery, TransferDto } from "../schemas/cashbook";
 
 // ── Row types ─────────────────────────────────────────────────────────────────
 
@@ -72,7 +37,8 @@ export interface LedgerEntryRow {
   notes:          string | null;
   recorded_by_id: string | null;
   created_at:     Date;
-  updated_at:     Date;
+  reversal_of_entry_id: string | null;
+  transfer_group_id: string | null;
   // joined
   account_name:  string;
   account_type:  string;
@@ -107,6 +73,12 @@ export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   OTHER:        "Other",
 };
 
+type InternalEntryDto = CreateEntryDto & {
+  sourceId?: string;
+  reversalOfEntryId?: string;
+  transferGroupId?: string;
+};
+
 // ── Service ───────────────────────────────────────────────────────────────────
 
 export const CashBookService = {
@@ -126,19 +98,13 @@ export const CashBookService = {
 
   async getOrCreateAccount(hotelId: string, accountType: AccountType, _actorId: string): Promise<CashAccountRow> {
     try {
-      const existing = await adminPrisma.$queryRaw<CashAccountRow[]>`
-        SELECT * FROM cash_accounts
-        WHERE hotel_id = ${hotelId}::uuid AND account_type = ${accountType}
-        LIMIT 1
-      `;
-      if (existing.length > 0) return existing[0];
-
-      const created = await adminPrisma.$queryRaw<CashAccountRow[]>`
+      const rows = await adminPrisma.$queryRaw<CashAccountRow[]>`
         INSERT INTO cash_accounts (hotel_id, name, account_type, balance)
         VALUES (${hotelId}::uuid, ${ACCOUNT_TYPE_LABELS[accountType]}, ${accountType}, 0)
+        ON CONFLICT (hotel_id, lower(name)) DO UPDATE SET updated_at = cash_accounts.updated_at
         RETURNING *
       `;
-      return created[0];
+      return rows[0];
     } catch (err) {
       console.error("[CashBook] getOrCreateAccount error:", err);
       throw new AppError(500, "Failed to get or create cash account");
@@ -158,22 +124,18 @@ export const CashBookService = {
     } catch (err) {
       if (err instanceof AppError) throw err;
       console.error("[CashBook] createAccount SQL error:", err);
-      // Surface the real DB error so it's visible in the frontend during development
-      const msg = err instanceof Error ? err.message : "Unknown database error";
-      throw new AppError(500, `Failed to create account: ${msg}`);
+      throw new AppError(409, "An account with this name already exists");
     }
   },
 
-  async createEntry(hotelId: string, dto: CreateEntryDto, actorId: string): Promise<LedgerEntryRow> {
-    // Resolve account: use explicit accountId or fall back to CASH_DRAWER
-    const resolvedAccountId = dto.accountId
-      ?? (await CashBookService.getOrCreateAccount(hotelId, "CASH_DRAWER", actorId)).id;
+  async createEntry(hotelId: string, dto: InternalEntryDto, actorId: string): Promise<LedgerEntryRow> {
+    const resolvedAccountId = dto.accountId;
 
     // Use Intl to get current date in the hotel's timezone (PKT = Asia/Karachi, UTC+5).
     // Plain toISOString() returns UTC which gives yesterday's date before 05:00 local time.
     const today     = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date());
     const entryDate = dto.entryDate ?? today;
-    const sourceId  = (dto as CreateEntryDto & { sourceId?: string }).sourceId ?? null;
+    const sourceId  = dto.sourceId ?? null;
 
     try {
       return await adminPrisma.$transaction(async (tx) => {
@@ -184,40 +146,75 @@ export const CashBookService = {
         `;
         if (!account) throw new AppError(404, "Account not found");
 
-        const newBalance = dto.entryType === "INCOMING"
-          ? account.balance + dto.amount
-          : account.balance - dto.amount;
-
-        await tx.$executeRaw`
-          UPDATE cash_accounts
-          SET balance = ${newBalance}::int, updated_at = now()
-          WHERE id = ${resolvedAccountId}::uuid
-        `;
-
-        const [entry] = await tx.$queryRaw<[LedgerEntryRow]>`
+        const inserted = await tx.$queryRaw<LedgerEntryRow[]>`
           INSERT INTO ledger_entries
             (hotel_id, account_id, entry_type, amount, balance_after,
              source_type, source_id, description, payment_method,
-             entry_date, notes, recorded_by_id)
+             entry_date, notes, recorded_by_id, reversal_of_entry_id, transfer_group_id)
           VALUES
             (${hotelId}::uuid,
              ${resolvedAccountId}::uuid,
              ${dto.entryType},
-             ${dto.amount}::int,
-             ${newBalance}::int,
+             ${dto.amount}::bigint,
+             0,
              ${dto.sourceType},
-             ${sourceId}::uuid,
+             ${sourceId},
              ${dto.description},
              ${dto.paymentMethod ?? null},
              ${entryDate}::date,
              ${dto.notes ?? null},
-             ${actorId}::uuid)
+             ${actorId}::uuid,
+             ${dto.reversalOfEntryId ?? null}::uuid,
+             ${dto.transferGroupId ?? null}::uuid)
+          ON CONFLICT DO NOTHING
           RETURNING *,
             '' AS account_name,
             '' AS account_type,
             NULL::text AS recorder_name
         `;
-        return entry;
+        let entry = inserted[0];
+        if (!entry && sourceId) {
+          [entry] = await tx.$queryRaw<LedgerEntryRow[]>`
+            SELECT le.*, ca.name AS account_name, ca.account_type, NULL::text AS recorder_name
+            FROM ledger_entries le
+            JOIN cash_accounts ca ON ca.id = le.account_id
+            WHERE le.hotel_id = ${hotelId}::uuid
+              AND le.source_type = ${dto.sourceType}
+              AND le.source_id = ${sourceId}
+              AND le.entry_type = ${dto.entryType}
+            LIMIT 1
+          `;
+        }
+        if (!entry) throw new AppError(409, "This Balance Book movement has already been recorded");
+
+        await tx.$executeRaw`
+          WITH running AS (
+            SELECT id,
+                   SUM(CASE WHEN entry_type = 'INCOMING' THEN amount ELSE -amount END)
+                     OVER (ORDER BY entry_date, created_at, id) AS balance
+            FROM ledger_entries
+            WHERE hotel_id = ${hotelId}::uuid AND account_id = ${resolvedAccountId}::uuid
+          )
+          UPDATE ledger_entries le
+          SET balance_after = running.balance
+          FROM running
+          WHERE le.id = running.id
+        `;
+        const [balanceRow] = await tx.$queryRaw<{ balance: bigint }[]>`
+          SELECT COALESCE(SUM(CASE WHEN entry_type = 'INCOMING' THEN amount ELSE -amount END), 0)::bigint AS balance
+          FROM ledger_entries
+          WHERE hotel_id = ${hotelId}::uuid AND account_id = ${resolvedAccountId}::uuid
+        `;
+        await tx.$executeRaw`
+          UPDATE cash_accounts SET balance = ${balanceRow.balance}::bigint, updated_at = now()
+          WHERE id = ${resolvedAccountId}::uuid AND hotel_id = ${hotelId}::uuid
+        `;
+        const [current] = await tx.$queryRaw<LedgerEntryRow[]>`
+          SELECT le.*, ca.name AS account_name, ca.account_type, NULL::text AS recorder_name
+          FROM ledger_entries le JOIN cash_accounts ca ON ca.id = le.account_id
+          WHERE le.id = ${entry.id}::uuid
+        `;
+        return current;
       }).then((entry) => {
         notifyHotelDataChanged(hotelId);
         return entry;
@@ -225,9 +222,61 @@ export const CashBookService = {
     } catch (err) {
       if (err instanceof AppError) throw err;
       console.error("[CashBook] createEntry SQL error:", err);
-      const msg = err instanceof Error ? err.message : "Unknown database error";
-      throw new AppError(500, `Failed to record entry: ${msg}`);
+      throw new AppError(500, "Failed to record Balance Book entry");
     }
+  },
+
+  async createTransfer(hotelId: string, dto: TransferDto, actorId: string) {
+    const entryDate = dto.entryDate
+      ?? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date());
+    return adminPrisma.$transaction(async (tx) => {
+      const accounts = await tx.$queryRaw<{ id: string; balance: bigint }[]>`
+        SELECT id, balance FROM cash_accounts
+        WHERE hotel_id = ${hotelId}::uuid
+          AND id IN (${dto.fromAccountId}::uuid, ${dto.toAccountId}::uuid)
+        ORDER BY id FOR UPDATE
+      `;
+      if (accounts.length !== 2) throw new AppError(404, "One or both Balance Book accounts were not found");
+      const source = accounts.find((account) => account.id === dto.fromAccountId);
+      if (!source || Number(source.balance) < dto.amount) {
+        throw new AppError(400, "The source account does not have enough balance for this transfer");
+      }
+      const [group] = await tx.$queryRaw<{ id: string }[]>`SELECT gen_random_uuid() AS id`;
+
+      const entries = await tx.$queryRaw<LedgerEntryRow[]>`
+        INSERT INTO ledger_entries
+          (hotel_id, account_id, entry_type, amount, balance_after, source_type,
+           description, entry_date, notes, recorded_by_id, transfer_group_id)
+        VALUES
+          (${hotelId}::uuid, ${dto.fromAccountId}::uuid, 'OUTGOING', ${dto.amount}::bigint, 0,
+           'ACCOUNT_TRANSFER', ${dto.description}, ${entryDate}::date, ${dto.notes ?? null}, ${actorId}::uuid, ${group.id}::uuid),
+          (${hotelId}::uuid, ${dto.toAccountId}::uuid, 'INCOMING', ${dto.amount}::bigint, 0,
+           'ACCOUNT_TRANSFER', ${dto.description}, ${entryDate}::date, ${dto.notes ?? null}, ${actorId}::uuid, ${group.id}::uuid)
+        RETURNING *, '' AS account_name, '' AS account_type, NULL::text AS recorder_name
+      `;
+
+      await tx.$executeRaw`
+        WITH running AS (
+          SELECT id, account_id,
+                 SUM(CASE WHEN entry_type = 'INCOMING' THEN amount ELSE -amount END)
+                   OVER (PARTITION BY account_id ORDER BY entry_date, created_at, id) AS balance
+          FROM ledger_entries
+          WHERE hotel_id = ${hotelId}::uuid
+            AND account_id IN (${dto.fromAccountId}::uuid, ${dto.toAccountId}::uuid)
+        )
+        UPDATE ledger_entries le SET balance_after = running.balance
+        FROM running WHERE le.id = running.id
+      `;
+      await tx.$executeRaw`
+        UPDATE cash_accounts ca SET balance = COALESCE((
+          SELECT SUM(CASE WHEN le.entry_type = 'INCOMING' THEN le.amount ELSE -le.amount END)
+          FROM ledger_entries le WHERE le.hotel_id = ca.hotel_id AND le.account_id = ca.id
+        ), 0), updated_at = now()
+        WHERE ca.hotel_id = ${hotelId}::uuid
+          AND ca.id IN (${dto.fromAccountId}::uuid, ${dto.toAccountId}::uuid)
+      `;
+      return { transferGroupId: group.id, outgoing: entries.find((e) => e.entry_type === "OUTGOING"), incoming: entries.find((e) => e.entry_type === "INCOMING") };
+    }).then((result) => { notifyHotelDataChanged(hotelId); return result; });
   },
 
   async getSummary(hotelId: string, params: SummaryQuery) {
@@ -250,7 +299,7 @@ export const CashBookService = {
       return { totalIncoming: totalIn, totalOutgoing: totalOut, netFlow: totalIn - totalOut };
     } catch (err) {
       console.error("[CashBook] getSummary error:", err);
-      return { totalIncoming: 0, totalOutgoing: 0, netFlow: 0 };
+      throw new AppError(500, "Failed to load Balance Book summary");
     }
   },
 
@@ -270,13 +319,10 @@ export const CashBookService = {
           ca.name,
           ca.account_type,
           COALESCE((
-            SELECT le.balance_after
-            FROM   ledger_entries le
-            WHERE  le.account_id = ca.id
-              AND  le.hotel_id   = ca.hotel_id
-              AND  le.entry_date <= ${asOf}::date
-            ORDER  BY le.entry_date DESC, le.created_at DESC
-            LIMIT  1
+            SELECT SUM(CASE WHEN le.entry_type = 'INCOMING' THEN le.amount ELSE -le.amount END)
+            FROM ledger_entries le
+            WHERE le.account_id = ca.id AND le.hotel_id = ca.hotel_id
+              AND le.entry_date <= ${asOf}::date
           ), 0)::bigint AS balance,
           COALESCE((
             SELECT SUM(le.amount)
@@ -308,7 +354,7 @@ export const CashBookService = {
         .filter((r) => r.totalIn > 0 || r.totalOut > 0);
     } catch (err) {
       console.error("[CashBook] getBalances error:", err);
-      return [];
+      throw new AppError(500, "Failed to load Balance Book account balances");
     }
   },
 
@@ -375,8 +421,37 @@ export const CashBookService = {
       // Surface as a proper API error rather than silently returning empty data —
       // silent empty results made it impossible to tell whether the cashbook tables
       // were missing vs genuinely empty.
-      throw new AppError(500, `Balance book query failed: ${msg}`);
+      throw new AppError(500, "Balance Book query failed");
     }
+  },
+
+  async exportLedger(hotelId: string, params: Omit<LedgerQuery, "page" | "limit">) {
+    const conds: Prisma.Sql[] = [Prisma.sql`le.hotel_id = ${hotelId}::uuid`];
+    if (params.accountId)  conds.push(Prisma.sql`le.account_id = ${params.accountId}::uuid`);
+    if (params.startDate)  conds.push(Prisma.sql`le.entry_date >= ${params.startDate}::date`);
+    if (params.endDate)    conds.push(Prisma.sql`le.entry_date <= ${params.endDate}::date`);
+    if (params.entryType)  conds.push(Prisma.sql`le.entry_type = ${params.entryType}`);
+    if (params.sourceType) conds.push(Prisma.sql`le.source_type = ${params.sourceType}`);
+    const where = Prisma.join(conds, " AND ");
+
+    const [entries, totals] = await Promise.all([
+      adminPrisma.$queryRaw<LedgerEntryRow[]>`
+        SELECT le.*, ca.name AS account_name, ca.account_type, NULL::text AS recorder_name
+        FROM ledger_entries le
+        JOIN cash_accounts ca ON ca.id = le.account_id
+        WHERE ${where}
+        ORDER BY le.entry_date DESC, le.created_at DESC
+      `,
+      adminPrisma.$queryRaw<[{ total_incoming: bigint; total_outgoing: bigint }]>`
+        SELECT
+          COALESCE(SUM(CASE WHEN le.entry_type = 'INCOMING' THEN le.amount ELSE 0 END), 0)::bigint AS total_incoming,
+          COALESCE(SUM(CASE WHEN le.entry_type = 'OUTGOING' THEN le.amount ELSE 0 END), 0)::bigint AS total_outgoing
+        FROM ledger_entries le WHERE ${where}
+      `,
+    ]);
+    const totalIncoming = Number(totals[0]?.total_incoming ?? 0);
+    const totalOutgoing = Number(totals[0]?.total_outgoing ?? 0);
+    return { entries, summary: { totalIncoming, totalOutgoing, netFlow: totalIncoming - totalOutgoing } };
   },
 
   async setOpeningBalance(hotelId: string, accountId: string, amount: number, actorId: string): Promise<LedgerEntryRow> {
@@ -400,15 +475,20 @@ export const CashBookService = {
 
 export async function createLedgerEntryFromPayment(
   hotelId: string,
-  payment: { id: string; amount: number; method: string; reservationId: string },
+  payment: { id: string; amount: number; method: string; reservationId: string; entryDate?: string },
   actorId: string,
 ): Promise<void> {
   try {
-    const accountType = PAYMENT_METHOD_TO_ACCOUNT[payment.method] ?? "CASH_DRAWER";
+    // These settle a folio without representing new money entering the hotel.
+    // ADVANCE_DEPOSIT was collected earlier; OTA_COLLECT is a receivable;
+    // COMPLIMENTARY is not money at all.
+    if (["ADVANCE_DEPOSIT", "OTA_COLLECT", "COMPLIMENTARY"].includes(payment.method)) return;
+    const accountType = PAYMENT_METHOD_TO_ACCOUNT[payment.method];
+    if (!accountType) throw new AppError(400, `Unsupported payment method: ${payment.method}`);
     const account     = await CashBookService.getOrCreateAccount(hotelId, accountType, actorId);
 
     const reservation = await adminPrisma.reservation.findFirst({
-      where:  { id: payment.reservationId },
+      where:  { id: payment.reservationId, hotelId },
       select: { confirmationNumber: true },
     });
     const ref = reservation?.confirmationNumber ?? payment.reservationId.slice(0, 8);
@@ -423,21 +503,75 @@ export async function createLedgerEntryFromPayment(
         sourceId:      payment.id,
         description:   `Payment — ${ref}`,
         paymentMethod: payment.method,
+        entryDate:     payment.entryDate,
       } as CreateEntryDto & { sourceId: string },
       actorId,
     );
   } catch (err) {
     console.error("[CashBook] createLedgerEntryFromPayment error:", payment.id, err);
+    throw err;
+  }
+}
+
+export async function createLedgerEntryFromRefund(
+  hotelId: string,
+  refund: { id: string; amount: number; method: string; reservationId: string; entryDate?: string },
+  actorId: string,
+): Promise<void> {
+  try {
+    if (["ADVANCE_DEPOSIT", "OTA_COLLECT", "COMPLIMENTARY"].includes(refund.method)) return;
+    const accountType = PAYMENT_METHOD_TO_ACCOUNT[refund.method];
+    if (!accountType) throw new AppError(400, `Unsupported refund method: ${refund.method}`);
+    const account = await CashBookService.getOrCreateAccount(hotelId, accountType, actorId);
+    await CashBookService.createEntry(hotelId, {
+      accountId: account.id, entryType: "OUTGOING", amount: refund.amount,
+      sourceType: "PAYMENT_REFUND", sourceId: refund.id,
+      description: `Payment refund — ${refund.reservationId.slice(0, 8)}`,
+      paymentMethod: refund.method,
+      entryDate: refund.entryDate,
+    }, actorId);
+  } catch (err) {
+    console.error("[CashBook] createLedgerEntryFromRefund error:", refund.id, err);
+    throw err;
+  }
+}
+
+export async function createLedgerEntryFromCompanyMovement(
+  hotelId: string,
+  movement: {
+    id: string; companyName: string; amount: number; method: string;
+    direction: "INCOMING" | "OUTGOING"; entryDate?: string;
+  },
+  actorId: string,
+): Promise<void> {
+  try {
+    const accountType = PAYMENT_METHOD_TO_ACCOUNT[movement.method];
+    if (!accountType) throw new AppError(400, `Unsupported company payment method: ${movement.method}`);
+    const account = await CashBookService.getOrCreateAccount(hotelId, accountType, actorId);
+    await CashBookService.createEntry(hotelId, {
+      accountId: account.id,
+      entryType: movement.direction,
+      amount: movement.amount,
+      sourceType: movement.direction === "INCOMING" ? "COMPANY_PAYMENT" : "COMPANY_CREDIT_REFUND",
+      sourceId: movement.id,
+      description: `${movement.direction === "INCOMING" ? "Company payment" : "Company credit refund"} — ${movement.companyName}`,
+      paymentMethod: movement.method,
+      entryDate: movement.entryDate,
+    }, actorId);
+  } catch (err) {
+    console.error("[CashBook] createLedgerEntryFromCompanyMovement error:", movement.id, err);
+    throw err;
   }
 }
 
 export async function createLedgerEntryFromPosOrder(
   hotelId: string,
-  order: { id: string; orderNumber: string; total: number; paymentMethod: string },
+  order: { id: string; orderNumber: string; total: number; paymentMethod: string; entryDate?: string },
   actorId: string,
 ): Promise<void> {
   try {
-    const accountType = PAYMENT_METHOD_TO_ACCOUNT[order.paymentMethod] ?? "CASH_DRAWER";
+    const accountType = PAYMENT_METHOD_TO_ACCOUNT[order.paymentMethod];
+    if (!accountType) throw new AppError(400, `Unsupported POS payment method: ${order.paymentMethod}`);
     const account      = await CashBookService.getOrCreateAccount(hotelId, accountType, actorId);
 
     await CashBookService.createEntry(
@@ -450,21 +584,24 @@ export async function createLedgerEntryFromPosOrder(
         sourceId:      order.id,
         description:   `POS Sale — ${order.orderNumber}`,
         paymentMethod: order.paymentMethod,
+        entryDate:     order.entryDate,
       } as CreateEntryDto & { sourceId: string },
       actorId,
     );
   } catch (err) {
     console.error("[CashBook] createLedgerEntryFromPosOrder error:", order.id, err);
+    throw err;
   }
 }
 
 export async function createLedgerEntryFromQrOrder(
   hotelId: string,
-  order: { id: string; orderNumber: string; total: number; paymentMethod: string },
+  order: { id: string; orderNumber: string; total: number; paymentMethod: string; entryDate?: string },
   actorId: string,
 ): Promise<void> {
   try {
-    const accountType = PAYMENT_METHOD_TO_ACCOUNT[order.paymentMethod] ?? "CASH_DRAWER";
+    const accountType = PAYMENT_METHOD_TO_ACCOUNT[order.paymentMethod];
+    if (!accountType) throw new AppError(400, `Unsupported QR payment method: ${order.paymentMethod}`);
     const account      = await CashBookService.getOrCreateAccount(hotelId, accountType, actorId);
 
     await CashBookService.createEntry(
@@ -477,21 +614,24 @@ export async function createLedgerEntryFromQrOrder(
         sourceId:      order.id,
         description:   `QR Order — ${order.orderNumber}`,
         paymentMethod: order.paymentMethod,
+        entryDate:     order.entryDate,
       } as CreateEntryDto & { sourceId: string },
       actorId,
     );
   } catch (err) {
     console.error("[CashBook] createLedgerEntryFromQrOrder error:", order.id, err);
+    throw err;
   }
 }
 
 export async function createLedgerEntryFromExpense(
   hotelId: string,
-  expense: { id: string; amount: number; paymentMethod: string; description: string; paidTo: string },
+  expense: { id: string; amount: number; paymentMethod: string; description: string; paidTo: string; entryDate?: string },
   actorId: string,
 ): Promise<void> {
   try {
-    const accountType = EXPENSE_METHOD_TO_ACCOUNT[expense.paymentMethod] ?? "CASH_DRAWER";
+    const accountType = EXPENSE_METHOD_TO_ACCOUNT[expense.paymentMethod];
+    if (!accountType) throw new AppError(400, `Unsupported expense payment method: ${expense.paymentMethod}`);
     const account     = await CashBookService.getOrCreateAccount(hotelId, accountType, actorId);
 
     await CashBookService.createEntry(
@@ -504,12 +644,141 @@ export async function createLedgerEntryFromExpense(
         sourceId:      expense.id,
         description:   `${expense.description} — ${expense.paidTo}`,
         paymentMethod: expense.paymentMethod,
+        entryDate:     expense.entryDate,
       } as CreateEntryDto & { sourceId: string },
       actorId,
     );
   } catch (err) {
     console.error("[CashBook] createLedgerEntryFromExpense error:", expense.id, err);
+    throw err;
   }
+}
+
+/**
+ * Repair any automatic source movement that was missed after its primary
+ * transaction succeeded. Safe to run repeatedly because automatic source
+ * movements are protected by a unique source/direction index.
+ */
+export async function reconcileCashBook(hotelId: string, actorId: string) {
+  const dateOf = (value: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(value);
+  const [payments, expenses, posOrders, qrOrders, companyPayments, companyOutflows] = await Promise.all([
+    adminPrisma.$queryRaw<Array<{ id: string; amount: number; method: string; reservation_id: string | null; is_refund: boolean; posted_at: Date }>>`
+      SELECT p.id, p.amount, p.method::text, p.reservation_id, p.is_refund, p.posted_at
+      FROM payments p
+      WHERE p.hotel_id = ${hotelId}::uuid AND p.status = 'COMPLETED'
+        AND p.method::text NOT IN ('ADVANCE_DEPOSIT', 'OTA_COLLECT', 'COMPLIMENTARY')
+        AND NOT EXISTS (
+          SELECT 1 FROM ledger_entries le
+          WHERE le.hotel_id = p.hotel_id AND le.source_id = p.id::text
+            AND le.source_type = CASE WHEN p.is_refund THEN 'PAYMENT_REFUND' ELSE 'FOLIO_PAYMENT' END
+            AND le.entry_type = CASE WHEN p.is_refund THEN 'OUTGOING' ELSE 'INCOMING' END
+        )
+    `,
+    adminPrisma.$queryRaw<Array<{ id: string; amount: number; payment_method: string; description: string; paid_to: string; date: Date }>>`
+      SELECT id, amount, payment_method, description, paid_to, date
+      FROM expenses e WHERE e.hotel_id = ${hotelId}::uuid
+        AND NOT EXISTS (
+          SELECT 1 FROM ledger_entries le WHERE le.hotel_id = e.hotel_id
+            AND le.source_type = 'EXPENSE' AND le.source_id = e.id::text AND le.entry_type = 'OUTGOING'
+        )
+    `,
+    adminPrisma.$queryRaw<Array<{ id: string; order_number: string; total: number; table_number: string; created_at: Date }>>`
+      SELECT id, order_number, total, table_number, created_at
+      FROM pos_orders po
+      WHERE po.hotel_id = ${hotelId}::uuid AND po.is_posted_to_folio = false AND po.table_number LIKE 'PAID:%'
+        AND NOT EXISTS (
+          SELECT 1 FROM ledger_entries le WHERE le.hotel_id = po.hotel_id
+            AND le.source_type = 'POS_SALE' AND le.source_id = po.id::text AND le.entry_type = 'INCOMING'
+        )
+    `,
+    adminPrisma.$queryRaw<Array<{ id: string; order_number: string; total_amount: bigint; payment_method: string; updated_at: Date }>>`
+      SELECT id, order_number, total_amount, payment_method, updated_at
+      FROM qr_orders qo
+      WHERE qo.hotel_id = ${hotelId}::uuid AND qo.status = 'delivered'
+        AND qo.payment_preference = 'pay_now' AND qo.payment_method IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM ledger_entries le WHERE le.hotel_id = qo.hotel_id
+            AND le.source_type = 'QR_ORDER_SALE' AND le.source_id = qo.id::text AND le.entry_type = 'INCOMING'
+        )
+    `,
+    adminPrisma.$queryRaw<Array<{ id: string; amount: bigint; payment_method: string; entry_date: Date; company_name: string }>>`
+      SELECT cle.id, cle.amount, cle.payment_method::text, cle.entry_date, c.name AS company_name
+      FROM company_ledger_entries cle
+      JOIN companies c ON c.id = cle.company_id
+      WHERE cle.hotel_id = ${hotelId}::uuid AND cle.type = 'PAYMENT' AND cle.reversed_at IS NULL
+        AND cle.payment_method IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM ledger_entries le WHERE le.hotel_id = cle.hotel_id
+            AND le.source_type = 'COMPANY_PAYMENT' AND le.source_id = cle.id::text AND le.entry_type = 'INCOMING'
+        )
+    `,
+    adminPrisma.$queryRaw<Array<{ id: string; amount: bigint; payment_method: string; movement_date: Date; company_name: string }>>`
+      SELECT cle.id, cle.amount, cle.payment_method::text,
+             CASE WHEN cle.type = 'PAYMENT' THEN cle.reversed_at ELSE cle.entry_date END AS movement_date,
+             c.name AS company_name
+      FROM company_ledger_entries cle
+      JOIN companies c ON c.id = cle.company_id
+      WHERE cle.hotel_id = ${hotelId}::uuid
+        AND ((cle.type = 'CREDIT_REFUND' AND cle.reversed_at IS NULL)
+          OR (cle.type = 'PAYMENT' AND cle.reversed_at IS NOT NULL))
+        AND cle.payment_method IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM ledger_entries le WHERE le.hotel_id = cle.hotel_id
+            AND le.source_type = 'COMPANY_CREDIT_REFUND' AND le.source_id = cle.id::text AND le.entry_type = 'OUTGOING'
+        )
+    `,
+  ]);
+
+  let repaired = 0;
+  const run = async (operation: () => Promise<void>) => {
+    const before = repaired;
+    try { await operation(); repaired += 1; } catch (error) {
+      console.error("[CashBook] reconciliation item failed:", error);
+    }
+    return repaired > before;
+  };
+
+  for (const payment of payments) {
+    if (!payment.reservation_id) continue;
+    await run(() => payment.is_refund
+      ? createLedgerEntryFromRefund(hotelId, { id: payment.id, amount: payment.amount, method: payment.method, reservationId: payment.reservation_id!, entryDate: dateOf(payment.posted_at) }, actorId)
+      : createLedgerEntryFromPayment(hotelId, { id: payment.id, amount: payment.amount, method: payment.method, reservationId: payment.reservation_id!, entryDate: dateOf(payment.posted_at) }, actorId));
+  }
+  for (const expense of expenses) {
+    await run(() => createLedgerEntryFromExpense(hotelId, {
+      id: expense.id, amount: expense.amount, paymentMethod: expense.payment_method,
+      description: expense.description, paidTo: expense.paid_to, entryDate: dateOf(expense.date),
+    }, actorId));
+  }
+  for (const order of posOrders) {
+    await run(() => createLedgerEntryFromPosOrder(hotelId, {
+      id: order.id, orderNumber: order.order_number, total: order.total,
+      paymentMethod: order.table_number.slice(5), entryDate: dateOf(order.created_at),
+    }, actorId));
+  }
+  for (const order of qrOrders) {
+    await run(() => createLedgerEntryFromQrOrder(hotelId, {
+      id: order.id, orderNumber: order.order_number, total: Number(order.total_amount),
+      paymentMethod: order.payment_method, entryDate: dateOf(order.updated_at),
+    }, actorId));
+  }
+  for (const payment of companyPayments) {
+    await run(() => createLedgerEntryFromCompanyMovement(hotelId, {
+      id: payment.id, companyName: payment.company_name, amount: Number(payment.amount),
+      method: payment.payment_method, direction: "INCOMING", entryDate: dateOf(payment.entry_date),
+    }, actorId));
+  }
+  for (const movement of companyOutflows) {
+    await run(() => createLedgerEntryFromCompanyMovement(hotelId, {
+      id: movement.id, companyName: movement.company_name, amount: Number(movement.amount),
+      method: movement.payment_method, direction: "OUTGOING", entryDate: dateOf(movement.movement_date),
+    }, actorId));
+  }
+  return {
+    scanned: payments.length + expenses.length + posOrders.length + qrOrders.length
+      + companyPayments.length + companyOutflows.length,
+    repaired,
+  };
 }
 
 export async function voidLedgerEntryFromExpense(
@@ -542,10 +811,12 @@ export async function voidLedgerEntryFromExpense(
         sourceId:      expenseId,
         description:   `Void: ${original.description}`,
         paymentMethod: original.payment_method ?? undefined,
-      } as CreateEntryDto & { sourceId: string },
+        reversalOfEntryId: original.id,
+      },
       actorId,
     );
   } catch (err) {
     console.error("[CashBook] voidLedgerEntryFromExpense error:", expenseId, err);
+    throw err;
   }
 }

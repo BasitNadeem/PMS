@@ -49,6 +49,9 @@ export interface FolioPayment {
   transactionRef: string | null;
   notes: string | null;
   postedAt: string;
+  isRefund: boolean;
+  originalPaymentId: string | null;
+  refundReason: string | null;
 }
 
 export interface FolioDetail {
@@ -70,6 +73,8 @@ export interface FolioDetail {
     checkOutDate: string;
     status: string;
     groupId: string | null;
+    companyId: string | null;
+    billToCompany: boolean;
     guest: { fullName: string };
     rooms: Array<{ room: { number: string }; roomType: { name: string } }>;
   };
@@ -135,6 +140,11 @@ export const folioService = {
 
   addPayment: async (reservationId: string, dto: AddPaymentDto): Promise<FolioPayment> => {
     const res = await api.post(`/api/reservations/${reservationId}/folio/payments`, dto);
+    return res.data.data;
+  },
+
+  refundPayment: async (reservationId: string, paymentId: string, dto: { amount: number; reason: string }): Promise<FolioPayment> => {
+    const res = await api.post(`/api/reservations/${reservationId}/folio/payments/${paymentId}/refund`, dto);
     return res.data.data;
   },
 

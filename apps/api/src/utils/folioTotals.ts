@@ -21,12 +21,12 @@ export async function recalculateFolioTotals(db: TenantTx, folioId: string): Pro
     }
   }
 
-  const paymentsAgg = await db.payment.aggregate({
-    where: { folioId, status: "COMPLETED", isRefund: false },
-    _sum:  { amount: true },
-  });
+  const [paymentsAgg, refundsAgg] = await Promise.all([
+    db.payment.aggregate({ where: { folioId, status: "COMPLETED", isRefund: false }, _sum: { amount: true } }),
+    db.payment.aggregate({ where: { folioId, status: "COMPLETED", isRefund: true }, _sum: { amount: true } }),
+  ]);
 
-  const paymentsTotal = paymentsAgg._sum.amount ?? 0;
+  const paymentsTotal = Math.max(0, (paymentsAgg._sum.amount ?? 0) - (refundsAgg._sum.amount ?? 0));
   const balanceDue    = chargesTotal + taxTotal - discountsTotal - paymentsTotal;
 
   await db.folio.update({

@@ -517,7 +517,7 @@ export const QrOrderService = {
           paymentMethod: dto.paymentMethod,
         },
         actorId,
-      );
+      ).catch(() => { /* logged inside; source id keeps retries idempotent */ });
     }
 
     // On confirm (kitchen accepts): deduct inventory for linked items. Forward-only

@@ -72,6 +72,9 @@ export interface BookingRequest {
   adults: number;
   children?: number;
   specialRequests?: string;
+  dateOfBirth?: string;
+  anniversaryDate?: string;
+  marketingOptIn?: boolean;
   promoCode?: string;
   termsAccepted?: boolean;
 }
@@ -101,6 +104,9 @@ export interface BookMultiRequest {
   adults: number;
   children?: number;
   specialRequests?: string;
+  dateOfBirth?: string;
+  anniversaryDate?: string;
+  marketingOptIn?: boolean;
   promoCode?: string;
   termsAccepted?: boolean;
 }

@@ -18,6 +18,8 @@ const HousekeepingMobilePage       = lazy(() => import("./pages/housekeeping/Hou
 const RoomsPage                    = lazy(() => import("./pages/rooms/RoomsPage"));
 const GuestsPage                   = lazy(() => import("./pages/guests/GuestsPage"));
 const GuestDetailPage              = lazy(() => import("./pages/guests/GuestDetailPage"));
+const CompaniesPage                = lazy(() => import("./pages/companies/CompaniesPage"));
+const CompanyDetailPage            = lazy(() => import("./pages/companies/CompanyDetailPage"));
 const ReservationsPage             = lazy(() => import("./pages/reservations/ReservationsPage"));
 const ReservationDetailPage        = lazy(() => import("./pages/reservations/ReservationDetailPage"));
 const GroupsPage                   = lazy(() => import("./pages/groups/GroupsPage"));
@@ -233,6 +235,26 @@ function PmsRoutes() {
             <PrivateRoute>
               <AppLayout>
                 <GuestDetailPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/companies"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <CompaniesPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/companies/:id"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <CompanyDetailPage />
               </AppLayout>
             </PrivateRoute>
           }

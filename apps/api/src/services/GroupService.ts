@@ -8,6 +8,7 @@ import { assertNoDuplicateGuest } from "../utils/guestDuplicate";
 import { notifyHotelDataChanged } from "../lib/realtime";
 import { enqueueReservationEmail } from "../lib/reservationEmails";
 import { calculateAccommodationCharges } from "../lib/accommodationCharges";
+import { assertCompanyBelongsToHotel } from "./CompanyService";
 import {
   GROUP_STATUSES,
   type ListGroupsQuery,
@@ -112,6 +113,9 @@ const GROUP_INCLUDE = {
     include: {
       guest: { select: { id: true, fullName: true, phone: true } },
     },
+  },
+  company: {
+    select: { id: true, name: true, type: true, creditLimit: true, balance: true, paymentTerms: true },
   },
 } as const;
 
@@ -235,6 +239,8 @@ export const GroupService = {
       name:           group.name,
       groupRef:       group.groupRef,
       payerType:      group.payerType,
+      companyId:      group.companyId,
+      company:        group.company,
       payerName:      group.payerName,
       payerContact:   group.payerContact,
       billingType:    group.billingType,
@@ -264,6 +270,9 @@ export const GroupService = {
 
   async createGroup(withTenant: WithTenantFn, actor: JwtPayload, dto: CreateGroupDto) {
     return withTenant(async (db) => {
+      if (dto.companyId) {
+        await assertCompanyBelongsToHotel(db, actor.hotelId, dto.companyId);
+      }
       const groupRef = dto.groupRef?.trim() || (await generateGroupRef(db, actor.hotelId));
       const nights   = nightsBetween(dto.checkInDate, dto.checkOutDate);
 
@@ -287,6 +296,7 @@ export const GroupService = {
           payerType:    dto.payerType,
           payerName:    dto.payerName,
           payerContact: dto.payerContact,
+          companyId:    dto.companyId ?? null,
           notes:        serializeNotes(notes),
         },
       });
@@ -370,6 +380,13 @@ export const GroupService = {
               hotelId:            actor.hotelId,
               guestId:            leaderGuestId,
               groupId:            group.id,
+              // Inherited from the group so checkout can find the credit
+              // account without walking back up to the group every time.
+              companyId:          group.companyId,
+              // Credit terms on the group are what makes the balance
+              // transferable at checkout instead of blocking it.
+              billToCompany:      group.companyId !== null
+                && (dto.paymentTerms === "CREDIT_30" || dto.paymentTerms === "CREDIT_60"),
               confirmationNumber: "",
               status:             "ENQUIRY",
               source:             "WALK_IN",
@@ -445,6 +462,10 @@ export const GroupService = {
         ...(dto.notes          !== undefined && { internalNotes:  dto.notes }),
       };
 
+      if (dto.companyId) {
+        await assertCompanyBelongsToHotel(db, actor.hotelId, dto.companyId);
+      }
+
       await db.groupBooking.update({
         where: { id: groupId },
         data: {
@@ -452,6 +473,7 @@ export const GroupService = {
           ...(dto.payerType    !== undefined && { payerType:    dto.payerType }),
           ...(dto.payerName    !== undefined && { payerName:    dto.payerName }),
           ...(dto.payerContact !== undefined && { payerContact: dto.payerContact }),
+          ...(dto.companyId    !== undefined && { companyId:    dto.companyId ?? null }),
           ...(dto.billingType  !== undefined && { billingType:  dto.billingType }),
           notes: serializeNotes(updatedNotes),
         },

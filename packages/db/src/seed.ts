@@ -30,6 +30,20 @@ const ALL_PERMISSIONS: { key: string; module: string; action: string; displayNam
   { key: "GUEST_CREATE",         module: "guest",        action: "create",   displayName: "Create Guests" },
   { key: "GUEST_UPDATE",         module: "guest",        action: "update",   displayName: "Edit Guests" },
   { key: "GUEST_DELETE",         module: "guest",        action: "delete",   displayName: "Delete Guests" },
+  // Companies / corporate credit accounts
+  { key: "COMPANY_READ",         module: "company",      action: "read",     displayName: "View Companies" },
+  { key: "COMPANY_CREATE",       module: "company",      action: "create",   displayName: "Create Companies" },
+  { key: "COMPANY_UPDATE",       module: "company",      action: "update",   displayName: "Edit Companies" },
+  { key: "COMPANY_DELETE",       module: "company",      action: "delete",   displayName: "Delete Companies" },
+  // Deliberately separate from COMPANY_UPDATE: setting a credit limit is a
+  // decision an owner makes, while transferring a folio to that credit is a
+  // routine front-desk action. Letting reception raise limits would defeat the
+  // limit entirely.
+  { key: "COMPANY_CREDIT_LIMIT", module: "company",      action: "limit",    displayName: "Set Company Credit Limits" },
+  { key: "COMPANY_LEDGER_POST",  module: "company",      action: "post",     displayName: "Bill Folios to Company Credit" },
+  { key: "COMPANY_PAYMENT",      module: "company",      action: "payment",  displayName: "Record Company Payments" },
+  { key: "COMPANY_WRITE_OFF",    module: "company",      action: "writeoff", displayName: "Write Off Company Debt" },
+  { key: "COMPANY_INVOICE",      module: "company",      action: "invoice",  displayName: "Issue Company Invoices" },
   // Reservations
   { key: "RESERVATION_READ",     module: "reservation",  action: "read",     displayName: "View Reservations" },
   { key: "RESERVATION_CREATE",   module: "reservation",  action: "create",   displayName: "Create Reservations" },
@@ -106,6 +120,9 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "RESERVATION_CANCEL", "RESERVATION_CHECKIN", "RESERVATION_CHECKOUT",
     "FOLIO_READ", "FOLIO_UPDATE",
     "PAYMENT_READ", "PAYMENT_CREATE",
+    // Reception books agency guests and settles them at checkout, but cannot
+    // create companies, move credit limits, or write debt off.
+    "COMPANY_READ", "COMPANY_LEDGER_POST",
   ],
 
   HOUSEKEEPING: [
@@ -132,6 +149,8 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "PAYMENT_READ", "PAYMENT_CREATE", "PAYMENT_REFUND",
     "INVOICE_READ", "INVOICE_CREATE", "INVOICE_UPDATE",
     "REPORT_READ",
+    "COMPANY_READ", "COMPANY_CREATE", "COMPANY_UPDATE",
+    "COMPANY_LEDGER_POST", "COMPANY_PAYMENT", "COMPANY_INVOICE",
   ],
 };
 
@@ -140,7 +159,7 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
 // RESOURCE_ACTION permission keys above, which gate individual API routes.
 
 const MODULE_KEYS = [
-  "dashboard", "rooms", "guests", "reservations", "groups",
+  "dashboard", "rooms", "guests", "companies", "reservations", "groups",
   "billing", "expenses", "cashbook", "housekeeping", "maintenance", "pos",
   "rates", "bookingEngine", "team", "reports", "settings", "notifications",
 ] as const;
@@ -177,6 +196,9 @@ const MODULE_ACTION_EXCLUSIONS = new Set<string>([
   "housekeeping:delete", "housekeeping:manage",
   "maintenance:delete", "maintenance:manage",
   "pos:delete",
+  // Companies have no bulk "manage" surface — the finer-grained COMPANY_*
+  // resource permissions above gate credit limits, payments and write-offs.
+  "companies:manage",
   // bookingEngine is a settings/insights hub, not a CRUD resource of its own —
   // read (view the hub) and manage (link out to edit linked resources) cover
   // it fully; create/update/delete would have nothing to act on.
@@ -201,6 +223,13 @@ const MODULE_PERMISSIONS: { key: string; module: string; action: string; display
         };
       })
   ),
+    // Sensitive corporate-credit actions, kept out of the generated CRUD grid
+    // above so each one is an individually revocable toggle.
+    { key: "companies:creditLimit", module: "companies", action: "creditLimit", displayName: "Set Company Credit Limits" },
+    { key: "companies:post",        module: "companies", action: "post",        displayName: "Bill Folios to Company Credit" },
+    { key: "companies:payment",     module: "companies", action: "payment",     displayName: "Record Company Payments" },
+    { key: "companies:writeOff",    module: "companies", action: "writeOff",    displayName: "Write Off Company Debt" },
+    { key: "companies:invoice",     module: "companies", action: "invoice",     displayName: "Issue Company Invoices" },
     { key: "shiftHandover:read",        module: "shiftHandover", action: "read",        displayName: "View Shift Handovers" },
     { key: "shiftHandover:submit",      module: "shiftHandover", action: "submit",      displayName: "Submit Shift Handovers" },
     { key: "shiftHandover:signoff",     module: "shiftHandover", action: "signoff",     displayName: "Sign Off Shift Handovers" },
@@ -217,6 +246,9 @@ const MODULE_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "dashboard:read",
     "rooms:read", "rooms:create", "rooms:update",
     "guests:read", "guests:create", "guests:update",
+    "companies:read", "companies:create", "companies:update",
+    "companies:creditLimit", "companies:post", "companies:payment",
+    "companies:writeOff", "companies:invoice",
     "reservations:read", "reservations:create", "reservations:update",
     "groups:read", "groups:create", "groups:update",
     "billing:read", "billing:create", "billing:update",
@@ -238,6 +270,7 @@ const MODULE_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "dashboard:read",
     "rooms:read",
     "guests:read", "guests:create", "guests:update",
+    "companies:read", "companies:post",
     "reservations:read", "reservations:create", "reservations:update",
     "groups:read", "groups:create", "groups:update",
     "billing:read", "billing:create", "billing:update",
@@ -266,6 +299,8 @@ const MODULE_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
 
   ACCOUNTANT: [
     "dashboard:read",
+    "companies:read", "companies:create", "companies:update",
+    "companies:post", "companies:payment", "companies:invoice",
     "billing:read", "billing:create", "billing:update",
     "expenses:read", "expenses:create", "expenses:update", "expenses:delete",
     "cashbook:read", "cashbook:create",

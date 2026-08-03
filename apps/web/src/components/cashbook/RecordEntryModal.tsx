@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { cashbookService, type EntryType } from "@/services/cashbook";
@@ -36,6 +36,7 @@ export function RecordEntryModal({ onClose, onSuccess }: RecordEntryModalProps) 
   const [amountInput,   setAmountInput]   = useState("");
   const [description,   setDescription]   = useState("");
   const [paymentMethod, setPaymentMethod] = useState("CASH");
+  const [accountId,     setAccountId]     = useState("");
   const [entryDate,     setEntryDate]     = useState(todayIso());
   const [notes,         setNotes]         = useState("");
   const [error,         setError]         = useState<string | null>(null);
@@ -44,9 +45,24 @@ export function RecordEntryModal({ onClose, onSuccess }: RecordEntryModalProps) 
   const amountPaisas  = Math.round(amountNum * 100);
   const amountPreview = amountNum > 0 ? `PKR ${Math.floor(amountNum).toLocaleString("en-PK")}` : "";
 
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["cashbook", "accounts"],
+    queryFn: cashbookService.getAccounts,
+  });
+
+  const suggestedAccount = accounts.find((account) => {
+    const expected = paymentMethod === "CASH" ? "CASH_DRAWER"
+      : paymentMethod === "JAZZCASH" ? "JAZZCASH"
+      : paymentMethod === "EASYPAISA" ? "EASYPAISA"
+      : "BANK_ACCOUNT";
+    return account.account_type === expected;
+  });
+  const resolvedAccountId = accountId || suggestedAccount?.id || accounts[0]?.id || "";
+
   const mutation = useMutation({
     mutationFn: () => cashbookService.createEntry({
       entryType,
+      accountId:     resolvedAccountId,
       amount:        amountPaisas,
       description:   description.trim(),
       paymentMethod,
@@ -59,7 +75,7 @@ export function RecordEntryModal({ onClose, onSuccess }: RecordEntryModalProps) 
       onSuccess(`${label} recorded as ${entryType === "INCOMING" ? "incoming" : "outgoing"}`);
       onClose();
     },
-    onError: () => setError("Failed to record entry. Please try again."),
+    onError: () => setError("Failed to record entry. Please check the account and try again."),
   });
 
   function handleSubmit(e: React.FormEvent) {
@@ -67,6 +83,7 @@ export function RecordEntryModal({ onClose, onSuccess }: RecordEntryModalProps) 
     setError(null);
     if (amountNum <= 0)      { setError("Enter a valid amount"); return; }
     if (!description.trim()) { setError("Description is required"); return; }
+    if (!resolvedAccountId)  { setError("Select the account where this money moved"); return; }
     mutation.mutate();
   }
 
@@ -149,6 +166,18 @@ export function RecordEntryModal({ onClose, onSuccess }: RecordEntryModalProps) 
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className={labelCls}>Account</label>
+            <select value={resolvedAccountId} onChange={(e) => setAccountId(e.target.value)}
+              className={cn(inputCls, "cursor-pointer")}>
+              {accounts.length === 0 && <option value="">No accounts available</option>}
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>{account.name}</option>
+              ))}
+            </select>
+            <p className="mt-1.5 text-[11.5px] text-ink-faint">Choose where the money actually entered or left.</p>
           </div>
 
           {/* Date */}

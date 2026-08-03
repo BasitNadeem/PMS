@@ -23,7 +23,12 @@ export const createExpenseSchema = z.object({
 });
 export type CreateExpenseDto = z.infer<typeof createExpenseSchema>;
 
-export const updateExpenseSchema = createExpenseSchema.partial();
+// Money, payment account and movement date are immutable after posting because
+// changing them would rewrite accounting history. Correct mistakes by deleting
+// (which posts a reversal) and recording the expense again.
+export const updateExpenseSchema = createExpenseSchema
+  .omit({ date: true, amount: true, paymentMethod: true })
+  .partial();
 export type UpdateExpenseDto = z.infer<typeof updateExpenseSchema>;
 
 export const listExpensesSchema = z.object({

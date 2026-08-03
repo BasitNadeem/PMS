@@ -1,7 +1,7 @@
 import type { TenantTx } from "@pms/db";
 import { FolioItemType } from "@pms/db";
 import type { JwtPayload } from "../middleware/auth";
-import type { AddFolioItemDto, AddPaymentDto, BillingListQuery } from "../schemas/folio";
+import type { AddFolioItemDto, AddPaymentDto, BillingListQuery, RefundPaymentDto } from "../schemas/folio";
 import { AppError } from "../utils/AppError";
 import { getPKTDayRange, getCurrentPKTDate } from "../lib/timezone";
 import { paginationMeta } from "../utils/pagination";
@@ -31,6 +31,8 @@ export const FolioService = {
               checkOutDate:       true,
               status:             true,
               groupId:            true,
+              companyId:          true,
+              billToCompany:      true,
               guest: { select: { fullName: true } },
               rooms: {
                 take:   1,
@@ -184,6 +186,66 @@ export const FolioService = {
 
     notifyHotelDataChanged(actor.hotelId);
     return payment;
+  },
+
+  async refundPayment(
+    withTenant: WithTenantFn, actor: JwtPayload, reservationId: string,
+    paymentId: string, dto: RefundPaymentDto,
+  ) {
+    const refund = await withTenant(async (db) => {
+      const locked = await db.$queryRaw<{ id: string }[]>`
+        SELECT id FROM payments
+        WHERE id = ${paymentId}::uuid AND hotel_id = ${actor.hotelId}::uuid
+        FOR UPDATE
+      `;
+      if (locked.length === 0) throw new AppError(404, "Completed payment not found");
+      const original = await db.payment.findFirst({
+        where: { id: paymentId, reservationId, status: "COMPLETED", isRefund: false },
+      });
+      if (!original) throw new AppError(404, "Completed payment not found");
+
+      const refunded = await db.payment.aggregate({
+        where: { originalPaymentId: paymentId, status: "COMPLETED", isRefund: true },
+        _sum: { amount: true },
+      });
+      const refundable = original.amount - (refunded._sum.amount ?? 0);
+      if (dto.amount > refundable) {
+        throw new AppError(400, `Only PKR ${(refundable / 100).toLocaleString("en-PK")} remains refundable`);
+      }
+
+      const created = await db.payment.create({
+        data: {
+          hotelId: actor.hotelId, folioId: original.folioId, reservationId,
+          method: original.method, status: "COMPLETED", amount: dto.amount,
+          isRefund: true, originalPaymentId: original.id, refundReason: dto.reason,
+          postedBy: actor.userId, notes: dto.reason,
+        },
+      });
+      if (original.folioId) {
+        // A customer refund is also a credit against the hotel charge. Recording
+        // only the cash reversal would reopen the folio and claim the guest owes
+        // the refunded amount again.
+        await db.folioItem.create({
+          data: {
+            hotelId: actor.hotelId, folioId: original.folioId,
+            type: "DISCOUNT", description: `Refund credit — ${dto.reason}`,
+            unitAmount: dto.amount, quantity: 1, amount: dto.amount,
+            netAmount: dto.amount, notes: `Refund payment ${created.id}`,
+          },
+        });
+        await recalculateFolioTotals(db, original.folioId);
+      }
+      await db.auditLog.create({
+        data: {
+          hotelId: actor.hotelId, userId: actor.userId, action: "PAYMENT_REFUND",
+          entity: "payment", entityId: created.id,
+          after: { originalPaymentId: original.id, amount: dto.amount, reason: dto.reason },
+        },
+      });
+      return created;
+    });
+    notifyHotelDataChanged(actor.hotelId);
+    return refund;
   },
 
   async listForBilling(withTenant: WithTenantFn, query: BillingListQuery) {

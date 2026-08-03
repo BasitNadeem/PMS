@@ -7,7 +7,9 @@ export type AccountType = typeof ACCOUNT_TYPES[number];
 
 export const ENTRY_TYPES  = ["INCOMING", "OUTGOING"] as const;
 export const SOURCE_TYPES = [
-  "FOLIO_PAYMENT", "EXPENSE", "POS_SALE", "QR_ORDER_SALE", "BANK_DEPOSIT", "CASH_WITHDRAWAL",
+  "FOLIO_PAYMENT", "PAYMENT_REFUND", "EXPENSE", "POS_SALE", "QR_ORDER_SALE", "ACCOUNT_TRANSFER",
+  "COMPANY_PAYMENT", "COMPANY_CREDIT_REFUND",
+  "BANK_DEPOSIT", "CASH_WITHDRAWAL",
   "OPENING_BALANCE", "ADJUSTMENT", "OTHER",
 ] as const;
 
@@ -18,12 +20,12 @@ export const createAccountSchema = z.object({
 export type CreateAccountDto = z.infer<typeof createAccountSchema>;
 
 export const openingBalanceSchema = z.object({
-  amount: z.number().int().min(0),
+  amount: z.number().int().positive(),
 });
 export type OpeningBalanceDto = z.infer<typeof openingBalanceSchema>;
 
 export const createEntrySchema = z.object({
-  accountId:     z.string().uuid().optional(),
+  accountId:     z.string().uuid(),
   entryType:     z.enum(ENTRY_TYPES),
   amount:        z.number().int().positive(),
   description:   z.string().trim().min(1),
@@ -33,6 +35,19 @@ export const createEntrySchema = z.object({
   paymentMethod: z.string().trim().optional(),
 });
 export type CreateEntryDto = z.infer<typeof createEntrySchema>;
+
+export const transferSchema = z.object({
+  fromAccountId: z.string().uuid(),
+  toAccountId:   z.string().uuid(),
+  amount:        z.number().int().positive(),
+  description:   z.string().trim().min(1).max(300),
+  entryDate:     z.string().date().optional(),
+  notes:         z.string().trim().max(1000).optional(),
+}).refine((value) => value.fromAccountId !== value.toAccountId, {
+  message: "Source and destination accounts must be different",
+  path: ["toAccountId"],
+});
+export type TransferDto = z.infer<typeof transferSchema>;
 
 export const ledgerQuerySchema = z.object({
   accountId:  z.string().uuid().optional(),

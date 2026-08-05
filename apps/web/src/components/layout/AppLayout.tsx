@@ -3,8 +3,8 @@ import { createPortal } from "react-dom";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, BedDouble, Users, Users2, Building2, CalendarCheck,
-  Landmark, Sparkles, ShoppingCart, FileBarChart, LogOut,
-  ChevronsUpDown, PanelLeftClose, PanelLeftOpen, TrendingUp, Menu, X, Settings,
+  Sparkles, ShoppingCart, FileBarChart, LogOut,
+  ChevronsUpDown, ChevronDown, PanelLeftClose, PanelLeftOpen, TrendingUp, Menu, X, Settings,
   Receipt, TrendingDown, BookOpen, Wrench, ClipboardList, ChefHat, Monitor, Package, Network, Moon, Tag, Globe,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -116,47 +116,71 @@ interface NavItem {
   newTab?: boolean;
   featureGate?: string;
   children?: NavSubItem[];
+  /** Which sidebar group this belongs to. Defaults to "main" (ungrouped, pinned top). */
+  section?: NavSectionId;
 }
 
+type NavSectionId = "main" | "frontDesk" | "property" | "fnb" | "finance" | "distribution" | "management";
+
+/**
+ * Sidebar groups, in the order a hotel actually works: take the booking, ready
+ * the room, serve the guest, count the money, run the business.
+ *
+ * A null label means the group renders without a header and cannot be
+ * collapsed — Dashboard should never be one click away behind a toggle.
+ *
+ * "Finance" holds accounting bookkeeping (expenses, balance book); it is
+ * deliberately not called "Revenue" since neither item is revenue.
+ * "Distribution" holds commercial/pricing tools (rate plans, booking engine,
+ * channels) — these shape what gets sold, not what's already been billed.
+ */
+const NAV_SECTIONS: { id: NavSectionId; label: string | null }[] = [
+  { id: "main",         label: null },
+  { id: "frontDesk",    label: "Front Desk" },
+  { id: "property",     label: "Property" },
+  { id: "fnb",          label: "Food & Beverage" },
+  { id: "finance",      label: "Finance" },
+  { id: "distribution", label: "Distribution" },
+  { id: "management",   label: "Management" },
+];
+
 const NAV_ITEMS: NavItem[] = [
-  { to: "/kitchen/dashboard", label: "Kitchen Dashboard", icon: ChefHat, permission: "pos:read", roleOnly: "KITCHEN", featureGate: "posModule" },
-  { to: "/kitchen/display", label: "Display Mode", icon: Monitor, permission: "pos:read", roleOnly: "KITCHEN", newTab: true, featureGate: "kitchenDisplay" },
-  { to: "/",             label: "Dashboard",    icon: LayoutDashboard, end: true, permission: "dashboard:read" },
-  { to: "/reservations", label: "Reservations", icon: CalendarCheck, permission: "reservations:read" },
-  { to: "/rooms",        label: "Rooms",        icon: BedDouble, permission: "rooms:read" },
-  { to: "/guests",       label: "Guests",       icon: Users, permission: "guests:read" },
-  { to: "/companies",    label: "Companies",    icon: Building2, permission: "companies:read" },
+  { to: "/kitchen/dashboard", label: "Kitchen Dashboard", icon: ChefHat, permission: "pos:read", roleOnly: "KITCHEN", featureGate: "posModule", section: "main" },
+  { to: "/kitchen/display", label: "Display Mode", icon: Monitor, permission: "pos:read", roleOnly: "KITCHEN", newTab: true, featureGate: "kitchenDisplay", section: "main" },
+  { to: "/",             label: "Dashboard",    icon: LayoutDashboard, end: true, permission: "dashboard:read", section: "main" },
+  { to: "/reservations", label: "Reservations", icon: CalendarCheck, permission: "reservations:read", section: "frontDesk" },
+  { to: "/rooms",        label: "Rooms",        icon: BedDouble, permission: "rooms:read", section: "frontDesk" },
+  { to: "/guests",       label: "Guests",       icon: Users, permission: "guests:read", section: "frontDesk" },
+  { to: "/companies",    label: "Companies",    icon: Building2, permission: "companies:read", section: "frontDesk" },
+  // Guest billing/folios are settled as part of check-in and checkout, so
+  // Billing lives with the rest of the guest-facing flow. Expenses and Balance
+  // Book are back-office bookkeeping — an owner/accountant concern — and live
+  // in Finance instead.
+  { to: "/financials",   label: "Billing",      icon: Receipt, permission: "billing:read", section: "frontDesk" },
+  { to: "/financials/expenses", label: "Expenses", icon: TrendingDown, permission: "expenses:read", section: "finance" },
+  { to: "/financials/cashbook", label: "Balance Book", icon: BookOpen, permission: "cashbook:read", section: "finance" },
+  { to: "/housekeeping", label: "Housekeeping", icon: Sparkles, permission: "housekeeping:read", section: "property" },
+  { to: "/maintenance", label: "Maintenance", icon: Wrench, permission: "maintenance:read", featureGate: "maintenanceTickets", section: "property" },
   {
-    to: "/financials",   label: "Financials",   icon: Landmark,
-    permission: "billing:read",
-    children: [
-      { to: "/financials",          label: "Billing",   icon: Receipt, permission: "billing:read" },
-      { to: "/financials/expenses", label: "Expenses",  icon: TrendingDown, permission: "expenses:read" },
-      { to: "/financials/cashbook", label: "Balance Book", icon: BookOpen, permission: "cashbook:read" },
-    ],
-  },
-  { to: "/housekeeping", label: "Housekeeping", icon: Sparkles, permission: "housekeeping:read" },
-  { to: "/maintenance", label: "Maintenance", icon: Wrench, permission: "maintenance:read", featureGate: "maintenanceTickets" },
-  {
-    to: "/operations", label: "Operations", icon: ClipboardList, permission: "shiftHandover:read",
+    to: "/operations", label: "Operations", icon: ClipboardList, permission: "shiftHandover:read", section: "management",
     children: [
       { to: "/operations/shift-handover", label: "Shift Handover", icon: ClipboardList, permission: "shiftHandover:read" },
       { to: "/operations/night-audit", label: "Night Audit", icon: Moon, permission: "nightAudit:read", featureGate: "nightAudit" },
     ],
   },
-  { to: "/team",         label: "Team",         icon: Users2, permission: "team:read" },
-  { to: "/pos", label: "POS", icon: ShoppingCart, permission: "pos:read", featureGate: "posModule" },
-  { to: "/qr-orders", label: "QR Orders", icon: ClipboardList, permission: "pos:read", featureGate: "qrOrdering" },
-  { to: "/inventory", label: "Inventory", icon: Package, permission: "pos:read", featureGate: "inventoryManagement" },
+  { to: "/team",         label: "Team",         icon: Users2, permission: "team:read", section: "management" },
+  { to: "/pos", label: "POS", icon: ShoppingCart, permission: "pos:read", featureGate: "posModule", section: "fnb" },
+  { to: "/qr-orders", label: "QR Orders", icon: ClipboardList, permission: "pos:read", featureGate: "qrOrdering", section: "fnb" },
+  { to: "/inventory", label: "Inventory", icon: Package, permission: "pos:read", featureGate: "inventoryManagement", section: "fnb" },
   {
-    to: "/reports", label: "Reports", icon: FileBarChart, permission: "reports:read",
+    to: "/reports", label: "Reports", icon: FileBarChart, permission: "reports:read", section: "management",
     children: [
       { to: "/reports",             label: "All Reports", icon: FileBarChart, permission: "reports:read" },
     ],
   },
-  { to: "/rate-plans",      label: "Rate Plans", icon: Tag,     permission: "rates:read",      featureGate: "ratePlans" },
-  { to: "/booking-engine",  label: "Booking Engine", icon: Globe, permission: "bookingEngine:read", featureGate: "bookingEngine" },
-  { to: "/channel-manager", label: "Channels",  icon: Network, permission: "dashboard:read",  featureGate: "channelManager" },
+  { to: "/rate-plans",      label: "Rate Plans", icon: Tag,     permission: "rates:read",      featureGate: "ratePlans", section: "distribution" },
+  { to: "/booking-engine",  label: "Booking Engine", icon: Globe, permission: "bookingEngine:read", featureGate: "bookingEngine", section: "distribution" },
+  { to: "/channel-manager", label: "Channels",  icon: Network, permission: "dashboard:read",  featureGate: "channelManager", section: "distribution" },
 ];
 
 function Logo({ size = 38 }: { size?: number }) {
@@ -234,6 +258,27 @@ function SidebarTooltip({ label, children }: { label: string; children: React.Re
   );
 }
 
+/**
+ * Whether a nav item owns the current path.
+ *
+ *  - Dashboard is "/" so it has to match exactly — startsWith would make it
+ *    own every route in the app.
+ *  - Billing ("/financials") also owns the folio detail page, which lives at
+ *    "/financials/folio/:id" rather than under its own top-level item.
+ *  - Expenses and Balance Book now sit at "/financials/expenses" and
+ *    "/financials/cashbook" as their own items, sharing the "/financials"
+ *    prefix with Billing — so a plain startsWith would make Billing light up
+ *    on their pages too. Excluded explicitly rather than trying to keep a
+ *    generic prefix rule correct as more routes are added under /financials.
+ */
+function itemMatchesPath(item: NavItem, pathname: string): boolean {
+  if (item.to === "/") return pathname === "/";
+  if (item.to === "/financials") {
+    return pathname === "/financials" || pathname.startsWith("/financials/folio");
+  }
+  return pathname.startsWith(item.to);
+}
+
 function SidebarContent({
   onNavigate,
   collapsed = false,
@@ -291,6 +336,25 @@ function SidebarContent({
 
   const cancelClose = useCallback(() => {
     if (hideTimer.current) clearTimeout(hideTimer.current);
+  }, []);
+
+  // Which groups the user has collapsed. Remembered across sessions like the
+  // rail toggle, so a hotel that never touches F&B can fold it away for good.
+  const [closedSections, setClosedSections] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem("sidebarClosedSections");
+      return saved ? (JSON.parse(saved) as Record<string, boolean>) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("sidebarClosedSections", JSON.stringify(closedSections));
+  }, [closedSections]);
+
+  const toggleSection = useCallback((id: NavSectionId) => {
+    setClosedSections((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
   const navItems = NAV_ITEMS
@@ -377,113 +441,147 @@ function SidebarContent({
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto scroll-area px-3 pt-1 pb-2">
-        {!collapsed && (
-          <div className="px-2 pb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-faint">
-            Operations
-          </div>
-        )}
-        <div className="flex flex-col gap-0.5">
-          {navItems.map((item) => {
-            const hasChildren = !!item.children?.length;
-            // Parent is active if path starts with its route (ignoring sub-routes)
-            const parentActive = hasChildren
-              ? pathname.startsWith(item.to)
-              : false;
+        {NAV_SECTIONS.map((section) => {
+          const items = navItems.filter((i) => (i.section ?? "main") === section.id);
+          if (items.length === 0) return null;
 
-            return (
-              <div
-                key={item.to}
-                onMouseEnter={collapsed && hasChildren ? (e) => openSubmenuFor(item.to, e.currentTarget.getBoundingClientRect()) : undefined}
-                onMouseLeave={collapsed && hasChildren ? scheduleClose : undefined}
-              >
-                {item.newTab ? (
-                  <button
-                    onClick={() => { window.open(item.to, "_blank"); onNavigate?.(); }}
-                    title={collapsed ? item.label : undefined}
-                    className={cn(
-                      "group relative flex w-full items-center gap-3 rounded-xl py-2.5 text-[14px] font-semibold transition-all duration-200 text-ink-soft hover:bg-line-soft",
-                      collapsed ? "justify-center px-0" : "px-3",
-                    )}
-                  >
-                    <item.icon size={19} strokeWidth={1.9} className="text-ink-mute group-hover:text-ink-soft shrink-0" />
-                    {!collapsed && (
-                      <>
-                        <span className="flex-1 text-left">{item.label}</span>
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-ink-faint bg-line-soft px-1.5 py-0.5 rounded">TV</span>
-                      </>
-                    )}
-                  </button>
-                ) : (
-                <NavLink
-                  to={item.to}
-                  end={item.end ?? (!hasChildren)}
-                  onClick={onNavigate}
-                  title={collapsed ? item.label : undefined}
-                  className={({ isActive }) =>
-                    cn(
-                      "group relative flex items-center gap-3 rounded-xl py-2.5 text-[14px] font-semibold transition-all duration-200",
-                      "outline-none focus-visible:ring-2 focus-visible:ring-coral/40 focus-visible:ring-offset-0",
-                      collapsed ? "justify-center px-0" : "px-3",
-                      (isActive || parentActive)
-                        ? "bg-ink text-white shadow-pop"
-                        : "text-ink-soft hover:bg-line-soft",
-                    )
-                  }
+          // The toggle always does what it says — forcing the active group open
+          // would make clicking its header look broken. Instead a closed group
+          // holding the current page gets a dot, so you keep your bearings.
+          // Headers are dropped entirely in the icon rail, where there is no
+          // room for them.
+          const holdsActive = items.some((i) => itemMatchesPath(i, pathname));
+          const open = collapsed || !section.label || !closedSections[section.id];
+
+          return (
+            <div key={section.id} className={section.label && !collapsed ? "mt-2 first:mt-0" : ""}>
+              {section.label && !collapsed && (
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.id)}
+                  aria-expanded={open}
+                  className="group flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-faint transition-colors hover:text-ink-mute"
                 >
-                  {({ isActive }) => {
-                    const on = isActive || parentActive;
-                    return (
-                      <>
-                        {on && !collapsed && (
-                          <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-coral -ml-3" />
-                        )}
-                        <item.icon
-                          size={19}
-                          strokeWidth={on ? 2.1 : 1.9}
-                          className={cn("shrink-0", on ? "text-coral" : "text-ink-mute group-hover:text-ink-soft")}
-                        />
-                        {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
-                      </>
-                    );
-                  }}
-                </NavLink>
-                )}
+                  <span className="flex-1 text-left">{section.label}</span>
+                  {!open && holdsActive && (
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-coral" title="You are on a page in this group" />
+                  )}
+                  <ChevronDown
+                    size={13}
+                    className={cn("shrink-0 transition-transform duration-200", !open && "-rotate-90")}
+                  />
+                </button>
+              )}
+              {open && (
+              <div className="flex flex-col gap-0.5">
+                {items.map((item) => {
+                  const hasChildren = !!item.children?.length;
+                  // Parent is active if path starts with its route (ignoring sub-routes).
+                  // For items without children, itemMatchesPath still supplies
+                  // the extra matches NavLink's own end/startsWith can't express
+                  // (Billing owning the folio detail page, see itemMatchesPath).
+                  const parentActive = hasChildren
+                    ? pathname.startsWith(item.to)
+                    : itemMatchesPath(item, pathname) && pathname !== item.to;
 
-                {/* Sub-items — visible when parent route is active and sidebar is not collapsed */}
-                {hasChildren && parentActive && !collapsed && (
-                  <div className="mt-0.5 mb-1 ml-3 pl-3 border-l border-line-soft flex flex-col gap-0.5">
-                    {item.children!.map((sub) => {
-                      // Billing is active on /financials and /financials/folio/*
-                      // Expenses is active on /financials/expenses
-                      const subActive = sub.to === "/financials"
-                        ? !pathname.startsWith("/financials/expenses") && !pathname.startsWith("/financials/cashbook")
-                        : pathname.startsWith(sub.to);
-                      return (
+                  return (
+                    <div
+                      key={item.to}
+                      onMouseEnter={collapsed && hasChildren ? (e) => openSubmenuFor(item.to, e.currentTarget.getBoundingClientRect()) : undefined}
+                      onMouseLeave={collapsed && hasChildren ? scheduleClose : undefined}
+                    >
+                      {item.newTab ? (
                         <button
-                          key={sub.to}
-                          onClick={() => { navigate(sub.to); onNavigate?.(); }}
+                          onClick={() => { window.open(item.to, "_blank"); onNavigate?.(); }}
+                          title={collapsed ? item.label : undefined}
                           className={cn(
-                            "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-all w-full text-left",
-                            subActive
-                              ? "text-coral bg-coral/8"
-                              : "text-ink-mute hover:text-ink-soft hover:bg-line-soft",
+                            "group relative flex w-full items-center gap-3 rounded-xl py-2 text-[13px] font-semibold transition-all duration-200 text-ink-soft hover:bg-line-soft",
+                            collapsed ? "justify-center px-0" : "px-3",
                           )}
                         >
-                          <sub.icon
-                            size={15}
-                            strokeWidth={subActive ? 2.2 : 1.8}
-                            className={subActive ? "text-coral" : "text-ink-faint"}
-                          />
-                          {sub.label}
+                          <item.icon size={18} strokeWidth={1.9} className="text-ink-mute group-hover:text-ink-soft shrink-0" />
+                          {!collapsed && (
+                            <>
+                              <span className="flex-1 text-left">{item.label}</span>
+                              <span className="text-[10px] font-bold uppercase tracking-wide text-ink-faint bg-line-soft px-1.5 py-0.5 rounded">TV</span>
+                            </>
+                          )}
                         </button>
-                      );
-                    })}
-                  </div>
-                )}
+                      ) : (
+                      <NavLink
+                        to={item.to}
+                        end={item.end ?? (!hasChildren)}
+                        onClick={onNavigate}
+                        title={collapsed ? item.label : undefined}
+                        className={({ isActive }) =>
+                          cn(
+                            "group relative flex items-center gap-3 rounded-xl py-2 text-[13px] font-semibold transition-all duration-200",
+                            "outline-none focus-visible:ring-2 focus-visible:ring-coral/40 focus-visible:ring-offset-0",
+                            collapsed ? "justify-center px-0" : "px-3",
+                            (isActive || parentActive)
+                              ? "bg-ink text-white shadow-pop"
+                              : "text-ink-soft hover:bg-line-soft",
+                          )
+                        }
+                      >
+                        {({ isActive }) => {
+                          const on = isActive || parentActive;
+                          return (
+                            <>
+                              {on && !collapsed && (
+                                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-coral -ml-3" />
+                              )}
+                              <item.icon
+                                size={18}
+                                strokeWidth={on ? 2.1 : 1.9}
+                                className={cn("shrink-0", on ? "text-coral" : "text-ink-mute group-hover:text-ink-soft")}
+                              />
+                              {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
+                            </>
+                          );
+                        }}
+                      </NavLink>
+                      )}
+
+                      {/* Sub-items — visible when parent route is active and sidebar is not collapsed */}
+                      {hasChildren && parentActive && !collapsed && (
+                        <div className="mt-0.5 mb-1 ml-3 pl-3 border-l border-line-soft flex flex-col gap-0.5">
+                          {item.children!.map((sub) => {
+                            // Billing is active on /financials and /financials/folio/*
+                            // Expenses is active on /financials/expenses
+                            const subActive = sub.to === "/financials"
+                              ? !pathname.startsWith("/financials/expenses") && !pathname.startsWith("/financials/cashbook")
+                              : pathname.startsWith(sub.to);
+                            return (
+                              <button
+                                key={sub.to}
+                                onClick={() => { navigate(sub.to); onNavigate?.(); }}
+                                className={cn(
+                                  "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-all w-full text-left",
+                                  subActive
+                                    ? "text-coral bg-coral/8"
+                                    : "text-ink-mute hover:text-ink-soft hover:bg-line-soft",
+                                )}
+                              >
+                                <sub.icon
+                                  size={15}
+                                  strokeWidth={subActive ? 2.2 : 1.8}
+                                  className={subActive ? "text-coral" : "text-ink-faint"}
+                                />
+                                {sub.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
+              )}
+            </div>
+          );
+        })}
       </nav>
 
       {/* Collapsed sidebar hover submenu — rendered in a portal to escape overflow:hidden */}

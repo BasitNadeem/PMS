@@ -120,40 +120,33 @@ export const CashBookService = {
 
   async getOrCreateAccount(hotelId: string, accountType: AccountType, _actorId: string): Promise<CashAccountRow> {
     try {
-      const row = await adminPrisma.$transaction(async (tx) => {
-        // Keep one deterministic system account per hotel/account type without
-        // making the posting path depend on a particular expression index.
-        await tx.$queryRaw<[{ pg_advisory_xact_lock: null }]>`
-          SELECT pg_advisory_xact_lock(
-            hashtextextended(${`${hotelId}:${accountType}`}, 0)
-          )
-        `;
-        const existing = await tx.$queryRaw<CashAccountDbRow[]>`
-          SELECT * FROM cash_accounts
-          WHERE hotel_id = ${hotelId}::uuid AND account_type = ${accountType}
-          ORDER BY created_at ASC, id ASC
-          LIMIT 1
-        `;
-        if (existing[0]) return existing[0];
+      const existing = await adminPrisma.$queryRaw<CashAccountDbRow[]>`
+        SELECT * FROM cash_accounts
+        WHERE hotel_id = ${hotelId}::uuid AND account_type = ${accountType}
+        ORDER BY created_at ASC, id ASC
+        LIMIT 1
+      `;
+      if (existing[0]) return serializeCashAccount(existing[0]);
 
-        const created = await tx.$queryRaw<CashAccountDbRow[]>`
-          INSERT INTO cash_accounts (hotel_id, name, account_type, balance)
-          VALUES (${hotelId}::uuid, ${ACCOUNT_TYPE_LABELS[accountType]}, ${accountType}, 0)
-          ON CONFLICT DO NOTHING
-          RETURNING *
-        `;
-        if (created[0]) return created[0];
+      // The unique hotel/name index serializes concurrent first-use inserts.
+      // ON CONFLICT DO NOTHING is intentionally target-free so this remains
+      // compatible with both the expression index and older installations.
+      const created = await adminPrisma.$queryRaw<CashAccountDbRow[]>`
+        INSERT INTO cash_accounts (hotel_id, name, account_type, balance)
+        VALUES (${hotelId}::uuid, ${ACCOUNT_TYPE_LABELS[accountType]}, ${accountType}, 0)
+        ON CONFLICT DO NOTHING
+        RETURNING *
+      `;
+      if (created[0]) return serializeCashAccount(created[0]);
 
-        const fallback = await tx.$queryRaw<CashAccountDbRow[]>`
-          SELECT * FROM cash_accounts
-          WHERE hotel_id = ${hotelId}::uuid
-            AND lower(name) = lower(${ACCOUNT_TYPE_LABELS[accountType]})
-          LIMIT 1
-        `;
-        if (!fallback[0]) throw new AppError(500, "Cash account creation returned no row");
-        return fallback[0];
-      });
-      return serializeCashAccount(row);
+      const fallback = await adminPrisma.$queryRaw<CashAccountDbRow[]>`
+        SELECT * FROM cash_accounts
+        WHERE hotel_id = ${hotelId}::uuid
+          AND lower(name) = lower(${ACCOUNT_TYPE_LABELS[accountType]})
+        LIMIT 1
+      `;
+      if (!fallback[0]) throw new AppError(500, "Cash account creation returned no row");
+      return serializeCashAccount(fallback[0]);
     } catch (err) {
       console.error("[CashBook] getOrCreateAccount error:", err);
       throw new AppError(500, "Failed to get or create cash account");

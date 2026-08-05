@@ -45,6 +45,27 @@ export interface LedgerEntryRow {
   recorder_name: string | null;
 }
 
+type CashAccountDbRow = Omit<CashAccountRow, "balance"> & {
+  balance: bigint | number;
+};
+
+type LedgerEntryDbRow = Omit<LedgerEntryRow, "amount" | "balance_after"> & {
+  amount: bigint | number;
+  balance_after: bigint | number;
+};
+
+function serializeCashAccount(row: CashAccountDbRow): CashAccountRow {
+  return { ...row, balance: Number(row.balance) };
+}
+
+function serializeLedgerEntry(row: LedgerEntryDbRow): LedgerEntryRow {
+  return {
+    ...row,
+    amount: Number(row.amount),
+    balance_after: Number(row.balance_after),
+  };
+}
+
 // ── Payment method → account type mapping ─────────────────────────────────────
 
 const PAYMENT_METHOD_TO_ACCOUNT: Record<string, AccountType> = {
@@ -85,11 +106,12 @@ export const CashBookService = {
 
   async getAccounts(hotelId: string): Promise<CashAccountRow[]> {
     try {
-      return await adminPrisma.$queryRaw<CashAccountRow[]>`
+      const rows = await adminPrisma.$queryRaw<CashAccountDbRow[]>`
         SELECT * FROM cash_accounts
         WHERE hotel_id = ${hotelId}::uuid
         ORDER BY account_type ASC, created_at ASC
       `;
+      return rows.map(serializeCashAccount);
     } catch (err) {
       console.error("[CashBook] getAccounts error:", err);
       throw new AppError(500, "Failed to load cash accounts");
@@ -98,13 +120,40 @@ export const CashBookService = {
 
   async getOrCreateAccount(hotelId: string, accountType: AccountType, _actorId: string): Promise<CashAccountRow> {
     try {
-      const rows = await adminPrisma.$queryRaw<CashAccountRow[]>`
-        INSERT INTO cash_accounts (hotel_id, name, account_type, balance)
-        VALUES (${hotelId}::uuid, ${ACCOUNT_TYPE_LABELS[accountType]}, ${accountType}, 0)
-        ON CONFLICT (hotel_id, lower(name)) DO UPDATE SET updated_at = cash_accounts.updated_at
-        RETURNING *
-      `;
-      return rows[0];
+      const row = await adminPrisma.$transaction(async (tx) => {
+        // Keep one deterministic system account per hotel/account type without
+        // making the posting path depend on a particular expression index.
+        await tx.$queryRaw<[{ pg_advisory_xact_lock: null }]>`
+          SELECT pg_advisory_xact_lock(
+            hashtextextended(${`${hotelId}:${accountType}`}, 0)
+          )
+        `;
+        const existing = await tx.$queryRaw<CashAccountDbRow[]>`
+          SELECT * FROM cash_accounts
+          WHERE hotel_id = ${hotelId}::uuid AND account_type = ${accountType}
+          ORDER BY created_at ASC, id ASC
+          LIMIT 1
+        `;
+        if (existing[0]) return existing[0];
+
+        const created = await tx.$queryRaw<CashAccountDbRow[]>`
+          INSERT INTO cash_accounts (hotel_id, name, account_type, balance)
+          VALUES (${hotelId}::uuid, ${ACCOUNT_TYPE_LABELS[accountType]}, ${accountType}, 0)
+          ON CONFLICT DO NOTHING
+          RETURNING *
+        `;
+        if (created[0]) return created[0];
+
+        const fallback = await tx.$queryRaw<CashAccountDbRow[]>`
+          SELECT * FROM cash_accounts
+          WHERE hotel_id = ${hotelId}::uuid
+            AND lower(name) = lower(${ACCOUNT_TYPE_LABELS[accountType]})
+          LIMIT 1
+        `;
+        if (!fallback[0]) throw new AppError(500, "Cash account creation returned no row");
+        return fallback[0];
+      });
+      return serializeCashAccount(row);
     } catch (err) {
       console.error("[CashBook] getOrCreateAccount error:", err);
       throw new AppError(500, "Failed to get or create cash account");
@@ -113,14 +162,14 @@ export const CashBookService = {
 
   async createAccount(hotelId: string, dto: CreateAccountDto, _actorId: string): Promise<CashAccountRow> {
     try {
-      const rows = await adminPrisma.$queryRaw<CashAccountRow[]>`
+      const rows = await adminPrisma.$queryRaw<CashAccountDbRow[]>`
         INSERT INTO cash_accounts (hotel_id, name, account_type, balance)
         VALUES (${hotelId}::uuid, ${dto.name}, ${dto.accountType}, 0)
         RETURNING *
       `;
       if (!rows[0]) throw new AppError(500, "Insert returned no row");
       notifyHotelDataChanged(hotelId);
-      return rows[0];
+      return serializeCashAccount(rows[0]);
     } catch (err) {
       if (err instanceof AppError) throw err;
       console.error("[CashBook] createAccount SQL error:", err);
@@ -139,14 +188,14 @@ export const CashBookService = {
 
     try {
       return await adminPrisma.$transaction(async (tx) => {
-        const [account] = await tx.$queryRaw<[{ id: string; hotel_id: string; balance: number }]>`
+        const [account] = await tx.$queryRaw<[{ id: string; hotel_id: string; balance: bigint }]>`
           SELECT id, hotel_id, balance FROM cash_accounts
           WHERE id = ${resolvedAccountId}::uuid AND hotel_id = ${hotelId}::uuid
           FOR UPDATE
         `;
         if (!account) throw new AppError(404, "Account not found");
 
-        const inserted = await tx.$queryRaw<LedgerEntryRow[]>`
+        const inserted = await tx.$queryRaw<LedgerEntryDbRow[]>`
           INSERT INTO ledger_entries
             (hotel_id, account_id, entry_type, amount, balance_after,
              source_type, source_id, description, payment_method,
@@ -174,7 +223,7 @@ export const CashBookService = {
         `;
         let entry = inserted[0];
         if (!entry && sourceId) {
-          [entry] = await tx.$queryRaw<LedgerEntryRow[]>`
+          [entry] = await tx.$queryRaw<LedgerEntryDbRow[]>`
             SELECT le.*, ca.name AS account_name, ca.account_type, NULL::text AS recorder_name
             FROM ledger_entries le
             JOIN cash_accounts ca ON ca.id = le.account_id
@@ -209,15 +258,16 @@ export const CashBookService = {
           UPDATE cash_accounts SET balance = ${balanceRow.balance}::bigint, updated_at = now()
           WHERE id = ${resolvedAccountId}::uuid AND hotel_id = ${hotelId}::uuid
         `;
-        const [current] = await tx.$queryRaw<LedgerEntryRow[]>`
+        const [current] = await tx.$queryRaw<LedgerEntryDbRow[]>`
           SELECT le.*, ca.name AS account_name, ca.account_type, NULL::text AS recorder_name
           FROM ledger_entries le JOIN cash_accounts ca ON ca.id = le.account_id
           WHERE le.id = ${entry.id}::uuid
         `;
+        if (!current) throw new AppError(500, "Recorded Balance Book entry could not be reloaded");
         return current;
       }).then((entry) => {
         notifyHotelDataChanged(hotelId);
-        return entry;
+        return serializeLedgerEntry(entry);
       });
     } catch (err) {
       if (err instanceof AppError) throw err;
@@ -243,7 +293,7 @@ export const CashBookService = {
       }
       const [group] = await tx.$queryRaw<{ id: string }[]>`SELECT gen_random_uuid() AS id`;
 
-      const entries = await tx.$queryRaw<LedgerEntryRow[]>`
+      const entries = await tx.$queryRaw<LedgerEntryDbRow[]>`
         INSERT INTO ledger_entries
           (hotel_id, account_id, entry_type, amount, balance_after, source_type,
            description, entry_date, notes, recorded_by_id, transfer_group_id)
@@ -275,7 +325,13 @@ export const CashBookService = {
         WHERE ca.hotel_id = ${hotelId}::uuid
           AND ca.id IN (${dto.fromAccountId}::uuid, ${dto.toAccountId}::uuid)
       `;
-      return { transferGroupId: group.id, outgoing: entries.find((e) => e.entry_type === "OUTGOING"), incoming: entries.find((e) => e.entry_type === "INCOMING") };
+      const outgoing = entries.find((entry) => entry.entry_type === "OUTGOING");
+      const incoming = entries.find((entry) => entry.entry_type === "INCOMING");
+      return {
+        transferGroupId: group.id,
+        outgoing: outgoing ? serializeLedgerEntry(outgoing) : undefined,
+        incoming: incoming ? serializeLedgerEntry(incoming) : undefined,
+      };
     }).then((result) => { notifyHotelDataChanged(hotelId); return result; });
   },
 
@@ -373,7 +429,7 @@ export const CashBookService = {
     try {
       const [entries, countRows, summaryRows, accounts] = await Promise.all([
         // Join to cash_accounts for account_name; no users join (avoids column name guessing)
-        adminPrisma.$queryRaw<LedgerEntryRow[]>`
+        adminPrisma.$queryRaw<LedgerEntryDbRow[]>`
           SELECT
             le.*,
             COALESCE(ca.name, '')         AS account_name,
@@ -398,7 +454,7 @@ export const CashBookService = {
           FROM ledger_entries le
           WHERE ${where}
         `,
-        adminPrisma.$queryRaw<CashAccountRow[]>`
+        adminPrisma.$queryRaw<CashAccountDbRow[]>`
           SELECT * FROM cash_accounts
           WHERE hotel_id = ${hotelId}::uuid
           ORDER BY account_type ASC
@@ -410,10 +466,10 @@ export const CashBookService = {
       const totalOut = Number(summaryRows[0]?.total_outgoing ?? 0);
 
       return {
-        data: entries,
+        data: entries.map(serializeLedgerEntry),
         meta: paginationMeta(total, params.page, params.limit),
         summary: { totalIncoming: totalIn, totalOutgoing: totalOut, netFlow: totalIn - totalOut },
-        accounts,
+        accounts: accounts.map(serializeCashAccount),
       };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -435,7 +491,7 @@ export const CashBookService = {
     const where = Prisma.join(conds, " AND ");
 
     const [entries, totals] = await Promise.all([
-      adminPrisma.$queryRaw<LedgerEntryRow[]>`
+      adminPrisma.$queryRaw<LedgerEntryDbRow[]>`
         SELECT le.*, ca.name AS account_name, ca.account_type, NULL::text AS recorder_name
         FROM ledger_entries le
         JOIN cash_accounts ca ON ca.id = le.account_id
@@ -451,7 +507,10 @@ export const CashBookService = {
     ]);
     const totalIncoming = Number(totals[0]?.total_incoming ?? 0);
     const totalOutgoing = Number(totals[0]?.total_outgoing ?? 0);
-    return { entries, summary: { totalIncoming, totalOutgoing, netFlow: totalIncoming - totalOutgoing } };
+    return {
+      entries: entries.map(serializeLedgerEntry),
+      summary: { totalIncoming, totalOutgoing, netFlow: totalIncoming - totalOutgoing },
+    };
   },
 
   async setOpeningBalance(hotelId: string, accountId: string, amount: number, actorId: string): Promise<LedgerEntryRow> {
@@ -788,7 +847,7 @@ export async function voidLedgerEntryFromExpense(
 ): Promise<void> {
   try {
     const rows = await adminPrisma.$queryRaw<
-      { id: string; amount: number; account_id: string; payment_method: string | null; description: string }[]
+      { id: string; amount: bigint; account_id: string; payment_method: string | null; description: string }[]
     >`
       SELECT id, amount, account_id, payment_method, description
       FROM ledger_entries
@@ -806,7 +865,7 @@ export async function voidLedgerEntryFromExpense(
       {
         accountId:     original.account_id,
         entryType:     "INCOMING",
-        amount:        original.amount,
+        amount:        Number(original.amount),
         sourceType:    "EXPENSE",
         sourceId:      expenseId,
         description:   `Void: ${original.description}`,

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen, ArrowDownLeft, ArrowUpRight, TrendingUp, TrendingDown,
   Plus, ChevronLeft, ChevronRight, Wallet, Download, Loader2, ArrowRightLeft,
@@ -138,6 +138,7 @@ const inputCls = "h-9 rounded-xl border border-line bg-mist px-3 text-[13px] tex
 export default function CashBookPage() {
   const { has } = usePermissions();
   const canCreate = has("cashbook:create");
+  const queryClient = useQueryClient();
   const { toasts, addToast, removeToast } = useToast();
 
   const [preset,        setPreset]        = useState<DatePreset>("this_month");
@@ -152,14 +153,22 @@ export default function CashBookPage() {
 
   // Verify automatic postings on every authorised visit. Unique source keys
   // make this safe to repeat and repair any earlier secondary failure.
-  const reconciliation = useQuery({
+  useQuery({
     queryKey: ["cashbook", "reconcile"],
-    queryFn: cashbookService.reconcile,
+    queryFn: async () => {
+      const result = await cashbookService.reconcile();
+      if (result.repaired > 0) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["cashbook", "summary"] }),
+          queryClient.invalidateQueries({ queryKey: ["cashbook", "ledger"] }),
+          queryClient.invalidateQueries({ queryKey: ["cashbook", "balances"] }),
+        ]);
+      }
+      return result;
+    },
     enabled: canCreate,
     staleTime: 60_000,
   });
-  const reconciliationFinished = !canCreate || reconciliation.isSuccess || reconciliation.isError;
-
   async function handleExport() {
     setExporting(true);
     try {
@@ -181,15 +190,14 @@ export default function CashBookPage() {
     return getDateRange(preset as Exclude<DatePreset, "custom">);
   }, [preset, customStart, customEnd]);
 
-  const { data: summary } = useQuery({
+  const { data: summary, isError: summaryFailed } = useQuery({
     queryKey: ["cashbook", "summary", { startDate, endDate }],
     queryFn:  () => cashbookService.getSummary({ startDate, endDate }),
     staleTime: 30_000,
     refetchInterval: 15_000,
-    enabled: reconciliationFinished,
   });
 
-  const { data: ledgerData, isLoading } = useQuery({
+  const { data: ledgerData, isLoading, isError: ledgerFailed } = useQuery({
     queryKey: ["cashbook", "ledger", { startDate, endDate, entryType, page }],
     queryFn:  () => cashbookService.getLedger({
       startDate,
@@ -199,7 +207,6 @@ export default function CashBookPage() {
       limit: PAGE_SIZE,
     }),
     refetchInterval: 15_000,
-    enabled: reconciliationFinished,
   });
 
   const entries = ledgerData?.data ?? [];
@@ -398,6 +405,16 @@ export default function CashBookPage() {
               <div className="h-3 bg-line-soft rounded w-16" />
             </div>
           ))
+        ) : ledgerFailed || summaryFailed ? (
+          <div className="flex flex-col items-center py-16 gap-3">
+            <div className="grid place-items-center h-14 w-14 rounded-2xl bg-clay-soft text-clay mb-1">
+              <BookOpen size={26} />
+            </div>
+            <p className="text-base font-semibold text-ink-soft">Balance Book could not be loaded</p>
+            <p className="text-[13px] text-ink-mute max-w-sm text-center">
+              Your transactions have not been removed. Please retry, or ask an administrator to check the API logs.
+            </p>
+          </div>
         ) : groups.length === 0 ? (
           <div className="flex flex-col items-center py-16 gap-3">
             <div className="grid place-items-center h-14 w-14 rounded-2xl bg-mist text-ink-faint mb-1">

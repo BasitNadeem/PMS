@@ -10,7 +10,18 @@ export const BILLING_TYPES = ["SINGLE", "SPLIT"] as const;
 export const billingTypeSchema = z.enum(BILLING_TYPES);
 export type BillingType = z.infer<typeof billingTypeSchema>;
 
-export const PAYMENT_TERMS = ["ADVANCE_50", "ADVANCE_100", "ADVANCE_CUSTOM", "CREDIT_30", "CREDIT_60", "CASH"] as const;
+// COMPANY_CREDIT means "bill this group to the linked company's account". The
+// number of days comes from that company's own paymentTerms, so it is never
+// stated twice and can never disagree.
+//
+// CREDIT_30 / CREDIT_60 are retained only so groups booked before companies
+// existed still parse. They are no longer offered in the UI — their "30"/"60"
+// was decorative, because the real due date has always come from the company.
+export const PAYMENT_TERMS = [
+  "ADVANCE_50", "ADVANCE_100", "ADVANCE_CUSTOM", "CASH",
+  "COMPANY_CREDIT",
+  "CREDIT_30", "CREDIT_60",
+] as const;
 export const paymentTermsSchema = z.enum(PAYMENT_TERMS);
 export type PaymentTerms = z.infer<typeof paymentTermsSchema>;
 

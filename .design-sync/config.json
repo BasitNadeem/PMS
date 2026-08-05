@@ -1,0 +1,12 @@
+{
+  "projectId": "00df7545-7ce2-46dc-a20e-75548b72c1da",
+  "shape": "package",
+  "pkg": "@pms/ui",
+  "globalName": "PmsUi",
+  "srcDir": "src",
+  "cssEntry": ".ds-styles.css",
+  "dtsPropsFor": {
+    "Button": "variant?: \"primary\" | \"secondary\" | \"ghost\" | \"destructive\"; size?: \"sm\" | \"md\" | \"lg\"; type?: \"button\" | \"submit\" | \"reset\"; disabled?: boolean; onClick?: React.MouseEventHandler<HTMLButtonElement>; className?: string; id?: string; style?: React.CSSProperties; children?: React.ReactNode;"
+  },
+  "readmeHeader": ".design-sync/conventions.md"
+}

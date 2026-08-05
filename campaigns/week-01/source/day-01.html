@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600&display=swap');
+  
+  :root {
+    --coral: #E0532B;
+    --dark-coral: #C2431F;
+    --paper: #F5EBE4;
+    --mist: #FAF8F4;
+    --white: #FFFFFF;
+    --ink: #211E1A;
+    --soft-ink: #4A453E;
+    --muted-ink: #938C81;
+  }
+  
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    width: 1080px;
+    height: 1350px;
+    background-image: url('bg.png');
+    background-size: cover;
+    background-position: center;
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 140px;
+  }
+
+  .content-wrapper {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 110px;
+    line-height: 1.1;
+    color: var(--ink);
+    margin-bottom: 50px;
+    letter-spacing: -0.02em;
+    max-width: 900px;
+  }
+
+  h1 span.highlight {
+    color: var(--coral);
+    font-style: italic;
+  }
+
+  .subhead {
+    font-size: 42px;
+    line-height: 1.4;
+    color: var(--soft-ink);
+    max-width: 760px;
+    font-weight: 400;
+  }
+
+  /* Logo Area */
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    width: 100%;
+  }
+  
+  .logo-area {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  
+  .logo-area svg {
+    width: 72px;
+    height: 72px;
+  }
+
+  .logo-text {
+    font-family: 'Fraunces', serif;
+    font-size: 46px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+  }
+
+  .website {
+    font-size: 32px;
+    font-weight: 500;
+    color: var(--soft-ink);
+    letter-spacing: 0.02em;
+  }
+</style>
+</head>
+<body>
+
+  <div class="content-wrapper">
+    <h1>Meet Innflo.<br>Hotel operations, finally in <span class="highlight">flow.</span></h1>
+    <div class="subhead">Essential hotel operations in one calm, connected system designed for independent properties.</div>
+  </div>
+
+  <div class="footer">
+    <div class="logo-area">
+      <!-- mark-clay.svg embedded directly -->
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-labelledby="title desc">
+        <title id="title">InnFlo symmetrical mark — Warm Clay</title>
+        <desc id="desc">Four identical diagonal quadrants rotated around a curved four-point center.</desc>
+        <defs>
+          <path id="quadrant" d="M164 36 215 86 183 137 234 105 284 156H204C188 156 164 132 164 116Z"/>
+        </defs>
+        <g fill="#E0532B">
+          <use href="#quadrant"/>
+          <use href="#quadrant" transform="rotate(90 160 160)"/>
+          <use href="#quadrant" transform="rotate(180 160 160)"/>
+          <use href="#quadrant" transform="rotate(270 160 160)"/>
+        </g>
+      </svg>
+      <div class="logo-text">Innflo</div>
+    </div>
+    <div class="website">innflo.co</div>
+  </div>
+
+</body>
+</html>

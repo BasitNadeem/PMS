@@ -5,7 +5,11 @@ import type { DocumentType } from "./guests";
 
 export type PayerType = "TOUR_AGENCY" | "CORPORATE" | "GOVERNMENT" | "NGO" | "INDIVIDUAL";
 export type BillingType = "SINGLE" | "SPLIT";
-export type PaymentTerms = "ADVANCE_50" | "ADVANCE_100" | "ADVANCE_CUSTOM" | "CREDIT_30" | "CREDIT_60" | "CASH";
+export type PaymentTerms =
+  | "ADVANCE_50" | "ADVANCE_100" | "ADVANCE_CUSTOM" | "CASH"
+  | "COMPANY_CREDIT"
+  /** Legacy — groups booked before companies existed. Not offered in the UI. */
+  | "CREDIT_30" | "CREDIT_60";
 export type GroupStatus = "ENQUIRY" | "CONFIRMED" | "CHECKED_IN" | "CHECKED_OUT" | "CANCELLED";
 
 export interface Group {

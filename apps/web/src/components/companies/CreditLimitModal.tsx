@@ -5,7 +5,9 @@ import { X, ShieldCheck, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { companiesService, pkr } from "@/services/companies";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { bannerMessageFor } from "@/lib/formErrors";
 import { Button } from "@/components/ui/Button";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 
 const inputCls = "h-10 w-full rounded-xl bg-mist border border-line px-3 text-[13.5px] text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all";
 const labelCls = "block text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-1.5";
@@ -51,10 +53,7 @@ export function CreditLimitModal({
     },
   });
 
-  const errorMessage = mutation.error
-    ? ((mutation.error as { response?: { data?: { error?: string } } })?.response?.data?.error
-        ?? "Something went wrong. Please try again.")
-    : null;
+  const errorMessage = bannerMessageFor(mutation.error);
 
   return createPortal(
     <div
@@ -88,7 +87,7 @@ export function CreditLimitModal({
           </div>
 
           <div>
-            <label className={labelCls}>Maximum credit (Rs)</label>
+            <label className={labelCls}>Maximum credit (Rs)<RequiredMark /></label>
             <input
               autoFocus type="number" min={0} step="1"
               value={limit}

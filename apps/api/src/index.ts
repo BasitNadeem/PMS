@@ -63,6 +63,19 @@ const app = express();
 // client-supplied headers. "1" trusts only the first proxy hop, not a wide-open chain.
 app.set("trust proxy", 1);
 
+// Money columns on the corporate-billing tables are BIGINT (paisa, no int4
+// ceiling), so Prisma hands back JS BigInt — which JSON.stringify throws on.
+// Without this, any route that returns a company relation 500s *after* its
+// transaction has already committed: the write succeeds, the caller sees an
+// error, and retrying duplicates the record. Services still convert explicitly
+// so their return types stay honest; this is the safety net that stops the same
+// mistake from ever costing a write again.
+//
+// Number is exact to 2^53 paisa (~Rs 90 trillion), far beyond any real balance.
+app.set("json replacer", (_key: string, value: unknown) =>
+  typeof value === "bigint" ? Number(value) : value,
+);
+
 // Every hotel gets its own subdomain (e.g. demo-hotel.innflo.co), so a single fixed
 // CORS_ORIGIN can't cover them all. Match the apex domain or any direct subdomain of
 // PRODUCTION_DOMAIN instead of hardcoding "innflo.co" here.

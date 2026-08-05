@@ -5,7 +5,10 @@ import { X, Scale, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { companiesService, pkr } from "@/services/companies";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { bannerMessageFor } from "@/lib/formErrors";
 import { Button } from "@/components/ui/Button";
+import { DatePicker } from "@/components/ui/DatePicker";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 import { Segmented } from "@/components/ui/Segmented";
 
 const inputCls = "h-10 w-full rounded-xl bg-mist border border-line px-3 text-[13.5px] text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all";
@@ -54,10 +57,7 @@ export function AdjustLedgerModal({
     },
   });
 
-  const errorMessage = mutation.error
-    ? ((mutation.error as { response?: { data?: { error?: string } } })?.response?.data?.error
-        ?? "Something went wrong. Please try again.")
-    : null;
+  const errorMessage = bannerMessageFor(mutation.error);
 
   const canSubmit = numericAmount > 0 && description.trim().length >= 3 && !writeOffTooBig && !mutation.isPending;
 
@@ -107,7 +107,7 @@ export function AdjustLedgerModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Amount (Rs)</label>
+              <label className={labelCls}>Amount (Rs)<RequiredMark /></label>
               <input
                 autoFocus type="number" min={0} step="0.01"
                 value={amount}
@@ -117,12 +117,12 @@ export function AdjustLedgerModal({
             </div>
             <div>
               <label className={labelCls}>Date</label>
-              <input type="date" value={entryDate} onChange={(e) => setDate(e.target.value)} className={cn(inputCls, "cursor-pointer")} />
+              <DatePicker value={entryDate} onChange={setDate} max={new Date().toISOString().slice(0, 10)} />
             </div>
           </div>
 
           <div>
-            <label className={labelCls}>Reason *</label>
+            <label className={labelCls}>Reason<RequiredMark /></label>
             <input
               value={description}
               onChange={(e) => setDesc(e.target.value)}

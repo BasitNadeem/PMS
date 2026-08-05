@@ -8,10 +8,32 @@ import {
   type Company, type CompanyType, type CompanyPaymentTerms,
 } from "@/services/companies";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { fieldErrorsFrom, fieldErrorFor, bannerMessageFor } from "@/lib/formErrors";
 import { Button } from "@/components/ui/Button";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 
 const inputCls = "h-10 w-full rounded-xl bg-mist border border-line px-3 text-[13.5px] text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all";
 const labelCls = "block text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-1.5";
+
+// Field name as the API reports it -> the label shown on this form, so the
+// banner can name the offending field the way the user sees it.
+const FIELD_LABELS: Record<string, string> = {
+  name: "Company name",
+  contactPhone: "Phone",
+  contactEmail: "Email",
+  contactName: "Contact person",
+  ntn: "NTN",
+  strn: "STRN",
+  city: "City",
+  address: "Address",
+  notes: "Notes",
+};
+
+// Rendered under whichever field the API rejected.
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <p className="mt-1 text-[12px] font-medium text-clay">{message}</p>;
+}
 
 const TYPES: CompanyType[] = ["TOUR_AGENCY", "CORPORATE", "GOVERNMENT", "NGO", "OTHER"];
 const TERMS: CompanyPaymentTerms[] = ["IMMEDIATE", "NET_7", "NET_15", "NET_30", "NET_45", "NET_60", "NET_90"];
@@ -39,7 +61,6 @@ export function CompanyFormModal({ company, onClose, onSaved }: CompanyFormModal
     ntn:             company?.ntn ?? "",
     strn:            company?.strn ?? "",
     paymentTerms:    company?.paymentTerms ?? ("NET_30" as CompanyPaymentTerms),
-    discountPercent: company?.discountPercent != null ? String(company.discountPercent) : "",
     notes:           company?.notes ?? "",
   });
 
@@ -63,7 +84,6 @@ export function CompanyFormModal({ company, onClose, onSaved }: CompanyFormModal
         ...(form.ntn.trim()     ? { ntn:     form.ntn.trim() }     : {}),
         ...(form.strn.trim()    ? { strn:    form.strn.trim() }    : {}),
         ...(form.notes.trim()   ? { notes:   form.notes.trim() }   : {}),
-        discountPercent: form.discountPercent ? Number(form.discountPercent) : null,
       };
       return isEdit
         ? companiesService.update(company!.id, dto)
@@ -77,10 +97,9 @@ export function CompanyFormModal({ company, onClose, onSaved }: CompanyFormModal
   });
 
   const canSubmit = form.name.trim().length > 0 && !mutation.isPending;
-  const errorMessage = mutation.error
-    ? ((mutation.error as { response?: { data?: { error?: string } } })?.response?.data?.error
-        ?? "Something went wrong. Please try again.")
-    : null;
+  const fieldErrors  = fieldErrorsFrom(mutation.error);
+  const errorMessage = bannerMessageFor(mutation.error, FIELD_LABELS);
+  const errFor = (field: string) => fieldErrorFor(fieldErrors, field);
 
   return createPortal(
     <div
@@ -113,14 +132,15 @@ export function CompanyFormModal({ company, onClose, onSaved }: CompanyFormModal
 
         <div className="scroll-area min-h-0 overflow-y-auto px-6 py-5 space-y-4">
           <div>
-            <label className={labelCls}>Company name *</label>
+            <label className={labelCls}>Company name<RequiredMark /></label>
             <input
               autoFocus
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
               placeholder="e.g. Al-Habib Travels"
-              className={inputCls}
+              className={cn(inputCls, errFor("name") && "border-clay focus:border-clay focus:ring-clay/15")}
             />
+            <FieldError message={errFor("name")} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -149,37 +169,25 @@ export function CompanyFormModal({ company, onClose, onSaved }: CompanyFormModal
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Contact person</label>
-              <input value={form.contactName} onChange={(e) => set("contactName", e.target.value)} className={inputCls} />
+              <input value={form.contactName} onChange={(e) => set("contactName", e.target.value)} className={cn(inputCls, errFor("contactName") && "border-clay")} />
+              <FieldError message={errFor("contactName")} />
             </div>
             <div>
               <label className={labelCls}>Phone</label>
-              <input value={form.contactPhone} onChange={(e) => set("contactPhone", e.target.value)} placeholder="03001234567" className={inputCls} />
+              <input value={form.contactPhone} onChange={(e) => set("contactPhone", e.target.value)} placeholder="03001234567" className={cn(inputCls, errFor("contactPhone") && "border-clay")} />
+              <FieldError message={errFor("contactPhone")} />
             </div>
           </div>
 
           <div>
             <label className={labelCls}>Email</label>
-            <input type="email" value={form.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} className={inputCls} />
+            <input type="email" value={form.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} className={cn(inputCls, errFor("contactEmail") && "border-clay")} />
+            <FieldError message={errFor("contactEmail")} />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelCls}>City</label>
-              <input value={form.city} onChange={(e) => set("city", e.target.value)} className={inputCls} />
-            </div>
-            <div>
-              <label className={labelCls}>Negotiated discount</label>
-              <div className="relative">
-                <input
-                  type="number" min={0} max={90}
-                  value={form.discountPercent}
-                  onChange={(e) => set("discountPercent", e.target.value)}
-                  placeholder="0"
-                  className={cn(inputCls, "pr-9 tnum")}
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-ink-mute">%</span>
-              </div>
-            </div>
+          <div>
+            <label className={labelCls}>City</label>
+            <input value={form.city} onChange={(e) => set("city", e.target.value)} className={inputCls} />
           </div>
 
           <div>
@@ -195,11 +203,13 @@ export function CompanyFormModal({ company, onClose, onSaved }: CompanyFormModal
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>NTN</label>
-              <input value={form.ntn} onChange={(e) => set("ntn", e.target.value)} className={inputCls} />
+              <input value={form.ntn} onChange={(e) => set("ntn", e.target.value)} className={cn(inputCls, errFor("ntn") && "border-clay")} />
+              <FieldError message={errFor("ntn")} />
             </div>
             <div>
               <label className={labelCls}>STRN</label>
-              <input value={form.strn} onChange={(e) => set("strn", e.target.value)} className={inputCls} />
+              <input value={form.strn} onChange={(e) => set("strn", e.target.value)} className={cn(inputCls, errFor("strn") && "border-clay")} />
+              <FieldError message={errFor("strn")} />
             </div>
           </div>
           <p className="-mt-2 text-[12px] text-ink-faint">

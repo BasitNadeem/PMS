@@ -5,7 +5,10 @@ import { X, Banknote, AlertCircle, Info } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { companiesService, pkr } from "@/services/companies";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { bannerMessageFor } from "@/lib/formErrors";
 import { Button } from "@/components/ui/Button";
+import { DatePicker } from "@/components/ui/DatePicker";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 
 const inputCls = "h-10 w-full rounded-xl bg-mist border border-line px-3 text-[13.5px] text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all";
 const labelCls = "block text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-1.5";
@@ -71,10 +74,7 @@ export function RecordPaymentModal({
     },
   });
 
-  const errorMessage = mutation.error
-    ? ((mutation.error as { response?: { data?: { error?: string } } })?.response?.data?.error
-        ?? "Something went wrong. Please try again.")
-    : null;
+  const errorMessage = bannerMessageFor(mutation.error);
 
   return createPortal(
     <div
@@ -108,7 +108,7 @@ export function RecordPaymentModal({
           </div>
 
           <div>
-            <label className={labelCls}>Amount received (Rs)</label>
+            <label className={labelCls}>Amount received (Rs)<RequiredMark /></label>
             <input
               autoFocus type="number" min={0} step="0.01"
               value={amount}
@@ -126,7 +126,7 @@ export function RecordPaymentModal({
             </div>
             <div>
               <label className={labelCls}>Date received</label>
-              <input type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} className={cn(inputCls, "cursor-pointer")} />
+              <DatePicker value={paidAt} onChange={setPaidAt} max={new Date().toISOString().slice(0, 10)} />
             </div>
           </div>
 

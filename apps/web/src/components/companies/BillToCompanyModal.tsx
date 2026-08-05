@@ -6,7 +6,9 @@ import { cn } from "@/lib/cn";
 import { companiesService, pkr, PAYMENT_TERMS_LABEL, type CompanyPickerOption } from "@/services/companies";
 import { CompanyPicker } from "./CompanyPicker";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { bannerMessageFor } from "@/lib/formErrors";
 import { Button } from "@/components/ui/Button";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 
 const inputCls = "h-10 w-full rounded-xl bg-mist border border-line px-3 text-[13.5px] text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all";
 const labelCls = "block text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-1.5";
@@ -58,10 +60,7 @@ export function BillToCompanyModal({
     },
   });
 
-  const errorMessage = mutation.error
-    ? ((mutation.error as { response?: { data?: { error?: string } } })?.response?.data?.error
-        ?? "Something went wrong. Please try again.")
-    : null;
+  const errorMessage = bannerMessageFor(mutation.error);
 
   const canSubmit = companyId !== null && !noCredit && !overLimit && !mutation.isPending;
 
@@ -97,7 +96,7 @@ export function BillToCompanyModal({
           </div>
 
           <div>
-            <label className={labelCls}>Company</label>
+            <label className={labelCls}>Company<RequiredMark /></label>
             <CompanyPicker
               value={companyId}
               onChange={(c) => { setCompany(c); setCompanyId(c?.id ?? null); }}

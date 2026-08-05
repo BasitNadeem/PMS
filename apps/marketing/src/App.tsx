@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Link, Routes, Route, useLocation } from "react-router-dom";
-import Nav    from "./components/Nav";
+import Nav from "./components/Nav";
 import Footer from "./components/Footer";
 import {
   loadAbout,
@@ -138,21 +138,21 @@ export default function App() {
       <main>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
-            <Route path="/"         element={<Home />}     />
-            <Route path="/pms"              element={<Features />}       />
-            <Route path="/booking-engine"   element={<BookingEngine />}  />
-            <Route path="/channel-manager"  element={<ChannelManager />} />
-            <Route path="/financials"       element={<Financials />}     />
-            <Route path="/pos"              element={<PointOfSale />}    />
-            <Route path="/automations"      element={<Automations />}    />
-            <Route path="/statistics"   element={<Statistics />}  />
-            <Route path="/stays/hotels"            element={<Hotels />}          />
-            <Route path="/stays/guesthouses"       element={<GuestHouses />}     />
-            <Route path="/stays/vacation-rentals"  element={<VacationRentals />} />
-            <Route path="/stays/glamping"          element={<Glamping />}        />
-            <Route path="/pricing"  element={<Pricing />}  />
-            <Route path="/about"    element={<About />}    />
-            <Route path="/contact"  element={<Contact />}  />
+            <Route path="/" element={<Home />} />
+            <Route path="/pms" element={<Features />} />
+            <Route path="/booking-engine" element={<BookingEngine />} />
+            <Route path="/channel-manager" element={<ChannelManager />} />
+            <Route path="/financials" element={<Financials />} />
+            <Route path="/pos" element={<PointOfSale />} />
+            <Route path="/automations" element={<Automations />} />
+            <Route path="/statistics" element={<Statistics />} />
+            <Route path="/stays/hotels" element={<Hotels />} />
+            <Route path="/stays/guesthouses" element={<GuestHouses />} />
+            <Route path="/stays/vacation-rentals" element={<VacationRentals />} />
+            <Route path="/stays/glamping" element={<Glamping />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

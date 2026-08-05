@@ -56,6 +56,7 @@ const PAYMENT_TERMS_LABEL: Record<PaymentTerms, string> = {
   ADVANCE_50:     "50% Advance",
   ADVANCE_100:    "100% Advance",
   ADVANCE_CUSTOM: "Custom Advance",
+  COMPANY_CREDIT: "On company account",
   CREDIT_30:      "30-Day Credit",
   CREDIT_60:      "60-Day Credit",
 };
@@ -293,6 +294,15 @@ export default function GroupDetailPage() {
   );
   const rateSubtotal = roomTypeLines.reduce((sum, l) => sum + l.amount, 0);
   const rateTotal = group.reservations.reduce((sum, reservation) => sum + reservation.totalAmount, 0);
+
+  // On SINGLE billing the whole group shares one folio, which hangs off whichever
+  // reservation was created first — the other rooms carry no folio of their own.
+  // Without this the only route to the bill was "View All Folios", which dumps
+  // you on the unfiltered billing list to hunt for it by hand.
+  const masterFolioReservation =
+    group.billingType === "SINGLE"
+      ? group.reservations.find((r) => r.folio) ?? null
+      : null;
   const taxLines = Object.values(
     group.reservations.reduce<Record<string, { label: string; rate: number; amount: number; inclusive: boolean }>>((acc, reservation) => {
       for (const tax of reservation.taxBreakdown ?? []) {
@@ -335,6 +345,16 @@ export default function GroupDetailPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-line-soft">
               <h3 className="serif text-[18px] text-ink">Rooms ({group.summary.totalRooms} total)</h3>
               <div className="flex items-center gap-2">
+                {/* Sits beside "Check Out Group" because settling the bill is the
+                    step immediately before checkout, and this is where staff look. */}
+                {masterFolioReservation && (
+                  <Link
+                    to={`/financials/folio/${masterFolioReservation.id}`}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-full bg-line-soft px-4 text-[13px] font-semibold text-ink-soft transition-colors hover:bg-line hover:text-ink"
+                  >
+                    <Receipt size={13} /> View Folio
+                  </Link>
+                )}
                 {canUpdate && group.status === "CONFIRMED" && (
                   <button
                     onClick={() => checkInMutation.mutate()}
@@ -587,12 +607,26 @@ export default function GroupDetailPage() {
                 </span>
               </div>
             </div>
-            <Link
-              to="/financials"
-              className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-coral hover:text-coral-dark transition-colors"
-            >
-              View All Folios <ExternalLink size={13} />
-            </Link>
+            {masterFolioReservation ? (
+              <Link
+                to={`/financials/folio/${masterFolioReservation.id}`}
+                className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-coral text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-coral-dark"
+              >
+                <Receipt size={14} />
+                {group.summary.totalBalance > 0 ? "View & settle folio" : "View folio"}
+              </Link>
+            ) : (
+              // SPLIT billing has one folio per room, reachable from each room row
+              // above; a single "view folio" here would have to pick one arbitrarily.
+              // Before check-in no folio exists yet either — folios are opened at
+              // check-in, so there is genuinely nothing to link to.
+              <Link
+                to="/financials"
+                className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-coral transition-colors hover:text-coral-dark"
+              >
+                View All Folios <ExternalLink size={13} />
+              </Link>
+            )}
           </Card>
         </div>
       </div>

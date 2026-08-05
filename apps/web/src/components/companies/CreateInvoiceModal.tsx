@@ -5,7 +5,10 @@ import { X, FileText, AlertCircle, Info } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { companiesService, pkr } from "@/services/companies";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { bannerMessageFor } from "@/lib/formErrors";
 import { Button } from "@/components/ui/Button";
+import { DatePicker } from "@/components/ui/DatePicker";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 
 const inputCls = "h-10 w-full rounded-xl bg-mist border border-line px-3 text-[13.5px] text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all";
 const labelCls = "block text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-1.5";
@@ -57,10 +60,7 @@ export function CreateInvoiceModal({ companyId, companyName, onClose, onSuccess 
     },
   });
 
-  const errorMessage = mutation.error
-    ? ((mutation.error as { response?: { data?: { error?: string } } })?.response?.data?.error
-        ?? "Something went wrong. Please try again.")
-    : null;
+  const errorMessage = bannerMessageFor(mutation.error);
 
   const validRange = periodStart <= periodEnd;
 
@@ -92,12 +92,12 @@ export function CreateInvoiceModal({ companyId, companyName, onClose, onSuccess 
         <div className="scroll-area min-h-0 overflow-y-auto px-6 py-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>From</label>
-              <input type="date" value={periodStart} onChange={(e) => setStart(e.target.value)} className={cn(inputCls, "cursor-pointer")} />
+              <label className={labelCls}>From<RequiredMark /></label>
+              <DatePicker value={periodStart} onChange={setStart} max={periodEnd || undefined} />
             </div>
             <div>
-              <label className={labelCls}>To</label>
-              <input type="date" value={periodEnd} onChange={(e) => setEnd(e.target.value)} className={cn(inputCls, "cursor-pointer")} />
+              <label className={labelCls}>To<RequiredMark /></label>
+              <DatePicker value={periodEnd} onChange={setEnd} min={periodStart || undefined} />
             </div>
           </div>
 

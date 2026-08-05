@@ -23,6 +23,11 @@ type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
 
 const PENDING_ROOM_NOTE = "PENDING_ASSIGNMENT";
 
+// Payment terms that mean "the company settles this later, not the guest".
+// CREDIT_30/CREDIT_60 are legacy spellings kept so pre-existing groups behave
+// the same; new bookings all use COMPANY_CREDIT.
+const BILLS_TO_COMPANY = new Set<string>(["COMPANY_CREDIT", "CREDIT_30", "CREDIT_60"]);
+
 const GROUP_TRANSITIONS: Partial<Record<GroupStatus, GroupStatus[]>> = {
   ENQUIRY:    ["CONFIRMED", "CANCELLED"],
   CONFIRMED:  ["CHECKED_IN", "CANCELLED"],
@@ -118,6 +123,21 @@ const GROUP_INCLUDE = {
     select: { id: true, name: true, type: true, creditLimit: true, balance: true, paymentTerms: true },
   },
 } as const;
+
+type GroupCompany = {
+  id: string; name: string; type: string;
+  creditLimit: bigint; balance: bigint; paymentTerms: string;
+};
+
+/** BIGINT paisa -> number, so the group response can be JSON-serialised. */
+function groupCompanyJson(company: GroupCompany | null) {
+  if (!company) return null;
+  return {
+    ...company,
+    creditLimit: Number(company.creditLimit),
+    balance:     Number(company.balance),
+  };
+}
 
 export const GroupService = {
   async listGroups(withTenant: WithTenantFn, query: ListGroupsQuery) {
@@ -240,7 +260,9 @@ export const GroupService = {
       groupRef:       group.groupRef,
       payerType:      group.payerType,
       companyId:      group.companyId,
-      company:        group.company,
+      // creditLimit and balance are BIGINT paisa on the company table, so they
+      // arrive as JS BigInt and cannot be JSON-serialised as-is.
+      company:        groupCompanyJson(group.company),
       payerName:      group.payerName,
       payerContact:   group.payerContact,
       billingType:    group.billingType,
@@ -385,8 +407,7 @@ export const GroupService = {
               companyId:          group.companyId,
               // Credit terms on the group are what makes the balance
               // transferable at checkout instead of blocking it.
-              billToCompany:      group.companyId !== null
-                && (dto.paymentTerms === "CREDIT_30" || dto.paymentTerms === "CREDIT_60"),
+              billToCompany:      group.companyId !== null && BILLS_TO_COMPANY.has(dto.paymentTerms),
               confirmationNumber: "",
               status:             "ENQUIRY",
               source:             "WALK_IN",

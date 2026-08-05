@@ -21,6 +21,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { CompanyPicker } from "@/components/companies/CompanyPicker";
+import { PAYMENT_TERMS_LABEL as COMPANY_TERMS_LABEL, type CompanyPickerOption } from "@/services/companies";
 import { settingsService } from "@/services/settings";
 import { calculateAccommodationCharges } from "@/lib/accommodationCharges";
 
@@ -45,13 +46,15 @@ const PAYER_TYPE_OPTIONS: { value: PayerType; label: string }[] = [
   { value: "INDIVIDUAL",  label: "Individual / Family" },
 ];
 
+// How much the guest pays up front. Credit is deliberately absent — it is not a
+// property of the booking but of the company behind it, so the COMPANY_CREDIT
+// option is appended below only when a company that actually has credit is
+// selected, and it carries that company's own terms.
 const PAYMENT_TERMS_OPTIONS: { value: PaymentTerms; label: string }[] = [
   { value: "CASH",           label: "Cash on Arrival" },
   { value: "ADVANCE_50",     label: "50% Advance" },
   { value: "ADVANCE_100",    label: "100% Advance" },
   { value: "ADVANCE_CUSTOM", label: "Custom % Advance" },
-  { value: "CREDIT_30",      label: "30-Day Credit" },
-  { value: "CREDIT_60",      label: "60-Day Credit" },
 ];
 
 // ── Stepper ───────────────────────────────────────────────────────────────────
@@ -147,6 +150,7 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
   const [stepError, setStepError] = useState("");
   const [duplicateGuestWarning, setDuplicateGuestWarning] = useState("");
   const [newPhoneError, setNewPhoneError] = useState("");
+  const [selectedCompany, setSelectedCompany] = useState<CompanyPickerOption | null>(null);
 
   const [form, setForm] = useState<WizardState>({
     name: "", payerType: initialPayerType ?? "TOUR_AGENCY", companyId: null, payerName: "", payerContact: "",
@@ -343,6 +347,21 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
   // recurring counterparties worth keeping a record of. Only an
   // individual/family payer is a genuine one-off.
   const isOrganisationPayer = form.payerType !== "INDIVIDUAL";
+
+  // A company can only be billed on credit if someone has actually granted it a
+  // limit. Offering the option otherwise would produce a booking that fails at
+  // checkout, when the guest is already at the desk.
+  const companyHasCredit = Boolean(selectedCompany && selectedCompany.creditLimit > 0);
+  const paymentTermsOptions: { value: PaymentTerms; label: string }[] = companyHasCredit
+    ? [
+        ...PAYMENT_TERMS_OPTIONS,
+        {
+          value: "COMPANY_CREDIT" as PaymentTerms,
+          // The days come from the company record, so the two can never disagree.
+          label: `On ${selectedCompany!.name}'s account — due in ${COMPANY_TERMS_LABEL[selectedCompany!.paymentTerms].toLowerCase()}`,
+        },
+      ]
+    : PAYMENT_TERMS_OPTIONS;
   const showAdvance = form.paymentTerms === "ADVANCE_50" || form.paymentTerms === "ADVANCE_100" || form.paymentTerms === "ADVANCE_CUSTOM";
   const showAdvancePercent = form.paymentTerms === "ADVANCE_CUSTOM";
 
@@ -530,6 +549,7 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
                     <CompanyPicker
                       value={form.companyId}
                       onChange={(company) => {
+                        setSelectedCompany(company);
                         setForm((f) => ({
                           ...f,
                           companyId:   company?.id ?? null,
@@ -537,9 +557,12 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
                           // screens that show the free-text payer, and so an
                           // unlinked group is still labelled.
                           payerName:   company?.name ?? "",
-                          // A company with credit gets billed on its terms;
-                          // without one, guests settle at checkout.
-                          paymentTerms: company && company.creditLimit > 0 ? f.paymentTerms : "CASH",
+                          // Switching to a company without credit must not leave
+                          // a credit selection behind that checkout would refuse.
+                          paymentTerms:
+                            f.paymentTerms === "COMPANY_CREDIT" && !(company && company.creditLimit > 0)
+                              ? "CASH"
+                              : f.paymentTerms,
                         }));
                       }}
                       placeholder="Search agencies and corporate clients…"
@@ -601,7 +624,7 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
                   <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Payment terms</label>
                   <div className="relative">
                     <select value={form.paymentTerms} onChange={(e) => set("paymentTerms", e.target.value as PaymentTerms)} className={cn(inputCls, "appearance-none pr-9 cursor-pointer")}>
-                      {PAYMENT_TERMS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {paymentTermsOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                     <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-mute pointer-events-none" />
                   </div>

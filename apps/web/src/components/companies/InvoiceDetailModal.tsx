@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, FileText, Mail, Printer, Send, Trash2, X } from "lucide-react";
@@ -5,6 +6,7 @@ import { companiesService, pkr } from "@/services/companies";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { CompanyInvoicePrintView } from "./CompanyInvoicePrintView";
 
 const fmtDate = (value: string | null) => value
   ? new Intl.DateTimeFormat("en-PK", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value))
@@ -52,6 +54,9 @@ export function InvoiceDetailModal({ companyId, invoiceId, canManage, onClose, o
     ? ((error as { response?: { data?: { error?: string } } }).response?.data?.error ?? error.message)
     : null;
   const data = invoice.data;
+  // Printing opens a dedicated A4 document rather than printing this dialog —
+  // window.print() here would put the modal chrome and backdrop on the page.
+  const [showPrint, setShowPrint] = useState(false);
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-ink/45 p-4 backdrop-blur-sm" onMouseDown={onClose}>
@@ -98,12 +103,16 @@ export function InvoiceDetailModal({ companyId, invoiceId, canManage, onClose, o
         </div>
 
         <div className="flex flex-wrap justify-end gap-2 border-t border-line px-6 py-4 print:hidden">
-          <Button variant="ghost" leftIcon={Printer} onClick={() => window.print()}>Print / PDF</Button>
+          <Button variant="ghost" leftIcon={Printer} disabled={!data} onClick={() => setShowPrint(true)}>Print / PDF</Button>
           {canManage && data?.status === "DRAFT" && <Button leftIcon={Send} loading={issue.isPending} onClick={() => issue.mutate()}>Issue invoice</Button>}
           {canManage && data && !["DRAFT", "VOID"].includes(data.status) && <Button leftIcon={Mail} loading={emailInvoice.isPending} onClick={() => emailInvoice.mutate()}>Email invoice</Button>}
           {canManage && data && data.status !== "VOID" && data.paidAmount === 0 && <Button variant="ghost" leftIcon={Trash2} loading={voidInvoice.isPending} onClick={() => voidInvoice.mutate()}>Void</Button>}
         </div>
       </div>
+
+      {showPrint && data && (
+        <CompanyInvoicePrintView invoice={data} onClose={() => setShowPrint(false)} />
+      )}
     </div>, document.body,
   );
 }

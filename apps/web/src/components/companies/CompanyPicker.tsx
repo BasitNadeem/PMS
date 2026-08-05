@@ -71,7 +71,6 @@ export function CompanyPicker({ value, onChange, placeholder, className }: Compa
               <AlertTriangle size={11} /> No credit — guests settle at checkout
             </span>
           )}
-          {selected.discountPercent ? <><span>·</span><span>{selected.discountPercent}% agreed discount</span></> : null}
         </div>
       )}
 

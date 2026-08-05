@@ -120,6 +120,8 @@ export interface CompanyInvoice {
   issuedAt: string | null;
   dueDate: string | null;
   createdAt: string;
+  /** Only returned by the detail endpoint — the list view selects without it. */
+  notes?: string | null;
   _count?: { lines: number };
 }
 

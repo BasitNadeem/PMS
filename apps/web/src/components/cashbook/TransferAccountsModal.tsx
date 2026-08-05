@@ -45,11 +45,11 @@ export function TransferAccountsModal({ onClose, onSuccess }: { onClose: () => v
     mutation.mutate();
   }
 
-  const input = "mt-1.5 w-full rounded-xl border border-line bg-mist px-3.5 py-2.5 text-sm";
+  const input = "mt-1.5 w-full rounded-xl border border-line bg-mist px-3.5 py-2.5 text-sm outline-none focus:border-coral/40 focus:ring-2 focus:ring-coral/20 transition-colors";
   return <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-4 backdrop-blur-sm">
     <form onSubmit={submit} className="w-full max-w-lg rounded-2xl bg-paper shadow-2xl">
       <div className="flex items-center gap-3 border-b border-line px-6 py-5">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-dusk-soft text-dusk"><ArrowRightLeft size={18} /></span>
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-coral/10 text-coral"><ArrowRightLeft size={18} /></span>
         <div className="flex-1"><h2 className="serif text-xl text-ink">Transfer between accounts</h2><p className="text-xs text-ink-mute">Records equal outgoing and incoming movements.</p></div>
         <button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full hover:bg-mist"><X size={17} /></button>
       </div>
@@ -64,7 +64,7 @@ export function TransferAccountsModal({ onClose, onSuccess }: { onClose: () => v
         <label className="block text-sm font-semibold">Date<DatePicker value={entryDate} onChange={setEntryDate} className="mt-1.5 w-full" /></label>
         <label className="block text-sm font-semibold">Notes <span className="font-normal text-ink-faint">(optional)</span><textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className={`${input} resize-none`} /></label>
       </div>
-      <div className="flex justify-end gap-2 border-t border-line px-6 py-4"><button type="button" onClick={onClose} className="h-10 rounded-full border border-line px-5 text-sm font-semibold">Cancel</button><button disabled={mutation.isPending} className="h-10 rounded-full bg-dusk px-5 text-sm font-semibold text-white disabled:opacity-50">{mutation.isPending ? "Transferring…" : "Record transfer"}</button></div>
+      <div className="flex justify-end gap-2 border-t border-line px-6 py-4"><button type="button" onClick={onClose} className="h-10 rounded-full border border-line px-5 text-sm font-semibold">Cancel</button><button disabled={mutation.isPending} className="h-10 rounded-full bg-coral px-5 text-sm font-semibold text-white disabled:opacity-50">{mutation.isPending ? "Transferring…" : "Record transfer"}</button></div>
     </form>
   </div>;
 }

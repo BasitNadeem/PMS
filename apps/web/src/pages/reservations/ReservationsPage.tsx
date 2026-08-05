@@ -246,6 +246,10 @@ export default function ReservationsPage() {
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [newCheckIn,  setNewCheckIn]    = useState<string | undefined>(undefined);
   const [newCheckOut, setNewCheckOut]   = useState<string | undefined>(undefined);
+  // Set only when the range came from a timeline row click — the room is
+  // already known, so the single-reservation modal can preselect it.
+  const [newRoomId,     setNewRoomId]     = useState<string | undefined>(undefined);
+  const [newRoomTypeId, setNewRoomTypeId] = useState<string | undefined>(undefined);
   const [selectionStart, setSelectionStart] = useState<Date | null>(null);
   const [selectionEnd,   setSelectionEnd]   = useState<Date | null>(null);
   const [hoverDate,      setHoverDate]      = useState<Date | null>(null);
@@ -313,6 +317,13 @@ export default function ReservationsPage() {
   );
   const totalPages   = meta?.totalPages ?? 1;
 
+  function clearNewBookingPrefill() {
+    setNewCheckIn(undefined);
+    setNewCheckOut(undefined);
+    setNewRoomId(undefined);
+    setNewRoomTypeId(undefined);
+  }
+
   function clearSelection() {
     setSelectionStart(null);
     setSelectionEnd(null);
@@ -325,12 +336,14 @@ export default function ReservationsPage() {
     else setShowNewGroup(true);
   }
 
-  function handleRangeSelected(checkIn: Date, checkOut: Date) {
+  function handleRangeSelected(checkIn: Date, checkOut: Date, roomId?: string, roomTypeId?: string) {
     clearSelection();
     if (!canCreate) return;
     setNewCheckIn(toLocalIsoDate(checkIn));
     setNewCheckOut(toLocalIsoDate(checkOut));
-    // Open the type chooser so calendar drag also asks single vs group
+    setNewRoomId(roomId);
+    setNewRoomTypeId(roomTypeId);
+    // Open the type chooser so calendar/timeline selection also asks single vs group
     setShowChooser(true);
   }
 
@@ -447,7 +460,12 @@ export default function ReservationsPage() {
               </div>
             </div>
           </div>
-          <TimelineView year={calYear} month={calMonth} onReservationClick={setOpenDrawerId} />
+          <TimelineView
+            year={calYear}
+            month={calMonth}
+            onReservationClick={setOpenDrawerId}
+            onRangeSelected={canCreate ? handleRangeSelected : undefined}
+          />
         </Card>
       )}
 
@@ -632,7 +650,7 @@ export default function ReservationsPage() {
 
       {showChooser && (
         <NewReservationTypeModal
-          onClose={() => { setShowChooser(false); clearSelection(); setNewCheckIn(undefined); setNewCheckOut(undefined); }}
+          onClose={() => { setShowChooser(false); clearSelection(); clearNewBookingPrefill(); }}
           onSelect={handleTypeSelected}
           canCreateGroup={canCreateGroups}
         />
@@ -643,11 +661,12 @@ export default function ReservationsPage() {
           initialGuest={initialGuest}
           initialCheckInDate={newCheckIn}
           initialCheckOutDate={newCheckOut}
-          onClose={() => { setShowNew(false); setNewCheckIn(undefined); setNewCheckOut(undefined); clearSelection(); }}
+          initialRoomId={newRoomId}
+          initialRoomTypeId={newRoomTypeId}
+          onClose={() => { setShowNew(false); clearNewBookingPrefill(); clearSelection(); }}
           onSuccess={() => {
             setShowNew(false);
-            setNewCheckIn(undefined);
-            setNewCheckOut(undefined);
+            clearNewBookingPrefill();
             clearSelection();
             qc.invalidateQueries({ queryKey: ["reservations"] });
           }}
@@ -658,11 +677,10 @@ export default function ReservationsPage() {
         <NewGroupModal
           initialCheckIn={newCheckIn}
           initialCheckOut={newCheckOut}
-          onClose={() => { setShowNewGroup(false); setNewCheckIn(undefined); setNewCheckOut(undefined); clearSelection(); }}
+          onClose={() => { setShowNewGroup(false); clearNewBookingPrefill(); clearSelection(); }}
           onSuccess={(id) => {
             setShowNewGroup(false);
-            setNewCheckIn(undefined);
-            setNewCheckOut(undefined);
+            clearNewBookingPrefill();
             clearSelection();
             qc.invalidateQueries({ queryKey: ["reservations"] });
             navigate(`/groups/${id}`);

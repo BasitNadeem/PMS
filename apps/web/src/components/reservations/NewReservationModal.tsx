@@ -181,6 +181,10 @@ export interface NewReservationModalProps {
   initialCheckOutDate?: string;
   initialSource?: BookingSource;
   initialGuest?: GuestSummary;
+  // Preselects a specific room (and its type filter) when the booking came
+  // from a timeline row click — the room is already known at that point.
+  initialRoomId?: string;
+  initialRoomTypeId?: string;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -191,7 +195,7 @@ function addOneDay(isoDate: string): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, initialCheckOutDate, initialSource, initialGuest }: NewReservationModalProps) {
+export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, initialCheckOutDate, initialSource, initialGuest, initialRoomId, initialRoomTypeId }: NewReservationModalProps) {
   useEscapeKey(onClose);
   const qc = useQueryClient();
   const [step, setStep] = useState(0);
@@ -203,7 +207,7 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
   const [form, setForm] = useState<WizardState>({
     checkIn:  initialCheckInDate  ?? "",
     checkOut: initialCheckOutDate ?? (initialCheckInDate ? addOneDay(initialCheckInDate) : ""),
-    roomId: "", roomTypeFilter: "",
+    roomId: initialRoomId ?? "", roomTypeFilter: initialRoomTypeId ?? "",
     ratePerNight: 0,
     guestId: initialGuest?.id ?? "", guestName: initialGuest?.fullName ?? "", guestEmail: initialGuest?.email ?? "", guestCity: initialGuest?.city ?? "", guestStays: initialGuest?.totalStays ?? 0, guestBlacklisted: initialGuest?.isBlacklisted ?? false,
     useNewGuest: !initialGuest,

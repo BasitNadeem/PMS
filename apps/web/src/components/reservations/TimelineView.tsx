@@ -15,19 +15,24 @@ const ROOM_COL   = 184;
 const ROW_HEIGHT = 64;
 const BAR_HEIGHT = 40;
 
-// Mid-saturation fills keep reservation state immediately scannable without
-// returning to the previous neon palette. A darker rail reinforces each state.
+// Each status sits in its own hue family (gold / blue / green / slate / red)
+// so adjacent bars stay distinguishable at a glance instead of blending into
+// one warm-neutral blur. A darker rail reinforces each state.
 const STATUS_STYLE: Record<string, {
   bg: string; fg: string; rail: string; border: string; shadow: string; label: string;
 }> = {
-  ENQUIRY:     { bg: "#E3A43B", fg: "#352408", rail: "#9B650D", border: "#C9871C", shadow: "rgba(155,101,13,0.24)", label: "Enquiry" },
-  CONFIRMED:   { bg: "#557896", fg: "#FFFFFF", rail: "#29465E", border: "#3E627F", shadow: "rgba(41,70,94,0.25)", label: "Confirmed" },
-  CHECKED_IN:  { bg: "#438469", fg: "#FFFFFF", rail: "#205D45", border: "#317158", shadow: "rgba(32,93,69,0.25)", label: "Checked In" },
-  CHECKED_OUT: { bg: "#82786D", fg: "#FFFFFF", rail: "#504941", border: "#6C6258", shadow: "rgba(80,73,65,0.23)", label: "Checked Out" },
-  CANCELLED:   { bg: "#C65D47", fg: "#FFFFFF", rail: "#8E3827", border: "#AD4834", shadow: "rgba(142,56,39,0.24)", label: "Cancelled" },
-  NO_SHOW:     { bg: "#995445", fg: "#FFFFFF", rail: "#653226", border: "#7D4033", shadow: "rgba(101,50,38,0.24)", label: "No Show" },
-  WAITLISTED:  { bg: "#75669A", fg: "#FFFFFF", rail: "#4B3D70", border: "#625286", shadow: "rgba(75,61,112,0.24)", label: "Waitlisted" },
+  ENQUIRY:     { bg: "#D9A227", fg: "#3A2705", rail: "#8C5D0F", border: "#B87D1A", shadow: "rgba(140,93,15,0.28)", label: "Enquiry" },
+  CONFIRMED:   { bg: "#2F5C82", fg: "#FFFFFF", rail: "#1B3A54", border: "#24476A", shadow: "rgba(27,58,84,0.30)", label: "Confirmed" },
+  CHECKED_IN:  { bg: "#2E8A5C", fg: "#FFFFFF", rail: "#195C3A", border: "#227048", shadow: "rgba(25,92,58,0.28)", label: "Checked In" },
+  CHECKED_OUT: { bg: "#5B5568", fg: "#FFFFFF", rail: "#362F42", border: "#463F52", shadow: "rgba(54,47,66,0.26)", label: "Checked Out" },
+  CANCELLED:   { bg: "#C23B3B", fg: "#FFFFFF", rail: "#7E2323", border: "#9C2E2E", shadow: "rgba(126,35,35,0.28)", label: "Cancelled" },
+  // Kept so a stray No Show / Waitlisted reservation still renders with its
+  // own color on the bar — just dropped from the legend below (line ~440).
+  NO_SHOW:     { bg: "#8B4A3D", fg: "#FFFFFF", rail: "#5C2E24", border: "#713A2F", shadow: "rgba(92,46,36,0.24)", label: "No Show" },
+  WAITLISTED:  { bg: "#6C5A94", fg: "#FFFFFF", rail: "#453A63", border: "#574880", shadow: "rgba(69,58,99,0.24)", label: "Waitlisted" },
 };
+
+const LEGEND_STATUSES = ["ENQUIRY", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED"];
 
 const ROOM_STATUS_STYLE: Record<string, {
   label: string; bg: string; fg: string; border: string; dot: string;
@@ -56,6 +61,16 @@ export interface TimelineViewProps {
   year: number;
   month: number;
   onReservationClick?: (id: string) => void;
+  // Click a start day then an end day on a room's row to book that room for
+  // that range — mirrors the calendar view's click-click range selection.
+  onRangeSelected?: (checkIn: Date, checkOut: Date, roomId: string, roomTypeId: string) => void;
+}
+
+interface TimelineSelection {
+  roomId: string;
+  roomNumber: string;
+  roomTypeId: string;
+  start: Date;
 }
 
 interface BarGeo {
@@ -88,6 +103,11 @@ function getBarGeometry(
     startsThisMonth,
     endsThisMonth,
   };
+}
+
+// Normalise a Date to midnight local time so day-level comparisons are safe
+function dayTs(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }
 
 function isWeekend(year: number, month: number, day: number): boolean {
@@ -124,6 +144,7 @@ export function TimelineView({
   year,
   month,
   onReservationClick,
+  onRangeSelected,
 }: TimelineViewProps) {
   const navigate    = useNavigate();
   const today       = new Date();
@@ -132,7 +153,34 @@ export function TimelineView({
 
   const [selectedDay, setSelectedDay]   = useState<number | null>(null);
   const [hoveredRes,  setHoveredRes]    = useState<string | null>(null);
+  const [rowSel,      setRowSel]        = useState<TimelineSelection | null>(null);
+  const [rowSelHover, setRowSelHover]   = useState<Date | null>(null);
   useEscapeKey(() => setSelectedDay(null), selectedDay !== null);
+  useEscapeKey(() => { setRowSel(null); setRowSelHover(null); }, rowSel !== null);
+
+  // Click-click: first click sets the check-in day, hovering previews the
+  // range live, and a second click on a later day confirms check-out.
+  function handleCellClick(room: { id: string; number: string; roomTypeId: string }, date: Date) {
+    if (!rowSel || rowSel.roomId !== room.id) {
+      setRowSel({ roomId: room.id, roomNumber: room.number, roomTypeId: room.roomTypeId, start: date });
+      setRowSelHover(null);
+      return;
+    }
+    const startTs = dayTs(rowSel.start);
+    const clickTs = dayTs(date);
+    if (clickTs <= startTs) {
+      setRowSel({ roomId: room.id, roomNumber: room.number, roomTypeId: room.roomTypeId, start: date });
+      setRowSelHover(null);
+      return;
+    }
+    onRangeSelected?.(rowSel.start, date, rowSel.roomId, rowSel.roomTypeId);
+    setRowSel(null);
+    setRowSelHover(null);
+  }
+
+  function handleCellHover(room: { id: string }, date: Date) {
+    if (rowSel && rowSel.roomId === room.id) setRowSelHover(date);
+  }
 
   const { data: calData } = useQuery({
     queryKey: ["reservations", "calendar", year, month],
@@ -185,6 +233,21 @@ export function TimelineView({
 
   return (
     <>
+      {rowSel && (
+        <div className="flex items-center justify-center gap-2 py-2 border-b border-line-soft bg-coral-tint">
+          <span className="text-[12px] font-medium text-ink-soft">
+            Room {rowSel.roomNumber} · hover to preview, click a check-out date
+          </span>
+          <span className="text-[12px] text-ink-faint">—</span>
+          <button
+            onClick={() => { setRowSel(null); setRowSelHover(null); }}
+            className="inline-flex items-center gap-1 text-[12px] font-semibold text-ink-mute hover:text-clay transition-colors"
+          >
+            <X size={12} />
+            cancel
+          </button>
+        </div>
+      )}
       <div className="overflow-x-auto scroll-area">
         <div style={{ minWidth: ROOM_COL + daysInMonth * COL_WIDTH }}>
 
@@ -342,7 +405,36 @@ export function TimelineView({
                     </div>
 
                     {/* Reservation bars */}
-                    <div className="relative flex-1 h-full">
+                    <div className="relative flex-1" style={{ height: ROW_HEIGHT }}>
+                      {/* Click-to-select day cells — sit under the bars so a
+                          click on an occupied day still hits the bar above it. */}
+                      {onRangeSelected && days.map((d) => {
+                        const cellDate = new Date(year, month - 1, d);
+                        const ts       = dayTs(cellDate);
+                        const selectingThisRoom = rowSel?.roomId === room.id;
+                        const startTs = selectingThisRoom ? dayTs(rowSel!.start) : null;
+                        const endTs   = selectingThisRoom
+                          ? (rowSelHover ? dayTs(rowSelHover) : startTs)
+                          : null;
+                        const isStart   = startTs !== null && ts === startTs;
+                        const inRange   = startTs !== null && endTs !== null && ts > startTs && ts <= endTs;
+                        return (
+                          <div
+                            key={d}
+                            onClick={() => handleCellClick(room, cellDate)}
+                            onMouseEnter={() => handleCellHover(room, cellDate)}
+                            className={cn(
+                              "absolute z-[1] cursor-pointer transition-colors",
+                              isStart
+                                ? "bg-coral/35 ring-1 ring-inset ring-coral/70"
+                                : inRange
+                                  ? "bg-coral/20 ring-1 ring-inset ring-coral/25"
+                                  : "hover:bg-coral/12",
+                            )}
+                            style={{ left: (d - 1) * COL_WIDTH, width: COL_WIDTH, top: 0, bottom: 0 }}
+                          />
+                        );
+                      })}
                       {roomRes.map((r) => {
                         const geo = getBarGeometry(r, year, month, daysInMonth);
                         if (!geo) return null;
@@ -406,7 +498,9 @@ export function TimelineView({
 
           {/* ── Legend ─────────────────────────────────────────── */}
           <div className="flex items-center gap-2 px-4 py-3 border-t border-line-soft bg-mist/45 flex-wrap">
-            {Object.entries(STATUS_STYLE).map(([, s]) => (
+            {LEGEND_STATUSES.map((key) => {
+              const s = STATUS_STYLE[key];
+              return (
               <div key={s.label} className="flex items-center gap-1.5 rounded-full border border-line-soft bg-card px-2.5 py-1">
                 <span
                   className="h-2 w-2 rounded-full shrink-0"
@@ -414,7 +508,8 @@ export function TimelineView({
                 />
                 <span className="text-[11px] font-medium text-ink-mute">{s.label}</span>
               </div>
-            ))}
+              );
+            })}
             <div className="ml-auto flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-sm bg-line shrink-0" />
               <span className="text-[11px] font-medium text-ink-mute">Weekend</span>

@@ -147,30 +147,62 @@ function amenityGrid(data: ReservationEmailData): string {
     </tr>`;
 }
 
-function photoGallery(data: ReservationEmailData): string {
-  const photos = data.rooms
-    .flatMap((room) => room.photoUrls)
-    .map(safeImageUrl)
-    .filter((url): url is string => Boolean(url))
-    .filter((url, index, all) => all.indexOf(url) === index)
-    .slice(0, 5);
+/** Hero plus at most three thumbnails — enough to show the stay, few enough
+ *  to keep the message under clipping limits on Gmail. */
+const MAX_EMAIL_PHOTOS = 4;
 
+/**
+ * Photos for the gallery, drawn one-per-room-type per pass.
+ *
+ * A booking of three room types used to render four photos of whichever type
+ * sorted first, leaving the others invisible. Round-robin guarantees every
+ * booked room type appears before any type gets a second photo.
+ */
+function galleryPhotos(data: ReservationEmailData): string[] {
+  const byRoom = data.rooms.map((room) =>
+    room.photoUrls.map(safeImageUrl).filter((url): url is string => Boolean(url)),
+  );
+
+  const ordered: string[] = [];
+  const deepest = Math.max(0, ...byRoom.map((urls) => urls.length));
+  for (let pass = 0; pass < deepest; pass += 1) {
+    for (const urls of byRoom) {
+      const url = urls[pass];
+      if (url) ordered.push(url);
+    }
+  }
+
+  return ordered
+    .filter((url, index, all) => all.indexOf(url) === index)
+    .slice(0, MAX_EMAIL_PHOTOS);
+}
+
+/**
+ * A fixed grid, deliberately not a horizontal scroller: `overflow-x` is
+ * stripped by Gmail and unsupported by Outlook's Word renderer, so a swipeable
+ * strip collapses into a broken column for most recipients.
+ *
+ * `object-fit` is avoided for the same reason. Clients that ignore it stretch
+ * the image to the forced height instead of cropping — which is what made wide
+ * photos render squashed. Sizing by width only keeps every photo undistorted.
+ */
+function photoGallery(data: ReservationEmailData): string {
+  const photos = galleryPhotos(data);
   if (photos.length === 0) return "";
 
-  const hero = photos[0];
-  const thumbnails = photos.slice(1);
+  const [hero, ...thumbnails] = photos;
   const thumbWidth = thumbnails.length > 0 ? Math.floor(100 / thumbnails.length) : 100;
 
   return `
     <tr>
       <td class="pad" style="padding:0 34px 26px;">
-        <img src="${hero}" alt="Your room at ${escapeHtml(data.hotelName)}" width="572" style="width:100%; max-width:572px; height:auto; max-height:380px; object-fit:cover; border-radius:16px; display:block;">
+        <img src="${hero}" alt="Your room at ${escapeHtml(data.hotelName)}" width="572" style="width:100%; max-width:572px; height:auto; border-radius:16px; display:block;">
         ${thumbnails.length > 0 ? `
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">
             <tr>
               ${thumbnails.map((url, index) => `
-                <td width="${thumbWidth}%" style="padding:${index === 0 ? "0 4px 0 0" : index === thumbnails.length - 1 ? "0 0 0 4px" : "0 4px"};">
-                  <img src="${url}" alt="" width="140" style="width:100%; height:88px; object-fit:cover; border-radius:10px; display:block;">
+                <td width="${thumbWidth}%" valign="top" style="padding:${index === 0 ? "0 4px 0 0" : index === thumbnails.length - 1 ? "0 0 0 4px" : "0 4px"};">
+                  <img src="${url}" alt="" style="width:100%; height:auto; border-radius:10px; display:block;">
                 </td>`).join("")}
             </tr>
           </table>` : ""}
@@ -335,7 +367,12 @@ export function reservationLifecycleEmail(data: ReservationEmailData): string {
       .shell { width:100% !important; }
       .pad { padding-left:20px !important; padding-right:20px !important; }
       .hero-title { font-size:34px !important; line-height:38px !important; }
-      .date-cell { display:block !important; width:100% !important; text-align:left !important; padding:10px 0 !important; }
+      /* Stacking the two dates must keep the card's own horizontal padding —
+         a bare "padding:10px 0" left the text flush against the card edge. */
+      .date-cell { display:block !important; width:100% !important; text-align:left !important; padding:16px 20px !important; }
+      .date-cell-in { padding-bottom:12px !important; }
+      .date-cell-out { padding-top:12px !important; border-top:1px solid rgba(255,255,255,0.14) !important; }
+      .date-value { font-size:19px !important; }
     }
   </style>
 </head>
@@ -379,13 +416,13 @@ export function reservationLifecycleEmail(data: ReservationEmailData): string {
             <td class="pad" style="padding:0 34px 28px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#172b29; border-radius:14px;">
                 <tr>
-                  <td class="date-cell" width="50%" style="padding:20px 22px; vertical-align:top;">
+                  <td class="date-cell date-cell-in" width="50%" style="padding:20px 22px; vertical-align:top;">
                     <div style="color:#91aaa5; font-size:10px; font-weight:bold; letter-spacing:1.4px; text-transform:uppercase;">Check-in</div>
-                    <div style="color:#ffffff; font-family:Georgia, 'Times New Roman', serif; font-size:20px; margin-top:6px;">${escapeHtml(data.checkInDate)}</div>
+                    <div class="date-value" style="color:#ffffff; font-family:Georgia, 'Times New Roman', serif; font-size:20px; margin-top:6px;">${escapeHtml(data.checkInDate)}</div>
                   </td>
-                  <td class="date-cell" width="50%" style="padding:20px 22px; text-align:right; vertical-align:top;">
+                  <td class="date-cell date-cell-out" width="50%" style="padding:20px 22px; text-align:right; vertical-align:top;">
                     <div style="color:#91aaa5; font-size:10px; font-weight:bold; letter-spacing:1.4px; text-transform:uppercase;">Check-out</div>
-                    <div style="color:#ffffff; font-family:Georgia, 'Times New Roman', serif; font-size:20px; margin-top:6px;">${escapeHtml(data.checkOutDate)}</div>
+                    <div class="date-value" style="color:#ffffff; font-family:Georgia, 'Times New Roman', serif; font-size:20px; margin-top:6px;">${escapeHtml(data.checkOutDate)}</div>
                   </td>
                 </tr>
               </table>

@@ -173,7 +173,6 @@
   "171": "QROrdersPage.tsx",
   "172": "RevenueSourcePage.tsx",
   "173": "PaymentMethodsPage.tsx",
-  "174": "RatePlansPage.tsx",
   "175": "VoidRefundLogPage.tsx",
   "176": "PMS Monorepo — Engineering Rules",
   "177": "numberToWords.ts",
@@ -187,7 +186,6 @@
   "185": "isMobileDevice",
   "186": "production-build.sh",
   "187": "main.tsx",
-  "188": "search.ts",
   "189": "RevenueSourcePage.tsx",
   "190": "errorHandler middleware AppError case",
   "191": "JwtPayload extension with permissions[] for requirePermission",
@@ -209,9 +207,9 @@
   "207": "GroupBookingsSummaryPage.tsx",
   "208": "add-company-permissions.ts",
   "209": "Trend.tsx",
-  "210": "backfill-upload-urls.ts",
   "211": "GuestBlacklistPage.tsx",
   "212": "LengthOfStayPage.tsx",
   "213": "WasteLossPage.tsx",
+  "215": "StaffActivityPage.tsx",
   "216": "ADRRevPARPage.tsx"
 }

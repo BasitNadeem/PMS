@@ -2770,8 +2770,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/routes/companies.ts": {
-    "mtime": 1785790644.105296,
-    "ast_hash": "f505e4dc7e7cef40ca3075e2acd56161",
+    "mtime": 1785790216.510188,
+    "ast_hash": "00e83970068ed514e98c28ac885e82e0",
     "semantic_hash": ""
   },
   "apps/api/src/schemas/companies.ts": {
@@ -2780,8 +2780,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/services/CompanyService.ts": {
-    "mtime": 1785790644.0260925,
-    "ast_hash": "dc70264298242c2273ef01bb0a72c430",
+    "mtime": 1785790403.5602999,
+    "ast_hash": "f208f061b9d9dcbdbb256c0fd47ea211",
     "semantic_hash": ""
   },
   "apps/api/src/utils/companyCredit.test.ts": {
@@ -2845,8 +2845,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/services/companies.ts": {
-    "mtime": 1785790644.1857665,
-    "ast_hash": "bb3c444d5c362081afcd60563888f3bf",
+    "mtime": 1785790241.478979,
+    "ast_hash": "8cfc03295d0b820c3ffb515ead9fa756",
     "semantic_hash": ""
   },
   "packages/db/prisma/migrations/20260802000000_add_corporate_billing/migration.sql": {
@@ -2905,8 +2905,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/companies/InvoiceDetailModal.tsx": {
-    "mtime": 1785790644.2673595,
-    "ast_hash": "4b0f5599a94839baf8eff8271c3b5436",
+    "mtime": 1785790311.1687179,
+    "ast_hash": "d256864d309e8d41cabe0c82d08f96de",
     "semantic_hash": ""
   },
   "apps/web/src/components/companies/RefundCompanyCreditModal.tsx": {

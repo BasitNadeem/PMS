@@ -1,12 +1,12 @@
-# Graph Report - PMS  (2026-08-04)
+# Graph Report - PMS  (2026-08-01)
 
 ## Corpus Check
-- 489 files · ~869,688 words
+- 459 files · ~839,712 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3701 nodes · 7839 edges · 215 communities (170 shown, 45 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 59 edges (avg confidence: 0.66)
+- 3500 nodes · 7314 edges · 202 communities (158 shown, 44 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 50 edges (avg confidence: 0.64)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
@@ -176,7 +176,7 @@
 - [[_COMMUNITY_QROrdersPage.tsx|QROrdersPage.tsx]]
 - [[_COMMUNITY_RevenueSourcePage.tsx|RevenueSourcePage.tsx]]
 - [[_COMMUNITY_PaymentMethodsPage.tsx|PaymentMethodsPage.tsx]]
-- [[_COMMUNITY_RatePlansPage.tsx|RatePlansPage.tsx]]
+- [[_COMMUNITY_settings.ts|settings.ts]]
 - [[_COMMUNITY_VoidRefundLogPage.tsx|VoidRefundLogPage.tsx]]
 - [[_COMMUNITY_PMS Monorepo — Engineering Rules|PMS Monorepo — Engineering Rules]]
 - [[_COMMUNITY_numberToWords.ts|numberToWords.ts]]
@@ -189,8 +189,6 @@
 - [[_COMMUNITY_isMobileDevice|isMobileDevice]]
 - [[_COMMUNITY_production-build.sh|production-build.sh]]
 - [[_COMMUNITY_main.tsx|main.tsx]]
-- [[_COMMUNITY_search.ts|search.ts]]
-- [[_COMMUNITY_RevenueSourcePage.tsx|RevenueSourcePage.tsx]]
 - [[_COMMUNITY_errorHandler middleware AppError case|errorHandler middleware AppError case]]
 - [[_COMMUNITY_JwtPayload extension with permissions for requirePermission|JwtPayload extension with permissions[] for requirePermission]]
 - [[_COMMUNITY_Enforced API response envelope {data, meta}|Enforced API response envelope {data, meta}]]
@@ -203,42 +201,31 @@
 - [[_COMMUNITY_Rationale fresh-setup uses migrate deploy not migrate dev|Rationale: fresh-setup uses migrate deploy not migrate dev]]
 - [[_COMMUNITY_README quick start (fresh-setup, pnpm dev)|README quick start (fresh-setup, pnpm dev)]]
 - [[_COMMUNITY_README technology stack table|README technology stack table]]
-- [[_COMMUNITY_StockConsumptionPage.tsx|StockConsumptionPage.tsx]]
 - [[_COMMUNITY_Q Audit the subscriptionTier thing for hotels and admin, check bugs, and identify numerical plan limits|Q: Audit the subscriptionTier thing for hotels and admin, check bugs, and identify numerical plan limits]]
-- [[_COMMUNITY_adminAuth.ts|adminAuth.ts]]
-- [[_COMMUNITY_HousekeepingMobileRoute|HousekeepingMobileRoute]]
-- [[_COMMUNITY_GroupBookingsSummaryPage.tsx|GroupBookingsSummaryPage.tsx]]
-- [[_COMMUNITY_add-company-permissions.ts|add-company-permissions.ts]]
-- [[_COMMUNITY_Trend.tsx|Trend.tsx]]
-- [[_COMMUNITY_backfill-upload-urls.ts|backfill-upload-urls.ts]]
-- [[_COMMUNITY_GuestBlacklistPage.tsx|GuestBlacklistPage.tsx]]
-- [[_COMMUNITY_LengthOfStayPage.tsx|LengthOfStayPage.tsx]]
-- [[_COMMUNITY_WasteLossPage.tsx|WasteLossPage.tsx]]
-- [[_COMMUNITY_ADRRevPARPage.tsx|ADRRevPARPage.tsx]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `cn()` - 245 edges
-2. `useEscapeKey()` - 128 edges
-3. `usePermissions()` - 56 edges
-4. `Card()` - 54 edges
-5. `api` - 43 edges
-6. `DatePicker()` - 41 edges
-7. `TONE` - 40 edges
-8. `AppError` - 39 edges
-9. `TenantTx` - 35 edges
-10. `authenticate()` - 33 edges
+1. `cn()` - 226 edges
+2. `useEscapeKey()` - 108 edges
+3. `Card()` - 52 edges
+4. `usePermissions()` - 50 edges
+5. `api` - 42 edges
+6. `TONE` - 40 edges
+7. `DatePicker()` - 39 edges
+8. `AppError` - 37 edges
+9. `TenantTx` - 34 edges
+10. `authenticate()` - 32 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `normalizeSubscriptionLimits()` --indirect_call--> `candidate()`  [INFERRED]
   packages/db/src/subscriptionConfig.ts → apps/api/src/lib/operationalReminders.ts
-- `main()` --indirect_call--> `key()`  [INFERRED]
-  packages/db/src/seed.ts → apps/api/src/services/ScanSessionService.ts
-- `Draft role-based permission matrix (resource x role)` --conceptually_related_to--> `requirePermission middleware (RESOURCE_ACTION keys)`  [INFERRED]
-  Permission table (draft).txt → apps/api/CLAUDE.md
 - `Request` --references--> `TenantTx`  [EXTRACTED]
   apps/api/src/middleware/tenant.ts → packages/db/src/tenant.ts
-- `tenantMiddleware()` --calls--> `withTenant()`  [EXTRACTED]
-  apps/api/src/middleware/tenant.ts → packages/db/src/tenant.ts
+- `main()` --indirect_call--> `key()`  [INFERRED]
+  packages/db/src/seed.ts → apps/api/src/services/ScanSessionService.ts
+- `normalizeFeatureFlags()` --indirect_call--> `key()`  [INFERRED]
+  packages/db/src/subscriptionConfig.ts → apps/api/src/services/ScanSessionService.ts
+- `Draft role-based permission matrix (resource x role)` --conceptually_related_to--> `requirePermission middleware (RESOURCE_ACTION keys)`  [INFERRED]
+  Permission table (draft).txt → apps/api/CLAUDE.md
 
 ## Import Cycles
 - 2-file cycle: `packages/db/src/index.ts -> packages/db/src/tenant.ts -> packages/db/src/index.ts`
@@ -246,15 +233,15 @@
 ## Hyperedges (group relationships)
 - **All roles defined in the draft permission matrix** — permission_table_draft_owner_role, permission_table_draft_manager_role, permission_table_draft_front_desk_role, permission_table_draft_housekeeping_role, permission_table_draft_kitchen_role [EXTRACTED 1.00]
 
-## Communities (215 total, 45 thin omitted)
+## Communities (202 total, 44 thin omitted)
 
 ### Community 0 - "Storage & Redis Providers"
 Cohesion: 0.07
 Nodes (41): AccountDefault, AccountScope, DEFAULT_ACCOUNTS, DEFAULT_EXPENSE_ACCOUNT, DEFAULT_REVENUE_ACCOUNT, SYSTEM_KEYS, contentTypeFor(), CSV_HEADERS (+33 more)
 
 ### Community 1 - "Inventory Add/Edit Modals"
-Cohesion: 0.08
-Nodes (39): AddItemModal(), AddItemModalProps, CATEGORY_OPTIONS, FormState, INITIAL_FORM, UNIT_OPTIONS, CATEGORY_OPTIONS, EditItemModal() (+31 more)
+Cohesion: 0.06
+Nodes (51): AddItemModal(), AddItemModalProps, CATEGORY_OPTIONS, FormState, INITIAL_FORM, UNIT_OPTIONS, CATEGORY_OPTIONS, EditItemModal() (+43 more)
 
 ### Community 2 - "Web App Package Config"
 Cohesion: 0.04
@@ -266,27 +253,27 @@ Nodes (3): cache, persistent, studio
 
 ### Community 4 - "Groups API Routes"
 Cohesion: 0.06
-Nodes (37): router, AddGuestToGroupDto, addGuestToGroupSchema, AddRoomToGroupDto, addRoomToGroupSchema, AssignRoomDto, assignRoomSchema, BILLING_TYPES (+29 more)
+Nodes (38): router, AddGuestToGroupDto, addGuestToGroupSchema, AddRoomToGroupDto, addRoomToGroupSchema, AssignRoomDto, assignRoomSchema, BILLING_TYPES (+30 more)
 
 ### Community 5 - "POS Item/Category Modals"
-Cohesion: 0.09
-Nodes (36): AddCategoryModal(), AddCategoryModalProps, AddItemModal(), AddItemModalProps, DirectPaymentModal(), DirectPaymentModalProps, formatPKR(), PAYMENT_METHODS (+28 more)
+Cohesion: 0.14
+Nodes (19): AddCategoryModal(), AddCategoryModalProps, AddItemModal(), AddItemModalProps, EditCategoryModal(), EditCategoryModalProps, VisibilityToggle(), EditItemModal() (+11 more)
 
 ### Community 6 - "Kitchen Dashboard Page"
-Cohesion: 0.09
-Nodes (26): publicWithTenant, Request, applyPublicGuestCrm(), bookSubmitLimit, crmDateParts(), PublicGuestCrmDto, resolveAndGate(), router (+18 more)
+Cohesion: 0.12
+Nodes (15): DELIVERY_LABELS, STATUS_COLORS, STATUS_LABELS, DELIVERY_LABELS, NEXT_STATUS, OrderRow(), PAYMENT_METHOD_OPTIONS, QrOrdersPage() (+7 more)
 
 ### Community 7 - "API Package Config"
 Cohesion: 0.05
 Nodes (42): dependencies, bcryptjs, bullmq, cloudinary, compression, cors, dotenv, express (+34 more)
 
 ### Community 8 - "Cashbook Balances Drawer"
-Cohesion: 0.07
-Nodes (42): ACCOUNT_META, AccountMeta, BalancesDrawer(), BalancesDrawerProps, fmtDate(), formatPKR(), todayIso(), PAYMENT_METHOD_OPTIONS (+34 more)
+Cohesion: 0.08
+Nodes (39): ACCOUNT_META, AccountMeta, BalancesDrawer(), BalancesDrawerProps, fmtDate(), formatPKR(), todayIso(), PAYMENT_METHOD_OPTIONS (+31 more)
 
 ### Community 9 - "API Auth & Middleware Core"
-Cohesion: 0.06
-Nodes (54): app, productionOriginPattern, checkFeatureAccess(), authenticate(), Express, Request, errorHandler(), requirePermission() (+46 more)
+Cohesion: 0.05
+Nodes (58): app, productionOriginPattern, authenticate(), errorHandler(), requirePermission(), Express, Request, tenantMiddleware() (+50 more)
 
 ### Community 10 - "Workbox Cache Route Add-on"
 Cohesion: 0.08
@@ -297,32 +284,32 @@ Cohesion: 0.09
 Nodes (39): audit_logs table, channel_configs table, conversations table, custom_field_definitions table, custom_field_values table, folio_items table, folio_splits table, folios table (+31 more)
 
 ### Community 12 - "Housekeeping & Room Modals"
-Cohesion: 0.08
-Nodes (29): ConfidencePill(), ConfirmedItem, Mode, ReviewItems(), ScanStockModal(), ScanStockModalProps, Step, SearchInput() (+21 more)
+Cohesion: 0.05
+Nodes (61): GlobalSearchBar(), TYPE_META, TYPE_ORDER, CATEGORY_OPTIONS, CreateTicketModal(), CreateTicketModalProps, PRIORITY_OPTIONS, ResolveTicketModal() (+53 more)
 
 ### Community 13 - "Admin App Shell"
-Cohesion: 0.09
-Nodes (32): App(), ProtectedRoute(), AdminLayout(), AdminLayoutProps, api, AdminTokenPayload, clearToken(), decodeToken() (+24 more)
+Cohesion: 0.06
+Nodes (45): App(), ProtectedRoute(), AdminLayout(), AdminLayoutProps, api, AdminTokenPayload, clearToken(), decodeToken() (+37 more)
 
 ### Community 14 - "Reservations API Routes"
 Cohesion: 0.09
-Nodes (30): AccommodationCharges, AccommodationTaxLine, ActiveTax, calculateAccommodationCharges(), getActiveAccommodationTaxes(), parseAccommodationTaxBreakdown(), percentage(), getStayFeePaisas() (+22 more)
+Nodes (29): AccommodationCharges, AccommodationTaxLine, ActiveTax, calculateAccommodationCharges(), getActiveAccommodationTaxes(), parseAccommodationTaxBreakdown(), percentage(), getStayFeePaisas() (+21 more)
 
 ### Community 15 - "Menu Cart & Order Confirm"
-Cohesion: 0.09
-Nodes (26): CartBar(), CartBarProps, CartItem, cardStyle, DELIVERY_ICONS, DELIVERY_LABELS, DeliveryType, inputStyle (+18 more)
+Cohesion: 0.14
+Nodes (14): categoryIcon(), DELIVERY_LABELS, GuestMenuPage(), OrderStatus, STATUS_STEPS, STEP_ICONS, STEP_LABELS, TrackOrderView() (+6 more)
 
 ### Community 16 - "Housekeeping API & Web Push"
-Cohesion: 0.09
-Nodes (25): redis, createStorageProvider(), getStorageProvider(), createVisionProvider(), getVisionProvider(), GoogleAnnotateResponse, GoogleVisionProvider, VisionProvider (+17 more)
+Cohesion: 0.14
+Nodes (18): router, CreateInventoryItemDto, createInventoryItemSchema, CreateTransactionDto, createTransactionSchema, ListInventoryQuery, listInventorySchema, UpdateInventoryItemDto (+10 more)
 
 ### Community 17 - "POS API Routes"
 Cohesion: 0.09
-Nodes (30): broadcastLocal(), RealtimeChangeMessage, redisSub, subscribers, unsubscribe(), JwtPayload, router, router (+22 more)
+Nodes (29): broadcastLocal(), notifyHotelDataChanged(), RealtimeChangeMessage, redisSub, subscribers, unsubscribe(), router, CreateCategoryDto (+21 more)
 
 ### Community 18 - "QR Orders API Routes"
-Cohesion: 0.10
-Nodes (19): qrOrderingIsAvailable(), router, AdvanceStatusDto, advanceStatusSchema, EditOrderDto, editOrderSchema, ListQrOrdersQuery, listQrOrdersSchema (+11 more)
+Cohesion: 0.09
+Nodes (21): router, qrOrderingIsAvailable(), router, AdvanceStatusDto, advanceStatusSchema, EditOrderDto, editOrderSchema, ListQrOrdersQuery (+13 more)
 
 ### Community 19 - "Workbox Precache Strategy"
 Cohesion: 0.14
@@ -333,44 +320,44 @@ Cohesion: 0.05
 Nodes (49): AdditionalGuest, fmtPkr(), NewGroupModal(), NewGroupModalProps, nightsBetween(), PAYER_TYPE_OPTIONS, PAYMENT_TERMS_OPTIONS, RoomLine (+41 more)
 
 ### Community 21 - "Maintenance Ticket Modals"
-Cohesion: 0.08
-Nodes (36): ThemePicker(), ThemePickerProps, ToastContainer(), ToastContainerProps, Toast, applyTheme(), isThemeKey(), ThemeDefinition (+28 more)
+Cohesion: 0.11
+Nodes (20): ACTION_ORDER, ALL_SECTIONS, formatLabel(), getPasswordStrength(), HIDDEN_MODULES, MODULE_ACTIONS, PasswordField(), PasswordStrength (+12 more)
 
 ### Community 22 - "Realtime Dashboard Page"
-Cohesion: 0.10
-Nodes (26): ArrivalsPanel(), ArrivalsReadiness(), countDelta(), DashboardPage(), formatPKR(), formatUpcomingDate(), greeting(), hoursUntilExpiry() (+18 more)
+Cohesion: 0.06
+Nodes (40): ArrivalsPanel(), ArrivalsReadiness(), countDelta(), DashboardPage(), formatPKR(), formatUpcomingDate(), greeting(), hoursUntilExpiry() (+32 more)
 
 ### Community 23 - "API Env & Realtime Lib"
-Cohesion: 0.06
-Nodes (39): AccommodationCharges, AccommodationTaxLine, calculateAccommodationCharges(), percentage(), BookingFormPage(), BookingFormPageProps, CART_KEY(), CompactSummary() (+31 more)
+Cohesion: 0.15
+Nodes (14): AccommodationCharges, AccommodationTaxLine, calculateAccommodationCharges(), percentage(), BookingFormPage(), BookingFormPageProps, CART_KEY(), CompactSummary() (+6 more)
 
 ### Community 24 - "Folio Charge & Payment Modals"
-Cohesion: 0.15
-Nodes (15): NotificationBell(), NotificationItem(), timeAgo(), TYPE_CONFIG, TypeConfig, NotificationRow(), NotificationsPage(), timeAgo() (+7 more)
+Cohesion: 0.09
+Nodes (25): Card(), CardProps, DAY_LABELS, fmtDate(), fmtPkr(), RatePlanCodesModal(), RatePlanModal(), RatePlanModalProps (+17 more)
 
 ### Community 25 - "Inventory Scan Stock Modal"
-Cohesion: 0.06
-Nodes (37): collectBriefingData(), notifyHotelDataChanged(), getCurrentPKTDate(), getPKTDayRange(), getPKTMonthRange(), getPKTRangeFromStrings(), emailSchema, isValidInternationalPhone() (+29 more)
+Cohesion: 0.10
+Nodes (22): emailSchema, isValidInternationalPhone(), normalizePakistaniPhone(), normalizePhone(), optionalEmailSchema, optionalPhoneSchema, phoneSchema, ExpenseRow (+14 more)
 
 ### Community 26 - "ShiftService.ts"
-Cohesion: 0.12
-Nodes (22): router, CreateTaskDto, createTaskSchema, HousekeepingPriority, HousekeepingTaskType, ListTasksQuery, listTasksSchema, PRIORITY_VALUES (+14 more)
+Cohesion: 0.05
+Nodes (48): PushPayload, PushSubscriptionKeys, sendPushNotification(), sendPushToUser(), querySchema, router, router, router (+40 more)
 
 ### Community 27 - "Housekeeping Mobile Page"
-Cohesion: 0.16
-Nodes (16): useRealtimeSync(), BeforeInstallPromptEvent, FilterKey, FILTERS, greeting(), HousekeepingMobilePage(), PRIORITY_TONE, readCache() (+8 more)
+Cohesion: 0.11
+Nodes (27): SidebarContent(), KitchenLayout(), SidebarContent(), useRealtimeSync(), AccessTokenPayload, decodeToken(), formatRoleLabel(), getCurrentUserName() (+19 more)
 
 ### Community 28 - "Cashbook API Routes"
-Cohesion: 0.10
-Nodes (33): router, ACCOUNT_TYPES, AccountType, BalancesQuery, balancesQuerySchema, CreateAccountDto, createAccountSchema, CreateEntryDto (+25 more)
+Cohesion: 0.07
+Nodes (38): router, router, ACCOUNT_TYPES, AccountType, BalancesQuery, balancesQuerySchema, CreateAccountDto, createAccountSchema (+30 more)
 
 ### Community 29 - "bookingPublic.ts"
-Cohesion: 0.08
-Nodes (23): AdjustCompanyLedgerDto, AgingReportQuery, CompanyLedgerQuery, CreateCompanyDto, CreateCompanyInvoiceDto, RecordCompanyPaymentDto, RefundCompanyCreditDto, SetCreditLimitDto (+15 more)
+Cohesion: 0.13
+Nodes (15): fmtDate(), fmtPkrK(), GuestDrawer(), GuestDrawerProps, memberDuration(), nightsBetween(), STATUS_LABEL, fmtDate() (+7 more)
 
 ### Community 30 - "Onboarding Page Flow"
-Cohesion: 0.06
-Nodes (35): numberToWords(), ONES, pkrInWords(), TENS, threeDigits(), twoDigits(), AddedMember, BED_TYPES (+27 more)
+Cohesion: 0.07
+Nodes (26): AddedMember, BED_TYPES, booleanSetting(), COMPLETION_LINES, CompletionOverlay(), DesktopRail(), getCurrentUserId(), LAUNCH_OUTCOMES (+18 more)
 
 ### Community 31 - "Admin Package Config"
 Cohesion: 0.08
@@ -393,44 +380,44 @@ Cohesion: 0.17
 Nodes (24): candidate(), DEFAULT_OPERATIONAL_REMINDER_SETTINGS, getNightAuditReminderTiming(), getShiftReminderCandidates(), NightAuditReminderTiming, OperationalReminderSettings, readOperationalReminderSettings(), ShiftReminderCandidate (+16 more)
 
 ### Community 36 - "Dashboard API & Tenant Middleware"
-Cohesion: 0.09
-Nodes (31): AddChargeModal(), AddChargeModalProps, AUTO_DESCS, TYPE_TILES, TypeTile, PAYMENT_METHOD_OPTIONS, RecordPaymentModal(), RecordPaymentModalProps (+23 more)
+Cohesion: 0.05
+Nodes (61): AddChargeModal(), AddChargeModalProps, AUTO_DESCS, TYPE_TILES, TypeTile, PAYMENT_METHOD_OPTIONS, RecordPaymentModal(), RecordPaymentModalProps (+53 more)
 
 ### Community 37 - "Audit Log Page"
-Cohesion: 0.08
-Nodes (30): NewReservationType, NewReservationTypeModal(), NewReservationTypeModalProps, fmtDate(), fmtPkr(), nightsBetween(), ReservationDrawer(), ReservationDrawerProps (+22 more)
+Cohesion: 0.20
+Nodes (19): promoEmailQueue, PromoEmailReason, EnqueuePromoEmailArgs, THEME_ACCENTS, EffectiveSubscription, getEffectiveLimits(), FALLBACK_FEATURES, FALLBACK_LIMITS (+11 more)
 
 ### Community 38 - "KitchenDisplayPage.tsx"
-Cohesion: 0.07
-Nodes (29): env, envSchema, parsedEnv, CloudinaryProvider, StorageProvider, UploadResult, router, router (+21 more)
-
-### Community 39 - "Permissions Hook & Housekeeping Page"
-Cohesion: 0.09
-Nodes (29): router, BlacklistGuestDto, blacklistGuestSchema, CheckBlacklistDto, checkBlacklistSchema, CreateGuestDto, createGuestSchema, DAYS_IN_MONTH (+21 more)
-
-### Community 40 - "Admin Auth & Routes"
-Cohesion: 0.06
-Nodes (53): HotelDetailPage(), checkRoomLimit(), checkSubscriptionLimit(), checkUserLimit(), EffectiveSubscription, getEffectiveLimits(), adminAuth(), AdminJwtPayload (+45 more)
-
-### Community 41 - "Guests API Routes"
-Cohesion: 0.06
-Nodes (53): DOC_TYPES, EditGuestModalProps, GENDER_OPTIONS, VIP_LEVELS, fmtDate(), fmtPkrK(), GuestDrawer(), GuestDrawerProps (+45 more)
-
-### Community 42 - "Global Search & Push Notifications"
-Cohesion: 0.03
-Nodes (64): AccountingExportPage, ADRRevPARPage, AuditLogPage, BillingPage, BookingEngineHubPage, BookingFormPage, BookingLandingPage, CashBookPage (+56 more)
-
-### Community 43 - "Reservations Calendar View"
-Cohesion: 0.26
-Nodes (12): occasionWorker, processOccasionSweep(), randomCode(), REASON_FOR_KIND, enqueuePromoCodeEmail(), acquireSubscriptionQuotaLock(), formatMonthDay(), isLeapDayObservedOn() (+4 more)
-
-### Community 44 - "Toast & Folio Page"
 Cohesion: 0.16
 Nodes (17): AccountingExportPage(), fmtDate(), fmtMoney(), lastMonthRange(), SCOPE_ORDER, accountingService, AccountMapping, AccountScope (+9 more)
 
+### Community 39 - "Permissions Hook & Housekeeping Page"
+Cohesion: 0.11
+Nodes (23): router, BlacklistGuestDto, blacklistGuestSchema, CheckBlacklistDto, checkBlacklistSchema, CreateGuestDto, createGuestSchema, DAYS_IN_MONTH (+15 more)
+
+### Community 40 - "Admin Auth & Routes"
+Cohesion: 0.11
+Nodes (22): adminAuth(), AdminJwtPayload, Express, Request, router, AdminLoginDto, adminLoginSchema, CreateHotelDto (+14 more)
+
+### Community 41 - "Guests API Routes"
+Cohesion: 0.05
+Nodes (65): AddGuestModalProps, DOC_TYPES, FormState, GENDER_OPTIONS, BlacklistModal(), BlacklistModalProps, SEVERITIES, DOC_TYPES (+57 more)
+
+### Community 42 - "Global Search & Push Notifications"
+Cohesion: 0.03
+Nodes (71): AccountingExportPage, ADRRevPARPage, App(), AuditLogPage, BillingPage, BookingEngineHubPage, BookingFormPage, BookingLandingPage (+63 more)
+
+### Community 43 - "Reservations Calendar View"
+Cohesion: 0.08
+Nodes (31): occasionWorker, processOccasionSweep(), randomCode(), REASON_FOR_KIND, enqueuePromoCodeEmail(), acquireSubscriptionQuotaLock(), checkSubscriptionLimit(), checkUserLimit() (+23 more)
+
+### Community 44 - "Toast & Folio Page"
+Cohesion: 0.11
+Nodes (22): createStorageProvider(), getStorageProvider(), createVisionProvider(), getVisionProvider(), GoogleAnnotateResponse, GoogleVisionProvider, VisionProvider, VisionResult (+14 more)
+
 ### Community 45 - "Rooms API Routes"
-Cohesion: 0.17
-Nodes (18): roomsRouter, roomTypesRouter, CheckAvailabilityQuery, checkAvailabilitySchema, CreateRoomDto, createRoomSchema, CreateRoomTypeDto, createRoomTypeSchema (+10 more)
+Cohesion: 0.16
+Nodes (19): checkRoomLimit(), roomsRouter, roomTypesRouter, CheckAvailabilityQuery, checkAvailabilitySchema, CreateRoomDto, createRoomSchema, CreateRoomTypeDto (+11 more)
 
 ### Community 46 - "Monthly Report Page"
 Cohesion: 0.14
@@ -441,12 +428,12 @@ Cohesion: 0.14
 Nodes (12): ArrivalsTable(), DailyReportPage(), DeparturesTable(), ExpensesTable(), formatLongDate(), formatPKR(), PAYMENT_METHOD_LABELS, todayDateStr() (+4 more)
 
 ### Community 48 - "Settings Page"
-Cohesion: 0.36
-Nodes (8): subscribe(), applicationServerKeysMatch(), ensureBrowserSubscription(), getVapidPublicKey(), syncSubscriptionToServer(), urlBase64ToUint8Array(), usePushNotifications(), UsePushNotificationsResult
+Cohesion: 0.14
+Nodes (12): subscribe(), applicationServerKeysMatch(), ensureBrowserSubscription(), getVapidPublicKey(), syncSubscriptionToServer(), urlBase64ToUint8Array(), usePushNotifications(), UsePushNotificationsResult (+4 more)
 
 ### Community 49 - "Dashboard Service Data"
-Cohesion: 0.36
-Nodes (5): AppLayout(), getAudioContext(), playNotificationSound(), ring(), unlockNotificationSound()
+Cohesion: 0.08
+Nodes (27): env, envSchema, parsedEnv, CloudinaryProvider, StorageProvider, UploadResult, Express, JwtPayload (+19 more)
 
 ### Community 50 - "Web TSConfig"
 Cohesion: 0.11
@@ -461,36 +448,36 @@ Cohesion: 0.11
 Nodes (17): compilerOptions, allowImportingTsExtensions, isolatedModules, jsx, lib, module, moduleResolution, noEmit (+9 more)
 
 ### Community 53 - "Reservations Page & Search UI"
-Cohesion: 0.10
-Nodes (26): Card(), CardProps, formatPKR(), GuestDirectoryPage(), SORT_OPTIONS, firstOfMonth(), HousekeepingPerformancePage(), localIso() (+18 more)
+Cohesion: 0.53
+Nodes (5): BucketTable(), BucketTableProps, formatPKR(), OutstandingBalancesPage(), OutstandingFolioEntry
 
 ### Community 54 - "Shift Handover Page"
 Cohesion: 0.11
 Nodes (26): BriefingCard(), BriefingSnapshot(), fmtDate(), fmtDateTime(), formatPKR(), ReportsTab(), rupeesToPaisas(), SHIFT_TYPES (+18 more)
 
 ### Community 55 - "Root Package Scripts"
-Cohesion: 0.09
-Nodes (22): scripts, apply:rls, backfill:guest-birthdays, backfill:guest-stats, backfill:upload-urls, build, build:prod, db:generate (+14 more)
+Cohesion: 0.10
+Nodes (21): scripts, apply:rls, backfill:guest-birthdays, backfill:guest-stats, backfill:upload-urls, build, build:prod, db:generate (+13 more)
 
 ### Community 56 - "UI Package Config"
 Cohesion: 0.11
 Nodes (17): dependencies, clsx, tailwind-merge, devDependencies, react, @types/react, typescript, exports (+9 more)
 
 ### Community 57 - "Marketing App Shell"
-Cohesion: 0.18
-Nodes (11): COMPANY_LINKS, Footer(), PRODUCT_LINKS, MagneticButton(), MagneticButtonProps, getWhatsAppUrl(), loadContact(), Contact() (+3 more)
+Cohesion: 0.23
+Nodes (9): COMPANY_LINKS, Footer(), PRODUCT_LINKS, getWhatsAppUrl(), loadContact(), Contact(), ContactForm, initialForm (+1 more)
 
 ### Community 58 - "Marketing Home Tab Mockups"
-Cohesion: 0.12
-Nodes (13): ChannelManagerComingSoonMockup(), FrontDeskMockup(), HousekeepingMockup(), ReportsSnapshotMockup(), TeamAccessMockup(), MarqueeProps, loadHome(), FAQS (+5 more)
+Cohesion: 0.07
+Nodes (16): ChannelManagerComingSoonMockup(), FrontDeskMockup(), HousekeepingMockup(), ReportsSnapshotMockup(), TeamAccessMockup(), MarqueeProps, CURSOR_TARGETS, NAV_ITEMS (+8 more)
 
 ### Community 59 - "Marketing Module Mockups"
 Cohesion: 0.11
-Nodes (6): InventoryControlMockup(), LiveFolioMockup(), LiveScheduleMockup(), PosTerminalMockup(), QrMenuMockup(), FEATURE_FAQS
+Nodes (7): InventoryControlMockup(), LiveFolioMockup(), LiveScheduleMockup(), PosTerminalMockup(), QrMenuMockup(), loadFeatures(), FEATURE_FAQS
 
 ### Community 60 - "App Layout Component"
-Cohesion: 0.11
-Nodes (21): AppLayoutProps, formatPropertyType(), Hotel, NAV_ITEMS, NavItem, NavSubItem, OfflineBanner(), SidebarContent() (+13 more)
+Cohesion: 0.10
+Nodes (22): AppLayout(), AppLayoutProps, formatPropertyType(), Hotel, NAV_ITEMS, NavItem, NavSubItem, OfflineBanner() (+14 more)
 
 ### Community 61 - "Notifications Bell & Page"
 Cohesion: 0.23
@@ -501,24 +488,24 @@ Cohesion: 0.16
 Nodes (5): createCacheKey(), generateURLVariations(), PrecacheController, PrecacheRoute, removeIgnoredSearchParams()
 
 ### Community 63 - "shifts.ts"
-Cohesion: 0.10
-Nodes (28): AssignTaskModal(), AssignTaskModalProps, PRIORITY_OPTIONS, TASK_TYPE_OPTIONS, toneOf(), usePermissions(), QueuedUpdate, ALL_STATUSES (+20 more)
+Cohesion: 0.11
+Nodes (23): AssignTaskModal(), AssignTaskModalProps, PRIORITY_OPTIONS, TASK_TYPE_OPTIONS, QueuedUpdate, ALL_STATUSES, HousekeepingPage(), isRecentlyCompleted() (+15 more)
 
 ### Community 64 - "RatePlansPage.tsx"
-Cohesion: 0.38
-Nodes (6): firstOfMonth(), GUEST_TYPE_LABELS, GuestDemographicsPage(), localIso(), NAT_COLORS, TYPE_COLORS
+Cohesion: 0.15
+Nodes (15): NotificationBell(), NotificationItem(), timeAgo(), TYPE_CONFIG, TypeConfig, NotificationRow(), NotificationsPage(), timeAgo() (+7 more)
 
 ### Community 65 - "Daily Report Page"
-Cohesion: 0.11
-Nodes (24): CATEGORY_OPTIONS, CreateTicketModal(), CreateTicketModalProps, PRIORITY_OPTIONS, ResolveTicketModal(), ResolveTicketModalProps, ALLOWED_TRANSITIONS, BOARD_COLUMNS (+16 more)
+Cohesion: 0.16
+Nodes (14): DirectPaymentModal(), DirectPaymentModalProps, formatPKR(), PAYMENT_METHODS, PostToRoomModalProps, CartItem, CreateCategoryDto, CreateItemDto (+6 more)
 
 ### Community 66 - "Turbo Task Cache Config"
 Cohesion: 0.14
 Nodes (14): dependsOn, outputs, cache, dependsOn, cache, cache, tasks, build (+6 more)
 
 ### Community 67 - "Expenses API Routes"
-Cohesion: 0.24
-Nodes (21): amenityGrid(), cancellationEmail(), contactLink(), COPY, directionsCard(), escapeHtml(), formatPKR(), guestsLine() (+13 more)
+Cohesion: 0.05
+Nodes (63): scheduleBriefings(), scheduleHotelBriefing(), briefingWorker, logBriefing(), LogStatus, processBriefing(), collectBriefingData(), BriefingData (+55 more)
 
 ### Community 68 - "shiftSchedule.ts"
 Cohesion: 0.33
@@ -529,24 +516,24 @@ Cohesion: 0.29
 Nodes (3): CacheExpiration, dontWaitFor(), ExpirationPlugin
 
 ### Community 70 - "Guest/Search/Notification Modals"
-Cohesion: 0.18
-Nodes (3): CURSOR_TARGETS, NAV_ITEMS, SCENES
+Cohesion: 0.53
+Nodes (5): BAR_COLORS, firstOfMonth(), formatPKR(), localIso(), POSSalesPage()
 
 ### Community 71 - "Scripts Package Config"
 Cohesion: 0.12
 Nodes (15): dependencies, dotenv, pg, devDependencies, dotenv-cli, tsx, @types/pg, typescript (+7 more)
 
 ### Community 72 - "Shifts API Routes"
-Cohesion: 0.13
-Nodes (18): scheduleBriefings(), scheduleHotelBriefing(), scheduleOccasionSweeps(), BriefingJobData, briefingQueue, emailQueue, occasionQueue, OccasionSweepJobData (+10 more)
+Cohesion: 0.15
+Nodes (12): CartBar(), CartBarProps, CartItem, cardStyle, DELIVERY_ICONS, DELIVERY_LABELS, DeliveryType, inputStyle (+4 more)
 
 ### Community 73 - "Workbox Network-First Strategy"
 Cohesion: 0.19
 Nodes (6): cleanupOutdatedCaches(), _nestedGroup(), NetworkFirst, printCleanupDetails(), printInstallDetails(), waitUntil()
 
 ### Community 74 - "Excel Report Export"
-Cohesion: 0.21
-Nodes (30): buildSheet(), exportADRRevPARToExcel(), exportAllDataToExcel(), exportCashBookToExcel(), exportCashReconciliationToExcel(), exportDailyReportExcel(), exportGroupBookingsSummaryToExcel(), exportGuestDemographicsToExcel() (+22 more)
+Cohesion: 0.24
+Nodes (27): buildSheet(), exportADRRevPARToExcel(), exportAllDataToExcel(), exportCashBookToExcel(), exportCashReconciliationToExcel(), exportDailyReportExcel(), exportGroupBookingsSummaryToExcel(), exportGuestDemographicsToExcel() (+19 more)
 
 ### Community 75 - "Channel Manager Page"
 Cohesion: 0.19
@@ -561,28 +548,28 @@ Cohesion: 0.17
 Nodes (11): compilerOptions, esModuleInterop, module, moduleResolution, paths, skipLibCheck, strict, target (+3 more)
 
 ### Community 78 - "api.ts"
-Cohesion: 0.14
-Nodes (20): DatePicker(), DatePickerProps, parseLocalDate(), toLocalDateString(), firstOfMonth(), formatPKR(), GroupBookingsSummaryPage(), localIso() (+12 more)
+Cohesion: 0.36
+Nodes (6): firstOfMonth(), formatPKR(), localIso(), QROrdersReportPage(), STATUS_COLORS, QROrdersReport
 
 ### Community 79 - "Reservation Detail Page"
-Cohesion: 0.09
-Nodes (31): AddRoomModal(), AddRoomModalProps, STATUS_OPTIONS, AddRoomTypeModal(), AddRoomTypeModalProps, AMENITY_PRESETS, TYPE_OPTIONS, EditRoomModal() (+23 more)
+Cohesion: 0.10
+Nodes (28): AddStaffModal(), AddStaffModalProps, ROLE_CARDS, RoleCard, EditStaffModal(), EditStaffModalProps, getCurrentUserId(), ROLE_CARDS (+20 more)
 
 ### Community 80 - "DB Seed Permissions Script"
-Cohesion: 0.05
-Nodes (42): fmt(), PaperWidth, PaymentStatus, ReceiptItem, ReceiptView(), ReceiptViewProps, CancelConfirmDialog(), DELIVERY_LABELS (+34 more)
+Cohesion: 0.14
+Nodes (11): CancelConfirmDialog(), DELIVERY_LABELS, EditItem, EditOrderModal(), IN_PROGRESS_STATUSES, NEXT_LABEL, NEXT_STATUS, ORDER_CARD_STYLES (+3 more)
 
 ### Community 81 - "DB Package TSConfig"
 Cohesion: 0.17
 Nodes (11): compilerOptions, declaration, esModuleInterop, module, moduleResolution, noEmit, skipLibCheck, strict (+3 more)
 
 ### Community 82 - "UI Badge & Button"
-Cohesion: 0.13
-Nodes (10): row, row, Badge(), BadgeProps, variants, Button(), ButtonProps, sizes (+2 more)
+Cohesion: 0.30
+Nodes (8): Badge(), BadgeProps, variants, Button(), ButtonProps, sizes, variants, cn()
 
 ### Community 83 - "Report Service Helpers"
-Cohesion: 0.11
-Nodes (26): router, bookingCodeSchema, CreateRatePlanCodeDto, createRatePlanCodeSchema, CreateRatePlanDto, createRatePlanSchema, ListRatePlansQuery, listRatePlansSchema (+18 more)
+Cohesion: 0.06
+Nodes (48): publicWithTenant, checkFeatureAccess(), applyPublicGuestCrm(), bookSubmitLimit, crmDateParts(), PublicGuestCrmDto, resolveAndGate(), router (+40 more)
 
 ### Community 85 - "Permission Roles & Auth Docs"
 Cohesion: 0.29
@@ -597,24 +584,24 @@ Cohesion: 0.12
 Nodes (12): container, SplitHeading(), SplitHeadingProps, word, loadAbout(), loadPricing(), FLOW, PRINCIPLES (+4 more)
 
 ### Community 89 - "Reservation Drawer"
-Cohesion: 0.18
-Nodes (13): PromoEmailJobData, ReservationEmailJobData, emailWorker, formatDateForEmail(), processReservationEmail(), subjectFor(), processPromoEmail(), promoEmailWorker (+5 more)
+Cohesion: 0.19
+Nodes (16): AMENITY_ICONS, amenityIcon(), BookingLandingPage(), BookingLandingPageProps, CART_KEY(), fmt(), fmtShortDate(), Lightbox() (+8 more)
 
 ### Community 90 - "Reports Page"
-Cohesion: 0.53
-Nodes (5): BAR_COLORS, firstOfMonth(), formatPKR(), localIso(), POSSalesPage()
+Cohesion: 0.05
+Nodes (49): formatPKR(), PostToRoomModal(), buildCells(), CalendarView(), CalendarViewProps, DAY_HEADERS, dayTs(), groupByDay() (+41 more)
 
 ### Community 91 - "Reports Service Data"
 Cohesion: 0.05
-Nodes (56): api, Block, CASHBOOK_SOURCE_DISPLAY, Cell, ENTRY_METHOD_LABELS, GUEST_TYPE_DISPLAY, METHOD_LABELS, PAYMENT_METHOD_DISPLAY (+48 more)
+Nodes (55): Block, CASHBOOK_SOURCE_DISPLAY, Cell, ENTRY_METHOD_LABELS, GUEST_TYPE_DISPLAY, METHOD_LABELS, PAYMENT_METHOD_DISPLAY, SEVERITY_LABEL (+47 more)
 
 ### Community 92 - "Root Dev Dependencies"
 Cohesion: 0.20
 Nodes (9): devDependencies, dotenv-cli, pg, tsx, turbo, @types/pg, typescript, $schema (+1 more)
 
 ### Community 93 - "search.ts"
-Cohesion: 0.17
-Nodes (14): router, CreateExpenseDto, createExpenseSchema, EXPENSE_CATEGORIES, EXPENSE_PAYMENT_METHODS, ExpenseCategory, ListExpensesQuery, listExpensesSchema (+6 more)
+Cohesion: 0.15
+Nodes (10): CancelConfirmDialog(), DELIVERY_LABELS, EditItem, EditOrderModal(), IN_PROGRESS_STATUSES, NEXT_LABEL, NEXT_STATUS, PAYMENT_METHOD_OPTIONS (+2 more)
 
 ### Community 94 - "DB Package Config"
 Cohesion: 0.08
@@ -629,16 +616,16 @@ Cohesion: 0.25
 Nodes (7): compilerOptions, allowSyntheticDefaultImports, composite, module, moduleResolution, skipLibCheck, include
 
 ### Community 97 - "NewReservationModal.tsx"
-Cohesion: 0.09
-Nodes (33): AddGuestModal(), AddGuestModalProps, DOC_TYPES, FormState, GENDER_OPTIONS, EditGuestModal(), TagEditor(), addOneDay() (+25 more)
+Cohesion: 0.13
+Nodes (23): AddGuestModal(), EditGuestModal(), addOneDay(), fmtDate(), fmtPkr(), fmtPkrK(), NewReservationModal(), NewReservationModalProps (+15 more)
 
 ### Community 98 - "Theme Picker & Settings Service"
-Cohesion: 0.05
-Nodes (36): About, Automations, BookingEngine, ChannelManager, Contact, Features, Financials, Glamping (+28 more)
+Cohesion: 0.06
+Nodes (32): About, Automations, BookingEngine, ChannelManager, Contact, Features, Financials, Glamping (+24 more)
 
 ### Community 99 - "backfill-upload-urls.ts"
-Cohesion: 0.11
-Nodes (19): DashboardCollectItem, DashboardData, DashboardDeparturesToCollect, DashboardHousekeeping, DashboardInventory, DashboardMaintenance, DashboardOccupancy, DashboardOperationalReminder (+11 more)
+Cohesion: 0.18
+Nodes (9): AvailabilityResult, BookingConfirmation, BookingRequest, BookMultiConfirmation, BookMultiRequest, PromoCodeValidation, publicApi, PublicHotel (+1 more)
 
 ### Community 100 - "Web Node TSConfig"
 Cohesion: 0.25
@@ -649,8 +636,8 @@ Cohesion: 0.25
 Nodes (7): engines, node, pnpm, name, packageManager, private, version
 
 ### Community 102 - "DB Package Scripts"
-Cohesion: 0.50
-Nodes (3): App(), AppMode, resolveAppMode()
+Cohesion: 0.42
+Nodes (6): GuestStats, recalculateGuestStats(), DEFAULT_VIP_THRESHOLDS, parseVipThresholds(), vipLevelForStays(), VipThresholds
 
 ### Community 103 - "API Build TSConfig"
 Cohesion: 0.22
@@ -702,23 +689,27 @@ Nodes (20): AppError — domain error class, Audit logging, Backend Rules — ap
 
 ### Community 117 - "Marketing Marquee Component"
 Cohesion: 0.12
-Nodes (10): BOARD_COLUMNS, EASE, MENU_ITEMS, POS_FAQS, PosTerminalMockup(), STATIC_TICKETS, STATION_FEATURES, TERMINAL_CATEGORIES (+2 more)
+Nodes (11): loadPointOfSale(), BOARD_COLUMNS, EASE, MENU_ITEMS, POS_FAQS, PosTerminalMockup(), STATIC_TICKETS, STATION_FEATURES (+3 more)
+
+### Community 122 - "NotificationBell.tsx"
+Cohesion: 0.11
+Nodes (24): DatePicker(), DatePickerProps, parseLocalDate(), toLocalDateString(), exportStockConsumptionToExcel(), firstOfMonth(), formatPKR(), GroupBookingsSummaryPage() (+16 more)
 
 ### Community 126 - "Turbo Build Task Config"
-Cohesion: 0.14
-Nodes (21): Props, RefundPaymentModal(), AddStaffModal(), AddStaffModalProps, ROLE_CARDS, RoleCard, EditStaffModal(), EditStaffModalProps (+13 more)
+Cohesion: 0.39
+Nodes (7): ThemePicker(), ThemePickerProps, applyTheme(), isThemeKey(), ThemeDefinition, THEMES, ThemeKey
 
 ### Community 128 - "Forbidden Pattern Docs"
 Cohesion: 0.08
 Nodes (25): Auth context pattern, Component rules, Component template, Custom query hook (one per operation), Data fetching — TanStack Query v5, Directory layout, Forbidden patterns, Form page pattern (+17 more)
 
 ### Community 143 - "qrOrders.ts"
-Cohesion: 0.23
-Nodes (11): briefingWorker, logBriefing(), LogStatus, processBriefing(), BriefingData, buildAnomalies(), formatBriefingMessage(), pkr() (+3 more)
+Cohesion: 0.53
+Nodes (5): BUCKET_COLORS, firstOfMonth(), formatPKR(), LengthOfStayPage(), localIso()
 
 ### Community 162 - "Automations.tsx"
-Cohesion: 0.13
-Nodes (5): AUTO_FAQS, EASE, EmailLifecycleKind, FOLIO_AUTO_ITEMS, GROUP_ROOMS
+Cohesion: 0.11
+Nodes (8): MagneticButton(), MagneticButtonProps, loadAutomations(), AUTO_FAQS, EASE, EmailLifecycleKind, FOLIO_AUTO_ITEMS, GROUP_ROOMS
 
 ### Community 163 - "ChannelManager.tsx"
 Cohesion: 0.16
@@ -741,36 +732,36 @@ Cohesion: 0.20
 Nodes (9): compilerOptions, declaration, module, moduleResolution, noEmit, outDir, rootDir, exclude (+1 more)
 
 ### Community 168 - "POSSalesPage.tsx"
-Cohesion: 0.13
-Nodes (21): PushPayload, PushSubscriptionKeys, sendPushNotification(), sendPushToUser(), router, BriefingQuery, briefingQuerySchema, CreateShiftReportDto (+13 more)
+Cohesion: 0.22
+Nodes (8): ExportAllData, HotelSettings, PlanInfo, RolePermission, RolePermissions, settingsService, TestBriefingResult, UpdateSettingsDto
 
 ### Community 169 - "getErrorMessage"
-Cohesion: 0.21
-Nodes (12): router, CreateUserDto, createUserSchema, ResetPasswordDto, resetPasswordSchema, UpdateUserDto, updateUserSchema, HOTEL_USER_INCLUDE (+4 more)
+Cohesion: 0.60
+Nodes (5): firstOfMonth(), formatPKR(), localIso(), wasteColor(), WasteLossPage()
 
 ### Community 170 - "theme.ts"
-Cohesion: 0.14
-Nodes (22): loadOpenCharges(), reconcileCompany(), syncCompanyInvoices(), AGING_BUCKETS, AgingBucket, agingBucketOf(), AgingSummary, allocatePayment() (+14 more)
+Cohesion: 0.70
+Nodes (4): ADRRevPARPage(), firstOfMonth(), formatPKR(), localIso()
 
 ### Community 171 - "QROrdersPage.tsx"
-Cohesion: 0.13
-Nodes (17): STATUS_TONE, StatusBadgeProps, ToneConfig, Trend(), TrendProps, exportGuestBlacklistToExcel(), severityLabel(), GuestBlacklistPage() (+9 more)
+Cohesion: 0.36
+Nodes (7): BAR_COLORS, firstOfMonth(), formatPKR(), localIso(), MaintenanceSummaryPage(), PRIORITY_COLORS, STATUS_COLORS
 
 ### Community 172 - "RevenueSourcePage.tsx"
 Cohesion: 0.12
 Nodes (22): ACTION_LABELS, ActionCategory, actionLabel(), AuditLogPage(), BOOL_LABELS, CATEGORY_TONE, ChangesCell(), ENTITY_OPTIONS (+14 more)
 
 ### Community 173 - "PaymentMethodsPage.tsx"
-Cohesion: 0.15
-Nodes (19): router, adjustCompanyLedgerSchema, agingReportSchema, companyFields, companyLedgerQuerySchema, createCompanyInvoiceSchema, createCompanySchema, ListCompaniesQuery (+11 more)
+Cohesion: 0.39
+Nodes (7): numberToWords(), ONES, pkrInWords(), TENS, threeDigits(), twoDigits(), StepRooms()
 
-### Community 174 - "RatePlansPage.tsx"
-Cohesion: 0.18
-Nodes (15): DAY_LABELS, fmtDate(), fmtPkr(), RatePlanCodesModal(), RatePlanModalProps, RatePlansPage(), TYPE_LABEL, CreateRatePlanDto (+7 more)
+### Community 174 - "settings.ts"
+Cohesion: 0.68
+Nodes (7): backfillExpenseAttachments(), backfillHotelLogos(), backfillMaintenanceTicketPhotos(), backfillRoomTypePhotos(), fix(), main(), needsFix()
 
 ### Community 175 - "VoidRefundLogPage.tsx"
-Cohesion: 0.22
-Nodes (7): loadSocial(), ColorTheme, PostPreset, PRESETS, SizeConfig, SIZES, THEMES
+Cohesion: 0.70
+Nodes (4): exportStaffActivityToExcel(), firstOfMonth(), localIso(), StaffActivityPage()
 
 ### Community 176 - "PMS Monorepo — Engineering Rules"
 Cohesion: 0.29
@@ -781,112 +772,60 @@ Cohesion: 0.43
 Nodes (6): firstOfMonth(), formatPKR(), localIso(), METHOD_COLORS, METHOD_LABELS, PaymentMethodsPage()
 
 ### Community 178 - "main.tsx"
-Cohesion: 0.09
-Nodes (29): buildCells(), CalendarView(), CalendarViewProps, DAY_HEADERS, dayTs(), groupByDay(), STATUS_LABEL, BarGeo (+21 more)
+Cohesion: 0.33
+Nodes (6): fmt(), PaperWidth, PaymentStatus, ReceiptItem, ReceiptView(), ReceiptViewProps
 
 ### Community 179 - "theme.ts"
-Cohesion: 0.18
-Nodes (13): TONE, exportLowStockReorderToExcel(), KpiCardProps, formatPKR(), LowStockReorderPage(), URGENCY_STYLE, KpiCardProps, firstOfMonth() (+5 more)
+Cohesion: 0.09
+Nodes (31): STATUS_TONE, StatusBadgeProps, TONE, exportGuestBlacklistToExcel(), exportLowStockReorderToExcel(), severityLabel(), CashReconciliationPage(), firstOfMonth() (+23 more)
 
 ### Community 180 - "ADRRevPARPage.tsx"
-Cohesion: 0.20
-Nodes (13): BlacklistModal(), BlacklistModalProps, SEVERITIES, daysUntil(), fmtDate(), fmtMoney(), GuestDetailPage(), monthDay() (+5 more)
+Cohesion: 0.53
+Nodes (5): BAR_COLORS, firstOfMonth(), formatPKR(), localIso(), RoomTypePerformancePage()
 
 ### Community 181 - "SourceOfBusinessPage.tsx"
-Cohesion: 0.05
-Nodes (69): AdjustLedgerModal(), AdjustLedgerModalProps, BillToCompanyModal(), BillToCompanyModalProps, CompanyFormModal(), CompanyFormModalProps, TERMS, TYPES (+61 more)
+Cohesion: 0.11
+Nodes (19): Button(), ButtonProps, ICON_SIZES, Size, SIZES, Variant, VARIANTS, DateRangePicker() (+11 more)
 
 ### Community 184 - "GuestDemographicsPage.tsx"
-Cohesion: 0.22
-Nodes (8): A small on-brand example, Badge, Button, Components, @pms/ui — design conventions, Setup, Styling idiom — Tailwind utility classes, Where the truth lives
+Cohesion: 0.38
+Nodes (6): firstOfMonth(), GUEST_TYPE_LABELS, GuestDemographicsPage(), localIso(), NAT_COLORS, TYPE_COLORS
 
 ### Community 185 - "isMobileDevice"
-Cohesion: 0.20
-Nodes (7): CATEGORIES, Category, CategorySection(), formatPKR(), ReportCard, ReportsPage(), TODAY
+Cohesion: 0.70
+Nodes (4): exportOccupancyTrendToExcel(), firstOfMonth(), localIso(), OccupancyTrendPage()
 
 ### Community 186 - "production-build.sh"
 Cohesion: 0.70
 Nodes (4): error(), log(), production-build.sh script, success()
 
 ### Community 187 - "main.tsx"
-Cohesion: 0.26
-Nodes (9): ALERT_STYLE, OperationalAlertStack(), OperationalAlertStackProps, OperationalAlert, OperationalAlertType, useOperationalAlerts(), ALERT_TYPES, shouldAlert() (+1 more)
-
-### Community 188 - "search.ts"
-Cohesion: 0.27
-Nodes (7): router, SearchQuery, searchQuerySchema, SearchResultItem, SearchResultType, SearchService, WithTenantFn
-
-### Community 189 - "RevenueSourcePage.tsx"
-Cohesion: 0.25
-Nodes (7): Build / toolchain, design-sync notes — @pms/ui, Known render warns, Previews, Re-sync risks (watch-list), Styling (Tailwind DS — CSS is generated, not shipped), Verification
-
-### Community 202 - "StockConsumptionPage.tsx"
-Cohesion: 0.53
-Nodes (5): BAR_COLORS, firstOfMonth(), formatPKR(), localIso(), StockConsumptionPage()
+Cohesion: 0.70
+Nodes (4): formatPKR(), localIso(), thirtyDaysAgo(), VoidRefundLogPage()
 
 ### Community 203 - "Q: Audit the subscriptionTier thing for hotels and admin, check bugs, and identify numerical plan limits"
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Audit the subscriptionTier thing for hotels and admin, check bugs, and identify numerical plan limits, Source Nodes
 
-### Community 205 - "adminAuth.ts"
-Cohesion: 0.21
-Nodes (7): GlobalSearchBar(), TYPE_META, TYPE_ORDER, refreshQueue, SearchResultItem, SearchResultType, searchService
-
-### Community 206 - "HousekeepingMobileRoute"
-Cohesion: 0.50
-Nodes (4): HousekeepingMobileRoute(), PrivateRoute(), usePlanFeatures(), isMobileDevice()
-
-### Community 207 - "GroupBookingsSummaryPage.tsx"
-Cohesion: 0.42
-Nodes (6): GuestStats, recalculateGuestStats(), DEFAULT_VIP_THRESHOLDS, parseVipThresholds(), vipLevelForStays(), VipThresholds
-
-### Community 208 - "add-company-permissions.ts"
-Cohesion: 0.40
-Nodes (3): GRANTS, PermissionRow, PERMISSIONS
-
-### Community 209 - "Trend.tsx"
-Cohesion: 0.36
-Nodes (6): firstOfMonth(), formatPKR(), localIso(), QROrdersReportPage(), STATUS_COLORS, QROrdersReport
-
-### Community 210 - "backfill-upload-urls.ts"
-Cohesion: 0.68
-Nodes (7): backfillExpenseAttachments(), backfillHotelLogos(), backfillMaintenanceTicketPhotos(), backfillRoomTypePhotos(), fix(), main(), needsFix()
-
-### Community 211 - "GuestBlacklistPage.tsx"
-Cohesion: 0.43
-Nodes (6): firstOfMonth(), formatPKR(), localIso(), PIE_COLORS, SOURCE_LABELS, SourceOfBusinessPage()
-
-### Community 212 - "LengthOfStayPage.tsx"
-Cohesion: 0.53
-Nodes (5): BUCKET_COLORS, firstOfMonth(), formatPKR(), LengthOfStayPage(), localIso()
-
-### Community 213 - "WasteLossPage.tsx"
-Cohesion: 0.70
-Nodes (4): CashReconciliationPage(), firstOfMonth(), formatPKR(), localIso()
-
-### Community 216 - "ADRRevPARPage.tsx"
-Cohesion: 0.70
-Nodes (4): ADRRevPARPage(), firstOfMonth(), formatPKR(), localIso()
-
 ## Knowledge Gaps
-- **1334 isolated node(s):** `row`, `row`, `name`, `version`, `private` (+1329 more)
+- **1267 isolated node(s):** `name`, `version`, `private`, `type`, `dev` (+1262 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **45 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **44 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `key()` connect `Admin Auth & Routes` to `Toast & Folio Page`, `Admin App Shell`, `Monthly Report Page`, `Housekeeping API & Web Push`, `Reservations Page & Search UI`, `Maintenance Ticket Modals`, `shifts.ts`?**
-  _High betweenness centrality (0.192) - this node is a cross-community bridge._
-- **Why does `cn()` connect `Housekeeping & Room Modals` to `Inventory Add/Edit Modals`, `POS Item/Category Modals`, `Cashbook Balances Drawer`, `New Group Modal`, `Maintenance Ticket Modals`, `Realtime Dashboard Page`, `API Env & Realtime Lib`, `Folio Charge & Payment Modals`, `Housekeeping Mobile Page`, `Onboarding Page Flow`, `Expenses Page & Modal`, `Dashboard API & Tenant Middleware`, `Audit Log Page`, `Admin Auth & Routes`, `Guests API Routes`, `theme.ts`, `QROrdersPage.tsx`, `RevenueSourcePage.tsx`, `Toast & Folio Page`, `RatePlansPage.tsx`, `main.tsx`, `ADRRevPARPage.tsx`, `SourceOfBusinessPage.tsx`, `Reservations Page & Search UI`, `Shift Handover Page`, `isMobileDevice`, `main.tsx`, `App Layout Component`, `Notifications Bell & Page`, `shifts.ts`, `Daily Report Page`, `Channel Manager Page`, `adminAuth.ts`, `api.ts`, `Reservation Detail Page`, `DB Seed Permissions Script`, `NewReservationModal.tsx`, `Settings Service`, `Turbo Build Task Config`?**
-  _High betweenness centrality (0.098) - this node is a cross-community bridge._
-- **Why does `usePermissions()` connect `shifts.ts` to `POS Item/Category Modals`, `Cashbook Balances Drawer`, `Housekeeping & Room Modals`, `New Group Modal`, `Maintenance Ticket Modals`, `Realtime Dashboard Page`, `Expenses Page & Modal`, `Dashboard API & Tenant Middleware`, `Audit Log Page`, `Admin Auth & Routes`, `Guests API Routes`, `Toast & Folio Page`, `RatePlansPage.tsx`, `ADRRevPARPage.tsx`, `SourceOfBusinessPage.tsx`, `Shift Handover Page`, `App Layout Component`, `Notifications Bell & Page`, `Daily Report Page`, `Reservation Detail Page`?**
-  _High betweenness centrality (0.095) - this node is a cross-community bridge._
-- **What connects `row`, `row`, `name` to the rest of the system?**
-  _1343 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Why does `key()` connect `Admin App Shell` to `Expenses API Routes`, `Dashboard API & Tenant Middleware`, `Audit Log Page`, `KitchenDisplayPage.tsx`, `Monthly Report Page`, `VoidRefundLogPage.tsx`, `Maintenance Ticket Modals`?**
+  _High betweenness centrality (0.212) - this node is a cross-community bridge._
+- **Why does `usePermissions()` connect `Dashboard API & Tenant Middleware` to `POS Item/Category Modals`, `Cashbook Balances Drawer`, `Housekeeping & Room Modals`, `Admin App Shell`, `New Group Modal`, `Maintenance Ticket Modals`, `Realtime Dashboard Page`, `Folio Charge & Payment Modals`, `Housekeeping Mobile Page`, `bookingPublic.ts`, `Expenses Page & Modal`, `KitchenDisplayPage.tsx`, `Guests API Routes`, `Shift Handover Page`, `App Layout Component`, `Notifications Bell & Page`, `shifts.ts`, `Reservation Detail Page`, `Reports Page`?**
+  _High betweenness centrality (0.109) - this node is a cross-community bridge._
+- **Why does `normalizeFeatureFlags()` connect `Audit Log Page` to `Admin Auth & Routes`, `Admin App Shell`?**
+  _High betweenness centrality (0.106) - this node is a cross-community bridge._
+- **What connects `name`, `version`, `private` to the rest of the system?**
+  _1276 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Storage & Redis Providers` be split into smaller, more focused modules?**
   _Cohesion score 0.06623376623376623 - nodes in this community are weakly interconnected._
 - **Should `Inventory Add/Edit Modals` be split into smaller, more focused modules?**
-  _Cohesion score 0.07536231884057971 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.061343204653622425 - nodes in this community are weakly interconnected._
 - **Should `Web App Package Config` be split into smaller, more focused modules?**
   _Cohesion score 0.04081632653061224 - nodes in this community are weakly interconnected._

@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-07-31T23:20:27.996044+00:00",
+  "nodes": {
+    "apps_admin_src_types_subscriptionplan": {
+      "code_fingerprint": "b5fdc8427a97edc0e863637e9fbd9dd11e5a64bf0d7be0c21dc6d38409b55000",
+      "label": "SubscriptionPlan",
+      "last": "2026-07-31T23:13:54.568129+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-31T23:13:54.568129+00:00",
+          "outcome": "useful",
+          "q": "Audit the subscriptionTier thing for hotels and admin, check bugs, and identify numerical plan limits"
+        }
+      ],
+      "score": 0.999894796,
+      "source_file": "apps/admin/src/types.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_api_src_services_adminservice_adminservice": {
+      "code_fingerprint": "a0af7d7f65078dbe3c80c11c413585a1417556faa793e16cbb74f1b9f1924646",
+      "label": "AdminService",
+      "last": "2026-07-31T23:13:54.568129+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-31T23:13:54.568129+00:00",
+          "outcome": "useful",
+          "q": "Audit the subscriptionTier thing for hotels and admin, check bugs, and identify numerical plan limits"
+        }
+      ],
+      "score": 0.999894796,
+      "source_file": "apps/api/src/services/AdminService.ts",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
+  "version": 1
+}

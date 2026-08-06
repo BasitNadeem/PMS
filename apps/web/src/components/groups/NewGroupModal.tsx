@@ -151,6 +151,7 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
   const [duplicateGuestWarning, setDuplicateGuestWarning] = useState("");
   const [newPhoneError, setNewPhoneError] = useState("");
   const [selectedCompany, setSelectedCompany] = useState<CompanyPickerOption | null>(null);
+  const [manualCompanyEntry, setManualCompanyEntry] = useState(false);
 
   const [form, setForm] = useState<WizardState>({
     name: "", payerType: initialPayerType ?? "TOUR_AGENCY", companyId: null, payerName: "", payerContact: "",
@@ -538,35 +539,57 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
                     <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-mute pointer-events-none" />
                   </div>
                 </div>
-                {/* An organisation is a company we should have on file, so it
-                    gets the picker. An individual/family payer is genuinely a
-                    one-off name and keeps the plain text box. */}
+                {/* Organisation payers can use a saved company or be entered
+                    manually for a booking that should not create CRM history. */}
                 {isOrganisationPayer ? (
-                  <div className="col-span-2">
-                    <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">
-                      Company <span className="text-coral text-[15px] font-bold leading-none">*</span>
-                    </label>
-                    <CompanyPicker
-                      value={form.companyId}
-                      onChange={(company) => {
-                        setSelectedCompany(company);
-                        setForm((f) => ({
-                          ...f,
-                          companyId:   company?.id ?? null,
-                          // Kept in sync so the group still reads correctly on
-                          // screens that show the free-text payer, and so an
-                          // unlinked group is still labelled.
-                          payerName:   company?.name ?? "",
-                          // Switching to a company without credit must not leave
-                          // a credit selection behind that checkout would refuse.
-                          paymentTerms:
-                            f.paymentTerms === "COMPANY_CREDIT" && !(company && company.creditLimit > 0)
-                              ? "CASH"
-                              : f.paymentTerms,
-                        }));
-                      }}
-                      placeholder="Search agencies and corporate clients…"
-                    />
+                  <div className="col-span-2 space-y-3">
+                    <div>
+                      <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">
+                        Company
+                      </label>
+                      <CompanyPicker
+                        value={form.companyId}
+                        nullOptionLabel="Enter company manually"
+                        nullOptionSelected={manualCompanyEntry}
+                        onChange={(company) => {
+                          setSelectedCompany(company);
+                          setManualCompanyEntry(company === null);
+                          setForm((f) => ({
+                            ...f,
+                            companyId: company?.id ?? null,
+                            // Selecting a saved company fills its name. Manual
+                            // mode preserves whatever the staff member typed.
+                            payerName: company?.name ?? f.payerName,
+                            // A manually entered payer has no company credit
+                            // account, so stale credit terms must be cleared.
+                            paymentTerms:
+                              f.paymentTerms === "COMPANY_CREDIT" && !(company && company.creditLimit > 0)
+                                ? "CASH"
+                                : f.paymentTerms,
+                          }));
+                        }}
+                        placeholder="Select a saved company…"
+                      />
+                    </div>
+
+                    {manualCompanyEntry && (
+                      <div className="rounded-xl border border-line bg-mist/50 p-3.5">
+                        <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">
+                          Company name <span className="text-coral text-[15px] font-bold leading-none">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={form.payerName}
+                          onChange={(e) => set("payerName", e.target.value)}
+                          placeholder="e.g. Sunrise Tours"
+                          className={inputCls}
+                          autoFocus
+                        />
+                        <p className="mt-1.5 text-[11.5px] text-ink-faint">
+                          Use this when the company is not saved in Innflo.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div>

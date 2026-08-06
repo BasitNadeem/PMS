@@ -15,6 +15,10 @@ export interface CompanyPickerProps {
   onChange: (company: CompanyPickerOption | null) => void;
   /** Shown as a hint above the list, e.g. "Tour agencies you deal with". */
   placeholder?: string;
+  /** Override the wording for the null/manual option in this workflow. */
+  nullOptionLabel?: string;
+  /** When true, render the null option as the current button value. */
+  nullOptionSelected?: boolean;
   className?: string;
 }
 
@@ -25,7 +29,14 @@ export interface CompanyPickerProps {
  * desk is actually making — "can I put this booking on their account?" — is
  * unanswerable from the name alone.
  */
-export function CompanyPicker({ value, onChange, placeholder, className }: CompanyPickerProps) {
+export function CompanyPicker({
+  value,
+  onChange,
+  placeholder,
+  nullOptionLabel = "No company — guest pays directly",
+  nullOptionSelected,
+  className,
+}: CompanyPickerProps) {
   const { has } = usePermissions();
   const [open, setOpen]     = useState(false);
   const [search, setSearch] = useState("");
@@ -38,6 +49,7 @@ export function CompanyPicker({ value, onChange, placeholder, className }: Compa
   });
 
   const selected = companies.find((c) => c.id === value) ?? null;
+  const isNullOptionSelected = nullOptionSelected ?? value === null;
 
   return (
     <div className={cn("relative", className)}>
@@ -47,8 +59,12 @@ export function CompanyPicker({ value, onChange, placeholder, className }: Compa
         className="h-11 w-full rounded-xl bg-mist border border-line px-3 text-left text-[13.5px] text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all flex items-center gap-2"
       >
         <Building2 size={15} className="text-ink-mute shrink-0" />
-        <span className={cn("flex-1 truncate", !selected && "text-ink-faint")}>
-          {selected ? selected.name : (placeholder ?? "Select a company…")}
+        <span className={cn("flex-1 truncate", !selected && !nullOptionSelected && "text-ink-faint")}>
+          {selected
+            ? selected.name
+            : nullOptionSelected
+              ? nullOptionLabel
+              : (placeholder ?? "Select a company…")}
         </span>
         <ChevronDown size={15} className="text-ink-mute shrink-0" />
       </button>
@@ -92,10 +108,10 @@ export function CompanyPicker({ value, onChange, placeholder, className }: Compa
               <button
                 type="button"
                 onClick={() => { onChange(null); setOpen(false); }}
-                className="w-full px-3 py-2.5 text-left text-[13px] text-ink-mute hover:bg-mist transition-colors flex items-center gap-2"
+                className="w-full px-3 py-2.5 text-left text-[13px] font-semibold text-ink hover:bg-mist transition-colors flex items-center gap-2"
               >
-                <span className="flex-1">No company — guest pays directly</span>
-                {value === null && <Check size={14} className="text-coral" />}
+                <span className="flex-1">{nullOptionLabel}</span>
+                {isNullOptionSelected && <Check size={14} className="text-coral" />}
               </button>
 
               {companies.length === 0 ? (

@@ -88,6 +88,37 @@ test("cancellation email is a focused acknowledgement with hotel support details
   assert.doesNotMatch(html, /Booking &amp; payment terms/);
 });
 
+test("gallery caps at four photos and shows every booked room type first", () => {
+  const html = reservationLifecycleEmail({
+    ...baseData,
+    rooms: [
+      { ...baseData.rooms[0], photoUrls: [
+        "https://cdn.example.com/a1.jpg",
+        "https://cdn.example.com/a2.jpg",
+        "https://cdn.example.com/a3.jpg",
+        "https://cdn.example.com/a4.jpg",
+        "https://cdn.example.com/a5.jpg",
+      ] },
+      { ...baseData.rooms[1], photoUrls: ["https://cdn.example.com/b1.jpg"] },
+    ],
+  });
+
+  // Round-robin: the second room type's only photo must beat the first type's
+  // second photo, otherwise a multi-room booking shows one room four times.
+  assert.match(html, /a1\.jpg/);
+  assert.match(html, /b1\.jpg/);
+  assert.match(html, /a2\.jpg/);
+  assert.match(html, /a3\.jpg/);
+  assert.doesNotMatch(html, /a4\.jpg/);
+  assert.doesNotMatch(html, /a5\.jpg/);
+  assert.equal(html.match(/cdn\.example\.com\/[ab]\d\.jpg/g)?.length, 4);
+});
+
+test("gallery images are sized by width only so clients cannot squash them", () => {
+  const html = reservationLifecycleEmail(baseData);
+  assert.doesNotMatch(html, /object-fit/);
+});
+
 test("only public HTTPS images are rendered", () => {
   const html = reservationLifecycleEmail({
     ...baseData,

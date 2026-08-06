@@ -100,8 +100,8 @@
     "semantic_hash": "4da6d226a6ea4626071252436b841be5"
   },
   "apps/api/src/index.ts": {
-    "mtime": 1785631290.1959605,
-    "ast_hash": "e00ae87759c26e83bdf5816cf62b396e",
+    "mtime": 1785592386.4215653,
+    "ast_hash": "7217d7142f08253aa324fa09e0d2d7c7",
     "semantic_hash": ""
   },
   "apps/api/src/jobs/briefingScheduler.ts": {
@@ -210,8 +210,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/routes/cashbook.ts": {
-    "mtime": 1785780392.4833047,
-    "ast_hash": "fa5d63556493bfd8d94ddbba61d74dda",
+    "mtime": 1784407401.0405264,
+    "ast_hash": "8aaaec6183e280b3f2a4f73bb385fdca",
     "semantic_hash": ""
   },
   "apps/api/src/routes/dashboard.ts": {
@@ -225,8 +225,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/routes/folio.ts": {
-    "mtime": 1785779863.5152597,
-    "ast_hash": "058a32361d923dca8ecca608b262e62e",
+    "mtime": 1784407401.0569556,
+    "ast_hash": "59d0216737335c26ff0b2daafa5f0cf2",
     "semantic_hash": ""
   },
   "apps/api/src/routes/groups.ts": {
@@ -355,23 +355,23 @@
     "semantic_hash": ""
   },
   "apps/api/src/schemas/cashbook.ts": {
-    "mtime": 1785789679.7983124,
-    "ast_hash": "8b563edf970e0e21df1312c3b5db48a0",
+    "mtime": 1784646110.1411476,
+    "ast_hash": "04760fc2a927dec14ae37f757d2ad49d",
     "semantic_hash": ""
   },
   "apps/api/src/schemas/expenses.ts": {
-    "mtime": 1785779892.0757506,
-    "ast_hash": "efc99faef9160eae18ab29e70d1cbe21",
+    "mtime": 1784077651.2858875,
+    "ast_hash": "24eacf3c31cca102c9ae16266fc5bf67",
     "semantic_hash": ""
   },
   "apps/api/src/schemas/folio.ts": {
-    "mtime": 1785779863.2833235,
-    "ast_hash": "154e0e53a71d659c2439f34ef9d039a7",
-    "semantic_hash": ""
+    "mtime": 1782557056.3408973,
+    "ast_hash": "ae7f299055cf6060d59902825894d160",
+    "semantic_hash": "ae7f299055cf6060d59902825894d160"
   },
   "apps/api/src/schemas/groups.ts": {
-    "mtime": 1785631921.5719137,
-    "ast_hash": "06fab5369cf3bdbee0c2d8622adb654a",
+    "mtime": 1784159649.5018585,
+    "ast_hash": "c7c5639da65f233badea2fb186acd2eb",
     "semantic_hash": ""
   },
   "apps/api/src/schemas/guests.ts": {
@@ -400,8 +400,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/schemas/pos.ts": {
-    "mtime": 1785780994.1035178,
-    "ast_hash": "090c59a54afa7b4e8e003c7e027ad6f5",
+    "mtime": 1784072489.5954292,
+    "ast_hash": "a8ce1bfedbc22494d8b2e64e8720b8e1",
     "semantic_hash": ""
   },
   "apps/api/src/schemas/push.ts": {
@@ -415,9 +415,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/schemas/reservations.ts": {
-    "mtime": 1785631984.523141,
-    "ast_hash": "f38ef5cd4d5c13feb11c702a5cbf9a33",
-    "semantic_hash": ""
+    "mtime": 1782557056.34158,
+    "ast_hash": "caf47e8649885b343e581b0906408629",
+    "semantic_hash": "caf47e8649885b343e581b0906408629"
   },
   "apps/api/src/schemas/rooms.ts": {
     "mtime": 1784157746.9664283,
@@ -450,23 +450,23 @@
     "semantic_hash": ""
   },
   "apps/api/src/services/CashBookService.ts": {
-    "mtime": 1785790216.5877414,
-    "ast_hash": "90a5ae488392e8b911dd59a5da330d03",
+    "mtime": 1784681908.5640912,
+    "ast_hash": "520cffb6519cd062ddbd376fdc1fe999",
     "semantic_hash": ""
   },
   "apps/api/src/services/ExpenseService.ts": {
-    "mtime": 1785779892.15076,
-    "ast_hash": "00dcf18b0692a91f79e761d9a9eea036",
+    "mtime": 1784681860.333662,
+    "ast_hash": "08e2638b8ee79dfda3864da9a036df10",
     "semantic_hash": ""
   },
   "apps/api/src/services/FolioService.ts": {
-    "mtime": 1785780482.3715641,
-    "ast_hash": "3aa782941e147200c3a2ebbc4d5560a6",
+    "mtime": 1784717041.9332345,
+    "ast_hash": "066a4028f0ab2780c63eea0b9d14d35f",
     "semantic_hash": ""
   },
   "apps/api/src/services/GroupService.ts": {
-    "mtime": 1785790172.1564941,
-    "ast_hash": "e8b2ed7deec0f799c5b718b98804a4c9",
+    "mtime": 1785081243.625033,
+    "ast_hash": "4bc9351bb31ec2defb037fc71d253847",
     "semantic_hash": ""
   },
   "apps/api/src/services/GuestService.ts": {
@@ -500,8 +500,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/services/PermissionsService.ts": {
-    "mtime": 1785630980.2358038,
-    "ast_hash": "04ffd2b0853f7919caca3f6f770e4f13",
+    "mtime": 1785356631.3517704,
+    "ast_hash": "b8a12f111d3f55c6d468b63c54817c73",
     "semantic_hash": ""
   },
   "apps/api/src/services/PosMenuService.ts": {
@@ -520,8 +520,8 @@
     "semantic_hash": "166c046fbb20e19e959da674ac421a15"
   },
   "apps/api/src/services/QrOrderService.ts": {
-    "mtime": 1785779883.7063568,
-    "ast_hash": "2a23f50e4cd5e75e71b9a36813c9353e",
+    "mtime": 1785080133.9053137,
+    "ast_hash": "3fc52bb1bd24e305bdce8375df83fa61",
     "semantic_hash": ""
   },
   "apps/api/src/services/ReportService.ts": {
@@ -530,8 +530,8 @@
     "semantic_hash": ""
   },
   "apps/api/src/services/ReservationService.ts": {
-    "mtime": 1785790172.0787997,
-    "ast_hash": "338c5fa5c2130505f2d69cb85b5231ba",
+    "mtime": 1785592386.4365778,
+    "ast_hash": "acaaa259efb22164b77445396c960fc3",
     "semantic_hash": ""
   },
   "apps/api/src/services/RoomService.ts": {
@@ -570,9 +570,9 @@
     "semantic_hash": "d164c5a01d4f23cab12dc8561468f218"
   },
   "apps/api/src/utils/folioTotals.ts": {
-    "mtime": 1785779863.3565238,
-    "ast_hash": "f5eea7edb939adeaba25c1711bb41111",
-    "semantic_hash": ""
+    "mtime": 1782557056.344214,
+    "ast_hash": "50adf6a37ae20798b2362ae5d016accf",
+    "semantic_hash": "50adf6a37ae20798b2362ae5d016accf"
   },
   "apps/api/src/utils/guestDuplicate.ts": {
     "mtime": 1785592386.4380841,
@@ -605,8 +605,8 @@
     "semantic_hash": "c735540bb63936a123bc867d950c9f69"
   },
   "apps/marketing/src/App.tsx": {
-    "mtime": 1785781099.1127608,
-    "ast_hash": "eb2a53bb0ed98f1c088e89e1168a2905",
+    "mtime": 1785266786.6614158,
+    "ast_hash": "31a7a6679dd5a41b1a462576f04803f8",
     "semantic_hash": ""
   },
   "apps/marketing/src/components/Footer.tsx": {
@@ -735,8 +735,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/App.tsx": {
-    "mtime": 1785631789.6228924,
-    "ast_hash": "3096a3c8f21c7708b2c9df1c29f5abe8",
+    "mtime": 1785592386.4432118,
+    "ast_hash": "abc9568f772c1b2699d3795e76317159",
     "semantic_hash": ""
   },
   "apps/web/src/components/cashbook/BalancesDrawer.tsx": {
@@ -745,8 +745,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/cashbook/RecordEntryModal.tsx": {
-    "mtime": 1785779822.3399644,
-    "ast_hash": "0a78677ec4c1406862f03d3d0772d54e",
+    "mtime": 1784370531.109746,
+    "ast_hash": "5767a39b3e2d4e7e465322f071b432e8",
     "semantic_hash": ""
   },
   "apps/web/src/components/expenses/ExpenseModal.tsx": {
@@ -765,8 +765,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/groups/NewGroupModal.tsx": {
-    "mtime": 1785631912.7079315,
-    "ast_hash": "88754f07b6837abba894ba4d9a172ac8",
+    "mtime": 1785079755.0525854,
+    "ast_hash": "57448349e848fd376b65eac5eda71928",
     "semantic_hash": ""
   },
   "apps/web/src/components/guests/AddGuestModal.tsx": {
@@ -820,8 +820,8 @@
     "semantic_hash": "35dbe402a31c181acff2fc9e6076e891"
   },
   "apps/web/src/components/layout/AppLayout.tsx": {
-    "mtime": 1785631802.8798127,
-    "ast_hash": "2e388e1c2dfdb6fea172a61096385ff0",
+    "mtime": 1785592386.4462357,
+    "ast_hash": "bf458e0711f265147f8117a23e36f9c6",
     "semantic_hash": ""
   },
   "apps/web/src/components/layout/GlobalSearchBar.tsx": {
@@ -1105,8 +1105,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/pages/cashbook/CashBookPage.tsx": {
-    "mtime": 1785780254.0796964,
-    "ast_hash": "81706e559f79a5b3b91fb318cd8bf737",
+    "mtime": 1784733185.6478863,
+    "ast_hash": "cd7cbfe4f3d47d32b8b37a4c74a0fdb6",
     "semantic_hash": ""
   },
   "apps/web/src/pages/channel-manager/ChannelManagerPage.tsx": {
@@ -1120,8 +1120,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/pages/folio/FolioPage.tsx": {
-    "mtime": 1785779945.4953613,
-    "ast_hash": "92d5cbea6b866c5278eddd548df1b66f",
+    "mtime": 1784751725.1129339,
+    "ast_hash": "34aa35d88eaa230eb933a7759a342e69",
     "semantic_hash": ""
   },
   "apps/web/src/pages/groups/GroupDetailPage.tsx": {
@@ -1260,8 +1260,8 @@
     "semantic_hash": "fdedc1b43600fa0c562f0b6fc1269c87"
   },
   "apps/web/src/services/cashbook.ts": {
-    "mtime": 1785780456.7949586,
-    "ast_hash": "cede21d05c41ed8df4785b0f26fcf016",
+    "mtime": 1784123285.4667022,
+    "ast_hash": "c17a1bacc1c425528070e53619dfb816",
     "semantic_hash": ""
   },
   "apps/web/src/services/dashboard.ts": {
@@ -1275,13 +1275,13 @@
     "semantic_hash": ""
   },
   "apps/web/src/services/folio.ts": {
-    "mtime": 1785779924.506069,
-    "ast_hash": "f5d833085d1b8bae45a89c4baf3c5c29",
+    "mtime": 1784717046.1846492,
+    "ast_hash": "6f657bafa6bcca343cfa2b4880624835",
     "semantic_hash": ""
   },
   "apps/web/src/services/groups.ts": {
-    "mtime": 1785631921.572324,
-    "ast_hash": "2e7181f2d6b3c5d6c4ead08927069619",
+    "mtime": 1785079724.0463681,
+    "ast_hash": "8f05ab95a5f7be8b8c73e6dfb3cfc51b",
     "semantic_hash": ""
   },
   "apps/web/src/services/guests.ts": {
@@ -1400,8 +1400,8 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1785631445.8937082,
-    "ast_hash": "f1f9ab2436659a89f76437c68d3b95c9",
+    "mtime": 1785592386.4555647,
+    "ast_hash": "d80b7cdff496dd5aec2988561ddc6f44",
     "semantic_hash": ""
   },
   "packages/db/package.json": {
@@ -1485,8 +1485,8 @@
     "semantic_hash": ""
   },
   "packages/db/src/seed.ts": {
-    "mtime": 1785630999.972471,
-    "ast_hash": "a93aa58333eae6e98fd345307e6bcbaf",
+    "mtime": 1785592386.458683,
+    "ast_hash": "2c2bd69ff5fa63771f95f521c5390337",
     "semantic_hash": ""
   },
   "packages/db/src/tenant.ts": {
@@ -1535,8 +1535,8 @@
     "semantic_hash": ""
   },
   "rls_and_triggers.sql": {
-    "mtime": 1785630929.2218516,
-    "ast_hash": "6ab2cd122ed2f6d9be6f75538f7f86e2",
+    "mtime": 1785592386.4593978,
+    "ast_hash": "409f5faa06e73644d50ad323277fef71",
     "semantic_hash": ""
   },
   "scripts/add-field-maps.mjs": {
@@ -1870,8 +1870,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/pages/booking-engine/BookingFormPage.tsx": {
-    "mtime": 1785597000.5483186,
-    "ast_hash": "4ad7dda8057675e9db265ebd355573bb",
+    "mtime": 1785596872.7007377,
+    "ast_hash": "4a654765b6dfbc26b8a3ecea7e7b0c52",
     "semantic_hash": ""
   },
   "apps/web/src/pages/booking-engine/BookingLandingPage.tsx": {
@@ -2295,8 +2295,8 @@
     "semantic_hash": ""
   },
   "apps/marketing/src/lib/routePreload.ts": {
-    "mtime": 1785781081.437809,
-    "ast_hash": "1a390487fd9a6bd5eb992950e42e67c7",
+    "mtime": 1785266786.578451,
+    "ast_hash": "3eca85a92df1d9005136f8fa5d13fa67",
     "semantic_hash": ""
   },
   "apps/marketing/src/pages/BookingEngine.tsx": {
@@ -2767,156 +2767,6 @@
   "packages/db/prisma/migrations/20260801100000_add_accounting_export/migration.sql": {
     "mtime": 1785592386.4574196,
     "ast_hash": "bae093409df01045bcd3607da229d6ea",
-    "semantic_hash": ""
-  },
-  "apps/api/src/routes/companies.ts": {
-    "mtime": 1785790644.105296,
-    "ast_hash": "f505e4dc7e7cef40ca3075e2acd56161",
-    "semantic_hash": ""
-  },
-  "apps/api/src/schemas/companies.ts": {
-    "mtime": 1785790216.425173,
-    "ast_hash": "56b04a856850c6a9358d358370906f46",
-    "semantic_hash": ""
-  },
-  "apps/api/src/services/CompanyService.ts": {
-    "mtime": 1785790644.0260925,
-    "ast_hash": "dc70264298242c2273ef01bb0a72c430",
-    "semantic_hash": ""
-  },
-  "apps/api/src/utils/companyCredit.test.ts": {
-    "mtime": 1785631078.6991017,
-    "ast_hash": "6c928491d92d4d281cfa1942ff1f0cd9",
-    "semantic_hash": ""
-  },
-  "apps/api/src/utils/companyCredit.ts": {
-    "mtime": 1785631036.8594344,
-    "ast_hash": "da10522b47c6bff5f4af661ca69db4cc",
-    "semantic_hash": ""
-  },
-  "apps/web/src/components/companies/AdjustLedgerModal.tsx": {
-    "mtime": 1785631691.206197,
-    "ast_hash": "510c1d34ae98148da79591c9e88366be",
-    "semantic_hash": ""
-  },
-  "apps/web/src/components/companies/BillToCompanyModal.tsx": {
-    "mtime": 1785790241.6359198,
-    "ast_hash": "d6c30c10306fd43f6c87bbb0b91072c8",
-    "semantic_hash": ""
-  },
-  "apps/web/src/components/companies/CompanyFormModal.tsx": {
-    "mtime": 1785631609.1586204,
-    "ast_hash": "652cb942482316d081f3474f613b4c13",
-    "semantic_hash": ""
-  },
-  "apps/web/src/components/companies/CompanyPicker.tsx": {
-    "mtime": 1785631875.837371,
-    "ast_hash": "ef19f4f373f3625403da2581997fd4c6",
-    "semantic_hash": ""
-  },
-  "apps/web/src/components/companies/CreateInvoiceModal.tsx": {
-    "mtime": 1785631781.04362,
-    "ast_hash": "8f3e23c93b96e003ce4d80729e844f6f",
-    "semantic_hash": ""
-  },
-  "apps/web/src/components/companies/CreditLimitModal.tsx": {
-    "mtime": 1785631664.1457348,
-    "ast_hash": "50018cc915b1ca32508a81f3ddf3050e",
-    "semantic_hash": ""
-  },
-  "apps/web/src/components/companies/RecordPaymentModal.tsx": {
-    "mtime": 1785790241.5568001,
-    "ast_hash": "9a23ffa1e09af6e9a2b5f1d8c4498be1",
-    "semantic_hash": ""
-  },
-  "apps/web/src/hooks/useDebounce.ts": {
-    "mtime": 1785632086.4560223,
-    "ast_hash": "5ad5726a4b891fec02fc5fb1f0320a5c",
-    "semantic_hash": ""
-  },
-  "apps/web/src/pages/companies/CompaniesPage.tsx": {
-    "mtime": 1785631563.914092,
-    "ast_hash": "dc2be78fb02b991553ee4b2935dad21a",
-    "semantic_hash": ""
-  },
-  "apps/web/src/pages/companies/CompanyDetailPage.tsx": {
-    "mtime": 1785790547.3876734,
-    "ast_hash": "a7bbf64aa815ab5cbb5e3771c7dfd9ba",
-    "semantic_hash": ""
-  },
-  "apps/web/src/services/companies.ts": {
-    "mtime": 1785790644.1857665,
-    "ast_hash": "bb3c444d5c362081afcd60563888f3bf",
-    "semantic_hash": ""
-  },
-  "packages/db/prisma/migrations/20260802000000_add_corporate_billing/migration.sql": {
-    "mtime": 1785630918.724226,
-    "ast_hash": "156bb65d25d06e12dbe866e517d48667",
-    "semantic_hash": ""
-  },
-  "scripts/add-company-permissions.ts": {
-    "mtime": 1785631460.6836183,
-    "ast_hash": "f6f8f6392d62f741731cf336aa96d498",
-    "semantic_hash": ""
-  },
-  ".design-sync/config.json": {
-    "mtime": 1785678865.6230388,
-    "ast_hash": "11c7c7539926de55a98dd52b5c20db59",
-    "semantic_hash": ""
-  },
-  ".design-sync/previews/Badge.tsx": {
-    "mtime": 1785678296.6118915,
-    "ast_hash": "95eee9f4627c21aeeed206bb111b6be4",
-    "semantic_hash": ""
-  },
-  ".design-sync/previews/Button.tsx": {
-    "mtime": 1785678283.3885763,
-    "ast_hash": "eeb748e3003a04aff38532002db65bb2",
-    "semantic_hash": ""
-  },
-  "apps/marketing/src/pages/SocialCreator.tsx": {
-    "mtime": 1785781137.2330563,
-    "ast_hash": "58c4d76684efa7b10489a82b9a174c5b",
-    "semantic_hash": ""
-  },
-  "apps/web/src/components/cashbook/TransferAccountsModal.tsx": {
-    "mtime": 1785780160.5075202,
-    "ast_hash": "96214e5e3b296ac428fb8c8c6433657e",
-    "semantic_hash": ""
-  },
-  "apps/web/src/components/folio/RefundPaymentModal.tsx": {
-    "mtime": 1785779924.5850568,
-    "ast_hash": "073aa0c52ef615bb98f5ae65c7887555",
-    "semantic_hash": ""
-  },
-  "packages/db/prisma/migrations/20260803000000_harden_cashbook/migration.sql": {
-    "mtime": 1785780362.4585598,
-    "ast_hash": "4f9a2b23cd7b779561e4890b8e125caf",
-    "semantic_hash": ""
-  },
-  ".design-sync/NOTES.md": {
-    "mtime": 1785678865.644797,
-    "ast_hash": "60d8f6fd84dd38c297561936ee241848",
-    "semantic_hash": ""
-  },
-  ".design-sync/conventions.md": {
-    "mtime": 1785678493.088699,
-    "ast_hash": "3f7161029c96bbed65a91e4ef0b6d673",
-    "semantic_hash": ""
-  },
-  "apps/web/src/components/companies/InvoiceDetailModal.tsx": {
-    "mtime": 1785790644.2673595,
-    "ast_hash": "4b0f5599a94839baf8eff8271c3b5436",
-    "semantic_hash": ""
-  },
-  "apps/web/src/components/companies/RefundCompanyCreditModal.tsx": {
-    "mtime": 1785790522.1793766,
-    "ast_hash": "d7793cbdd021b318d371bd1de83a4ffa",
-    "semantic_hash": ""
-  },
-  "packages/db/prisma/migrations/20260804000000_harden_corporate_billing/migration.sql": {
-    "mtime": 1785789896.839841,
-    "ast_hash": "06d2a3dd8b769f6af1dc5b98ef62843a",
     "semantic_hash": ""
   }
 }

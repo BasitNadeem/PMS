@@ -257,7 +257,7 @@ export default function FolioPage() {
           )}
           <button
             onClick={() => setShowInvoice(true)}
-            className="grid place-items-center h-10 w-10 rounded-full border border-line text-ink-mute hover:bg-line-soft transition-colors"
+            className="grid place-items-center h-10 w-10 rounded-full border border-coral/30 bg-coral/8 text-coral hover:bg-coral/15 transition-colors"
             title="Print invoice"
           >
             <Printer size={16} />
@@ -386,64 +386,77 @@ export default function FolioPage() {
 
         {/* RIGHT — Settlement */}
         <div className="space-y-4">
-          <Card className="space-y-2.5">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-1">Settlement</div>
-            <div className="flex items-center justify-between text-[13.5px]">
-              <span className="text-ink-mute">Total charges</span>
-              <span className="font-semibold text-ink tnum">{fmtPkr(folio.chargesTotal)}</span>
-            </div>
-            {folio.taxTotal > 0 && (
-              <div className="flex items-center justify-between text-[13.5px]">
-                <span className="text-ink-mute">Tax</span>
-                <span className="font-semibold text-ink tnum">{fmtPkr(folio.taxTotal)}</span>
-              </div>
-            )}
-            {folio.discountsTotal > 0 && (
-              <div className="flex items-center justify-between text-[13.5px]">
-                <span className="text-ink-mute">Discounts</span>
-                <span className="font-semibold text-pine tnum">−{fmtPkr(folio.discountsTotal)}</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between text-[13.5px]">
-              <span className="text-ink-mute">Total paid</span>
-              <span className="font-semibold text-pine tnum">−{fmtPkr(folio.paymentsTotal)}</span>
-            </div>
-            <div className="border-t border-line-soft pt-2.5 flex items-center justify-between">
-              <span className="text-[15px] font-bold text-ink">Balance due</span>
-              <span className={cn("serif text-[26px] tnum", folio.balanceDue > 0 ? "text-coral" : "text-pine")}>
-                {fmtPkr(folio.balanceDue)}
-              </span>
-            </div>
-
-            <div className="pt-2 space-y-2">
-              {folio.balanceDue > 0 && folio.isOpen ? (
-                <>
-                  {canRecordPayment && (
-                    <button
-                      onClick={() => setShowRecordPayment(true)}
-                      className="w-full h-11 rounded-full bg-coral text-white font-semibold text-sm hover:bg-coral-dark transition-colors flex items-center justify-center gap-2"
-                    >
-                      Record payment
-                    </button>
-                  )}
-                  {/* The alternative to taking money: move the balance to an
-                      agency's account so the guest can leave. */}
-                  {canBillToCompany && (
-                    <button
-                      onClick={() => setShowBillToCompany(true)}
-                      className="w-full h-11 rounded-full bg-card border border-line text-ink-soft font-semibold text-sm hover:border-ink-faint hover:text-ink transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Building2 size={15} /> Bill to a company
-                    </button>
-                  )}
-                </>
-              ) : (
-                <div className="flex items-center justify-center gap-2 h-11 rounded-full bg-pine-soft text-pine-deep text-sm font-semibold">
-                  <Check size={16} strokeWidth={2.5} /> Settled
+          <Card pad={false} className="overflow-hidden">
+            <div className="p-5 pb-4">
+              <div className="mb-4 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-faint">Settlement</div>
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between text-[13.5px]">
+                  <span className="text-ink-mute">Total charges</span>
+                  <span className="font-semibold text-ink tnum">{fmtPkr(folio.chargesTotal)}</span>
                 </div>
-              )}
+                {folio.taxTotal > 0 && (
+                  <div className="flex items-center justify-between text-[13.5px]">
+                    <span className="text-ink-mute">Tax</span>
+                    <span className="font-semibold text-ink tnum">{fmtPkr(folio.taxTotal)}</span>
+                  </div>
+                )}
+                {folio.discountsTotal > 0 && (
+                  <div className="flex items-center justify-between text-[13.5px]">
+                    <span className="text-ink-mute">Discounts</span>
+                    <span className="font-semibold text-pine tnum">−{fmtPkr(folio.discountsTotal)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-[13.5px]">
+                  <span className="text-ink-mute">Total paid</span>
+                  <span className="font-semibold text-pine tnum">−{fmtPkr(folio.paymentsTotal)}</span>
+                </div>
+              </div>
 
-              {/* Check Out — smart about group vs individual billing */}
+              <div className={cn(
+                "mt-4 rounded-xl border px-4 py-3.5",
+                folio.balanceDue > 0 ? "border-coral/20 bg-coral-soft/60" : "border-pine/20 bg-pine-soft",
+              )}>
+                <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-faint">Balance due</div>
+                <div className={cn("mt-1 serif text-[30px] leading-none tnum", folio.balanceDue > 0 ? "text-coral" : "text-pine-deep")}>
+                  {fmtPkr(folio.balanceDue)}
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-line-soft bg-mist/30 p-5 space-y-4">
+              {/* 1 — Settle the balance */}
+              <div className="space-y-2.5">
+                <div className="text-[10.5px] font-bold uppercase tracking-[0.13em] text-ink-faint">
+                  {folio.balanceDue > 0 && folio.isOpen ? "Settle balance" : "Payment status"}
+                </div>
+                {folio.balanceDue > 0 && folio.isOpen ? (
+                  <>
+                    {canRecordPayment && (
+                      <button
+                        onClick={() => setShowRecordPayment(true)}
+                        className="w-full h-11 rounded-xl bg-coral text-white font-semibold text-sm hover:bg-coral-dark transition-colors flex items-center justify-center gap-2 shadow-sm"
+                      >
+                        Record payment
+                      </button>
+                    )}
+                    {canBillToCompany && (
+                      <button
+                        onClick={() => setShowBillToCompany(true)}
+                        className="w-full h-11 rounded-xl border border-line bg-card text-ink-soft text-[13.5px] font-semibold hover:border-ink-faint hover:text-ink transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Building2 size={16} />
+                        Bill to a company
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex items-center justify-center gap-2 h-11 rounded-xl bg-pine-soft text-pine-deep text-sm font-semibold">
+                    <Check size={16} strokeWidth={2.5} /> Settled
+                  </div>
+                )}
+              </div>
+
+              {/* 2 — Check Out — smart about group vs individual billing */}
               {canCheckOut && res.status === "CHECKED_IN" && (() => {
                 const mutation      = isGroupSingleBill ? checkOutGroupMutation : checkOutMutation;
                 const isPending     = mutation.isPending;
@@ -451,45 +464,50 @@ export default function FolioPage() {
                 const pendingLabel  = isGroupSingleBill ? "Checking out group…" : "Checking out…";
 
                 return folio.balanceDue > 0 ? (
-                  <div className="space-y-2">
-                    <div className="flex items-start gap-2 rounded-xl bg-amber-soft border border-amber/30 px-3 py-2.5 text-[12.5px] text-amber">
+                  <div className="space-y-2.5 rounded-xl border border-line bg-card p-3.5">
+                    <div className="text-[10.5px] font-bold uppercase tracking-[0.13em] text-ink-faint">Checkout</div>
+                    <div className="flex items-start gap-2 rounded-lg bg-amber-soft px-3 py-2.5 text-[12px] leading-snug text-amber">
                       <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                       <span>Outstanding balance of {fmtPkr(folio.balanceDue)}. Settle before checking out.</span>
                     </div>
                     <button
                       onClick={() => mutation.mutate()}
                       disabled={isPending}
-                      className="w-full h-10 rounded-full border border-ink/20 text-ink-soft text-[13px] font-semibold hover:bg-line-soft transition-colors flex items-center justify-center gap-2 disabled:opacity-40"
+                      className="w-full h-10 rounded-lg border border-line text-ink-mute text-[12.5px] font-semibold hover:border-ink-faint hover:text-ink transition-colors flex items-center justify-center gap-2 disabled:opacity-40"
                     >
                       <LogOut size={15} />
                       {isPending ? pendingLabel : `${label} anyway`}
                     </button>
                   </div>
                 ) : (
-                  <>
+                  <div className="space-y-2.5 rounded-xl border border-line bg-card p-3.5">
+                    <div className="text-[10.5px] font-bold uppercase tracking-[0.13em] text-ink-faint">Ready to checkout</div>
                     {isGroupSingleBill && (
-                      <p className="text-[12px] text-ink-mute text-center">
+                      <p className="text-[12px] text-ink-mute">
                         Single-bill group · all {groupData?.summary?.totalRooms ?? ""} rooms will be checked out together
                       </p>
                     )}
                     <button
                       onClick={() => mutation.mutate()}
                       disabled={isPending}
-                      className="w-full h-11 rounded-full bg-coral text-white font-semibold text-sm hover:bg-coral-dark transition-colors flex items-center justify-center gap-2 disabled:opacity-40"
+                      className="w-full h-11 rounded-xl bg-coral text-white font-semibold text-sm hover:bg-coral-dark transition-colors flex items-center justify-center gap-2 disabled:opacity-40"
                     >
                       <LogOut size={16} />
                       {isPending ? pendingLabel : label}
                     </button>
-                  </>
+                  </div>
                 );
               })()}
 
-              <button
-                onClick={() => setShowInvoice(true)}
-                className="w-full h-10 rounded-full border border-line text-ink-mute text-[13px] font-semibold hover:bg-line-soft transition-colors flex items-center justify-center gap-2"
-              >
-                <Printer size={15} /> Print invoice
-              </button>
+              {/* 3 — Document action, deliberately quiet. */}
+              <div className="border-t border-line-soft pt-3">
+                <button
+                  onClick={() => setShowInvoice(true)}
+                  className="w-full h-9 text-ink-mute text-[12.5px] font-semibold hover:text-ink transition-colors flex items-center justify-center gap-2"
+                >
+                  <Printer size={15} /> Print invoice
+                </button>
+              </div>
             </div>
           </Card>
 

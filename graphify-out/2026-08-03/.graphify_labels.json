@@ -173,7 +173,7 @@
   "171": "QROrdersPage.tsx",
   "172": "RevenueSourcePage.tsx",
   "173": "PaymentMethodsPage.tsx",
-  "174": "RatePlansPage.tsx",
+  "174": "settings.ts",
   "175": "VoidRefundLogPage.tsx",
   "176": "PMS Monorepo — Engineering Rules",
   "177": "numberToWords.ts",
@@ -208,10 +208,5 @@
   "206": "HousekeepingMobileRoute",
   "207": "GroupBookingsSummaryPage.tsx",
   "208": "add-company-permissions.ts",
-  "209": "Trend.tsx",
-  "210": "backfill-upload-urls.ts",
-  "211": "GuestBlacklistPage.tsx",
-  "212": "LengthOfStayPage.tsx",
-  "213": "WasteLossPage.tsx",
-  "216": "ADRRevPARPage.tsx"
+  "209": "Trend.tsx"
 }

@@ -488,6 +488,11 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
     ? Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86_400_000)
     : 0;
 
+  // Declared here, above every consumer: the upsell totals below run during
+  // render, so a `const` defined further down would be in the temporal dead
+  // zone and throw the moment the extras cart is non-empty.
+  const partySize = adults + children;
+
   const [cart, setCart] = useState<CartItem[]>(() => {
     try { return JSON.parse(sessionStorage.getItem(CART_KEY(hotelSlug)) ?? "[]") as CartItem[]; }
     catch { return []; }
@@ -502,18 +507,45 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
   const [activeTab, setActiveTab] = useState<"reservation" | "packages">("reservation");
 
   const [upsellCart, setUpsellCart] = useState<CartUpsell[]>(() => {
-    try { return JSON.parse(sessionStorage.getItem(UPSELL_KEY(hotelSlug)) ?? "[]") as CartUpsell[]; }
-    catch { return []; }
+    try {
+      const stored = JSON.parse(sessionStorage.getItem(UPSELL_KEY(hotelSlug)) ?? "[]");
+      return Array.isArray(stored) ? (stored as CartUpsell[]) : [];
+    } catch { return []; }
   });
 
   useEffect(() => {
     sessionStorage.setItem(UPSELL_KEY(hotelSlug), JSON.stringify(upsellCart));
   }, [upsellCart, hotelSlug]);
 
-  const { data: upsells = [] } = useQuery({
+  const { data: upsells = [], isSuccess: upsellsLoaded } = useQuery({
     queryKey: ["booking-upsells", hotelSlug],
     queryFn:  () => bookingEngineService.getUpsells(hotelSlug),
   });
+
+  // A stored selection can outlive the catalog behind it — the hotel may have
+  // hidden an extra or changed its price since. Reconcile against the live
+  // catalog so the quoted total matches what the API will accept at submit,
+  // instead of failing the booking with "no longer available".
+  useEffect(() => {
+    if (!upsellsLoaded) return;
+    setUpsellCart((prev) => {
+      const next = prev.flatMap((u) => {
+        const live = upsells.find((c) => c.id === u.upsellItemId);
+        if (!live) return [];
+        return [{ ...u, name: live.name, priceType: live.priceType, unitAmount: live.amount }];
+      });
+      const unchanged =
+        next.length === prev.length &&
+        next.every((u, i) => {
+          const before = prev[i];
+          return before.upsellItemId === u.upsellItemId
+            && before.name === u.name
+            && before.priceType === u.priceType
+            && before.unitAmount === u.unitAmount;
+        });
+      return unchanged ? prev : next;
+    });
+  }, [upsells, upsellsLoaded]);
 
   const upsellLineTotal = (u: CartUpsell) => upsellLineAmount(u, nights, partySize);
   const upsellsTotal = upsellCart.reduce((s, u) => s + upsellLineTotal(u), 0);
@@ -556,7 +588,6 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
   const cartTotalRooms   = cart.reduce((s, c) => s + c.quantity, 0);
   const cartNightlyTotal = cart.reduce((s, c) => s + (c.ratePerNight ?? c.defaultRate) * c.quantity, 0);
   const cartCapacity     = cart.reduce((s, c) => s + c.maxOccupancy * c.quantity, 0);
-  const partySize        = adults + children;
   const cartFitsParty    = cartCapacity >= partySize;
 
   const { data: hotel, isLoading, isError } = useQuery({

@@ -1119,7 +1119,7 @@ export default function SettingsPage() {
                 <div className="rounded-xl border border-line-soft bg-mist p-4">
                   <div className="mb-1 text-[13.5px] font-semibold text-ink">Shift schedule</div>
                   <p className="mb-4 text-[12px] leading-relaxed text-ink-faint">
-                    InnFlo uses these tenant-specific boundaries for handover counts, cash reconciliation, and the earliest time Night Audit can close the day.
+                    Innflo uses these tenant-specific boundaries for handover counts, cash reconciliation, and the earliest time Night Audit can close the day.
                   </p>
                   <div className="grid gap-3 sm:grid-cols-3">
                     {([

@@ -69,7 +69,7 @@ const TIERS: Tier[] = [
     name: "Complete",
     monthly: 32000,
     eyebrow: "Connect every department",
-    description: "The full InnFlo operating stack for properties with food, inventory and QR service.",
+    description: "The full Innflo operating stack for properties with food, inventory and QR service.",
     bestFor: "Hotels with a restaurant, kitchen, room service or stock operations.",
     scale: "Unlimited rooms · unlimited staff",
     cta: "Start free trial",
@@ -161,7 +161,7 @@ const COMPARISON: { category: string; rows: { label: string; values: Cell[] }[] 
 const FAQS = [
   {
     q: "Is there a setup fee or a long contract?",
-    a: "No setup fee and no long-term lock-in. We help configure the hotel, then bill monthly. If InnFlo is not the right fit, you can leave without a cancellation penalty.",
+    a: "No setup fee and no long-term lock-in. We help configure the hotel, then bill monthly. If Innflo is not the right fit, you can leave without a cancellation penalty.",
   },
   {
     q: "How does yearly billing work?",
@@ -172,8 +172,8 @@ const FAQS = [
     a: "Yes, in both directions. Upgrades take effect immediately and are prorated. Downgrades apply at the start of the next billing period, and nothing is deleted when a module becomes unavailable.",
   },
   {
-    q: "Does InnFlo take commission on direct bookings?",
-    a: "No. Reservations made through your InnFlo Booking Engine belong to your hotel. InnFlo does not take a percentage of the booking value.",
+    q: "Does Innflo take commission on direct bookings?",
+    a: "No. Reservations made through your Innflo Booking Engine belong to your hotel. Innflo does not take a percentage of the booking value.",
   },
   {
     q: "What happens during the trial?",

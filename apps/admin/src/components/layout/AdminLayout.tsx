@@ -22,7 +22,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <Link to="/hotels" className="flex items-center gap-3">
             <img src="/brand/mark-clay-tight.svg" alt="" aria-hidden="true" className="h-9 w-9" />
             <span>
-              <span className="block text-lg font-bold leading-tight text-white">InnFlo</span>
+              <span className="block text-lg font-bold leading-tight text-white">Innflo</span>
               <span className="block text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-500">Super admin</span>
             </span>
           </Link>

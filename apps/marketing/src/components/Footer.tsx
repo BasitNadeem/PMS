@@ -30,7 +30,7 @@ const COMPANY_LINKS = [
 ];
 
 export default function Footer() {
-  const whatsappUrl = getWhatsAppUrl("Hi InnFlo, I’d like to learn more about the hotel PMS.");
+  const whatsappUrl = getWhatsAppUrl("Hi Innflo, I’d like to learn more about the hotel PMS.");
 
   return (
     <div className="bg-paper px-3 sm:px-8 lg:px-[50px]">
@@ -66,7 +66,7 @@ export default function Footer() {
                   href={INSTAGRAM_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="InnFlo on Instagram"
+                  aria-label="Innflo on Instagram"
                   className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-white/60 transition-colors hover:border-coral/50 hover:bg-white/10 hover:text-coral"
                 >
                   <Instagram className="h-4 w-4" />
@@ -75,7 +75,7 @@ export default function Footer() {
                   href={FACEBOOK_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="InnFlo on Facebook"
+                  aria-label="Innflo on Facebook"
                   className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-white/60 transition-colors hover:border-coral/50 hover:bg-white/10 hover:text-coral"
                 >
                   <Facebook className="h-4 w-4" />
@@ -126,7 +126,7 @@ export default function Footer() {
         </div>
 
         <p aria-hidden="true" className="pointer-events-none select-none -mb-[4vw] text-center font-display text-[clamp(110px,23vw,340px)] font-medium italic leading-[.75] text-white/[.035]">
-          InnFlo
+          Innflo
         </p>
       </footer>
     </div>

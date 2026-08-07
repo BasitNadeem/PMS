@@ -70,22 +70,22 @@ function ScrollToTop() {
   useEffect(() => {
     const routeMeta: Record<string, { title: string; description: string }> = {
       "/": {
-        title: "InnFlo — Hotel operations, finally in flow",
+        title: "Innflo — Hotel operations, finally in flow",
         description: "A manager-first hotel PMS for reservations, billing, housekeeping, direct bookings, POS, inventory and reporting.",
       },
-      "/pms": { title: "Hotel PMS | InnFlo", description: "Run reservations, rooms, guests, folios, housekeeping and daily hotel operations in one place." },
-      "/booking-engine": { title: "Direct Hotel Booking Engine | InnFlo", description: "A branded, commission-free hotel Booking Engine with live availability, multi-room carts, promo rates and connected PMS alerts." },
-      "/financials": { title: "Hotel Financial Control | InnFlo", description: "Connected folios, payments, expenses, cash control and night audit for independent hotels." },
-      "/pos": { title: "Hotel POS & QR Ordering | InnFlo", description: "Restaurant POS, QR ordering, kitchen display and guest folio posting connected to your hotel PMS." },
-      "/automations": { title: "Hotel Operations Automation | InnFlo", description: "Reduce repetitive hotel work with connected reservation, housekeeping, billing and inventory workflows." },
-      "/statistics": { title: "Hotel Reports & Insights | InnFlo", description: "Operational and financial hotel reporting built for the manager’s daily decisions." },
-      "/pricing": { title: "Pricing | InnFlo Hotel PMS", description: "Straightforward monthly hotel PMS pricing with no commission on direct bookings." },
-      "/about": { title: "About InnFlo", description: "Why InnFlo is building manager-first hotel software for independent properties in Pakistan." },
-      "/contact": { title: "Book an InnFlo Walkthrough", description: "Show us how your property runs and get a focused walkthrough of the live InnFlo hotel PMS." },
-      "/channel-manager": { title: "Channel Manager Roadmap | InnFlo", description: "Follow InnFlo’s clearly labeled roadmap for direct OTA channel synchronization." },
+      "/pms": { title: "Hotel PMS | Innflo", description: "Run reservations, rooms, guests, folios, housekeeping and daily hotel operations in one place." },
+      "/booking-engine": { title: "Direct Hotel Booking Engine | Innflo", description: "A branded, commission-free hotel Booking Engine with live availability, multi-room carts, promo rates and connected PMS alerts." },
+      "/financials": { title: "Hotel Financial Control | Innflo", description: "Connected folios, payments, expenses, cash control and night audit for independent hotels." },
+      "/pos": { title: "Hotel POS & QR Ordering | Innflo", description: "Restaurant POS, QR ordering, kitchen display and guest folio posting connected to your hotel PMS." },
+      "/automations": { title: "Hotel Operations Automation | Innflo", description: "Reduce repetitive hotel work with connected reservation, housekeeping, billing and inventory workflows." },
+      "/statistics": { title: "Hotel Reports & Insights | Innflo", description: "Operational and financial hotel reporting built for the manager’s daily decisions." },
+      "/pricing": { title: "Pricing | Innflo Hotel PMS", description: "Straightforward monthly hotel PMS pricing with no commission on direct bookings." },
+      "/about": { title: "About Innflo", description: "Why Innflo is building manager-first hotel software for independent properties in Pakistan." },
+      "/contact": { title: "Book an Innflo Walkthrough", description: "Show us how your property runs and get a focused walkthrough of the live Innflo hotel PMS." },
+      "/channel-manager": { title: "Channel Manager Roadmap | Innflo", description: "Follow Innflo’s clearly labeled roadmap for direct OTA channel synchronization." },
     };
     const meta = routeMeta[pathname] ?? {
-      title: "InnFlo — Hotel PMS",
+      title: "Innflo — Hotel PMS",
       description: "Manager-first hotel operations software for independent properties.",
     };
     document.title = meta.title;

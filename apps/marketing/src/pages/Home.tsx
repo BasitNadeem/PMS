@@ -44,23 +44,23 @@ const STAY_TYPES = [
 // ─── FAQ ────────────────────────────────────────────────────────────────────
 const FAQS = [
   {
-    q: "What is InnFlo?",
-    a: "InnFlo is hotel property management software — reservations, billing, housekeeping, QR dining, and reporting in one dashboard, built specifically for small, independently-run properties rather than large city hotel chains.",
+    q: "What is Innflo?",
+    a: "Innflo is hotel property management software — reservations, billing, housekeeping, QR dining, and reporting in one dashboard, built specifically for small, independently-run properties rather than large city hotel chains.",
   },
   {
-    q: "Which types of properties can use InnFlo?",
-    a: "Independent hotels, B&Bs and guesthouses, hostels, serviced apartments, lodges, resorts, and glamping sites. InnFlo is focused on one property per hotel account today.",
+    q: "Which types of properties can use Innflo?",
+    a: "Independent hotels, B&Bs and guesthouses, hostels, serviced apartments, lodges, resorts, and glamping sites. Innflo is focused on one property per hotel account today.",
   },
   {
-    q: "Does InnFlo work when the internet is unreliable?",
+    q: "Does Innflo work when the internet is unreliable?",
     a: "Yes. Housekeeping runs offline-first, so staff can keep checking off rooms with no signal, and everything syncs the moment connection returns — built for the connectivity that mountain and rural properties actually have.",
   },
   {
-    q: "How is InnFlo priced?",
+    q: "How is Innflo priced?",
     a: "Three flat monthly plans — Essentials, Growth, and Complete — with no commission on direct bookings and no per-booking cut.",
   },
   {
-    q: "Is InnFlo ready for my property today?",
+    q: "Is Innflo ready for my property today?",
     a: "Most of it, yes — reservations, billing, housekeeping, QR dining, and reporting are live and in use. Channel Manager (direct OTA sync) is still in development, and we'll tell you exactly that rather than pretend otherwise.",
   },
 ];
@@ -342,7 +342,7 @@ export default function Home() {
               {
                 icon: LifeBuoy,
                 title: "Human product support",
-                body: "Talk to the small team building InnFlo. We can explain the workflow, help with setup, and tell you honestly what is ready.",
+                body: "Talk to the small team building Innflo. We can explain the workflow, help with setup, and tell you honestly what is ready.",
               },
             ].map((item, i) => (
               <Reveal key={item.title} delay={i * 0.06} variant="rise" className="h-full">

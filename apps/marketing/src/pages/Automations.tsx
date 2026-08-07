@@ -145,7 +145,7 @@ function ReservationEmailAutomationMockup() {
               <span className="h-2.5 w-2.5 rounded-full bg-[#F5D183]" />
               <span className="h-2.5 w-2.5 rounded-full bg-[#9EDDC7]" />
             </div>
-            <span className="truncate text-[9px] font-black text-ink-mute">InnFlo · Guest communication</span>
+            <span className="truncate text-[9px] font-black text-ink-mute">Innflo · Guest communication</span>
           </div>
           <span className="flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1.5 text-[7px] font-black text-emerald-700 shadow-card">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -326,7 +326,7 @@ function ReservationEmailAutomationMockup() {
                       {isCancelled ? "Plans change. Our welcome will still be here." : "Rest well. Explore more. We’ll see you soon."}
                     </p>
                     <p className="mt-2 text-[6.5px] text-[#B8CBC7]">Central Inn · Hunza, Gilgit-Baltistan</p>
-                    <p className="mt-3 text-[6px] text-[#8FB4AE]">Hotel phone · WhatsApp · Email · Directions · Powered by InnFlo</p>
+                    <p className="mt-3 text-[6px] text-[#8FB4AE]">Hotel phone · WhatsApp · Email · Directions · Powered by Innflo</p>
                   </div>
                 </motion.div>
               </AnimatePresence>
@@ -548,10 +548,10 @@ const AUTO_FAQS = [
   },
   {
     q: "Do I have to set any of these up manually?",
-    a: "Core events are connected once InnFlo is configured: reservation changes can send the matching guest email, checkout can create a cleaning task, eligible POS and room-service sales can post to a folio, and recipe-linked sales can deduct inventory. Your team remains in control of exceptions.",
+    a: "Core events are connected once Innflo is configured: reservation changes can send the matching guest email, checkout can create a cleaning task, eligible POS and room-service sales can post to a folio, and recipe-linked sales can deduct inventory. Your team remains in control of exceptions.",
   },
   {
-    q: "Does InnFlo automatically message the owner on WhatsApp?",
+    q: "Does Innflo automatically message the owner on WhatsApp?",
     a: "Not as a production promise today. The manager dashboard and report library are live; proactive WhatsApp briefing delivery remains roadmap work.",
   },
   {
@@ -614,7 +614,7 @@ export default function Automations() {
           </h1>
           <Reveal delay={0.5}>
             <p className="text-[17px] text-ink-soft font-body leading-relaxed max-w-lg mx-auto mt-6">
-              The parts of running a property that shouldn't need a person watching them — InnFlo handles them in the background, so your team's attention goes to the guest in front of them.
+              The parts of running a property that shouldn't need a person watching them — Innflo handles them in the background, so your team's attention goes to the guest in front of them.
             </p>
           </Reveal>
         </div>
@@ -665,7 +665,7 @@ export default function Automations() {
             <Reveal delay={0.08}>
               <div className="max-w-xl lg:pb-2">
                 <p className="font-body text-[17px] leading-relaxed text-white/60">
-                  Request received, confirmed or cancelled—InnFlo prepares the right hotel-branded message and sends it in the background, with the guest’s actual stay details already inside.
+                  Request received, confirmed or cancelled—Innflo prepares the right hotel-branded message and sends it in the background, with the guest’s actual stay details already inside.
                 </p>
                 <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 font-body text-[10px] font-black uppercase tracking-[.12em] text-white/35">
                   <span>Booking Engine + staff reservations</span>
@@ -810,7 +810,7 @@ export default function Automations() {
                 No more five extranets, five tabs.
               </h2>
               <p className="text-[15.5px] text-ink-soft font-body leading-relaxed mb-6 max-w-lg">
-                Rates and availability update across Booking.com, Airbnb, Expedia, and Agoda the moment something changes in InnFlo — this is what we're building toward, no manual publishing, no double bookings.
+                Rates and availability update across Booking.com, Airbnb, Expedia, and Agoda the moment something changes in Innflo — this is what we're building toward, no manual publishing, no double bookings.
               </p>
               <MagneticButton>
                 <Link to="/channel-manager" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-coral-dark hover:underline">
@@ -829,10 +829,10 @@ export default function Automations() {
           <Reveal>
             <p className="eyebrow mb-5" style={{ color: "#E0532B" }}>Get in early</p>
             <h2 className="font-display italic text-[clamp(30px,4vw,46px)] font-medium text-paper leading-tight mb-6">
-              Start with a guided InnFlo trial.
+              Start with a guided Innflo trial.
             </h2>
             <p className="text-[16px] font-body leading-relaxed max-w-lg mx-auto mb-9" style={{ color: "rgba(245,235,228,0.68)" }}>
-              No card required, no obligation to continue — see if InnFlo fits your property first.
+              No card required, no obligation to continue — see if Innflo fits your property first.
             </p>
             <MagneticButton>
               <Link

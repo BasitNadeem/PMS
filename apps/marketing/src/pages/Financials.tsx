@@ -93,7 +93,7 @@ function FolioMockup() {
           <span className="h-2.5 w-2.5 rounded-full bg-red-400 opacity-50" />
           <span className="h-2.5 w-2.5 rounded-full bg-amber-400 opacity-50" />
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 opacity-50" />
-          <span className="ml-3 text-[11.5px] text-ink-mute font-semibold tracking-wide">InnFlo — Guest Folio</span>
+          <span className="ml-3 text-[11.5px] text-ink-mute font-semibold tracking-wide">Innflo — Guest Folio</span>
         </div>
         <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/50">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
@@ -213,7 +213,7 @@ function BalanceBookMockup() {
           <span className="h-2.5 w-2.5 rounded-full bg-red-400 opacity-50" />
           <span className="h-2.5 w-2.5 rounded-full bg-amber-400 opacity-50" />
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 opacity-50" />
-          <span className="ml-3 text-[12px] text-ink-mute font-semibold tracking-wide">InnFlo — Balance Book</span>
+          <span className="ml-3 text-[12px] text-ink-mute font-semibold tracking-wide">Innflo — Balance Book</span>
         </div>
         <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/50">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Auto-logged
@@ -297,11 +297,11 @@ function BalanceBookMockup() {
 }
 
 const BALANCE_FEATURES = [
-  { icon: CheckCircle2,   text: "Folio payments and expenses post automatically — no manual entry for what InnFlo already knows about" },
+  { icon: CheckCircle2,   text: "Folio payments and expenses post automatically — no manual entry for what Innflo already knows about" },
   { icon: Wallet,         text: "See total balance per payment method — cash drawer, bank, JazzCash, Easypaisa — without opening five different apps" },
   { icon: Filter,         text: "Filter by today, this week, this month, or a custom range, and by incoming vs. outgoing" },
   { icon: CalendarClock,  text: "Check the balance as of any past date — not just what it is right now" },
-  { icon: ShieldCheck,    text: "Manual entries still work for the odd cash withdrawal or bank deposit that didn't come from InnFlo itself" },
+  { icon: ShieldCheck,    text: "Manual entries still work for the odd cash withdrawal or bank deposit that didn't come from Innflo itself" },
 ];
 
 export default function Financials() {
@@ -434,10 +434,10 @@ export default function Financials() {
           <Reveal>
             <p className="eyebrow mb-5" style={{ color: "#E0532B" }}>Get in early</p>
             <h2 className="font-display italic text-[clamp(30px,4vw,46px)] font-medium text-paper leading-tight mb-6">
-              Start with a guided InnFlo trial.
+              Start with a guided Innflo trial.
             </h2>
             <p className="text-[16px] font-body leading-relaxed max-w-lg mx-auto mb-9" style={{ color: "rgba(245,235,228,0.68)" }}>
-              No card required, no obligation to continue — see if InnFlo fits your property first.
+              No card required, no obligation to continue — see if Innflo fits your property first.
             </p>
             <MagneticButton>
               <Link

@@ -67,7 +67,7 @@ export function LiveScheduleMockup() {
   ];
 
   return (
-    <ProductWindow title="InnFlo / Live schedule">
+    <ProductWindow title="Innflo / Live schedule">
       <div className="grid min-w-0 bg-[#F8F4EF] sm:grid-cols-[minmax(0,1fr)_180px]">
         <div className="min-w-0 border-b border-line-soft p-3 sm:border-b-0 sm:border-r">
           <div className="mb-3 flex items-center justify-between">
@@ -140,7 +140,7 @@ export function PosTerminalMockup() {
   ];
 
   return (
-    <ProductWindow title="InnFlo / Point of sale">
+    <ProductWindow title="Innflo / Point of sale">
       <div className="grid min-w-0 bg-[#F8F4EF] sm:grid-cols-[minmax(0,1.12fr)_minmax(0,.88fr)]">
         <div className="border-b border-line-soft p-3 sm:border-b-0 sm:border-r">
           <div className="flex gap-1.5 overflow-hidden border-b border-line-soft pb-3">
@@ -215,7 +215,7 @@ export function QrMenuMockup() {
   return (
     <div className="relative min-h-[380px] w-full">
       <div className="absolute bottom-2 right-0 top-2 w-[78%]">
-        <ProductWindow title="InnFlo / Kitchen display">
+        <ProductWindow title="Innflo / Kitchen display">
           <div className="bg-[#F8F4EF] p-3 pl-16 sm:pl-20">
             <div className="flex items-center justify-between border-b border-line-soft pb-3">
               <div>
@@ -300,7 +300,7 @@ export function InventoryControlMockup() {
   ];
 
   return (
-    <ProductWindow title="InnFlo / Inventory control">
+    <ProductWindow title="Innflo / Inventory control">
       <div className="bg-[#F8F4EF] p-3 sm:p-4">
         <div className="grid grid-cols-3 gap-2">
           <TinyMetric label="Stock value" value="428K" detail="Across 3 locations" />
@@ -368,7 +368,7 @@ export function LiveFolioMockup() {
   ];
 
   return (
-    <ProductWindow title="InnFlo / Guest folio">
+    <ProductWindow title="Innflo / Guest folio">
       <div className="bg-[#F8F4EF] p-3 sm:p-4">
         <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1.15fr)_minmax(0,.85fr)]">
           <div className="overflow-hidden rounded-2xl border border-line-soft bg-white">

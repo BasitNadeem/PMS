@@ -132,7 +132,7 @@ function ReportsCommandCenter() {
               <span className="h-2.5 w-2.5 rounded-full bg-[#F5D183]" />
               <span className="h-2.5 w-2.5 rounded-full bg-[#9EDDC7]" />
             </div>
-            <span className="truncate text-[9px] font-black text-white/45">InnFlo / Reports</span>
+            <span className="truncate text-[9px] font-black text-white/45">Innflo / Reports</span>
           </div>
           <span className="flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 py-1 text-[7px] font-black text-emerald-300">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> LIVE PROPERTY DATA
@@ -267,7 +267,7 @@ function OwnerGlanceMockup() {
           <span className="h-2.5 w-2.5 rounded-full bg-red-400 opacity-50" />
           <span className="h-2.5 w-2.5 rounded-full bg-amber-400 opacity-50" />
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 opacity-50" />
-          <span className="ml-3 text-[11.5px] text-ink-mute font-semibold tracking-wide">InnFlo — Dashboard</span>
+          <span className="ml-3 text-[11.5px] text-ink-mute font-semibold tracking-wide">Innflo — Dashboard</span>
         </div>
         <span className="text-[10px] font-bold text-ink-mute">Good morning, Ahmed</span>
       </div>
@@ -859,7 +859,7 @@ export default function Statistics() {
               The same numbers. A different answer for each role.
             </h2>
             <p className="mx-auto mt-5 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
-              InnFlo keeps the underlying property data consistent, then surfaces the reports each person needs to make their decision.
+              Innflo keeps the underlying property data consistent, then surfaces the reports each person needs to make their decision.
             </p>
           </Reveal>
           <Reveal variant="rise"><ReaderWorkspace /></Reveal>

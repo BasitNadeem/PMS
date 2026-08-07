@@ -13,7 +13,7 @@ import {
 import { api } from "@/lib/api";
 import { unlockNotificationSound } from "@/lib/notificationSound";
 
-function InnFloMark({ tone = "light" }: { tone?: "light" | "dark" }) {
+function InnfloMark({ tone = "light" }: { tone?: "light" | "dark" }) {
   const dark = tone === "dark";
 
   return (
@@ -90,8 +90,8 @@ export default function LoginPage() {
         <div className="pointer-events-none absolute -left-24 top-[42%] h-80 w-80 rounded-full bg-coral/20 blur-3xl" />
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-[#EAB28E]/10 blur-3xl" />
 
-        <a href="https://innflo.co" className="relative z-10 flex w-fit items-center gap-3" aria-label="InnFlo home">
-          <InnFloMark tone="dark" />
+        <a href="https://innflo.co" className="relative z-10 flex w-fit items-center gap-3" aria-label="Innflo home">
+          <InnfloMark tone="dark" />
         </a>
 
         <div className="relative z-10 my-auto max-w-[390px] py-12">
@@ -117,8 +117,8 @@ export default function LoginPage() {
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-coral-soft/75 blur-3xl lg:hidden" />
         <div className="relative w-full max-w-[480px]">
           <div className="mb-10 flex items-center justify-between lg:hidden">
-            <a href="https://innflo.co" aria-label="InnFlo home">
-              <InnFloMark />
+            <a href="https://innflo.co" aria-label="Innflo home">
+              <InnfloMark />
             </a>
             <div className="flex items-center gap-1.5 rounded-full border border-line bg-white/70 px-3 py-1.5 text-[11px] font-semibold text-ink-mute backdrop-blur">
               <ShieldCheck size={13} className="text-pine" />

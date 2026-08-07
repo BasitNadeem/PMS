@@ -7,7 +7,7 @@ export default function Glamping() {
       eyebrow="Glamping site management"
       heading={["Rustic stays,", "modern backend."]}
       image="/images/glamping_hero.webp"
-      intro="Cabins, pods, domes, or tents — InnFlo treats every unit like a room, so the rustic experience out front runs on a proper system behind it."
+      intro="Cabins, pods, domes, or tents — Innflo treats every unit like a room, so the rustic experience out front runs on a proper system behind it."
       ctaLabel="Start a free trial"
       points={[
         { icon: Tent, title: "Unit inventory & timeline", body: "Every cabin or pod on one calendar, booked and tracked the same way a hotel room would be." },
@@ -25,11 +25,11 @@ export default function Glamping() {
         ],
       }}
       faqs={[
-        { q: "Does InnFlo work for cabins, domes, and tents the same way?", a: "Yes — each unit is set up like a room, with its own calendar, folio, and housekeeping status, regardless of what it physically is." },
+        { q: "Does Innflo work for cabins, domes, and tents the same way?", a: "Yes — each unit is set up like a room, with its own calendar, folio, and housekeeping status, regardless of what it physically is." },
         { q: "Can guests order food without walking to a front desk?", a: "Yes — a QR code at the site opens a menu guests order from directly, and the order can post straight to their bill." },
-        { q: "Do I need reliable internet for InnFlo to work?", a: "Housekeeping runs offline-first, so staff can keep working with no signal — everything syncs once connection returns." },
+        { q: "Do I need reliable internet for Innflo to work?", a: "Housekeeping runs offline-first, so staff can keep working with no signal — everything syncs once connection returns." },
         { q: "Is there a minimum number of units required?", a: "No — the same setup works whether it's three domes or thirty." },
-        { q: "How is InnFlo priced for a small site?", a: "A single flat monthly fee based on size — no per-booking commission or hidden fees." },
+        { q: "How is Innflo priced for a small site?", a: "A single flat monthly fee based on size — no per-booking commission or hidden fees." },
       ]}
     />
   );

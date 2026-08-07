@@ -98,7 +98,7 @@ const COMPLETION_LINES = [
   "Packing your property details",
   "Adding rooms and operating rules",
   "Connecting the right staff access",
-  "InnFlo is ready for your first shift",
+  "Innflo is ready for your first shift",
 ];
 
 const PACKING_ICONS: LucideIcon[] = [Building2, BedDouble, Users, CreditCard, Sparkles];
@@ -174,7 +174,7 @@ function DesktopRail({
     <aside className="relative hidden min-h-screen w-[32%] max-w-[430px] shrink-0 overflow-hidden bg-ink px-9 py-9 text-white lg:flex lg:flex-col">
       <div className="absolute -left-24 bottom-12 h-72 w-72 rounded-full bg-coral/20 blur-3xl" />
       <div className="relative flex items-center justify-between">
-        <span className="font-display text-[27px] font-semibold italic">InnFlo</span>
+        <span className="font-display text-[27px] font-semibold italic">Innflo</span>
         <span className="rounded-full border border-white/10 bg-white/[.06] px-3 py-1.5 text-[9px] font-bold uppercase tracking-[.16em] text-white/60">
           Property launch
         </span>
@@ -234,7 +234,7 @@ function MobileProgress({
     <div className="sticky top-0 z-30 border-b border-line bg-paper/95 px-5 py-4 backdrop-blur lg:hidden">
       <div className="flex items-center justify-between">
         <div>
-          <p className="font-display text-[21px] font-semibold italic">InnFlo</p>
+          <p className="font-display text-[21px] font-semibold italic">Innflo</p>
           <p className="mt-0.5 max-w-[220px] truncate text-[10px] font-bold uppercase tracking-wider text-ink-mute">{hotelName || "Property setup"}</p>
         </div>
         <span className="text-[11px] font-bold text-coral-dark">{currentStep} / {STEP_LABELS.length}</span>
@@ -958,7 +958,7 @@ function StepTheme({ onBack, onFinish }: { onBack: () => void; onFinish: () => v
       </div>
 
       <button onClick={finish} disabled={saving} className={cn(primaryButton, "mt-7")}>
-        {saving ? "Opening InnFlo…" : "Open my dashboard"} {!saving && <Rocket className="ml-2 h-4 w-4" />}
+        {saving ? "Opening Innflo…" : "Open my dashboard"} {!saving && <Rocket className="ml-2 h-4 w-4" />}
       </button>
     </div>
   );

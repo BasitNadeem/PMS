@@ -60,7 +60,7 @@ function PmsHeroMockup() {
               <span className="h-2.5 w-2.5 rounded-full bg-[#F5D183]" />
               <span className="h-2.5 w-2.5 rounded-full bg-[#9EDDC7]" />
             </div>
-            <span className="text-[9px] font-black tracking-wide text-ink-mute">InnFlo · Central Inn</span>
+            <span className="text-[9px] font-black tracking-wide text-ink-mute">Innflo · Central Inn</span>
           </div>
           <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[7px] font-black text-emerald-700">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
@@ -72,7 +72,7 @@ function PmsHeroMockup() {
           <aside className="hidden border-r border-line-soft bg-ink px-2.5 py-4 text-white sm:block">
             <div className="mb-5 flex items-center gap-1.5 px-1">
               <span className="grid h-6 w-6 place-items-center rounded-lg bg-coral text-[9px] font-black">I</span>
-              <span className="text-[9px] font-black">InnFlo</span>
+              <span className="text-[9px] font-black">Innflo</span>
             </div>
             {["Today", "Reservations", "Rooms", "Guests", "Billing", "Reports"].map((item, index) => (
               <div
@@ -350,7 +350,7 @@ function RoleWorkspaceShowcase() {
               <span className="h-2.5 w-2.5 rounded-full bg-[#F5D183]" />
               <span className="h-2.5 w-2.5 rounded-full bg-[#9EDDC7]" />
             </div>
-            <span className="truncate text-[9px] font-black text-ink-mute">InnFlo · Central Inn</span>
+            <span className="truncate text-[9px] font-black text-ink-mute">Innflo · Central Inn</span>
           </div>
           <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[7px] font-black text-emerald-700">
             <ShieldCheck className="h-3 w-3" />
@@ -782,7 +782,7 @@ function QrKitchenDualMockup() {
         {/* App header */}
         <div className="px-4 py-3 flex items-center justify-between" style={{ background: "#18181B" }}>
           <div>
-            <p className="text-white text-[11.5px] font-black tracking-tight leading-none">InnFlo Menu</p>
+            <p className="text-white text-[11.5px] font-black tracking-tight leading-none">Innflo Menu</p>
             <p className="text-white/50 text-[8.5px] mt-1">Room 201 · Sea View Suite</p>
           </div>
           <div className="w-6 h-6 rounded-full bg-coral/20 flex items-center justify-center">
@@ -1213,7 +1213,7 @@ function OneCalendarMockup() {
   );
 }
 
-// ─── Channel Manager — channels → InnFlo → calendar flow diagram ───────────
+// ─── Channel Manager — channels → Innflo → calendar flow diagram ───────────
 function ChannelManagerFlowMockup() {
   const channels = [
     { name: "Booking.com", color: "#003580", text: "B.", accent: "bg-blue-500", rooms: "3 Rooms" },
@@ -1281,7 +1281,7 @@ function ChannelManagerFlowMockup() {
           ))}
         </div>
 
-        {/* ── CENTER: InnFlo Sync Hub Icon & Flows ── */}
+        {/* ── CENTER: Innflo Sync Hub Icon & Flows ── */}
         <div className="flex flex-col items-center justify-center py-4 md:py-0">
           <div className="relative flex items-center justify-center">
             {/* Pulsing Sync Ring */}
@@ -1294,7 +1294,7 @@ function ChannelManagerFlowMockup() {
             </div>
           </div>
           <span className="text-[8px] font-black text-ink-mute uppercase tracking-widest mt-2 whitespace-nowrap text-center">
-            InnFlo Sync
+            Innflo Sync
           </span>
           <span className="text-[6.5px] text-coral font-bold uppercase tracking-widest mt-0.5">
             Realtime
@@ -1305,7 +1305,7 @@ function ChannelManagerFlowMockup() {
         <div className="rounded-xl border border-line-soft bg-white shadow-[0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
           {/* Calendar top toolbar */}
           <div className="px-3 py-2 bg-mist border-b border-line-soft flex items-center justify-between text-[8px] font-bold text-ink-mute">
-            <span>InnFlo Master Calendar</span>
+            <span>Innflo Master Calendar</span>
             <div className="flex items-center gap-2">
               <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-600" />Booking.com</span>
               <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-rose-500" />Airbnb</span>
@@ -1390,7 +1390,7 @@ const FEATURE_FAQS = [
   },
   {
     q: "Is there a free trial?",
-    a: "Not a fixed self-serve trial today — instead you get a live demo and an honest conversation about whether InnFlo fits your property, with no pressure either way.",
+    a: "Not a fixed self-serve trial today — instead you get a live demo and an honest conversation about whether Innflo fits your property, with no pressure either way.",
   },
   {
     q: "How long does it take to get set up?",
@@ -1675,11 +1675,11 @@ export default function Features() {
               "A daily operating picture<br />that takes seconds to read."
             </p>
             <p className="text-[17px] font-body leading-relaxed max-w-xl mx-auto mb-10" style={{ color: "rgba(246,243,238,0.62)" }}>
-              Open the manager dashboard for arrivals, departures, occupancy, revenue and operational follow-ups. InnFlo keeps the underlying records connected so the summary is useful, not decorative.
+              Open the manager dashboard for arrivals, departures, occupancy, revenue and operational follow-ups. Innflo keeps the underlying records connected so the summary is useful, not decorative.
             </p>
             <div className="inline-flex items-center gap-3 px-5 py-3 rounded-full font-body text-[14.5px]" style={{ background: "rgba(224,83,43,0.14)", border: "1px solid rgba(224,83,43,0.3)" }}>
               <span className="h-2 w-2 rounded-full bg-coral animate-pulse" />
-              <span className="text-coral" style={{ color: "#F5A183" }}>Live hotel data, ready when the manager opens InnFlo</span>
+              <span className="text-coral" style={{ color: "#F5A183" }}>Live hotel data, ready when the manager opens Innflo</span>
             </div>
           </Reveal>
         </div>
@@ -1823,7 +1823,7 @@ export default function Features() {
                 Every channel.<br /><span className="text-coral-dark italic">One calendar.</span>
               </h2>
               <p className="text-[15.5px] text-ink-soft font-body leading-relaxed mb-6 max-w-lg">
-                Booking.com, Airbnb, Expedia, and Agoda all sync into a single InnFlo calendar — a booking on one channel closes the room everywhere else, automatically. This is what we're building toward: no manual rate updates, no double-booked rooms, no spreadsheet reconciling five different extranets.
+                Booking.com, Airbnb, Expedia, and Agoda all sync into a single Innflo calendar — a booking on one channel closes the room everywhere else, automatically. This is what we're building toward: no manual rate updates, no double-booked rooms, no spreadsheet reconciling five different extranets.
               </p>
               <div className="grid grid-cols-2 gap-x-8 gap-y-2.5 font-body text-[13.5px] text-ink-soft mb-8">
                 {["Booking.com", "Airbnb", "Expedia", "Agoda", "Bookme.pk", "Sastaticket.pk"].map(f => (

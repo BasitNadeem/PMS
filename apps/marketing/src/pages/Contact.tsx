@@ -63,7 +63,7 @@ export default function Contact() {
   function submit(event: React.FormEvent) {
     event.preventDefault();
     const body = [
-      "Hi InnFlo, I’d like to book a product walkthrough.",
+      "Hi Innflo, I’d like to book a product walkthrough.",
       "",
       `Name: ${form.name}`,
       `Property: ${form.property || "Not provided"}`,
@@ -73,12 +73,12 @@ export default function Contact() {
       `Email: ${form.email}`,
       `Current system: ${form.currentSystem || "Not provided"}`,
       "",
-      `What we need: ${form.message || "A general InnFlo walkthrough."}`,
+      `What we need: ${form.message || "A general Innflo walkthrough."}`,
     ].join("\n");
     window.open(getWhatsAppUrl(body), "_blank", "noopener,noreferrer");
   }
 
-  const whatsappUrl = getWhatsAppUrl("Hi InnFlo, I’d like to learn more about the hotel PMS.");
+  const whatsappUrl = getWhatsAppUrl("Hi Innflo, I’d like to learn more about the hotel PMS.");
 
   return (
     <div className="bg-paper text-ink">
@@ -138,7 +138,7 @@ export default function Contact() {
                 </a>
                 <a href={CONTACT_PHONE_HREF} className="flex items-center gap-3 rounded-2xl bg-coral-soft p-4 text-[13px] font-bold text-coral-dark hover:bg-[#F6DDD1]">
                   <PhoneCall className="h-5 w-5" />
-                  <span><span className="block">Call InnFlo</span><span className="mt-0.5 block text-[10px] font-semibold opacity-70">{CONTACT_PHONE_NUMERIC}</span></span>
+                  <span><span className="block">Call Innflo</span><span className="mt-0.5 block text-[10px] font-semibold opacity-70">{CONTACT_PHONE_NUMERIC}</span></span>
                   <ArrowRight className="ml-auto h-4 w-4" />
                 </a>
                 <a href={`mailto:${CONTACT_EMAIL}`} className="flex items-center gap-3 rounded-2xl bg-mist p-4 text-[13px] font-bold text-ink hover:bg-line-soft">
@@ -157,7 +157,7 @@ export default function Contact() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="grid h-9 w-9 place-items-center rounded-full border border-line text-ink-soft transition-colors hover:border-coral/40 hover:bg-coral-soft hover:text-coral-dark"
-                  aria-label="InnFlo on Instagram"
+                  aria-label="Innflo on Instagram"
                 >
                   <Instagram className="h-4 w-4" />
                 </a>
@@ -166,7 +166,7 @@ export default function Contact() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="grid h-9 w-9 place-items-center rounded-full border border-line text-ink-soft transition-colors hover:border-coral/40 hover:bg-coral-soft hover:text-coral-dark"
-                  aria-label="InnFlo on Facebook"
+                  aria-label="Innflo on Facebook"
                 >
                   <Facebook className="h-4 w-4" />
                 </a>

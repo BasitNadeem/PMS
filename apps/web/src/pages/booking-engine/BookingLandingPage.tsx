@@ -1175,7 +1175,7 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-800 tracking-wide border border-gray-200 bg-[rgb(var(--be-accent-soft))] px-3 py-1.5 rounded-sm">
                       <Lock size={12} className="text-[rgb(var(--be-accent))]" /> VERIFIED & SECURED
                     </div>
-                    <span className="text-[10px] text-gray-500 font-medium">Powered by InnFlo</span>
+                    <span className="text-[10px] text-gray-500 font-medium">Powered by Innflo</span>
                   </div>
                 </div>
              </div>

@@ -15,8 +15,8 @@ const CM_FAQS = [
     a: "Software that keeps your room availability and rates synchronized across every OTA you list on — so a booking on one channel automatically closes that room everywhere else.",
   },
   {
-    q: "How does InnFlo's channel manager work?",
-    a: "The planned flow is to set rates and inventory once inside InnFlo, distribute them to connected OTAs, and return incoming bookings to the InnFlo calendar. This module is still in development.",
+    q: "How does Innflo's channel manager work?",
+    a: "The planned flow is to set rates and inventory once inside Innflo, distribute them to connected OTAs, and return incoming bookings to the Innflo calendar. This module is still in development.",
   },
   {
     q: "Which channels and OTAs can I connect to?",
@@ -28,10 +28,10 @@ const CM_FAQS = [
   },
   {
     q: "How much will Channel Manager cost?",
-    a: "Pricing has not been finalized. InnFlo’s existing PMS plans remain flat monthly subscriptions with no percentage commission on direct Booking Engine reservations.",
+    a: "Pricing has not been finalized. Innflo’s existing PMS plans remain flat monthly subscriptions with no percentage commission on direct Booking Engine reservations.",
   },
   {
-    q: "Can I connect a channel InnFlo doesn't list?",
+    q: "Can I connect a channel Innflo doesn't list?",
     a: "Get in touch and tell us which one — the channel list above is what we're building first, not the ceiling of what's possible.",
   },
   {
@@ -40,7 +40,7 @@ const CM_FAQS = [
   },
   {
     q: "Can I manage more than one property?",
-    a: "InnFlo accounts are property-isolated today. Multi-property management is separate roadmap work and is not being promised as part of the first Channel Manager release.",
+    a: "Innflo accounts are property-isolated today. Multi-property management is separate roadmap work and is not being promised as part of the first Channel Manager release.",
   },
 ];
 
@@ -95,18 +95,18 @@ const STATS = [
 ];
 
 const FEATURES = [
-  { icon: Zap,        title: "Real-time sync",        body: "Availability and rates update across every connected channel the moment you make a change in InnFlo — no delays, no manual publishing." },
+  { icon: Zap,        title: "Real-time sync",        body: "Availability and rates update across every connected channel the moment you make a change in Innflo — no delays, no manual publishing." },
   { icon: ShieldCheck, title: "Zero double bookings",  body: "The instant a room sells anywhere, it closes everywhere else. Overbooking stops being something you have to watch for." },
   { icon: BarChart3,  title: "Channel performance",    body: "See which OTAs actually drive revenue for your property, and shift availability toward the ones that perform." },
-  { icon: RefreshCcw, title: "Two-way sync",           body: "Bookings from any channel land directly in InnFlo. Changes you make in InnFlo sync back out automatically." },
+  { icon: RefreshCcw, title: "Two-way sync",           body: "Bookings from any channel land directly in Innflo. Changes you make in Innflo sync back out automatically." },
   { icon: Globe2,      title: "Every major OTA",        body: "Booking.com, Airbnb, Expedia, and Agoda to start — with Bookme.pk and Sastaticket.pk built for how guests actually book in this market." },
   { icon: Clock,       title: "Hours back, every day",  body: "No more logging into five different extranets to update the same rate. Set it once, in one place." },
 ];
 
 const STEPS = [
-  { n: "01", icon: Layers,     title: "Set rates & inventory once",       body: "Configure room types, pricing, restrictions, and availability inside InnFlo — one place, one time." },
+  { n: "01", icon: Layers,     title: "Set rates & inventory once",       body: "Configure room types, pricing, restrictions, and availability inside Innflo — one place, one time." },
   { n: "02", icon: GitMerge,   title: "Channel Manager distributes",      body: "Your inventory pushes out to every connected OTA, kept in sync with no manual re-entry." },
-  { n: "03", icon: TrendingUp, title: "Bookings flow back automatically", body: "A reservation from any channel lands directly in InnFlo, and every other channel updates in real time." },
+  { n: "03", icon: TrendingUp, title: "Bookings flow back automatically", body: "A reservation from any channel lands directly in Innflo, and every other channel updates in real time." },
 ];
 
 const BENEFITS = [
@@ -118,7 +118,7 @@ const BENEFITS = [
   "Overbooking protection running automatically, around the clock",
 ];
 
-// ─── Live hub mockup — channels orbiting into InnFlo, animated data flow ───
+// ─── Live hub mockup — channels orbiting into Innflo, animated data flow ───
 const SVG_W = 460, SVG_H = 340, CX = 230, CY = 170, RX = 170, RY = 118;
 function toRad(deg: number) { return (deg * Math.PI) / 180; }
 function orbital(angle: number) {
@@ -214,7 +214,7 @@ function AvailabilityMockup() {
         <span className="h-2.5 w-2.5 rounded-full bg-red-400 opacity-50" />
         <span className="h-2.5 w-2.5 rounded-full bg-amber-400 opacity-50" />
         <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 opacity-50" />
-        <span className="ml-3 text-[11px] text-ink-mute font-semibold tracking-wide">InnFlo — Availability</span>
+        <span className="ml-3 text-[11px] text-ink-mute font-semibold tracking-wide">Innflo — Availability</span>
       </div>
 
       <div className="flex bg-mist border-b border-line-soft">
@@ -397,7 +397,7 @@ export default function ChannelManager() {
           <Reveal>
             <p className="eyebrow mb-5" style={{ color: "#E0532B" }}>Get in early</p>
             <h2 className="font-display italic text-[clamp(30px,4vw,46px)] font-medium text-paper leading-tight mb-6">
-              Start with a guided InnFlo trial.
+              Start with a guided Innflo trial.
             </h2>
             <p className="text-[16px] font-body leading-relaxed max-w-lg mx-auto mb-9" style={{ color: "rgba(245,235,228,0.68)" }}>
               Be first in line when Channel Manager goes live — no card required, no obligation to continue.

@@ -787,7 +787,7 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
 
         {/* Footer */}
         <div className="mt-10 pt-5 border-t border-gray-200">
-          <p className="text-[12px] text-gray-400">Powered by InnFlo</p>
+          <p className="text-[12px] text-gray-400">Powered by Innflo</p>
         </div>
       </div>
     </div>

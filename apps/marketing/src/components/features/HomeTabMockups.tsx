@@ -72,7 +72,7 @@ export function FrontDeskMockup() {
 
   return (
     <BrowserShell
-      title="InnFlo / Front desk / Today"
+      title="Innflo / Front desk / Today"
       action={
         <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-1 text-[7px] font-black text-emerald-700">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
@@ -173,7 +173,7 @@ export function HousekeepingMockup() {
     <div className="relative min-h-[350px] w-full">
       <div className="absolute bottom-3 left-0 right-12 top-0">
         <BrowserShell
-          title="InnFlo / Housekeeping board"
+          title="Innflo / Housekeeping board"
           action={<span className="text-[7px] font-bold text-ink-mute">6 of 9 ready</span>}
         >
           <div className="bg-[#F8F4EF] p-3.5 pr-20 sm:pr-28">
@@ -267,7 +267,7 @@ export function ReportsSnapshotMockup() {
 
   return (
     <BrowserShell
-      title="InnFlo / Reports / Performance"
+      title="Innflo / Reports / Performance"
       action={
         <span className="flex items-center gap-1 rounded-lg border border-line px-2 py-1 text-[7px] font-bold text-ink-soft">
           <Download className="h-2.5 w-2.5" /> Export
@@ -347,7 +347,7 @@ export function TeamAccessMockup() {
   return (
     <div className="w-full min-w-0 max-w-full overflow-hidden">
       <BrowserShell
-        title="InnFlo / Settings / Team & access"
+        title="Innflo / Settings / Team & access"
         action={
           <span className="flex items-center gap-1 rounded-lg bg-ink px-2 py-1 text-[7px] font-bold text-white">
             <UserPlus className="h-2.5 w-2.5" /> Invite staff
@@ -417,7 +417,7 @@ export function TeamAccessMockup() {
 
 export function ChannelManagerComingSoonMockup() {
   const channels = [
-    { name: "InnFlo Booking Engine", mark: "IF", tone: "bg-coral text-white", state: "Live", live: true },
+    { name: "Innflo Booking Engine", mark: "IF", tone: "bg-coral text-white", state: "Live", live: true },
     { name: "Booking.com", mark: "B.", tone: "bg-[#063B89] text-white", state: "Planned", live: false },
     { name: "Airbnb", mark: "A.", tone: "bg-[#FF5A5F] text-white", state: "Planned", live: false },
     { name: "Expedia", mark: "E.", tone: "bg-[#17174B] text-[#F6C344]", state: "Planned", live: false },
@@ -426,7 +426,7 @@ export function ChannelManagerComingSoonMockup() {
   return (
     <div className="w-full min-w-0 max-w-full overflow-hidden">
       <BrowserShell
-        title="InnFlo / Distribution hub"
+        title="Innflo / Distribution hub"
         action={<span className="rounded-full bg-coral-soft px-2 py-1 text-[7px] font-black text-coral-dark">IN DEVELOPMENT</span>}
       >
         <div className="relative min-w-0 overflow-hidden bg-[#F8F4EF] p-3 sm:p-4">

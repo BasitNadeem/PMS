@@ -7,7 +7,7 @@ export default function VacationRentals() {
       eyebrow="Vacation rental management"
       heading={["One calendar,", "every rentable unit."]}
       image="/images/vacation_rentals_hero.webp"
-      intro="For a home, villa, cabin, or a set of rentable units at one property, InnFlo keeps bookings, billing, guests and performance out of scattered spreadsheets."
+      intro="For a home, villa, cabin, or a set of rentable units at one property, Innflo keeps bookings, billing, guests and performance out of scattered spreadsheets."
       ctaLabel="Start a free trial"
       points={[
         { icon: Building2, title: "Unit management", body: "Every rentable unit on one calendar, so dates and guests do not get confused between spaces." },
@@ -26,10 +26,10 @@ export default function VacationRentals() {
       }}
       faqs={[
         { q: "Can I manage multiple units from one account?", a: "Yes — units at the same property sit on one calendar and share the hotel’s operating account." },
-        { q: "Does InnFlo support a multi-property owner dashboard?", a: "Not yet. Each hotel is intentionally isolated today; a group-level rollup is roadmap work for when real hotel-group demand warrants it." },
+        { q: "Does Innflo support a multi-property owner dashboard?", a: "Not yet. Each hotel is intentionally isolated today; a group-level rollup is roadmap work for when real hotel-group demand warrants it." },
         { q: "Is channel sync available yet?", a: "It's in development. Direct bookings and manual entry work today; Channel Manager is what we're building toward." },
         { q: "What happens if I add a new unit later?", a: "Add another room or rentable unit to the property and give it the appropriate type, rate and availability." },
-        { q: "How is pricing structured?", a: "InnFlo uses flat monthly hotel plans with no percentage commission on direct bookings." },
+        { q: "How is pricing structured?", a: "Innflo uses flat monthly hotel plans with no percentage commission on direct bookings." },
       ]}
     />
   );

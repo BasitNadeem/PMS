@@ -23,7 +23,7 @@ const PRINCIPLES = [
   {
     icon: MessageSquareText,
     title: "Familiar workflows",
-    copy: "InnFlo replaces the paper register, spreadsheet and WhatsApp guessing game without asking the team to become software experts.",
+    copy: "Innflo replaces the paper register, spreadsheet and WhatsApp guessing game without asking the team to become software experts.",
   },
   {
     icon: ShieldCheck,
@@ -45,14 +45,14 @@ export default function About() {
         <div className="absolute -right-40 top-28 h-[430px] w-[430px] rounded-full bg-coral/10 blur-3xl" />
         <div className="relative mx-auto grid max-w-6xl gap-14 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
           <div>
-            <Reveal><p className="eyebrow mb-6">Why InnFlo exists</p></Reveal>
+            <Reveal><p className="eyebrow mb-6">Why Innflo exists</p></Reveal>
             <h1 className="font-display text-[clamp(44px,6.5vw,76px)] font-medium leading-[.98]">
               <SplitHeading as="span" className="block">Hotel software for</SplitHeading>
               <SplitHeading as="span" delay={0.2} className="block italic text-coral-dark">the people on the floor.</SplitHeading>
             </h1>
             <Reveal delay={0.4}>
               <p className="mt-7 max-w-xl font-body text-[17px] leading-relaxed text-ink-soft">
-                InnFlo is a manager-first operating system for independent hotels—starting with the properties that make Pakistan’s mountain tourism unforgettable.
+                Innflo is a manager-first operating system for independent hotels—starting with the properties that make Pakistan’s mountain tourism unforgettable.
               </p>
             </Reveal>
             <Reveal delay={0.48}>
@@ -116,7 +116,7 @@ export default function About() {
                 Independent hotels are often held together by capable people using paper registers, spreadsheets, calls and WhatsApp. Those tools feel easy until availability changes, a payment is missed, a room is not cleaned, or the manager needs a reliable answer from yesterday.
               </p>
               <p>
-                Enterprise PMS products solve a different problem. They assume specialist teams, complex integrations and a software budget shaped around international chains. InnFlo sits between those worlds: serious operational control with a learning curve that respects a busy hotel team.
+                Enterprise PMS products solve a different problem. They assume specialist teams, complex integrations and a software budget shaped around international chains. Innflo sits between those worlds: serious operational control with a learning curve that respects a busy hotel team.
               </p>
               <p>
                 We are early, actively built, and honest about what is live. Channel distribution and deeper guest messaging are roadmap work; reservations, hotel operations, direct booking, financial control, POS, QR ordering, inventory and reporting are here today.

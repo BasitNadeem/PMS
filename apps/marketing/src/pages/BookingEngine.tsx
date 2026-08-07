@@ -386,7 +386,7 @@ function CommissionComparisonMockup() {
 
             <div className="mt-6 space-y-3 text-[8px]">
               <div className="flex justify-between text-ink-mute"><span>Guest booking value</span><span>{formatPkr(bookingValue)}</span></div>
-              <div className="flex justify-between text-emerald-700"><span>InnFlo commission</span><span>{formatPkr(0)}</span></div>
+              <div className="flex justify-between text-emerald-700"><span>Innflo commission</span><span>{formatPkr(0)}</span></div>
               <div className="h-px bg-line" />
               <div className="flex items-end justify-between">
                 <span className="font-black text-ink-soft">Your hotel keeps</span>
@@ -421,16 +421,16 @@ function CommissionComparisonMockup() {
 
 const FAQS = [
   {
-    q: "Does InnFlo collect online payment from the guest?",
+    q: "Does Innflo collect online payment from the guest?",
     a: "Not today. The guest submits a secure booking request and the hotel confirms the stay and handles any deposit using its existing process. The guest sees this clearly before submitting.",
   },
   {
     q: "Is room availability actually live?",
-    a: "Yes. The public page reads current availability, and InnFlo checks it again inside the final booking transaction. If the requested inventory is no longer available, no partial or conflicting booking is created.",
+    a: "Yes. The public page reads current availability, and Innflo checks it again inside the final booking transaction. If the requested inventory is no longer available, no partial or conflicting booking is created.",
   },
   {
     q: "Can one guest request several rooms?",
-    a: "Yes. Guests can combine room types and quantities in one cart. InnFlo validates total sleeping capacity and processes the entire multi-room request atomically.",
+    a: "Yes. Guests can combine room types and quantities in one cart. Innflo validates total sleeping capacity and processes the entire multi-room request atomically.",
   },
   {
     q: "Can hotels create promo and corporate codes?",
@@ -438,7 +438,7 @@ const FAQS = [
   },
   {
     q: "Where does the Booking Engine live?",
-    a: "Every enabled hotel gets its own guest-facing InnFlo subdomain using the hotel slug. The page uses that hotel’s name, logo, room images, theme, policies, taxes and rate plans.",
+    a: "Every enabled hotel gets its own guest-facing Innflo subdomain using the hotel slug. The page uses that hotel’s name, logo, room images, theme, policies, taxes and rate plans.",
   },
 ];
 
@@ -460,7 +460,7 @@ export default function BookingEngine() {
             </h1>
             <Reveal delay={0.55}>
               <p className="mt-7 max-w-xl text-[18px] font-medium leading-relaxed text-ink-soft">
-                A branded direct booking experience connected to the same rooms, rates, policies and front desk your team already runs in InnFlo.
+                A branded direct booking experience connected to the same rooms, rates, policies and front desk your team already runs in Innflo.
               </p>
             </Reveal>
             <Reveal delay={0.65}>
@@ -514,7 +514,7 @@ export default function BookingEngine() {
               <span className="italic text-coral-dark">Direct bookings bring the margin home.</span>
             </h2>
             <p className="mt-6 max-w-lg text-[16px] leading-relaxed text-ink-soft">
-              An OTA can take a percentage of every stay booked through its marketplace. Bring that guest through your own InnFlo Booking Engine and InnFlo takes 0% of the booking value.
+              An OTA can take a percentage of every stay booked through its marketplace. Bring that guest through your own Innflo Booking Engine and Innflo takes 0% of the booking value.
             </p>
             <div className="mt-8 space-y-3">
               {[
@@ -588,7 +588,7 @@ export default function BookingEngine() {
         <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[.88fr_1.12fr]">
           <Reveal>
             <p className="eyebrow mb-5">The hotel stays visible</p>
-            <h2 className="font-display text-[clamp(38px,5vw,58px)] font-medium leading-[1.03]">InnFlo powers it. Your hotel owns the experience.</h2>
+            <h2 className="font-display text-[clamp(38px,5vw,58px)] font-medium leading-[1.03]">Innflo powers it. Your hotel owns the experience.</h2>
             <p className="mt-6 text-[16px] leading-relaxed text-ink-soft">
               Your name, logo, room photography, amenities and chosen color theme shape the guest journey. Your cancellation policy and booking terms appear before the request is sent.
             </p>
@@ -614,7 +614,7 @@ export default function BookingEngine() {
             <p className="mb-5 text-[11px] font-black uppercase tracking-[.18em] text-coral">Back at the hotel</p>
             <h2 className="font-display text-[clamp(40px,5vw,62px)] font-medium leading-[1.02] text-paper">The request lands where the work already happens.</h2>
             <p className="mt-6 max-w-xl text-[16px] leading-relaxed text-white/55">
-              The front desk receives a persistent alert and chime. The reservation appears in the PMS as an enquiry. If the guest provided email, InnFlo sends a polished request receipt automatically.
+              The front desk receives a persistent alert and chime. The reservation appears in the PMS as an enquiry. If the guest provided email, Innflo sends a polished request receipt automatically.
             </p>
             <div className="mt-9 grid gap-3 sm:grid-cols-3">
               {[

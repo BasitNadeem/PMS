@@ -38,7 +38,7 @@ export default function LoginPage() {
         <div className="flex items-center gap-3">
           <img src="/brand/mark-clay-tight.svg" alt="" aria-hidden="true" className="h-11 w-11" />
           <div>
-            <h1 className="text-xl font-bold leading-tight text-gray-900">InnFlo</h1>
+            <h1 className="text-xl font-bold leading-tight text-gray-900">Innflo</h1>
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">Super admin</p>
           </div>
         </div>

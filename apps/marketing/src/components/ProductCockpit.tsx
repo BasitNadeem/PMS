@@ -301,7 +301,7 @@ function AppCanvas({ scene }: { scene: number }) {
   return (
     <div className="relative grid h-full grid-cols-[92px_1fr] bg-paper">
       <aside className="border-r border-white/5 bg-[#201F1B] p-2.5 text-white">
-        <div className="mb-4 font-display text-[16px] italic">InnFlo</div>
+        <div className="mb-4 font-display text-[16px] italic">Innflo</div>
         <div className="space-y-1">
           {NAV_ITEMS.map(({ icon: Icon, label }) => (
             <div key={label} className={`flex items-center gap-1.5 rounded-lg px-2 py-2 text-[5.5px] font-semibold transition-colors ${activeNavigation === label ? "bg-coral text-white" : "text-white/45"}`}>

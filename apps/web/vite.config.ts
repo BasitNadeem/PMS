@@ -12,9 +12,9 @@ export default defineConfig({
       devOptions: { enabled: true },
       manifest: {
         id: "/housekeeping/mobile",
-        name: "InnFlo Housekeeping",
+        name: "Innflo Housekeeping",
         short_name: "Housekeeping",
-        description: "InnFlo housekeeping task management",
+        description: "Innflo housekeeping task management",
         theme_color: "#E0532B",
         background_color: "#F5EBE4",
         display: "standalone",

@@ -7,7 +7,7 @@ export default function Hotels() {
       eyebrow="Hotel management"
       heading={["Run a hotel,", "not a spreadsheet."]}
       image="/images/hotels_hero.webp"
-      intro="Boutique, motel, resort, or independent city hotel — InnFlo runs reservations, billing, and housekeeping from a single dashboard."
+      intro="Boutique, motel, resort, or independent city hotel — Innflo runs reservations, billing, and housekeeping from a single dashboard."
       ctaLabel="Start a free trial"
       points={[
         { icon: CalendarClock, title: "Reservations & timeline", body: "A visual calendar across every room, with group bookings and multi-night stays handled without a spreadsheet on the side." },
@@ -25,11 +25,11 @@ export default function Hotels() {
         ],
       }}
       faqs={[
-        { q: "Is InnFlo built for large chains or independent hotels?", a: "Independent hotels — InnFlo is priced and built for properties that do not fit the enterprise template, not hundred-hotel chains." },
-        { q: "Can InnFlo handle group bookings?", a: "Yes — a group spanning several rooms settles as one combined bill or splits by room, and every room still rolls into the same folio automatically." },
-        { q: "Does InnFlo work across multiple floors or buildings?", a: "Yes — rooms are organized by floor and type, so a multi-building property is represented the same way a single building is." },
-        { q: "Can staff use InnFlo from their phones?", a: "Yes — housekeeping in particular is built phone-first and works offline, syncing the moment a signal returns." },
-        { q: "How is InnFlo priced?", a: "A single flat monthly fee based on property size — no commission per booking, no hidden per-guest fees." },
+        { q: "Is Innflo built for large chains or independent hotels?", a: "Independent hotels — Innflo is priced and built for properties that do not fit the enterprise template, not hundred-hotel chains." },
+        { q: "Can Innflo handle group bookings?", a: "Yes — a group spanning several rooms settles as one combined bill or splits by room, and every room still rolls into the same folio automatically." },
+        { q: "Does Innflo work across multiple floors or buildings?", a: "Yes — rooms are organized by floor and type, so a multi-building property is represented the same way a single building is." },
+        { q: "Can staff use Innflo from their phones?", a: "Yes — housekeeping in particular is built phone-first and works offline, syncing the moment a signal returns." },
+        { q: "How is Innflo priced?", a: "A single flat monthly fee based on property size — no commission per booking, no hidden per-guest fees." },
       ]}
     />
   );

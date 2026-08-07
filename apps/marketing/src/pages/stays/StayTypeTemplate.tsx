@@ -42,7 +42,7 @@ const TRUST_ITEMS = [
   {
     icon: Smartphone,
     title: "Runs on what you already have",
-    body: "No special hardware, no dedicated terminal — InnFlo runs in a browser, on the phone or laptop staff already carry.",
+    body: "No special hardware, no dedicated terminal — Innflo runs in a browser, on the phone or laptop staff already carry.",
   },
   {
     icon: Banknote,
@@ -271,10 +271,10 @@ export default function StayTypeTemplate({ eyebrow, heading, image, intro, ctaLa
           <Reveal>
             <p className="eyebrow mb-5" style={{ color: "#E0532B" }}>Get in early</p>
             <h2 className="font-display italic text-[clamp(30px,4vw,46px)] font-medium text-paper leading-tight mb-6">
-              Start with a guided InnFlo trial.
+              Start with a guided Innflo trial.
             </h2>
             <p className="text-[16px] font-body leading-relaxed max-w-lg mx-auto mb-9" style={{ color: "rgba(245,235,228,0.68)" }}>
-              No card required, no obligation to continue — see if InnFlo fits your property first.
+              No card required, no obligation to continue — see if Innflo fits your property first.
             </p>
             <MagneticButton>
               <Link

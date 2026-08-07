@@ -551,16 +551,19 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
   const upsellsTotal = upsellCart.reduce((s, u) => s + upsellLineTotal(u), 0);
 
   const [showUpsellPrompt, setShowUpsellPrompt] = useState(false);
+  const [upsellPromptSeen, setUpsellPromptSeen] = useState(false);
 
   function goToCheckout() {
     navigate(`/reserve?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}&children=${children}`);
   }
 
   // Offer extras on the way to checkout rather than relying on the Packages tab,
-  // which guests rarely open. Skipped entirely when the hotel sells no extras,
-  // or when the guest already picked some and has nothing new to decide.
+  // which guests rarely open. Shown whenever the hotel sells extras — including
+  // when some are already in the cart, so the guest can review them — but only
+  // once per visit, so a second Continue click goes straight through.
   function handleContinue() {
-    if (upsells.length > 0 && upsellCart.length === 0) {
+    if (upsells.length > 0 && !upsellPromptSeen) {
+      setUpsellPromptSeen(true);
       setShowUpsellPrompt(true);
       return;
     }

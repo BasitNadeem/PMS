@@ -518,6 +518,23 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
   const upsellLineTotal = (u: CartUpsell) => upsellLineAmount(u, nights, partySize);
   const upsellsTotal = upsellCart.reduce((s, u) => s + upsellLineTotal(u), 0);
 
+  const [showUpsellPrompt, setShowUpsellPrompt] = useState(false);
+
+  function goToCheckout() {
+    navigate(`/reserve?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}&children=${children}`);
+  }
+
+  // Offer extras on the way to checkout rather than relying on the Packages tab,
+  // which guests rarely open. Skipped entirely when the hotel sells no extras,
+  // or when the guest already picked some and has nothing new to decide.
+  function handleContinue() {
+    if (upsells.length > 0 && upsellCart.length === 0) {
+      setShowUpsellPrompt(true);
+      return;
+    }
+    goToCheckout();
+  }
+
   function changeUpsellQty(item: UpsellCatalogItem, delta: number) {
     setUpsellCart((prev) => {
       const existing = prev.find((u) => u.upsellItemId === item.id);
@@ -685,6 +702,108 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
           onClose={() => setQuickLookRoom(null)}
           onChangeQty={(delta) => handleChangeQty(quickLookRoom, quickLookRate, delta)}
         />
+      )}
+
+      {/* Extras offered on the way to checkout */}
+      {showUpsellPrompt && (
+        <>
+          <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm" onClick={() => setShowUpsellPrompt(false)} />
+          <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="upsell-prompt-title"
+              className="pointer-events-auto w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[85vh] flex flex-col"
+            >
+              <div className="px-5 sm:px-6 pt-5 pb-4 border-b border-gray-100">
+                <h2 id="upsell-prompt-title" className="text-[17px] font-semibold text-gray-900">
+                  Anything else for your stay?
+                </h2>
+                <p className="mt-1 text-[13px] text-gray-500">
+                  Add these now and they'll be waiting when you arrive.
+                </p>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-4 flex flex-col gap-3">
+                {upsells.map((item) => {
+                  const qty = upsellCart.find((u) => u.upsellItemId === item.id)?.quantity ?? 0;
+                  return (
+                    <div key={item.id} className="flex items-center gap-4 border border-gray-200/80 rounded-xl p-3.5">
+                      {item.imageUrl && (
+                        <img src={item.imageUrl} alt="" className="h-14 w-14 rounded-lg object-cover shrink-0" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-[14px] font-medium text-gray-900">{item.name}</h3>
+                        {item.description && (
+                          <p className="mt-0.5 text-[12px] leading-snug text-gray-500 line-clamp-2">{item.description}</p>
+                        )}
+                        <p className="mt-1 text-[12.5px] font-medium text-gray-900">
+                          {fmt(item.amount)}
+                          <span className="ml-1 text-[11px] font-normal text-gray-500">
+                            {item.priceType === "PER_NIGHT" ? "per night"
+                              : item.priceType === "PER_GUEST" ? "per guest"
+                              : "one-off"}
+                          </span>
+                        </p>
+                      </div>
+                      {qty === 0 ? (
+                        <button
+                          onClick={() => changeUpsellQty(item, 1)}
+                          className="shrink-0 h-9 px-4 rounded-lg border border-gray-300 text-[12.5px] font-semibold text-gray-800 hover:border-gray-400 transition-colors"
+                        >
+                          Add
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          <button
+                            onClick={() => changeUpsellQty(item, -1)}
+                            aria-label={`Remove one ${item.name}`}
+                            className="h-8 w-8 rounded-full border border-gray-300 text-gray-700 hover:border-gray-400"
+                          >
+                            −
+                          </button>
+                          <span className="w-4 text-center text-[13.5px] font-medium text-gray-900">{qty}</span>
+                          <button
+                            onClick={() => changeUpsellQty(item, 1)}
+                            aria-label={`Add one ${item.name}`}
+                            className="h-8 w-8 rounded-full border border-gray-300 text-gray-700 hover:border-gray-400"
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="px-5 sm:px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
+                {upsellsTotal > 0 && (
+                  <div className="mb-3 flex items-center justify-between text-[13px]">
+                    <span className="text-gray-600">Extras</span>
+                    <span className="font-semibold text-gray-900">{fmt(upsellsTotal)}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-3">
+                  {upsellsTotal === 0 && (
+                    <button
+                      onClick={() => { setShowUpsellPrompt(false); goToCheckout(); }}
+                      className="flex-1 py-3 text-[13px] font-semibold text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      No thanks
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setShowUpsellPrompt(false); goToCheckout(); }}
+                    className="flex-[2] py-3 bg-[rgb(var(--be-accent))] text-white font-bold text-[13px] rounded-lg hover:bg-[rgb(var(--be-accent-dark))] transition-all shadow-sm"
+                  >
+                    Continue &gt;
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Header */}
@@ -984,7 +1103,7 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
                 </div>
 
                 <div className="p-4 bg-gray-50/50">
-                   <button disabled={cartTotalRooms === 0 || !cartFitsParty} onClick={() => navigate(`/reserve?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}&children=${children}`)}
+                   <button disabled={cartTotalRooms === 0 || !cartFitsParty} onClick={handleContinue}
                      className="w-full py-3 bg-[rgb(var(--be-accent))] text-white font-bold text-[13px] rounded-lg hover:bg-[rgb(var(--be-accent-dark))] transition-all disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed shadow-sm">
                      Continue &gt;
                    </button>

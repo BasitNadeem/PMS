@@ -52,8 +52,9 @@ export default function Footer() {
 
           <div className="grid gap-10 py-11 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.15fr]">
             <div>
-              <Link to="/" className="inline-flex items-center" aria-label="Innflo home">
+              <Link to="/" className="inline-flex items-center gap-3" aria-label="Innflo home">
                 <img src="/brand/mark-clay-tight.svg" alt="" aria-hidden="true" className="h-12 w-12" />
+                <span className="font-display text-[26px] font-medium italic leading-none text-paper">Innflo</span>
               </Link>
               <p className="mt-4 max-w-[300px] text-[14px] leading-relaxed" style={{ color: SOFT }}>
                 A manager-first hotel operating system for independent properties—starting in Pakistan.

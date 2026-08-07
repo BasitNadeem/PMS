@@ -65,6 +65,11 @@ const ALLOWED_TRANSITIONS: Partial<Record<ReservationStatus, ReservationStatus[]
   CHECKED_IN: ["CHECKED_OUT"],
 };
 
+// Dates/room/rate may only change before anything physical has happened —
+// once a guest is checked in, a "date edit" is really a room-transfer/stay
+// operation with folio implications, not a plain correction.
+const STAY_EDITABLE_STATUSES: ReservationStatus[] = ["ENQUIRY", "CONFIRMED", "WAITLISTED"];
+
 export const ReservationService = {
   async list(withTenant: WithTenantFn, query: ListReservationsQuery) {
     const skip   = (query.page - 1) * query.limit;
@@ -579,6 +584,31 @@ export const ReservationService = {
           });
         }
 
+        // Extras chosen in the booking engine were price-locked at booking but
+        // had nowhere to post until this folio existed. postedAt guards against
+        // double-posting if a reservation is checked in more than once.
+        const pendingUpsells = await db.reservationUpsell.findMany({
+          where: { reservationId: id, postedAt: null },
+        });
+        for (const upsell of pendingUpsells) {
+          await db.folioItem.create({
+            data: {
+              hotelId:     actor.hotelId,
+              folioId:     existing.folio.id,
+              type:        upsell.category,
+              description: upsell.name,
+              unitAmount:  upsell.unitAmount,
+              quantity:    upsell.quantity,
+              amount:      upsell.amount,
+              netAmount:   upsell.amount,
+            },
+          });
+          await db.reservationUpsell.update({
+            where: { id: upsell.id },
+            data:  { postedAt: now },
+          });
+        }
+
         const hotel = await db.hotel.findUniqueOrThrow({
           where: { id: actor.hotelId },
           select: { settings: true },
@@ -710,11 +740,97 @@ export const ReservationService = {
 
   async update(withTenant: WithTenantFn, actor: JwtPayload, id: string, dto: UpdateReservationDto) {
     return withTenant(async (db) => {
-      const existing = await db.reservation.findUnique({ where: { id } });
+      const existing = await db.reservation.findUnique({
+        where: { id },
+        include: { rooms: true },
+      });
       if (!existing) throw new AppError(404, "Reservation not found");
 
       if (dto.companyId) {
         await assertCompanyBelongsToHotel(db, actor.hotelId, dto.companyId);
+      }
+
+      const stayChanged =
+        dto.checkInDate !== undefined || dto.checkOutDate !== undefined ||
+        dto.roomId       !== undefined || dto.ratePerNight !== undefined;
+
+      let stayUpdate: {
+        checkInDate: Date; checkOutDate: Date; roomId: string; roomTypeId: string;
+        ratePerNight: number; totalAmount: number; subtotalAmount: number;
+        taxAmount: number; taxInclusive: boolean; taxBreakdown: Prisma.InputJsonValue;
+        balanceDue: number;
+      } | null = null;
+      let stayDiff: Record<string, { from: unknown; to: unknown }> | null = null;
+
+      if (stayChanged) {
+        if (!STAY_EDITABLE_STATUSES.includes(existing.status)) {
+          throw new AppError(409, `Dates and room can only be edited before check-in (current status: ${existing.status})`);
+        }
+        const currentRoom = existing.rooms[0];
+        if (!currentRoom) throw new AppError(409, "Reservation has no room to edit");
+
+        const checkInDate  = dto.checkInDate  ? new Date(dto.checkInDate)  : existing.checkInDate;
+        const checkOutDate = dto.checkOutDate ? new Date(dto.checkOutDate) : existing.checkOutDate;
+        if (checkOutDate <= checkInDate) throw new AppError(400, "Check-out must be after check-in");
+
+        const roomId     = dto.roomId     ?? currentRoom.roomId;
+        const roomTypeId = dto.roomId     ? dto.roomTypeId! : currentRoom.roomTypeId;
+        const ratePerNight = dto.ratePerNight ?? currentRoom.ratePerNight;
+
+        const conflict = await db.reservationRoom.findFirst({
+          where: {
+            roomId,
+            checkInDate:  { lt: checkOutDate },
+            checkOutDate: { gt: checkInDate },
+            reservation: {
+              status: { notIn: ["CANCELLED", "CHECKED_OUT", "NO_SHOW"] },
+              id: { not: id },
+            },
+          },
+          include: {
+            room:        { select: { number: true } },
+            reservation: { select: { confirmationNumber: true, guest: { select: { fullName: true } } } },
+          },
+        });
+        if (conflict) throw new AppError(409, formatRoomConflictMessage(conflict));
+
+        if (dto.roomId) {
+          const room = await db.room.findUnique({ where: { id: roomId }, select: { status: true, number: true } });
+          if (!room) throw new AppError(404, "Room not found");
+          const permanentlyBlocked: RoomStatus[] = [RoomStatus.OUT_OF_ORDER, RoomStatus.BLOCKED];
+          if (permanentlyBlocked.includes(room.status)) {
+            throw new AppError(409, `Room ${room.number} is currently ${room.status.toLowerCase().replace(/_/g, " ")} and cannot be reserved`);
+          }
+        }
+
+        const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+        const hotel = await db.hotel.findUniqueOrThrow({
+          where: { id: actor.hotelId },
+          select: { settings: true },
+        });
+        const charges = calculateAccommodationCharges(
+          ratePerNight * nights,
+          (hotel.settings ?? {}) as Record<string, unknown>,
+        );
+        if (charges.totalAmount < existing.advancePaid) {
+          throw new AppError(400, "New total is less than the advance already collected — adjust the advance first");
+        }
+
+        stayUpdate = {
+          checkInDate, checkOutDate, roomId, roomTypeId, ratePerNight,
+          totalAmount:    charges.totalAmount,
+          subtotalAmount: charges.subtotalAmount,
+          taxAmount:      charges.taxAmount,
+          taxInclusive:   charges.taxInclusive,
+          taxBreakdown:   charges.taxBreakdown as unknown as Prisma.InputJsonValue,
+          balanceDue:     charges.totalAmount - existing.advancePaid,
+        };
+        stayDiff = {
+          checkInDate:  { from: existing.checkInDate.toISOString().slice(0, 10), to: dto.checkInDate ?? null },
+          checkOutDate: { from: existing.checkOutDate.toISOString().slice(0, 10), to: dto.checkOutDate ?? null },
+          roomId:       { from: currentRoom.roomId, to: dto.roomId ?? null },
+          ratePerNight: { from: currentRoom.ratePerNight, to: dto.ratePerNight ?? null },
+        };
       }
 
       const updated = await db.reservation.update({
@@ -728,6 +844,29 @@ export const ReservationService = {
           ...(dto.isVip           !== undefined && { isVip:           dto.isVip }),
           ...(dto.companyId       !== undefined && { companyId:       dto.companyId ?? null }),
           ...(dto.billToCompany   !== undefined && { billToCompany:   dto.billToCompany }),
+          ...(stayUpdate && {
+            checkInDate:    stayUpdate.checkInDate,
+            checkOutDate:   stayUpdate.checkOutDate,
+            quotedRate:     stayUpdate.ratePerNight,
+            subtotalAmount: stayUpdate.subtotalAmount,
+            taxAmount:      stayUpdate.taxAmount,
+            taxInclusive:   stayUpdate.taxInclusive,
+            taxBreakdown:   stayUpdate.taxBreakdown,
+            totalAmount:    stayUpdate.totalAmount,
+            balanceDue:     stayUpdate.balanceDue,
+            rooms: {
+              update: {
+                where: { id: existing.rooms[0].id },
+                data: {
+                  roomId:       stayUpdate.roomId,
+                  roomTypeId:   stayUpdate.roomTypeId,
+                  ratePerNight: stayUpdate.ratePerNight,
+                  checkInDate:  stayUpdate.checkInDate,
+                  checkOutDate: stayUpdate.checkOutDate,
+                },
+              },
+            },
+          }),
         },
       });
 
@@ -735,10 +874,10 @@ export const ReservationService = {
         data: {
           hotelId:  actor.hotelId,
           userId:   actor.userId,
-          action:   dto.isVip !== undefined ? "RESERVATION_VIP_TOGGLE" : "RESERVATION_UPDATE",
+          action:   stayDiff ? "RESERVATION_STAY_EDIT" : dto.isVip !== undefined ? "RESERVATION_VIP_TOGGLE" : "RESERVATION_UPDATE",
           entity:   "reservation",
           entityId: id,
-          after:    JSON.parse(JSON.stringify(dto)),
+          after:    JSON.parse(JSON.stringify(stayDiff ? { ...dto, stayDiff } : dto)),
         },
       });
 

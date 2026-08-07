@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Building2, Landmark, HeartHandshake, Briefcase, Users,
-  CheckCircle2, X, Search, Plus, MapPin, ExternalLink, Receipt,
+  CheckCircle2, X, Search, Plus, MapPin, ExternalLink, Receipt, Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getErrorMessage } from "@/lib/api";
@@ -16,6 +16,8 @@ import {
 } from "@/services/groups";
 import { guestsService, type GuestSummary } from "@/services/guests";
 import { roomsService, type Room } from "@/services/rooms";
+import { reservationsService } from "@/services/reservations";
+import { EditReservationModal } from "@/components/reservations/EditReservationModal";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge, TONE } from "@/components/ui/StatusBadge";
 import { Avatar } from "@/components/ui/Avatar";
@@ -221,6 +223,23 @@ function AssignRoomModal({
   );
 }
 
+// ── Edit reservation loader ──────────────────────────────────────────────────
+// GroupReservation (the row shape used on this page) is a lightweight summary —
+// EditReservationModal needs the full ReservationDetail, so this fetches it on
+// demand rather than carrying the heavier shape through the whole group query.
+
+function GroupRoomEditLoader({
+  reservationId, onClose, onSuccess,
+}: { reservationId: string; onClose: () => void; onSuccess: (message: string) => void }) {
+  const { data: reservation } = useQuery({
+    queryKey: ["reservation", reservationId],
+    queryFn: () => reservationsService.getReservation(reservationId),
+  });
+
+  if (!reservation) return null;
+  return <EditReservationModal reservation={reservation} onClose={onClose} onSuccess={onSuccess} />;
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function GroupDetailPage() {
@@ -229,9 +248,11 @@ export default function GroupDetailPage() {
   const qc = useQueryClient();
   const { has } = usePermissions();
   const canUpdate = has("groups:update");
+  const canEditReservation = has("reservations:update");
   const { toasts, addToast, removeToast } = useToast();
   const [showAddGuest, setShowAddGuest] = useState(false);
   const [assignTarget, setAssignTarget] = useState<{ reservationId: string; roomTypeId: string; roomTypeName: string } | null>(null);
+  const [editReservationId, setEditReservationId] = useState<string | null>(null);
 
   const { data: group, isLoading } = useQuery({
     queryKey: ["group", id],
@@ -430,6 +451,14 @@ export default function GroupDetailPage() {
                         <Receipt size={12} />
                         {r.folio.balanceDue > 0 ? "Settle folio" : "Check out"}
                       </Link>
+                    )}
+                    {canEditReservation && !["CHECKED_OUT", "CANCELLED", "NO_SHOW"].includes(r.status) && (
+                      <button
+                        onClick={() => setEditReservationId(r.id)}
+                        className="inline-flex items-center gap-1 rounded-full h-8 px-3 text-[12px] font-semibold bg-line-soft text-ink-mute hover:text-ink-soft transition-all whitespace-nowrap"
+                      >
+                        <Pencil size={12} /> Edit
+                      </button>
                     )}
                     <Link
                       to={`/reservations/${r.id}`}
@@ -645,6 +674,17 @@ export default function GroupDetailPage() {
           roomTypeId={assignTarget.roomTypeId}
           roomTypeName={assignTarget.roomTypeName}
           onClose={() => setAssignTarget(null)}
+        />
+      )}
+      {editReservationId && (
+        <GroupRoomEditLoader
+          reservationId={editReservationId}
+          onClose={() => setEditReservationId(null)}
+          onSuccess={(message) => {
+            setEditReservationId(null);
+            addToast(message);
+            invalidate();
+          }}
         />
       )}
       <ToastContainer toasts={toasts} onRemove={removeToast} />

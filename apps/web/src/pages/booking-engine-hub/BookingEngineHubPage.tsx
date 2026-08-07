@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ExternalLink, Building2, Palette, BedDouble, Tag, ArrowRight, AlertTriangle,
   CheckCircle2, Clock3, ImagePlus, Network, Radio, TrendingUp, UsersRound,
-  CalendarDays, FileText, Save,
+  CalendarDays, FileText, Save, ChevronDown,
 } from "lucide-react";
 import {
   Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -18,6 +18,7 @@ import { settingsService } from "@/services/settings";
 import { roomsService } from "@/services/rooms";
 import { ratePlansService } from "@/services/ratePlans";
 import { bookingEngineHubService, type BookingEngineInsights } from "@/services/bookingEngineHub";
+import { UpsellsTab } from "./UpsellsTab";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -200,6 +201,8 @@ export default function BookingEngineHubPage() {
   const [cancellationPolicy, setCancellationPolicy] = useState("");
   const [bookingPaymentTerms, setBookingPaymentTerms] = useState("");
   const [policySaveState, setPolicySaveState] = useState<"idle" | "saved" | "error">("idle");
+  const [activeTab, setActiveTab] = useState<"overview" | "upsells">("overview");
+  const [showPolicyEditor, setShowPolicyEditor] = useState(false);
 
   const { data: plan, isLoading: planLoading } = useQuery({
     queryKey: ["settings", "plan"],
@@ -303,6 +306,29 @@ export default function BookingEngineHubPage() {
           </div>
         </Card>
       ) : (
+        <>
+        <div className="mb-6 flex gap-6 border-b border-line">
+          {([
+            { key: "overview", label: "Overview" },
+            { key: "upsells",  label: "Extras & Add-ons" },
+          ] as const).map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={cn(
+                "-mb-px border-b-2 pb-2.5 text-[14px] font-bold transition-colors",
+                activeTab === tab.key
+                  ? "border-coral text-coral"
+                  : "border-transparent text-ink-mute hover:text-ink-soft",
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === "upsells" ? <UpsellsTab /> : (
         <div className="space-y-6">
           <Card className="anim-fade-up bg-gradient-to-r from-card via-card to-coral-tint/70">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -396,24 +422,27 @@ export default function BookingEngineHubPage() {
               <PresentationRow icon={Palette} title="Theme color" value={THEME_LABEL[themeKey] ?? themeKey} to="/settings" />
               <PresentationRow icon={BedDouble} title="Room types" value={`${roomTypes.length} room type${roomTypes.length === 1 ? "" : "s"}`} note={roomTypes.length === 0 ? "No room types yet — guests won't see anything to book" : roomTypesWithoutPhotos > 0 ? `${roomTypesWithPhotos} have photos, ${roomTypesWithoutPhotos} don't` : "All room types have photos"} noteTone={roomTypes.length === 0 || roomTypesWithoutPhotos > 0 ? "amber" : "neutral"} to="/rooms" />
               <PresentationRow icon={Tag} title="Rate plans" value={`${ratePlans.length} active rate plan${ratePlans.length === 1 ? "" : "s"}`} note={ratePlans.length === 0 ? "Guests will see each room type's base rate only" : undefined} noteTone="amber" to="/rate-plans" />
-              <div className="flex items-center gap-4 px-5 py-4">
+              <button
+                type="button"
+                onClick={() => setShowPolicyEditor((open) => !open)}
+                aria-expanded={showPolicyEditor}
+                className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-mist transition-colors"
+              >
                 <span className="grid place-items-center h-10 w-10 rounded-xl bg-mist text-ink-mute shrink-0"><FileText size={18} /></span>
                 <div className="flex-1 min-w-0">
                   <div className="text-[13.5px] font-semibold text-ink">Cancellation policy &amp; booking terms</div>
                   <div className="text-[13px] text-ink-mute mt-0.5">{policiesReady ? "Both policies are shown before guests submit" : "Add both policies so guests know the terms before booking"}</div>
                 </div>
-                <a href="#booking-policies" className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-coral hover:text-coral-dark transition-colors shrink-0">Edit <ArrowRight size={13} /></a>
-              </div>
-            </Card>
-          </section>
+                <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-coral shrink-0">
+                  {showPolicyEditor ? "Close" : "Edit"}
+                  <ChevronDown size={14} className={cn("transition-transform", showPolicyEditor && "rotate-180")} />
+                </span>
+              </button>
 
-          <section id="booking-policies" className="scroll-mt-24">
-            <div className="mb-3">
-              <h2 className="text-[13px] font-bold uppercase tracking-wide text-ink-faint">Policies shown to guests</h2>
-              <p className="text-[12.5px] text-ink-mute mt-1">Guests see these on the final reserve page and must acknowledge them before submitting.</p>
-            </div>
-            <Card className="anim-fade-up">
-              <div className="grid lg:grid-cols-2 gap-5">
+              {showPolicyEditor && (
+              <div className="px-5 py-5">
+                <p className="text-[12.5px] text-ink-mute mb-4">Guests see these on the final reserve page and must acknowledge them before submitting.</p>
+                <div className="grid lg:grid-cols-2 gap-5">
                 <label className="block">
                   <span className="text-[13px] font-bold text-ink">Cancellation policy</span>
                   <span className="block text-[12px] text-ink-mute mt-1 mb-2">State cancellation deadlines, refund eligibility, fees, and no-show treatment.</span>
@@ -454,9 +483,13 @@ export default function BookingEngineHubPage() {
                   <Save size={15} /> {savePoliciesMutation.isPending ? "Saving…" : "Save policies"}
                 </button>
               </div>
+              </div>
+              )}
             </Card>
           </section>
         </div>
+        )}
+        </>
       )}
     </div>
   );

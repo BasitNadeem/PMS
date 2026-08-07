@@ -87,6 +87,11 @@ const ALL_PERMISSIONS: { key: string; module: string; action: string; displayNam
   { key: "CHANNEL_UPDATE",       module: "channel",      action: "update",   displayName: "Edit Channel Config" },
 
   { key: "BOOKING_ENGINE_READ",  module: "booking_engine", action: "read",   displayName: "View Booking Engine Hub" },
+  // Booking-engine upsells
+  { key: "UPSELL_READ",          module: "upsell",       action: "read",     displayName: "View Upsells" },
+  { key: "UPSELL_CREATE",        module: "upsell",       action: "create",   displayName: "Create Upsells" },
+  { key: "UPSELL_UPDATE",        module: "upsell",       action: "update",   displayName: "Edit Upsells" },
+  { key: "UPSELL_DELETE",        module: "upsell",       action: "delete",   displayName: "Delete Upsells" },
   // Staff
   { key: "STAFF_READ",           module: "staff",        action: "read",     displayName: "View Staff" },
   { key: "STAFF_CREATE",         module: "staff",        action: "create",   displayName: "Create Staff" },

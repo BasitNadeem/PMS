@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   ArrowLeft, Copy, Phone, Mail, BadgeCheck, MapPin,
-  LogIn, LogOut, Check, Receipt, BedDouble, Users, Tag,
+  LogIn, LogOut, Check, Receipt, BedDouble, Users, Tag, Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { api } from "@/lib/api";
@@ -13,6 +13,7 @@ import {
   type ReservationStatus,
 } from "@/services/reservations";
 import { CheckOutModal } from "@/components/reservations/CheckOutModal";
+import { EditReservationModal } from "@/components/reservations/EditReservationModal";
 import { ToastContainer } from "@/components/ui/ToastContainer";
 import { useToast } from "@/hooks/useToast";
 import { Card } from "@/components/ui/Card";
@@ -123,6 +124,7 @@ export default function ReservationDetailPage() {
   const { has } = usePermissions();
   const canUpdate = has("reservations:update");
   const [showCheckOut, setShowCheckOut] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
   const { data: reservation, isLoading } = useQuery({
     queryKey: ["reservation", id],
@@ -201,6 +203,7 @@ export default function ReservationDetailPage() {
 
   const NextIcon = nextStatus === "CHECKED_IN" ? LogIn : nextStatus === "CHECKED_OUT" ? LogOut : Check;
   const canCancel = canUpdate && (reservation.status === "ENQUIRY" || reservation.status === "CONFIRMED");
+  const canEdit = canUpdate && !["CHECKED_OUT", "CANCELLED", "NO_SHOW"].includes(reservation.status);
 
   return (
     <div>
@@ -397,6 +400,15 @@ export default function ReservationDetailPage() {
               <Receipt size={16} /> View Folio
             </Link>
 
+            {canEdit && (
+              <button
+                onClick={() => setShowEdit(true)}
+                className="flex items-center justify-center gap-2 w-full h-11 rounded-full border border-line text-ink-soft text-sm font-semibold hover:bg-line-soft hover:text-ink transition-colors"
+              >
+                <Pencil size={15} /> Edit reservation
+              </button>
+            )}
+
             {canCancel && (
               <button
                 onClick={() => statusMutation.mutate("CANCELLED")}
@@ -407,7 +419,7 @@ export default function ReservationDetailPage() {
               </button>
             )}
 
-            {!(canUpdate && nextStatus) && !canCancel && (
+            {!(canUpdate && nextStatus) && !canCancel && !canEdit && (
               <p className="text-[13px] text-ink-faint text-center py-2">No actions available</p>
             )}
           </Card>
@@ -442,6 +454,13 @@ export default function ReservationDetailPage() {
         <CheckOutModal
           reservation={reservation}
           onClose={() => setShowCheckOut(false)}
+          onSuccess={addToast}
+        />
+      )}
+      {showEdit && reservation && (
+        <EditReservationModal
+          reservation={reservation}
+          onClose={() => setShowEdit(false)}
           onSuccess={addToast}
         />
       )}

@@ -94,10 +94,45 @@ export interface CartItem {
   maxOccupancy: number;
 }
 
+export type UpsellPriceType = "FLAT" | "PER_NIGHT" | "PER_GUEST";
+
+export interface UpsellCatalogItem {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  priceType: UpsellPriceType;
+  amount: number;
+  imageUrl: string | null;
+}
+
+export interface CartUpsell {
+  upsellItemId: string;
+  name: string;
+  priceType: UpsellPriceType;
+  unitAmount: number;
+  quantity: number;
+}
+
+// Mirrors the multiplier the API applies when it snapshots upsell prices at
+// booking time. Keep the two in step or the quoted total drifts from the folio.
+export function upsellLineAmount(
+  upsell: Pick<CartUpsell, "priceType" | "unitAmount" | "quantity">,
+  nights: number,
+  guests: number,
+): number {
+  const multiplier =
+    upsell.priceType === "PER_NIGHT" ? nights
+    : upsell.priceType === "PER_GUEST" ? guests
+    : 1;
+  return upsell.unitAmount * upsell.quantity * multiplier;
+}
+
 export interface BookMultiRequest {
   checkInDate: string;
   checkOutDate: string;
   items: { roomTypeId: string; quantity: number }[];
+  upsells?: { upsellItemId: string; quantity: number }[];
   guestName: string;
   guestPhone: string;
   guestEmail?: string;
@@ -143,6 +178,11 @@ export const bookingEngineService = {
       params: { roomTypeId, checkIn, checkOut, promoCode },
     });
     return res.data.data as SuggestRateResult;
+  },
+
+  async getUpsells(slug: string): Promise<UpsellCatalogItem[]> {
+    const res = await publicApi.get(`${base(slug)}/upsells`);
+    return res.data.data as UpsellCatalogItem[];
   },
 
   async validatePromoCode(slug: string, code: string, checkIn: string, checkOut: string): Promise<PromoCodeValidation> {

@@ -133,6 +133,8 @@ SELECT enable_hotel_rls('conversations');
 SELECT enable_hotel_rls('messages');
 SELECT enable_hotel_rls('rate_plans');
 SELECT enable_hotel_rls('rate_plan_codes');
+SELECT enable_hotel_rls('upsell_items');
+-- reservation_upsells has no hotel_id — handled in open-access section below
 SELECT enable_hotel_rls('channel_configs');
 SELECT enable_hotel_rls('staff');
 SELECT enable_hotel_rls('shift_reports');
@@ -164,6 +166,12 @@ DO $$ BEGIN
   EXECUTE 'ALTER TABLE reservation_rooms FORCE ROW LEVEL SECURITY';
   EXECUTE 'DROP POLICY IF EXISTS open_access ON reservation_rooms';
   EXECUTE 'CREATE POLICY open_access ON reservation_rooms USING (true)';
+
+  -- reservation_upsells: isolated via parent reservations (RLS + CASCADE delete)
+  EXECUTE 'ALTER TABLE reservation_upsells ENABLE ROW LEVEL SECURITY';
+  EXECUTE 'ALTER TABLE reservation_upsells FORCE ROW LEVEL SECURITY';
+  EXECUTE 'DROP POLICY IF EXISTS open_access ON reservation_upsells';
+  EXECUTE 'CREATE POLICY open_access ON reservation_upsells USING (true)';
 
   EXECUTE 'ALTER TABLE pos_order_items   ENABLE ROW LEVEL SECURITY';
   EXECUTE 'ALTER TABLE pos_order_items   FORCE ROW LEVEL SECURITY';

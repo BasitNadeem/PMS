@@ -430,6 +430,7 @@ model Hotel {
   posOrders             PosOrder[]
   ratePlans             RatePlan[]
   ratePlanCodes         RatePlanCode[]
+  upsellItems           UpsellItem[]
   channels              ChannelConfig[]
   inventoryItems        InventoryItem[]
   inventoryTransactions InventoryTransaction[]
@@ -898,6 +899,7 @@ model Reservation {
   folio    Folio?
   payments Payment[]
   messages Message[]
+  upsells  ReservationUpsell[]
 
   @@index([hotelId, companyId])
   @@index([hotelId, status])
@@ -1710,6 +1712,61 @@ model RatePlan {
   @@index([hotelId, type])
   @@index([hotelId, validFrom, validTo])
   @@map("rate_plans")
+}
+
+enum UpsellPriceType {
+  FLAT
+  PER_NIGHT
+  PER_GUEST
+}
+
+// Per-hotel catalog of booking-engine add-ons (breakfast, late checkout,
+// airport transfer, spa, ...). Nothing about the catalog is fixed globally —
+// each hotel curates its own list, similarly to RatePlan.
+model UpsellItem {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String          @map("hotel_id") @db.Uuid
+  name        String
+  description String?
+  category    FolioItemType
+  priceType   UpsellPriceType @map("price_type")
+  amount      Int
+  imageUrl    String?         @map("image_url")
+  isActive    Boolean         @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  hotel    Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  bookings ReservationUpsell[]
+
+  @@index([hotelId])
+  @@index([hotelId, isActive])
+  @@map("upsell_items")
+}
+
+// Snapshot of an upsell selected at booking time, price-locked at selection
+// since the catalog item can change or be deactivated later. Reservations
+// don't have a Folio until check-in, so this holds the pending charge until
+// ReservationService.updateStatus() posts it as a FolioItem.
+model ReservationUpsell {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reservationId String    @map("reservation_id") @db.Uuid
+  upsellItemId  String    @map("upsell_item_id") @db.Uuid
+  name          String
+  category      FolioItemType
+  quantity      Int       @default(1)
+  unitAmount    Int       @map("unit_amount")
+  amount        Int
+  postedAt      DateTime? @map("posted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  upsellItem  UpsellItem  @relation(fields: [upsellItemId], references: [id])
+
+  @@index([reservationId])
+  @@map("reservation_upsells")
 }
 
 // Public booking-engine access codes deliberately live separately from a rate

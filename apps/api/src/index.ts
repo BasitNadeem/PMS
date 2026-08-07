@@ -48,6 +48,7 @@ import searchRouter from "./routes/search";
 import realtimeRouter from "./routes/realtime";
 import pushRouter from "./routes/push";
 import ratePlansRouter from "./routes/ratePlans";
+import upsellsRouter from "./routes/upsells";
 import bookingEngineHubRouter from "./routes/bookingEngineHub";
 import { briefingWorker } from "./jobs/briefingWorker";
 import { scheduleBriefings } from "./jobs/briefingScheduler";
@@ -148,6 +149,7 @@ app.use("/api/search",         searchRouter);
 app.use("/api/realtime",       realtimeRouter);
 app.use("/api/push",           pushRouter);
 app.use("/api/rate-plans",     ratePlansRouter);
+app.use("/api/upsells",        upsellsRouter);
 app.use("/api/booking-engine", bookingEngineHubRouter);
 app.use("/api/public/booking", bookingPublicRouter);
 

@@ -15,6 +15,7 @@ import { publicWithTenant } from "../lib/publicTenant";
 import { checkFeatureAccess } from "../lib/subscription";
 import { RoomService } from "../services/RoomService";
 import { RatePlanService } from "../services/RatePlanService";
+import { UpsellService } from "../services/UpsellService";
 import { NotificationService } from "../services/NotificationService";
 import { generateGroupRef } from "../services/GroupService";
 import { notifyHotelDataChanged } from "../lib/realtime";
@@ -280,6 +281,20 @@ router.get("/:hotelSlug/promo-code", async (req, res) => {
   const query = publicPromoCodeSchema.parse(req.query);
   const data = await RatePlanService.validateAccessCodePublic(hotel.id, query.code, query.checkIn, query.checkOut);
   res.json({ data });
+});
+
+// GET /api/public/booking/:hotelSlug/upsells — this hotel's bookable extras
+router.get("/:hotelSlug/upsells", async (req, res) => {
+  const hotel = await resolveAndGate(req.params.hotelSlug as string);
+  if (!hotel) { res.status(404).json({ error: "Hotel not found" }); return; }
+
+  const upsells = await UpsellService.listActiveUpsellsPublic(hotel.id);
+  res.json({
+    data: upsells.map((u) => ({
+      ...u,
+      amount: u.amount / 100, // paisas → PKR
+    })),
+  });
 });
 
 // POST /api/public/booking/:hotelSlug/book — submit a booking request (ENQUIRY)
@@ -741,6 +756,43 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
             entity:   "reservation",
             entityId: newRes.id,
             after:    JSON.parse(JSON.stringify({ source: "BOOKING_ENGINE", channel: "public", multiRoom: useGroup })),
+          },
+        });
+      }
+    }
+
+    // 4b. Attach selected upsells. These are stay-level extras chosen once for
+    // the whole cart, so they hang off the first reservation rather than being
+    // duplicated per room. Prices are snapshotted here and only become folio
+    // charges at check-in, since a reservation has no folio until then.
+    if (dto.upsells?.length) {
+      const anchorReservation = createdReservations[0];
+      if (!anchorReservation) throw new AppError(500, "No reservation created for upsells.");
+
+      const catalog = await db.upsellItem.findMany({
+        where: { id: { in: dto.upsells.map((u) => u.upsellItemId) }, isActive: true },
+      });
+
+      const totalGuests = dto.adults + (dto.children ?? 0);
+      for (const selection of dto.upsells) {
+        const catalogItem = catalog.find((c) => c.id === selection.upsellItemId);
+        if (!catalogItem) {
+          throw new AppError(409, "One of the selected extras is no longer available.");
+        }
+        const multiplier =
+          catalogItem.priceType === "PER_NIGHT" ? nights
+          : catalogItem.priceType === "PER_GUEST" ? totalGuests
+          : 1;
+
+        await db.reservationUpsell.create({
+          data: {
+            reservationId: anchorReservation.id,
+            upsellItemId:  catalogItem.id,
+            name:          catalogItem.name,
+            category:      catalogItem.category,
+            quantity:      selection.quantity,
+            unitAmount:    catalogItem.amount,
+            amount:        catalogItem.amount * selection.quantity * multiplier,
           },
         });
       }

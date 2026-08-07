@@ -211,7 +211,15 @@ export const reservationsService = {
 
   updateReservation: async (
     id: string,
-    dto: Partial<Pick<CreateReservationDto, "adults" | "children" | "source" | "specialRequests" | "isVip">>,
+    dto: Partial<
+      Pick<CreateReservationDto, "adults" | "children" | "source" | "specialRequests" | "isVip"> & {
+        checkInDate: string;
+        checkOutDate: string;
+        roomId: string;
+        roomTypeId: string;
+        ratePerNight: number;
+      }
+    >,
   ): Promise<ReservationSummary> => {
     const res = await api.patch(`/api/reservations/${id}`, dto);
     return res.data.data;

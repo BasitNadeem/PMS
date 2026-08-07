@@ -7,8 +7,10 @@ import {
 } from "lucide-react";
 import {
   bookingEngineService,
+  upsellLineAmount,
   type BookMultiConfirmation,
   type CartItem,
+  type CartUpsell,
 } from "@/services/bookingEngine";
 import { cn } from "@/lib/cn";
 import { getPhoneErrorMessage, getEmailErrorMessage } from "@/lib/validation";
@@ -16,6 +18,7 @@ import { calculateAccommodationCharges } from "@/lib/accommodationCharges";
 import type { PublicHotel } from "@/services/bookingEngine";
 
 const CART_KEY = (slug: string) => `be_cart_${slug}`;
+const UPSELL_KEY = (slug: string) => `be_upsells_${slug}`;
 const PROMO_KEY = (slug: string) => `be_promo_${slug}`;
 
 const fmt = (pkr: number) =>
@@ -120,8 +123,8 @@ function Stepper({ value, min = 0, max = 99, onChange, accentColor }: {
 
 // ── Booking Summary ───────────────────────────────────────────────────────────
 
-function SummaryCard({ cart, checkIn, checkOut, nights, adults, children, promoCode, accentColor, cancellationPolicy, taxSettings }: {
-  cart: CartItem[]; checkIn: string; checkOut: string;
+function SummaryCard({ cart, upsells, checkIn, checkOut, nights, adults, children, promoCode, accentColor, cancellationPolicy, taxSettings }: {
+  cart: CartItem[]; upsells: CartUpsell[]; checkIn: string; checkOut: string;
   nights: number; adults: number; children: number; promoCode: string; accentColor: string;
   cancellationPolicy: string | null;
   taxSettings: PublicHotel["accommodationTax"];
@@ -131,6 +134,7 @@ function SummaryCard({ cart, checkIn, checkOut, nights, adults, children, promoC
     nightlyTotal * nights,
     taxSettings as unknown as Record<string, unknown>,
   );
+  const upsellsTotal = upsells.reduce((s, u) => s + upsellLineAmount(u, nights, adults + children), 0);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.05)] overflow-hidden sticky top-24">
@@ -172,6 +176,30 @@ function SummaryCard({ cart, checkIn, checkOut, nights, adults, children, promoC
         })}
       </div>
 
+      {upsells.length > 0 && (
+        <div className="px-5 py-4 flex flex-col gap-2.5 border-b border-gray-50">
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-400">Extras</p>
+          {upsells.map((u) => (
+            <div key={u.upsellItemId} className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[13px] font-semibold text-gray-800 leading-snug">
+                  {u.quantity > 1 ? `${u.quantity}× ` : ""}{u.name}
+                </p>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  {fmt(u.unitAmount)}
+                  {u.priceType === "PER_NIGHT" ? ` × ${nights} night${nights !== 1 ? "s" : ""}`
+                    : u.priceType === "PER_GUEST" ? ` × ${adults + children} guest${adults + children !== 1 ? "s" : ""}`
+                    : ""}
+                </p>
+              </div>
+              <span className="text-[13px] font-semibold text-gray-800 shrink-0">
+                {fmt(upsellLineAmount(u, nights, adults + children))}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="px-5 py-3 border-b border-gray-50 text-[12px] text-gray-500 flex items-center justify-between gap-3">
         <span>{adults} adult{adults !== 1 ? "s" : ""}{children > 0 ? ` · ${children} child${children !== 1 ? "ren" : ""}` : ""}</span>
         <span>{cart.reduce((sum, item) => sum + item.quantity, 0)} room{cart.reduce((sum, item) => sum + item.quantity, 0) !== 1 ? "s" : ""}</span>
@@ -198,9 +226,15 @@ function SummaryCard({ cart, checkIn, checkOut, nights, adults, children, promoC
             <span>{fmt(tax.amount)}</span>
           </div>
         ))}
+        {upsellsTotal > 0 && (
+          <div className="mb-2 flex items-center justify-between text-[12px] text-gray-500">
+            <span>Extras</span>
+            <span>{fmt(upsellsTotal)}</span>
+          </div>
+        )}
         <div className="flex items-baseline justify-between mb-3">
           <span className="text-[13px] font-medium text-gray-500">Estimated total</span>
-          <span className="text-[24px] font-bold text-gray-900 leading-none">{fmt(charges.totalAmount)}</span>
+          <span className="text-[24px] font-bold text-gray-900 leading-none">{fmt(charges.totalAmount + upsellsTotal)}</span>
         </div>
         <div className="flex items-center gap-2 text-[11.5px] text-gray-400 mb-4">
           <Lock size={11} />
@@ -218,8 +252,8 @@ function SummaryCard({ cart, checkIn, checkOut, nights, adults, children, promoC
 
 // ── Compact mobile summary ────────────────────────────────────────────────────
 
-function CompactSummary({ cart, checkIn, checkOut, nights, adults, children, promoCode, accentColor, taxSettings }: {
-  cart: CartItem[]; checkIn: string; checkOut: string;
+function CompactSummary({ cart, upsells, checkIn, checkOut, nights, adults, children, promoCode, accentColor, taxSettings }: {
+  cart: CartItem[]; upsells: CartUpsell[]; checkIn: string; checkOut: string;
   nights: number; adults: number; children: number; promoCode: string; accentColor: string;
   taxSettings: PublicHotel["accommodationTax"];
 }) {
@@ -227,6 +261,7 @@ function CompactSummary({ cart, checkIn, checkOut, nights, adults, children, pro
     cart.reduce((s, c) => s + (c.ratePerNight ?? c.defaultRate) * c.quantity, 0) * nights,
     taxSettings as unknown as Record<string, unknown>,
   );
+  const upsellsTotal = upsells.reduce((s, u) => s + upsellLineAmount(u, nights, adults + children), 0);
 
   return (
     <div className="flex items-center justify-between gap-3 px-5 py-3">
@@ -234,10 +269,11 @@ function CompactSummary({ cart, checkIn, checkOut, nights, adults, children, pro
         <p className="text-[12px] text-gray-500 truncate">
           {cart.map((c) => `${c.quantity > 1 ? `${c.quantity}× ` : ""}${c.roomTypeName}`).join(" + ")}
           {" · "}{nights} night{nights !== 1 ? "s" : ""}
+          {upsells.length > 0 && ` · ${upsells.length} extra${upsells.length !== 1 ? "s" : ""}`}
         </p>
         <p className="text-[12px] text-gray-500">{adults} adult{adults !== 1 ? "s" : ""}{children > 0 ? ` · ${children} child${children !== 1 ? "ren" : ""}` : ""}{promoCode ? ` · ${promoCode}` : ""}</p>
         <p className="text-[15px] font-bold text-gray-900">
-          {fmt(charges.totalAmount)}
+          {fmt(charges.totalAmount + upsellsTotal)}
           {charges.taxAmount > 0 && (
             <span className="ml-1 text-[10px] font-medium text-gray-400">
               tax {charges.taxInclusive ? "included" : "added"}
@@ -353,6 +389,11 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
     catch { return []; }
   });
 
+  const [upsellCart] = useState<CartUpsell[]>(() => {
+    try { return JSON.parse(sessionStorage.getItem(UPSELL_KEY(hotelSlug)) ?? "[]") as CartUpsell[]; }
+    catch { return []; }
+  });
+
   useEffect(() => {
     if (cart.length === 0) navigate("/", { replace: true });
   }, [cart.length, navigate]);
@@ -401,6 +442,9 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
         checkInDate:     checkIn,
         checkOutDate:    checkOut,
         items:           cart.map((c) => ({ roomTypeId: c.roomTypeId, quantity: c.quantity })),
+        upsells:         upsellCart.length
+          ? upsellCart.map((u) => ({ upsellItemId: u.upsellItemId, quantity: u.quantity }))
+          : undefined,
         guestName:       form.guestName.trim(),
         guestPhone:      form.guestPhone.trim(),
         guestEmail:      form.guestEmail.trim() || undefined,
@@ -414,6 +458,7 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
         termsAccepted,
       });
       sessionStorage.removeItem(CART_KEY(hotelSlug));
+      sessionStorage.removeItem(UPSELL_KEY(hotelSlug));
       sessionStorage.removeItem(PROMO_KEY(hotelSlug));
       setConfirmation(result);
     } catch (err) {
@@ -461,7 +506,7 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
       {/* ── Mobile sticky summary ────────────────────────────────────────────── */}
       <div className="lg:hidden sticky top-14 z-30 bg-white border-b border-gray-100 shadow-sm">
         <CompactSummary
-          cart={cart} checkIn={checkIn} checkOut={checkOut}
+          cart={cart} upsells={upsellCart} checkIn={checkIn} checkOut={checkOut}
           nights={nights} adults={form.adults} children={form.children} promoCode={promoCode} accentColor={accentColor}
           taxSettings={hotel?.accommodationTax ?? { gstEnabled: false, gstRate: 0, pstEnabled: false, pstRate: 0, taxInclusive: false }}
         />
@@ -732,7 +777,7 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
           {/* ── Summary (desktop only) ─────────────────────────────────────── */}
           <div className="hidden w-80 shrink-0 lg:block xl:w-[22rem]">
             <SummaryCard
-              cart={cart} checkIn={checkIn} checkOut={checkOut}
+              cart={cart} upsells={upsellCart} checkIn={checkIn} checkOut={checkOut}
               nights={nights} adults={form.adults} children={form.children} promoCode={promoCode} accentColor={accentColor}
               cancellationPolicy={hotel?.cancellationPolicy ?? null}
               taxSettings={hotel?.accommodationTax ?? { gstEnabled: false, gstRate: 0, pstEnabled: false, pstRate: 0, taxInclusive: false }}

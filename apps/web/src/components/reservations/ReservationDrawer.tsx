@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   X, Copy, Phone, Mail, BadgeCheck, MapPin,
-  LogIn, Check, Receipt, BedDouble, Users, Star, ArrowRight, Plus, Tag,
+  LogIn, Check, Receipt, BedDouble, Users, Star, ArrowRight, Plus, Tag, Pencil,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/cn";
@@ -16,6 +16,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { usePermissions } from "@/hooks/usePermissions";
 import { AddChargeModal } from "@/components/folio/AddChargeModal";
+import { EditReservationModal } from "@/components/reservations/EditReservationModal";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -73,6 +74,7 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
   const { has } = usePermissions();
   const canUpdate = has("reservations:update");
   const [showAddCharge, setShowAddCharge] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
   const { data: reservation, isLoading } = useQuery({
     queryKey: ["reservation", reservationId],
@@ -338,6 +340,14 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
                   <Receipt size={16} /> Folio
                 </Link>
               )}
+              {canUpdate && !["CHECKED_OUT", "CANCELLED", "NO_SHOW"].includes(reservation.status) && (
+                <button
+                  onClick={() => setShowEdit(true)}
+                  className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full border border-line text-ink-soft text-sm font-semibold hover:bg-line-soft hover:text-ink transition-colors"
+                >
+                  <Pencil size={14} /> Edit
+                </button>
+              )}
               <div className="flex-1" />
               {reservation.groupId ? (
                 <>
@@ -432,6 +442,16 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
         <AddChargeModal
           reservationId={reservation.id}
           onClose={() => setShowAddCharge(false)}
+        />
+      )}
+      {showEdit && reservation && (
+        <EditReservationModal
+          reservation={reservation}
+          onClose={() => setShowEdit(false)}
+          onSuccess={() => {
+            setShowEdit(false);
+            onStatusChange?.();
+          }}
         />
       )}
     </>

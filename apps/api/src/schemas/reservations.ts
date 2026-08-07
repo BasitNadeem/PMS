@@ -53,14 +53,31 @@ export const updateReservationStatusSchema = z.object({
 });
 export type UpdateReservationStatusDto = z.infer<typeof updateReservationStatusSchema>;
 
-export const updateReservationSchema = z.object({
-  adults:          z.number().int().min(1).optional(),
-  children:        z.number().int().min(0).optional(),
-  source:          z.nativeEnum(BookingSource).optional(),
-  specialRequests: z.string().trim().optional(),
-  internalNotes:   z.string().trim().optional(),
-  isVip:           z.boolean().optional(),
-  companyId:       z.string().uuid().nullish(),
-  billToCompany:   z.boolean().optional(),
-});
+export const updateReservationSchema = z
+  .object({
+    adults:          z.number().int().min(1).optional(),
+    children:        z.number().int().min(0).optional(),
+    source:          z.nativeEnum(BookingSource).optional(),
+    specialRequests: z.string().trim().optional(),
+    internalNotes:   z.string().trim().optional(),
+    isVip:           z.boolean().optional(),
+    companyId:       z.string().uuid().nullish(),
+    billToCompany:   z.boolean().optional(),
+    // Stay changes — only accepted while the reservation is still ENQUIRY,
+    // CONFIRMED or WAITLISTED (enforced in ReservationService, not here,
+    // since that requires the existing row's current status).
+    checkInDate:  z.string().date().optional(),
+    checkOutDate: z.string().date().optional(),
+    roomId:       z.string().uuid().optional(),
+    roomTypeId:   z.string().uuid().optional(),
+    ratePerNight: z.number().int().positive().optional(),
+  })
+  .refine((d) => !d.roomId || Boolean(d.roomTypeId), {
+    message: "roomTypeId is required when changing roomId",
+    path: ["roomTypeId"],
+  })
+  .refine(
+    (d) => !(d.checkInDate && d.checkOutDate) || new Date(d.checkOutDate) > new Date(d.checkInDate),
+    { message: "Check-out must be after check-in", path: ["checkOutDate"] },
+  );
 export type UpdateReservationDto = z.infer<typeof updateReservationSchema>;

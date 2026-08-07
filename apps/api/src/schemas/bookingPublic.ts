@@ -89,6 +89,10 @@ export const bookMultiSchema = z.object({
   marketingOptIn: z.boolean().default(false),
   promoCode:       bookingCodeSchema.optional(),
   termsAccepted:   z.boolean().default(false),
+  upsells:         z.array(z.object({
+    upsellItemId: z.string().uuid(),
+    quantity:     z.number().int().min(1).max(20),
+  })).max(20).optional(),
 }).refine(
   (d) => new Date(d.checkOutDate) > new Date(d.checkInDate),
   { message: "checkOutDate must be after checkInDate", path: ["checkOutDate"] }

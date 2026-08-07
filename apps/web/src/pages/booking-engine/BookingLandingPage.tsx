@@ -11,10 +11,18 @@ import { DateRange, type RangeKeyDict } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 import { format, parseISO } from "date-fns";
-import { bookingEngineService, type PublicRoomType, type CartItem } from "@/services/bookingEngine";
+import {
+  bookingEngineService,
+  type PublicRoomType,
+  type CartItem,
+  upsellLineAmount,
+  type CartUpsell,
+  type UpsellCatalogItem,
+} from "@/services/bookingEngine";
 import { cn } from "@/lib/cn";
 
 const CART_KEY = (slug: string) => `be_cart_${slug}`;
+const UPSELL_KEY = (slug: string) => `be_upsells_${slug}`;
 const PROMO_KEY = (slug: string) => `be_promo_${slug}`;
 
 const fmt = (pkr: number) =>
@@ -491,6 +499,43 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
 
   useEffect(() => { setCart([]); }, [checkIn, checkOut]);
 
+  const [activeTab, setActiveTab] = useState<"reservation" | "packages">("reservation");
+
+  const [upsellCart, setUpsellCart] = useState<CartUpsell[]>(() => {
+    try { return JSON.parse(sessionStorage.getItem(UPSELL_KEY(hotelSlug)) ?? "[]") as CartUpsell[]; }
+    catch { return []; }
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem(UPSELL_KEY(hotelSlug), JSON.stringify(upsellCart));
+  }, [upsellCart, hotelSlug]);
+
+  const { data: upsells = [] } = useQuery({
+    queryKey: ["booking-upsells", hotelSlug],
+    queryFn:  () => bookingEngineService.getUpsells(hotelSlug),
+  });
+
+  const upsellLineTotal = (u: CartUpsell) => upsellLineAmount(u, nights, partySize);
+  const upsellsTotal = upsellCart.reduce((s, u) => s + upsellLineTotal(u), 0);
+
+  function changeUpsellQty(item: UpsellCatalogItem, delta: number) {
+    setUpsellCart((prev) => {
+      const existing = prev.find((u) => u.upsellItemId === item.id);
+      const nextQty = (existing?.quantity ?? 0) + delta;
+      if (nextQty <= 0) return prev.filter((u) => u.upsellItemId !== item.id);
+      if (existing) {
+        return prev.map((u) => (u.upsellItemId === item.id ? { ...u, quantity: nextQty } : u));
+      }
+      return [...prev, {
+        upsellItemId: item.id,
+        name:         item.name,
+        priceType:    item.priceType,
+        unitAmount:   item.amount,
+        quantity:     nextQty,
+      }];
+    });
+  }
+
   const cartTotalRooms   = cart.reduce((s, c) => s + c.quantity, 0);
   const cartNightlyTotal = cart.reduce((s, c) => s + (c.ratePerNight ?? c.defaultRate) * c.quantity, 0);
   const cartCapacity     = cart.reduce((s, c) => s + c.maxOccupancy * c.quantity, 0);
@@ -765,8 +810,24 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
           {/* Tabs */}
           <div className="flex justify-between items-center border-b border-gray-200 mt-2">
              <div className="flex gap-6 overflow-x-auto hide-scrollbar">
-                <button className="text-[13px] font-medium text-[rgb(var(--be-accent))] border-b-2 border-[rgb(var(--be-accent))] pb-2.5 px-1 whitespace-nowrap">Reservation</button>
-                <button className="text-[13px] font-medium text-gray-600 pb-2.5 px-1 hover:text-gray-900 whitespace-nowrap">Packages & Deals</button>
+                <button
+                  onClick={() => setActiveTab("reservation")}
+                  className={activeTab === "reservation"
+                    ? "text-[13px] font-medium text-[rgb(var(--be-accent))] border-b-2 border-[rgb(var(--be-accent))] pb-2.5 px-1 whitespace-nowrap"
+                    : "text-[13px] font-medium text-gray-600 pb-2.5 px-1 hover:text-gray-900 whitespace-nowrap"}
+                >
+                  Reservation
+                </button>
+                {upsells.length > 0 && (
+                  <button
+                    onClick={() => setActiveTab("packages")}
+                    className={activeTab === "packages"
+                      ? "text-[13px] font-medium text-[rgb(var(--be-accent))] border-b-2 border-[rgb(var(--be-accent))] pb-2.5 px-1 whitespace-nowrap"
+                      : "text-[13px] font-medium text-gray-600 pb-2.5 px-1 hover:text-gray-900 whitespace-nowrap"}
+                  >
+                    Packages &amp; Deals
+                  </button>
+                )}
                 <button className="text-[13px] font-medium text-gray-600 pb-2.5 px-1 hover:text-gray-900 whitespace-nowrap">Availability Calendar</button>
              </div>
              <div className="hidden sm:flex text-[11px] text-gray-600 pb-2.5 items-center gap-1 cursor-pointer hover:text-gray-900">
@@ -780,7 +841,56 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
            
            {/* Left Column (Rooms) */}
            <div className="flex-1 min-w-0 w-full">
-             {roomTypes.length === 0 ? (
+             {activeTab === "packages" ? (
+               <div className="flex flex-col gap-4">
+                 {upsells.map((item) => {
+                   const qty = upsellCart.find((u) => u.upsellItemId === item.id)?.quantity ?? 0;
+                   return (
+                     <div key={item.id} className="bg-white border border-gray-200/80 rounded-2xl shadow-sm p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                       {item.imageUrl && (
+                         <img
+                           src={item.imageUrl}
+                           alt=""
+                           className="h-20 w-20 rounded-xl object-cover shrink-0"
+                         />
+                       )}
+                       <div className="min-w-0 flex-1">
+                         <h3 className="text-[15px] font-medium text-gray-900">{item.name}</h3>
+                         {item.description && (
+                           <p className="mt-1 text-[12.5px] leading-relaxed text-gray-600">{item.description}</p>
+                         )}
+                         <p className="mt-2 text-[13px] font-medium text-gray-900">
+                           {fmt(item.amount)}
+                           <span className="ml-1 text-[11.5px] font-normal text-gray-500">
+                             {item.priceType === "PER_NIGHT" ? "per night"
+                               : item.priceType === "PER_GUEST" ? "per guest"
+                               : "one-off"}
+                           </span>
+                         </p>
+                       </div>
+                       <div className="flex items-center gap-3 shrink-0">
+                         <button
+                           onClick={() => changeUpsellQty(item, -1)}
+                           disabled={qty === 0}
+                           aria-label={`Remove one ${item.name}`}
+                           className="h-8 w-8 rounded-full border border-gray-300 text-gray-700 disabled:opacity-40 hover:border-gray-400"
+                         >
+                           −
+                         </button>
+                         <span className="w-5 text-center text-[14px] font-medium text-gray-900">{qty}</span>
+                         <button
+                           onClick={() => changeUpsellQty(item, 1)}
+                           aria-label={`Add one ${item.name}`}
+                           className="h-8 w-8 rounded-full border border-gray-300 text-gray-700 hover:border-gray-400"
+                         >
+                           +
+                         </button>
+                       </div>
+                     </div>
+                   );
+                 })}
+               </div>
+             ) : roomTypes.length === 0 ? (
                <div className="bg-white p-12 text-center border border-gray-200/80 rounded-2xl shadow-sm">
                  <p className="text-[14px] text-gray-500">No rooms listed at this time.</p>
                </div>
@@ -855,9 +965,22 @@ export default function BookingLandingPage({ hotelSlug }: BookingLandingPageProp
 
                 {promoMessage && <div className="px-5 py-2.5 text-[11px] font-medium text-[rgb(var(--be-accent))] bg-[rgb(var(--be-accent-soft))] border-b border-gray-100">{promoMessage}</div>}
 
+                {upsellCart.length > 0 && (
+                  <div className="px-5 py-4 border-b border-gray-100 flex flex-col gap-1.5">
+                    {upsellCart.map((u) => (
+                      <div key={u.upsellItemId} className="flex items-center justify-between text-[12px] text-gray-800">
+                        <span className="truncate pr-2">
+                          {u.name}{u.quantity > 1 ? ` × ${u.quantity}` : ""}
+                        </span>
+                        <span className="font-medium shrink-0">{fmt(upsellLineTotal(u))}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="px-5 py-5 border-b border-gray-100 flex items-center justify-between">
                    <span className="text-[14px] text-gray-900">Total</span>
-                   <span className="text-[16px] font-bold text-gray-900">{fmt(cartNightlyTotal * nights)}</span>
+                   <span className="text-[16px] font-bold text-gray-900">{fmt(cartNightlyTotal * nights + upsellsTotal)}</span>
                 </div>
 
                 <div className="p-4 bg-gray-50/50">

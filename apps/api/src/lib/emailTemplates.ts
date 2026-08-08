@@ -185,13 +185,23 @@ function galleryPhotos(data: ReservationEmailData): string[] {
  * `object-fit` is avoided for the same reason. Clients that ignore it stretch
  * the image to the forced height instead of cropping — which is what made wide
  * photos render squashed. Sizing by width only keeps every photo undistorted.
+ *
+ * Thumbnail columns are fixed rather than divided by however many photos exist.
+ * Dividing by count meant two photos rendered the second one full-bleed and
+ * three rendered two half-width — since height follows width when nothing can
+ * be cropped, that turned a short gallery into a very tall email. A constant
+ * third-width tile keeps the block the same modest height for any photo count,
+ * with empty cells holding the grid when there are fewer than three.
  */
+const THUMB_COLUMNS = MAX_EMAIL_PHOTOS - 1;
+
 function photoGallery(data: ReservationEmailData): string {
   const photos = galleryPhotos(data);
   if (photos.length === 0) return "";
 
   const [hero, ...thumbnails] = photos;
-  const thumbWidth = thumbnails.length > 0 ? Math.floor(100 / thumbnails.length) : 100;
+  const thumbWidth = Math.floor(100 / THUMB_COLUMNS);
+  const gutter = (index: number) => index === THUMB_COLUMNS - 1 ? "0" : "0 8px 0 0";
 
   return `
     <tr>
@@ -201,9 +211,11 @@ function photoGallery(data: ReservationEmailData): string {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">
             <tr>
               ${thumbnails.map((url, index) => `
-                <td width="${thumbWidth}%" valign="top" style="padding:${index === 0 ? "0 4px 0 0" : index === thumbnails.length - 1 ? "0 0 0 4px" : "0 4px"};">
+                <td width="${thumbWidth}%" valign="top" style="padding:${gutter(index)};">
                   <img src="${url}" alt="" style="width:100%; height:auto; border-radius:10px; display:block;">
                 </td>`).join("")}
+              ${Array.from({ length: THUMB_COLUMNS - thumbnails.length }, (_unused, index) => `
+                <td width="${thumbWidth}%" style="padding:${gutter(thumbnails.length + index)};">&nbsp;</td>`).join("")}
             </tr>
           </table>` : ""}
       </td>

@@ -132,3 +132,37 @@ test("only public HTTPS images are rendered", () => {
   assert.doesNotMatch(html, /insecure\.example/);
   assert.match(html, /https:\/\/cdn\.example\.com\/safe\.jpg/);
 });
+
+test("thumbnail tiles stay a third wide regardless of how many photos exist", () => {
+  // Dividing the row by photo count made two photos render the second one
+  // full-bleed and three render two half-width. Height follows width when
+  // nothing is cropped, so those cases produced a very tall email.
+  const withPhotos = (urls: string[]) =>
+    reservationLifecycleEmail({
+      ...baseData,
+      rooms: [{ ...baseData.rooms[0], photoUrls: urls }],
+    });
+
+  for (const count of [2, 3, 4]) {
+    const urls = Array.from({ length: count }, (_unused, i) => `https://cdn.example.com/p${i}.jpg`);
+    // Scope to the thumbnail row — the email has other percentage-width cells.
+    const row = withPhotos(urls).match(/<table[^>]*margin-top:8px;[^>]*>[\s\S]*?<\/table>/)?.[0] ?? "";
+    const tileWidths = row.match(/<td width="(\d+)%"/g) ?? [];
+
+    assert.equal(tileWidths.length, 3, `${count} photos should always lay out 3 columns`);
+    assert.equal(
+      tileWidths.every((cell) => cell.includes('"33%"')),
+      true,
+      `${count} photos should keep every tile at 33%`,
+    );
+  }
+});
+
+test("a lone photo renders the hero without an empty thumbnail row", () => {
+  const html = reservationLifecycleEmail({
+    ...baseData,
+    rooms: [{ ...baseData.rooms[0], photoUrls: ["https://cdn.example.com/only.jpg"] }],
+  });
+  assert.match(html, /only\.jpg/);
+  assert.doesNotMatch(html, /<td width="33%"/);
+});

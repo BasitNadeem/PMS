@@ -415,6 +415,7 @@ export const GroupService = {
               checkOutDate,
               adults:             1,
               quotedRate:         ratePerNight,
+              appliedRatePlanName: roomSpec.appliedRatePlanName ?? null,
               subtotalAmount:     charges.subtotalAmount,
               taxAmount:          charges.taxAmount,
               taxInclusive:       charges.taxInclusive,

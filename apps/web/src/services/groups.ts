@@ -113,6 +113,7 @@ export interface CreateGroupRoomDto {
   roomTypeId: string;
   quantity: number;
   ratePerNight?: number;
+  appliedRatePlanName?: string;
 }
 
 export interface CreateGroupLeaderDto {

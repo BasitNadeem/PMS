@@ -8,12 +8,17 @@ export const listRatePlansSchema = z.object({
     .transform((v) => (v === undefined ? undefined : v === "true")),
   page:  z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),
+  companyId: z.string().uuid().optional(),
 });
 
 const ratePlanItemSchema = z.object({
   roomTypeId: z.string().uuid(),
   rate:       z.number().int().nonnegative(),
 });
+
+function hasUniqueRoomTypes(items: Array<{ roomTypeId: string }>): boolean {
+  return new Set(items.map((item) => item.roomTypeId)).size === items.length;
+}
 
 export const bookingCodeSchema = z
   .string()
@@ -47,6 +52,7 @@ export const updateRatePlanCodeSchema = withValidCodeDates(z.object({
 }));
 
 export const createRatePlanSchema = z.object({
+  companyId:   z.string().uuid().nullable().optional(),
   name:        z.string().trim().min(1, "Name is required"),
   type:        z.nativeEnum(RatePlanType).default("STANDARD"),
   description: z.string().trim().optional(),
@@ -57,9 +63,17 @@ export const createRatePlanSchema = z.object({
   codeRequired:z.boolean().default(false),
   priority:    z.number().int().default(0),
   items:       z.array(ratePlanItemSchema).min(1, "At least one room type rate is required"),
+}).superRefine((data, ctx) => {
+  if (data.validFrom && data.validTo && data.validTo < data.validFrom) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "End date must be on or after the start date", path: ["validTo"] });
+  }
+  if (!hasUniqueRoomTypes(data.items)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Each room type can only appear once", path: ["items"] });
+  }
 });
 
 export const updateRatePlanSchema = z.object({
+  companyId:   z.string().uuid().nullable().optional(),
   name:        z.string().trim().min(1).optional(),
   type:        z.nativeEnum(RatePlanType).optional(),
   description: z.string().trim().optional(),
@@ -70,6 +84,13 @@ export const updateRatePlanSchema = z.object({
   codeRequired:z.boolean().optional(),
   priority:    z.number().int().optional(),
   items:       z.array(ratePlanItemSchema).min(1).optional(),
+}).superRefine((data, ctx) => {
+  if (data.validFrom && data.validTo && data.validTo < data.validFrom) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "End date must be on or after the start date", path: ["validTo"] });
+  }
+  if (data.items && !hasUniqueRoomTypes(data.items)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Each room type can only appear once", path: ["items"] });
+  }
 });
 
 export const suggestRateSchema = z.object({
@@ -77,6 +98,9 @@ export const suggestRateSchema = z.object({
   checkIn:        z.string().date(),
   checkOut:       z.string().date(),
   bookingContext: z.enum(["SINGLE", "TOUR_AGENCY", "CORPORATE", "OTHER"]).optional(),
+  // Authenticated booking flows may request the selected company's negotiated
+  // contract. Public Booking Engine calls intentionally omit this.
+  companyId:       z.string().uuid().optional(),
   promoCode:      bookingCodeSchema.optional(),
 });
 

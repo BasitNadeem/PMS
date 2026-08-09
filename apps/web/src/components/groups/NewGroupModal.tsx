@@ -97,6 +97,7 @@ interface RoomLine {
   roomTypeName: string;
   quantity: number;
   ratePerNight: number; // paisas
+  appliedRatePlanName?: string;
 }
 
 interface AdditionalGuest {
@@ -222,7 +223,7 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
   // Suggest rate for the selected room type + dates; falls back to defaultRate
   const suggestAddEnabled = !!addRoomTypeId && !!form.checkIn && !!form.checkOut && form.checkOut > form.checkIn;
   const { data: addSuggestData } = useQuery({
-    queryKey: ["rate-suggest-group", addRoomTypeId, form.checkIn, form.checkOut, form.payerType],
+    queryKey: ["rate-suggest-group", addRoomTypeId, form.checkIn, form.checkOut, form.payerType, form.companyId],
     queryFn: async () => {
       const res = await api.get("/api/rate-plans/suggest", {
         params: {
@@ -230,12 +231,17 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
           checkIn:        form.checkIn,
           checkOut:       form.checkOut,
           bookingContext: payerTypeToBookingContext(form.payerType),
+          ...(form.companyId ? { companyId: form.companyId } : {}),
         },
       });
       return res.data.data as {
         suggestedRate:       number;
         matchedPlan:         { id: string; name: string } | null;
         noDedicatedRateHint: string | null;
+        baseRate:            number;
+        discountPercent:     number | null;
+        rateSource:          "COMPANY_CONTRACT" | "COMPANY_DISCOUNT" | "RATE_PLAN" | "ROOM_DEFAULT";
+        company:             { id: string; name: string } | null;
       };
     },
     enabled: suggestAddEnabled,
@@ -255,11 +261,23 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
   function addRoomLine() {
     const rt = roomTypes.find((t) => t.id === addRoomTypeId);
     if (!rt || addQuantity < 1 || availableForAddType < 1) return;
+    const appliedRatePlanName = addSuggestData?.rateSource === "COMPANY_CONTRACT"
+      ? addSuggestData.matchedPlan?.name
+      : addSuggestData?.rateSource === "COMPANY_DISCOUNT" && addSuggestData.company && addSuggestData.discountPercent !== null
+        ? `${addSuggestData.company.name} · ${addSuggestData.discountPercent}% discount`
+        : addSuggestData?.matchedPlan?.name;
     setForm((f) => ({
       ...f,
       rooms: [
         ...f.rooms,
-        { key: `${rt.id}-${Date.now()}`, roomTypeId: rt.id, roomTypeName: rt.name, quantity: addQuantity, ratePerNight: addRate * 100 },
+        {
+          key: `${rt.id}-${Date.now()}`,
+          roomTypeId: rt.id,
+          roomTypeName: rt.name,
+          quantity: addQuantity,
+          ratePerNight: addRate * 100,
+          appliedRatePlanName: appliedRatePlanName ?? undefined,
+        },
       ],
     }));
     setShowAddRoom(false);
@@ -436,7 +454,12 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
       checkOutDate: form.checkOut,
       totalRooms,
       notes: form.notes.trim() || undefined,
-      rooms: form.rooms.map((r) => ({ roomTypeId: r.roomTypeId, quantity: r.quantity, ratePerNight: r.ratePerNight })),
+      rooms: form.rooms.map((r) => ({
+        roomTypeId: r.roomTypeId,
+        quantity: r.quantity,
+        ratePerNight: r.ratePerNight,
+        appliedRatePlanName: r.appliedRatePlanName,
+      })),
       leaderGuest: form.useNewGuest
         ? {
             newGuest: {
@@ -754,10 +777,14 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
                     <div>
                       <label className="block text-[12px] font-semibold text-ink-soft mb-1.5">Rate/night (PKR)</label>
                       <input type="number" min={0} value={addRate} onChange={(e) => setAddRate(Math.max(0, parseInt(e.target.value, 10) || 0))} className={cn(inputCls, "h-10 text-[13px]")} />
-                      {addSuggestData?.matchedPlan && (
+                      {(addSuggestData?.matchedPlan || addSuggestData?.rateSource === "COMPANY_DISCOUNT") && (
                         <span className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-pine bg-pine/20 border border-pine/40 px-2.5 py-1 rounded-lg">
                           <Tag size={11} strokeWidth={2.5} />
-                          {addSuggestData.matchedPlan.name}
+                          {addSuggestData.rateSource === "COMPANY_CONTRACT"
+                            ? `${addSuggestData.company?.name} · ${addSuggestData.matchedPlan?.name}`
+                            : addSuggestData.rateSource === "COMPANY_DISCOUNT"
+                              ? `${addSuggestData.company?.name} · ${addSuggestData.discountPercent}% off public rate`
+                              : addSuggestData.matchedPlan?.name}
                         </span>
                       )}
                       {addSuggestData?.noDedicatedRateHint && (

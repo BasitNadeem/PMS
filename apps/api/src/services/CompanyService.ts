@@ -1201,7 +1201,12 @@ export async function assertCompanyBelongsToHotel(
 }
 
 async function assertRatePlanBelongsToHotel(db: TenantTx, hotelId: string, ratePlanId: string): Promise<void> {
-  const ratePlan = await db.ratePlan.findFirst({ where: { id: ratePlanId, hotelId }, select: { id: true } });
+  // The legacy default-plan field may only point at a hotel-wide plan. A plan
+  // owned by another company must never become this company's fallback.
+  const ratePlan = await db.ratePlan.findFirst({
+    where: { id: ratePlanId, hotelId, companyId: null },
+    select: { id: true },
+  });
   if (!ratePlan) throw new AppError(400, "The selected rate plan is unavailable for this hotel.");
 }
 

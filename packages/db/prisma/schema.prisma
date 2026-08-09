@@ -1031,12 +1031,15 @@ model Company {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  hotel         Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  ratePlan      RatePlan?            @relation(fields: [ratePlanId], references: [id])
-  ledgerEntries CompanyLedgerEntry[]
-  invoices      CompanyInvoice[]
-  reservations  Reservation[]
-  groupBookings GroupBooking[]
+  hotel               Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  ratePlan            RatePlan?            @relation("CompanyDefaultRatePlan", fields: [ratePlanId], references: [id])
+  /// Seasonal/fixed contracts owned by this company. These are ordinary rate
+  /// plans underneath, so the hotel has one pricing engine and one audit trail.
+  contractedRatePlans RatePlan[]           @relation("CompanyContractRatePlans")
+  ledgerEntries       CompanyLedgerEntry[]
+  invoices            CompanyInvoice[]
+  reservations        Reservation[]
+  groupBookings       GroupBooking[]
 
   @@unique([hotelId, name])
   @@index([hotelId])
@@ -1678,6 +1681,9 @@ model Message {
 model RatePlan {
   id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   hotelId     String       @map("hotel_id") @db.Uuid
+  /// Null for hotel-wide/public plans. Set for a negotiated company contract.
+  /// Company contracts are never eligible for public or generic agency pricing.
+  companyId   String?      @map("company_id") @db.Uuid
   name        String
   type        RatePlanType @default(STANDARD)
   description String?
@@ -1703,13 +1709,15 @@ model RatePlan {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   hotel     Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  company   Company?       @relation("CompanyContractRatePlans", fields: [companyId], references: [id], onDelete: Cascade)
   items     RatePlanItem[]
   codes     RatePlanCode[]
-  companies Company[]
+  companies Company[]      @relation("CompanyDefaultRatePlan")
 
   @@index([hotelId])
   @@index([hotelId, isActive])
   @@index([hotelId, type])
+  @@index([hotelId, companyId, isActive])
   @@index([hotelId, validFrom, validTo])
   @@map("rate_plans")
 }

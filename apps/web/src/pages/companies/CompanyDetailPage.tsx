@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Building2, Pencil, Banknote, ShieldCheck, Scale,
@@ -17,6 +17,7 @@ import { AdjustLedgerModal } from "@/components/companies/AdjustLedgerModal";
 import { CreateInvoiceModal } from "@/components/companies/CreateInvoiceModal";
 import { InvoiceDetailModal } from "@/components/companies/InvoiceDetailModal";
 import { RefundCompanyCreditModal } from "@/components/companies/RefundCompanyCreditModal";
+import { CompanyRatesSection } from "@/components/companies/CompanyRatesSection";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Segmented } from "@/components/ui/Segmented";
@@ -25,6 +26,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/useToast";
 import { ToastContainer } from "@/components/ui/ToastContainer";
+import { settingsService } from "@/services/settings";
 
 const fmtDate = (iso: string | null) =>
   iso ? new Intl.DateTimeFormat("en-PK", { day: "numeric", month: "short", year: "numeric" }).format(new Date(iso)) : "—";
@@ -88,11 +90,20 @@ function LedgerRow({ entry, onReverse }: { entry: LedgerEntry; onReverse?: (entr
 export default function CompanyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { has } = usePermissions();
   const qc = useQueryClient();
   const { toasts, addToast, removeToast } = useToast();
+  const { data: planInfo } = useQuery({
+    queryKey: ["settings", "plan"],
+    queryFn: settingsService.getPlan,
+    staleTime: 5 * 60 * 1000,
+  });
+  const canReadRates = has("rates:read") && planInfo?.features.ratePlans === true;
+  const canCreateRates = has("rates:create");
+  const canUpdateRates = has("rates:update");
 
-  const [tab, setTab] = useState("ledger");
+  const [tab, setTab] = useState(() => searchParams.get("tab") === "rates" ? "rates" : "ledger");
   const [ledgerFilter, setLedgerFilter] = useState<"all" | "open" | "settled">("all");
   const [modal, setModal] = useState<null | "edit" | "payment" | "credit" | "adjust" | "invoice" | "refundCredit">(null);
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
@@ -301,6 +312,7 @@ export default function CompanyDetailPage() {
             { value: "ledger",   label: "Account" },
             { value: "stays",    label: "Stays" },
             { value: "invoices", label: "Invoices" },
+            ...(canReadRates ? [{ value: "rates", label: "Negotiated rates" }] : []),
           ]}
           value={tab}
           onChange={setTab}
@@ -425,6 +437,15 @@ export default function CompanyDetailPage() {
             ))
           )}
         </Card>
+      )}
+
+      {tab === "rates" && canReadRates && (
+        <CompanyRatesSection
+          company={company}
+          canCreate={canCreateRates}
+          canUpdate={canUpdateRates}
+          canEditFallback={has("companies:update")}
+        />
       )}
 
       {modal === "edit" && (

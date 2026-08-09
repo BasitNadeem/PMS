@@ -28,6 +28,8 @@ export interface RatePlanCode {
 
 export interface RatePlan {
   id: string;
+  companyId: string | null;
+  company: { id: string; name: string; type: string } | null;
   name: string;
   type: RatePlanType;
   description: string | null;
@@ -44,6 +46,7 @@ export interface RatePlan {
 }
 
 export interface CreateRatePlanDto {
+  companyId?: string | null;
   name: string;
   type: RatePlanType;
   description?: string;
@@ -60,12 +63,17 @@ export type UpdateRatePlanDto = Partial<CreateRatePlanDto>;
 
 export interface SuggestRateResult {
   suggestedRate: number;
+  baseRate: number;
+  discountPercent: number | null;
   matchedPlan: { id: string; name: string; type: string } | null;
   allMatchingPlans: { id: string; name: string; rate: number }[];
+  noDedicatedRateHint?: string | null;
+  rateSource?: "COMPANY_CONTRACT" | "COMPANY_DISCOUNT" | "ACCESS_CODE" | "RATE_PLAN" | "ROOM_DEFAULT";
+  company?: { id: string; name: string } | null;
 }
 
 export const ratePlansService = {
-  async list(params?: { isActive?: boolean; page?: number; limit?: number }) {
+  async list(params?: { isActive?: boolean; companyId?: string; page?: number; limit?: number }) {
     const res = await api.get("/api/rate-plans", { params });
     return res.data as { data: RatePlan[]; meta: { total: number; page: number; limit: number; totalPages: number } };
   },
@@ -107,7 +115,7 @@ export const ratePlansService = {
     await api.delete(`/api/rate-plans/${ratePlanId}/codes/${codeId}`);
   },
 
-  async suggest(params: { roomTypeId: string; checkIn: string; checkOut: string }): Promise<SuggestRateResult> {
+  async suggest(params: { roomTypeId: string; checkIn: string; checkOut: string; bookingContext?: "SINGLE" | "TOUR_AGENCY" | "CORPORATE" | "OTHER"; companyId?: string }): Promise<SuggestRateResult> {
     const res = await api.get("/api/rate-plans/suggest", { params });
     return res.data.data as SuggestRateResult;
   },

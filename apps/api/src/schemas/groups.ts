@@ -59,6 +59,7 @@ const groupRoomSchema = z.object({
   roomTypeId:   z.string().uuid(),
   quantity:     z.number().int().positive(),
   ratePerNight: z.number().int().positive().optional(),
+  appliedRatePlanName: z.string().trim().max(160).optional(),
 });
 
 export const createGroupSchema = z

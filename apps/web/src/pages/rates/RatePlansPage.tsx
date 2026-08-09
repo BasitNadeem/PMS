@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tag, Plus, Pencil, PowerOff, Power, X, Check, ChevronDown, KeyRound } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -559,6 +560,11 @@ export default function RatePlansPage() {
                   <tr key={plan.id} className="hover:bg-mist/50 transition-colors">
                     <td className="px-4 py-3.5">
                       <div className="font-semibold text-ink">{plan.name}</div>
+                      {plan.company && (
+                        <Link to={`/companies/${plan.company.id}?tab=rates`} className="mt-1 inline-flex items-center rounded-full bg-coral-soft px-2 py-0.5 text-[10.5px] font-bold text-coral-deep hover:bg-coral/15">
+                          Company contract · {plan.company.name}
+                        </Link>
+                      )}
                       {plan.priority !== 0 && (
                         <div className="text-[11px] text-ink-faint">Priority {plan.priority}</div>
                       )}
@@ -595,7 +601,9 @@ export default function RatePlansPage() {
                     </td>
                     <td className="px-4 py-3.5 text-ink-soft tnum">{plan.minLos}n</td>
                     <td className="px-4 py-3.5">
-                      {plan.codeRequired ? (
+                      {plan.company ? (
+                        <span className="text-[11px] font-semibold text-ink-mute">Private contract</span>
+                      ) : plan.codeRequired ? (
                         <button onClick={() => setCodesPlan(plan)} className="inline-flex items-center gap-1.5 text-[11px] font-bold text-coral hover:text-coral-dark">
                           <KeyRound size={13} /> {plan.codes.filter((code) => code.isActive).length} active code{plan.codes.filter((code) => code.isActive).length === 1 ? "" : "s"}
                         </button>
@@ -613,7 +621,15 @@ export default function RatePlansPage() {
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center justify-end gap-1">
-                        {canUpdate && (
+                        {canUpdate && plan.company ? (
+                          <Link
+                            to={`/companies/${plan.company.id}?tab=rates`}
+                            className="grid place-items-center h-8 w-8 rounded-lg text-ink-faint hover:bg-line-soft hover:text-ink transition-colors"
+                            title="Manage on company page"
+                          >
+                            <Pencil size={14} />
+                          </Link>
+                        ) : canUpdate && (
                           <button
                             onClick={() => openEdit(plan)}
                             className="grid place-items-center h-8 w-8 rounded-lg text-ink-faint hover:bg-line-soft hover:text-ink transition-colors"

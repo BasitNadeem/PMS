@@ -79,7 +79,7 @@ function ScrollToTop() {
       "/pos": { title: "Hotel POS & QR Ordering | Innflo", description: "Restaurant POS, QR ordering, kitchen display and guest folio posting connected to your hotel PMS." },
       "/automations": { title: "Hotel Operations Automation | Innflo", description: "Reduce repetitive hotel work with connected reservation, housekeeping, billing and inventory workflows." },
       "/statistics": { title: "Hotel Reports & Insights | Innflo", description: "Operational and financial hotel reporting built for the manager’s daily decisions." },
-      "/pricing": { title: "Pricing | Innflo Hotel PMS", description: "Straightforward monthly hotel PMS pricing with no commission on direct bookings." },
+      "/pricing": { title: "Pricing | Innflo Hotel PMS", description: "Hotel PMS plans quoted to your property, with no commission on direct bookings. Book a walkthrough for a quote." },
       "/about": { title: "About Innflo", description: "Why Innflo is building manager-first hotel software for independent properties in Pakistan." },
       "/contact": { title: "Book an Innflo Walkthrough", description: "Show us how your property runs and get a focused walkthrough of the live Innflo hotel PMS." },
       "/channel-manager": { title: "Channel Manager Roadmap | Innflo", description: "Follow Innflo’s clearly labeled roadmap for direct OTA channel synchronization." },

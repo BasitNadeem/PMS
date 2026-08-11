@@ -9,6 +9,10 @@ import SplitHeading from "../components/motion/SplitHeading";
 
 type Cycle = "monthly" | "yearly";
 
+// Temporary: public price points are withheld while pricing is being finalised.
+// Flip to true to restore the billing toggle, the PKR figures and the billing FAQ.
+const SHOW_PRICES: boolean = false;
+
 const YEARLY_DISCOUNT = 0.15;
 
 type Tier = {
@@ -158,7 +162,12 @@ const COMPARISON: { category: string; rows: { label: string; values: Cell[] }[] 
   },
 ];
 
-const FAQS = [
+const FAQS: { q: string; a: string; showWhen?: "prices" | "quote" }[] = [
+  {
+    q: "How much does Innflo cost?",
+    a: "We quote per property. Room count, the departments you run, and how much history you are bringing across all change the answer, so we would rather look at your operation and give you a straight number than publish one that does not fit you.",
+    showWhen: "quote",
+  },
   {
     q: "Is there a setup fee or a long contract?",
     a: "No setup fee and no long-term lock-in. We help configure the hotel, then bill monthly. If Innflo is not the right fit, you can leave without a cancellation penalty.",
@@ -166,6 +175,7 @@ const FAQS = [
   {
     q: "How does yearly billing work?",
     a: "Yearly plans are paid once for twelve months and take 15% off the monthly rate. You can start monthly and switch to yearly later—we credit the unused portion of the month you are in.",
+    showWhen: "prices",
   },
   {
     q: "Can I change plans as the hotel grows?",
@@ -264,25 +274,37 @@ function Faq({ item, open, onToggle }: { item: (typeof FAQS)[number]; open: bool
 export default function Pricing() {
   const [openFaq, setOpenFaq] = useState(0);
   const [cycle, setCycle] = useState<Cycle>("monthly");
+  const visibleFaqs = FAQS.filter((item) => !item.showWhen || item.showWhen === (SHOW_PRICES ? "prices" : "quote"));
 
   return (
     <div className="bg-paper text-ink">
       <section className="relative overflow-hidden bg-grid px-6 pb-16 pt-40">
         <div className="absolute left-1/2 top-0 h-[420px] w-[900px] -translate-x-1/2 rounded-full bg-coral/10 blur-3xl" />
         <div className="relative mx-auto max-w-4xl text-center">
-          <Reveal><p className="eyebrow mb-6">Simple launch pricing</p></Reveal>
+          <Reveal><p className="eyebrow mb-6">{SHOW_PRICES ? "Simple launch pricing" : "Plans built around your property"}</p></Reveal>
           <h1 className="font-display text-[clamp(44px,7vw,76px)] font-medium leading-[.98]">
             <SplitHeading as="span" className="block">Pay for the operation</SplitHeading>
             <SplitHeading as="span" delay={0.2} className="block italic text-coral-dark">you actually run.</SplitHeading>
           </h1>
           <Reveal delay={0.4}>
             <p className="mx-auto mt-7 max-w-2xl font-body text-[17px] leading-relaxed text-ink-soft">
-              Flat plans, no per-booking commission, and no invented value from features that are still on the roadmap.
+              {SHOW_PRICES
+                ? "Flat plans, no per-booking commission, and no invented value from features that are still on the roadmap."
+                : "Flat plans and no per-booking commission. Tell us your room count and the departments you run, and we will quote the smallest plan that covers it."}
             </p>
           </Reveal>
           <Reveal delay={0.5}>
             <div className="mt-9 flex justify-center">
-              <BillingToggle cycle={cycle} onChange={setCycle} />
+              {SHOW_PRICES ? (
+                <BillingToggle cycle={cycle} onChange={setCycle} />
+              ) : (
+                <Link
+                  to="/contact"
+                  className="inline-flex h-12 items-center justify-center rounded-full bg-coral px-8 text-[15px] font-bold text-white shadow-pop transition-colors hover:bg-coral-dark"
+                >
+                  Book a walkthrough <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              )}
             </div>
           </Reveal>
           <Reveal delay={0.6}>
@@ -316,33 +338,44 @@ export default function Pricing() {
                   <p className={`mt-3 min-h-[80px] text-[13px] leading-relaxed ${tier.featured ? "text-white/65" : "text-ink-soft"}`}>{tier.description}</p>
 
                   <div className="mt-5 min-h-[74px]">
-                    <AnimatePresence mode="wait" initial={false}>
-                      <motion.div
-                        key={`${tier.name}-${cycle}`}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        transition={{ duration: 0.22 }}
-                      >
-                        {price === null ? (
-                          <span className={`font-display text-[36px] font-medium leading-none ${tier.featured ? "text-white" : "text-ink"}`}>Custom</span>
-                        ) : (
-                          <div className="flex items-end gap-1.5">
-                            <span className={`font-display text-[36px] font-medium leading-none ${tier.featured ? "text-white" : "text-ink"}`}>
-                              PKR {price.toLocaleString()}
-                            </span>
-                            <span className={`pb-1 text-[12px] ${tier.featured ? "text-white/50" : "text-ink-mute"}`}>/ mo</span>
-                          </div>
-                        )}
+                    {SHOW_PRICES ? (
+                      <AnimatePresence mode="wait" initial={false}>
+                        <motion.div
+                          key={`${tier.name}-${cycle}`}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.22 }}
+                        >
+                          {price === null ? (
+                            <span className={`font-display text-[36px] font-medium leading-none ${tier.featured ? "text-white" : "text-ink"}`}>Custom</span>
+                          ) : (
+                            <div className="flex items-end gap-1.5">
+                              <span className={`font-display text-[36px] font-medium leading-none ${tier.featured ? "text-white" : "text-ink"}`}>
+                                PKR {price.toLocaleString()}
+                              </span>
+                              <span className={`pb-1 text-[12px] ${tier.featured ? "text-white/50" : "text-ink-mute"}`}>/ mo</span>
+                            </div>
+                          )}
+                          <p className={`mt-2 text-[11px] font-semibold ${tier.featured ? "text-white/45" : "text-ink-mute"}`}>
+                            {price === null
+                              ? "Quoted per portfolio"
+                              : cycle === "yearly"
+                                ? `Billed yearly · PKR ${(price * 12).toLocaleString()}`
+                                : "Billed monthly"}
+                          </p>
+                        </motion.div>
+                      </AnimatePresence>
+                    ) : (
+                      <div>
+                        <span className={`font-display text-[32px] font-medium leading-none ${tier.featured ? "text-white" : "text-ink"}`}>
+                          Custom quote
+                        </span>
                         <p className={`mt-2 text-[11px] font-semibold ${tier.featured ? "text-white/45" : "text-ink-mute"}`}>
-                          {price === null
-                            ? "Quoted per portfolio"
-                            : cycle === "yearly"
-                              ? `Billed yearly · PKR ${(price * 12).toLocaleString()}`
-                              : "Billed monthly"}
+                          Priced to your property
                         </p>
-                      </motion.div>
-                    </AnimatePresence>
+                      </div>
+                    )}
                   </div>
 
                   <Link
@@ -351,7 +384,7 @@ export default function Pricing() {
                       tier.featured ? "bg-coral text-white hover:bg-coral-dark" : "bg-ink text-white hover:bg-ink-soft"
                     }`}
                   >
-                    {tier.cta} <ArrowRight className="ml-2 h-4 w-4" />
+                    {SHOW_PRICES ? tier.cta : "Book a walkthrough"} <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
 
                   <p className={`mt-4 text-center text-[11px] font-bold ${tier.featured ? "text-white/45" : "text-ink-mute"}`}>{tier.scale}</p>
@@ -449,7 +482,7 @@ export default function Pricing() {
           </Reveal>
           <Reveal>
             <div className="overflow-hidden rounded-3xl border border-line bg-card shadow-float">
-              {FAQS.map((item, index) => <Faq key={item.q} item={item} open={openFaq === index} onToggle={() => setOpenFaq(openFaq === index ? -1 : index)} />)}
+              {visibleFaqs.map((item, index) => <Faq key={item.q} item={item} open={openFaq === index} onToggle={() => setOpenFaq(openFaq === index ? -1 : index)} />)}
             </div>
           </Reveal>
           <Reveal delay={0.1}>

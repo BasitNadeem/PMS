@@ -65,37 +65,71 @@ function RoutePreloader() {
   return null;
 }
 
+const SITE_ORIGIN = "https://innflo.co";
+
+const ROUTE_META: Record<string, { title: string; description: string }> = {
+  "/": {
+    title: "Innflo — Hotel operations, finally in flow",
+    description: "A manager-first hotel PMS for reservations, billing, housekeeping, direct bookings, POS, inventory and reporting.",
+  },
+  "/pms": { title: "Hotel PMS | Innflo", description: "Run reservations, rooms, guests, folios, housekeeping and daily hotel operations in one place." },
+  "/booking-engine": { title: "Direct Hotel Booking Engine | Innflo", description: "A branded, commission-free hotel Booking Engine with live availability, multi-room carts, promo rates and connected PMS alerts." },
+  "/financials": { title: "Hotel Financial Control | Innflo", description: "Connected folios, payments, expenses, cash control and night audit for independent hotels." },
+  "/pos": { title: "Hotel POS & QR Ordering | Innflo", description: "Restaurant POS, QR ordering, kitchen display and guest folio posting connected to your hotel PMS." },
+  "/automations": { title: "Hotel Operations Automation | Innflo", description: "Reduce repetitive hotel work with connected reservation, housekeeping, billing and inventory workflows." },
+  "/statistics": { title: "Hotel Reports & Insights | Innflo", description: "Operational and financial hotel reporting built for the manager’s daily decisions." },
+  "/pricing": { title: "Pricing | Innflo Hotel PMS", description: "Hotel PMS plans quoted to your property, with no commission on direct bookings. Book a walkthrough for a quote." },
+  "/about": { title: "About Innflo", description: "Why Innflo is building manager-first hotel software for independent properties in Pakistan." },
+  "/contact": { title: "Book an Innflo Walkthrough", description: "Show us how your property runs and get a focused walkthrough of the live Innflo hotel PMS." },
+  "/channel-manager": { title: "Channel Manager Roadmap | Innflo", description: "Follow Innflo’s clearly labeled roadmap for direct OTA channel synchronization." },
+  "/stays/hotels": { title: "Hotel Management Software for Independent Hotels | Innflo", description: "Reservations, housekeeping, billing and direct bookings for independent hotels, boutiques and resorts in Pakistan." },
+  "/stays/guesthouses": { title: "Guesthouse & B&B Management Software | Innflo", description: "Simple property management for guesthouses and B&Bs — bookings, guest records, billing and housekeeping in one place." },
+  "/stays/vacation-rentals": { title: "Vacation Rental Management Software | Innflo", description: "Manage serviced apartments and independent rental units — reservations, guests, billing and direct bookings." },
+  "/stays/glamping": { title: "Glamping & Campsite Management Software | Innflo", description: "Run cabins, pods, domes and tented camps — bookings, availability, guest billing and housekeeping." },
+};
+
+const FALLBACK_META = {
+  title: "Innflo — Hotel PMS",
+  description: "Manager-first hotel operations software for independent properties.",
+};
+
+/** Create the tag if it is missing, then set its value. */
+function setMetaContent(attribute: "name" | "property", key: string, value: string) {
+  let tag = document.head.querySelector<HTMLMetaElement>(`meta[${attribute}="${key}"]`);
+  if (!tag) {
+    tag = document.createElement("meta");
+    tag.setAttribute(attribute, key);
+    document.head.appendChild(tag);
+  }
+  tag.setAttribute("content", value);
+}
+
+function setCanonical(href: string) {
+  let link = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (!link) {
+    link = document.createElement("link");
+    link.rel = "canonical";
+    document.head.appendChild(link);
+  }
+  link.href = href;
+}
+
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
-    const routeMeta: Record<string, { title: string; description: string }> = {
-      "/": {
-        title: "Innflo — Hotel operations, finally in flow",
-        description: "A manager-first hotel PMS for reservations, billing, housekeeping, direct bookings, POS, inventory and reporting.",
-      },
-      "/pms": { title: "Hotel PMS | Innflo", description: "Run reservations, rooms, guests, folios, housekeeping and daily hotel operations in one place." },
-      "/booking-engine": { title: "Direct Hotel Booking Engine | Innflo", description: "A branded, commission-free hotel Booking Engine with live availability, multi-room carts, promo rates and connected PMS alerts." },
-      "/financials": { title: "Hotel Financial Control | Innflo", description: "Connected folios, payments, expenses, cash control and night audit for independent hotels." },
-      "/pos": { title: "Hotel POS & QR Ordering | Innflo", description: "Restaurant POS, QR ordering, kitchen display and guest folio posting connected to your hotel PMS." },
-      "/automations": { title: "Hotel Operations Automation | Innflo", description: "Reduce repetitive hotel work with connected reservation, housekeeping, billing and inventory workflows." },
-      "/statistics": { title: "Hotel Reports & Insights | Innflo", description: "Operational and financial hotel reporting built for the manager’s daily decisions." },
-      "/pricing": { title: "Pricing | Innflo Hotel PMS", description: "Hotel PMS plans quoted to your property, with no commission on direct bookings. Book a walkthrough for a quote." },
-      "/about": { title: "About Innflo", description: "Why Innflo is building manager-first hotel software for independent properties in Pakistan." },
-      "/contact": { title: "Book an Innflo Walkthrough", description: "Show us how your property runs and get a focused walkthrough of the live Innflo hotel PMS." },
-      "/channel-manager": { title: "Channel Manager Roadmap | Innflo", description: "Follow Innflo’s clearly labeled roadmap for direct OTA channel synchronization." },
-    };
-    const meta = routeMeta[pathname] ?? {
-      title: "Innflo — Hotel PMS",
-      description: "Manager-first hotel operations software for independent properties.",
-    };
+    const meta = ROUTE_META[pathname] ?? FALLBACK_META;
+    const url = `${SITE_ORIGIN}${pathname}`;
+
+    // Prerendering runs this in a real browser and snapshots the result, so
+    // whatever is set here is what crawlers and link-preview bots ultimately
+    // read out of the static HTML for each route.
     document.title = meta.title;
-    let description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    if (!description) {
-      description = document.createElement("meta");
-      description.name = "description";
-      document.head.appendChild(description);
-    }
-    description.content = meta.description;
+    setMetaContent("name", "description", meta.description);
+    setMetaContent("property", "og:title", meta.title);
+    setMetaContent("property", "og:description", meta.description);
+    setMetaContent("property", "og:url", url);
+    setCanonical(url);
+
     window.scrollTo(0, 0);
   }, [pathname]);
   return null;

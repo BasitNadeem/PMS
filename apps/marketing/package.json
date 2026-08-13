@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --port 5200",
     "build": "tsc && vite build",
+    "build:static": "pnpm build && node scripts/prerender.mjs",
     "preview": "vite preview --port 5200"
   },
   "dependencies": {
@@ -20,6 +21,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.19",
+    "playwright": "^1.62.1",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.4.5",

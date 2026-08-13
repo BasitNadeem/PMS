@@ -5,14 +5,37 @@ import Reveal from "../components/motion/Reveal";
 import SplitHeading from "../components/motion/SplitHeading";
 import MagneticButton from "../components/motion/MagneticButton";
 import Marquee from "../components/motion/Marquee";
-import { ArrowRight, ShieldCheck, LifeBuoy, Cloud, Activity, Plus } from "lucide-react";
+import { ArrowRight, ShieldCheck, LifeBuoy, Cloud, Activity, Plus, Check, X } from "lucide-react";
 import TabbedFeatureBlock from "../components/features/TabbedFeatureBlock";
 import ProductCockpit from "../components/ProductCockpit";
 import {
-  FrontDeskMockup, HousekeepingMockup, ReportsSnapshotMockup, ChannelManagerComingSoonMockup, TeamAccessMockup,
+  FrontDeskMockup, BookingEngineMockup, HousekeepingMockup, ReportsSnapshotMockup, ChannelManagerComingSoonMockup, TeamAccessMockup,
 } from "../components/features/HomeTabMockups";
 
 const REGIONS = ["Hunza", "Skardu", "Naran", "Gilgit", "Swat", "Murree", "Fairy Meadows", "Kaghan"];
+
+const SHIFTS: { before: string; after: string }[] = [
+  {
+    before: "Bookings scattered across a register, WhatsApp and somebody's notebook",
+    after: "Every booking in one list — walk-in, phone or your own website",
+  },
+  {
+    before: "The desk phones housekeeping to ask whether 204 is ready yet",
+    after: "Cleaners update room status from their own phone, even offline",
+  },
+  {
+    before: "Guest bills added up by hand from a pile of paper slips",
+    after: "An itemised folio is ready the moment they ask to check out",
+  },
+  {
+    before: "Commission taken out of every booking that arrives through an OTA",
+    after: "Your own branded booking site takes zero commission",
+  },
+  {
+    before: "Month-end means a late night with a calculator and a spreadsheet",
+    after: "Occupancy, ADR and revenue are already written when you open them",
+  },
+];
 
 const STAY_TYPES = [
   {
@@ -230,6 +253,13 @@ export default function Home() {
             learnMoreTo: "/pms",
           },
           {
+            label: "Booking Engine",
+            heading: "Your own booking site, zero commission.",
+            copy: "Guests pick their dates, room and extras on your branded site — the reservation lands on the front desk instantly, and none of it goes to an OTA.",
+            mockup: <BookingEngineMockup />,
+            learnMoreTo: "/booking-engine",
+          },
+          {
             label: "Housekeeping",
             heading: "Keeps working when the Wi-Fi doesn't.",
             copy: "Staff mark rooms clean from their own phone, even offline — everything syncs the moment a signal comes back.",
@@ -308,6 +338,80 @@ export default function Home() {
                 </Link>
               </Reveal>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── BEFORE / AFTER — the same week, run two ways ────────────────────── */}
+      <section className="px-6 py-24">
+        <div className="mx-auto max-w-6xl">
+          <Reveal variant="fade" className="mb-14 text-center">
+            <p className="eyebrow mb-4">The difference</p>
+            <h2 className="font-display text-[clamp(32px,4.6vw,50px)] font-medium leading-tight text-ink">
+              The same week, run two ways.
+            </h2>
+            <p className="mx-auto mt-5 max-w-xl text-[16.5px] leading-relaxed text-ink-soft">
+              Not a wishlist — this is the everyday friction that goes away once the property is on one system.
+            </p>
+          </Reveal>
+
+          <div className="relative grid gap-5 lg:grid-cols-2 lg:gap-7">
+            <Reveal variant="rise" className="h-full">
+              <div className="h-full rounded-[28px] border border-line bg-mist/60 p-7 sm:p-9">
+                <div className="mb-8 flex items-center gap-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-line bg-white text-ink-mute">
+                    <X className="h-4 w-4" strokeWidth={3} />
+                  </span>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-ink-mute">Before Innflo</p>
+                    <p className="font-display text-[19px] font-medium text-ink-soft">Held together by memory</p>
+                  </div>
+                </div>
+                <ul className="space-y-5">
+                  {SHIFTS.map((shift, i) => (
+                    <li key={shift.before}>
+                      <Reveal delay={0.1 * i} variant="rise" className="flex gap-3 items-start group cursor-default">
+                        <X className="mt-[3px] h-4 w-4 shrink-0 text-red-400/50 transition-colors duration-300 group-hover:text-red-400" strokeWidth={3} />
+                        <span className="text-[14.5px] leading-relaxed text-ink-mute transition-colors duration-300 group-hover:text-ink-soft">{shift.before}</span>
+                      </Reveal>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Reveal>
+
+            <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 hidden -translate-x-1/2 -translate-y-1/2 lg:block">
+              <span className="grid h-12 w-12 place-items-center rounded-full border-4 border-paper bg-coral text-white shadow-pop">
+                <ArrowRight className="h-5 w-5" strokeWidth={2.5} />
+              </span>
+            </div>
+
+            <Reveal variant="rise" delay={0.12} className="h-full">
+              <div className="relative h-full overflow-hidden rounded-[28px] bg-ink p-7 text-white shadow-hero sm:p-9">
+                <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-coral/20 blur-3xl" />
+                <div className="relative">
+                  <div className="mb-8 flex items-center gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-coral text-white">
+                      <Check className="h-4 w-4" strokeWidth={3} />
+                    </span>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-coral">After Innflo</p>
+                      <p className="font-display text-[19px] font-medium text-white">One source of truth</p>
+                    </div>
+                  </div>
+                  <ul className="space-y-5">
+                    {SHIFTS.map((shift, i) => (
+                      <li key={shift.after}>
+                        <Reveal delay={0.2 + (0.1 * i)} variant="rise" className="flex gap-3 items-start group cursor-default">
+                          <Check className="mt-[3px] h-4 w-4 shrink-0 text-coral transition-transform duration-300 group-hover:scale-125" strokeWidth={3} />
+                          <span className="text-[14.5px] leading-relaxed text-white/80 transition-colors duration-300 group-hover:text-white">{shift.after}</span>
+                        </Reveal>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </Reveal>
           </div>
         </div>
       </section>

@@ -1,0 +1,54 @@
+# Innflo — https://innflo.co
+#
+# Search engines and AI assistants are welcome to crawl this site and to cite it
+# in answers. Using the content to train models is not permitted — that is what
+# the Content-Signal below expresses (search=yes, use=reference, ai-train=no).
+#
+# Note: Cloudflare can inject its own managed robots.txt at the zone level. If
+# the live file at /robots.txt does not match this one, the managed policy is
+# overriding it — turn that off in the Cloudflare dashboard.
+
+User-agent: *
+Content-Signal: search=yes,ai-train=no,use=reference
+Allow: /
+
+# ── AI assistants — retrieval and citation explicitly allowed ────────────────
+# These fetch pages to answer user questions and to cite sources. Blocking them
+# removes Innflo from AI answers entirely.
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+# ── Bulk scrapers — no benefit to us, so not welcome ─────────────────────────
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: Amazonbot
+Disallow: /
+
+Sitemap: https://innflo.co/sitemap.xml

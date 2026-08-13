@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import Reveal from "../components/motion/Reveal";
 import SplitHeading from "../components/motion/SplitHeading";
 import TabbedFeatureBlock from "../components/features/TabbedFeatureBlock";
@@ -22,6 +22,7 @@ import {
   KeyRound,
   LayoutDashboard,
   Lock,
+  MousePointer2,
   Plus,
   ReceiptText,
   RefreshCw,
@@ -43,16 +44,83 @@ import {
 } from "../components/features/TabModuleMockups";
 
 function PmsHeroMockup() {
+  const cursorControls = useAnimation();
+  const notificationControls = useAnimation();
+  const [revenue, setRevenue] = useState(54);
+  const [arrivals, setArrivals] = useState(4);
+  const [activeTab, setActiveTab] = useState("Today");
+
+  useEffect(() => {
+    let isMounted = true;
+    const runSequence = async () => {
+      while (isMounted) {
+        // 1. Initial State
+        setRevenue(54);
+        setArrivals(4);
+        setActiveTab("Today");
+        cursorControls.set({ x: 300, y: 250, opacity: 0 });
+        notificationControls.set({ y: 50, opacity: 0 });
+        
+        await new Promise(r => setTimeout(r, 1200));
+        if (!isMounted) break;
+
+        // 2. Notification pops up (New direct booking)
+        notificationControls.start({ y: 0, opacity: 1, transition: { type: "spring", stiffness: 200, damping: 20 } });
+        
+        await new Promise(r => setTimeout(r, 1500));
+        if (!isMounted) break;
+        
+        // 3. Update stats (New booking reflects in revenue and arrivals)
+        setRevenue(79);
+        setArrivals(5);
+
+        await new Promise(r => setTimeout(r, 1000));
+        if (!isMounted) break;
+
+        // 4. Cursor moves to 'Reservations' tab and clicks
+        await cursorControls.start({ opacity: 1, transition: { duration: 0.3 } });
+        await cursorControls.start({ x: 40, y: 110, transition: { duration: 1, ease: "easeInOut" } });
+        
+        // Click effect
+        await cursorControls.start({ scale: 0.8, transition: { duration: 0.1 } });
+        setActiveTab("Reservations");
+        await cursorControls.start({ scale: 1, transition: { duration: 0.1 } });
+        
+        await new Promise(r => setTimeout(r, 2500));
+        if (!isMounted) break;
+
+        // 5. Fade out and loop
+        await cursorControls.start({ opacity: 0, transition: { duration: 0.5 } });
+        await notificationControls.start({ y: 20, opacity: 0, transition: { duration: 0.5 } });
+        
+        await new Promise(r => setTimeout(r, 1500));
+      }
+    };
+    
+    runSequence();
+    return () => { isMounted = false; };
+  }, [cursorControls, notificationControls]);
+
   const metrics = [
     { label: "Occupancy", value: "75%", detail: "9 / 12 rooms", icon: BedDouble, tone: "bg-emerald-50 text-emerald-700" },
-    { label: "Arrivals", value: "4", detail: "2 before 3 PM", icon: CalendarCheck2, tone: "bg-blue-50 text-blue-700" },
+    { label: "Arrivals", value: arrivals.toString(), detail: "2 before 3 PM", icon: CalendarCheck2, tone: "bg-blue-50 text-blue-700" },
     { label: "Guests", value: "18", detail: "Currently in-house", icon: Users, tone: "bg-violet-50 text-violet-700" },
-    { label: "Revenue", value: "54K", detail: "PKR today", icon: Wallet, tone: "bg-coral-soft text-coral-dark" },
+    { label: "Revenue", value: `${revenue}K`, detail: "PKR today", icon: Wallet, tone: "bg-coral-soft text-coral-dark" },
   ];
 
   return (
     <div className="relative mx-auto w-full max-w-[760px] min-w-0 pb-8 pt-3 sm:pl-5">
-      <div className="overflow-hidden rounded-[26px] border border-line bg-white shadow-[0_32px_90px_rgba(68,43,30,.18)]">
+      
+      {/* Animated Pointer */}
+      <motion.div 
+        animate={cursorControls}
+        className="absolute z-50 pointer-events-none drop-shadow-[0_4px_8px_rgba(0,0,0,0.15)]"
+        initial={{ x: 300, y: 250, opacity: 0 }}
+      >
+        <MousePointer2 className="w-5 h-5 text-ink fill-white -rotate-12" />
+      </motion.div>
+
+      <div className="overflow-hidden rounded-[26px] border border-line bg-white shadow-[0_32px_90px_rgba(68,43,30,.18)] relative z-10">
         <div className="flex h-11 items-center justify-between border-b border-line-soft bg-[#FBF8F4] px-4">
           <div className="flex items-center gap-3">
             <div className="flex gap-1.5">
@@ -74,11 +142,11 @@ function PmsHeroMockup() {
               <span className="grid h-6 w-6 place-items-center rounded-lg bg-coral text-[9px] font-black">I</span>
               <span className="text-[9px] font-black">Innflo</span>
             </div>
-            {["Today", "Reservations", "Rooms", "Guests", "Billing", "Reports"].map((item, index) => (
+            {["Today", "Reservations", "Rooms", "Guests", "Billing", "Reports"].map((item) => (
               <div
                 key={item}
-                className={`mb-1 rounded-lg px-2 py-2 text-[6.5px] font-bold ${
-                  index === 0 ? "bg-white/10 text-white" : "text-white/50"
+                className={`mb-1 rounded-lg px-2 py-2 text-[6.5px] font-bold transition-colors ${
+                  activeTab === item ? "bg-white/10 text-white" : "text-white/50"
                 }`}
               >
                 {item}
@@ -86,95 +154,128 @@ function PmsHeroMockup() {
             ))}
           </aside>
 
-          <div className="min-w-0 p-3.5 sm:p-4">
-            <div className="flex items-end justify-between">
-              <div>
-                <p className="text-[7px] font-black uppercase tracking-[.15em] text-coral-dark">Wednesday · 7 July</p>
-                <p className="mt-1 text-[15px] font-black text-ink">Good morning, Basit.</p>
-              </div>
-              <span className="hidden rounded-lg border border-line-soft bg-white px-2.5 py-1.5 text-[7px] font-bold text-ink-soft sm:block">Property overview</span>
-            </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
-              {metrics.map((metric) => {
-                const Icon = metric.icon;
-                return (
-                  <div key={metric.label} className="rounded-xl border border-line-soft bg-white p-2.5">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[6px] font-black uppercase tracking-wider text-ink-mute">{metric.label}</p>
-                      <span className={`grid h-5 w-5 place-items-center rounded-lg ${metric.tone}`}>
-                        <Icon className="h-2.5 w-2.5" />
-                      </span>
-                    </div>
-                    <p className="mt-2 text-[14px] font-black leading-none text-ink">{metric.value}</p>
-                    <p className="mt-1 text-[5.5px] font-semibold text-ink-mute">{metric.detail}</p>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-2 grid gap-2 md:grid-cols-[1.12fr_.88fr]">
-              <div className="rounded-xl border border-line-soft bg-white p-3">
-                <div className="flex items-center justify-between">
+          <div className="min-w-0 p-3.5 sm:p-4 relative">
+            
+            <AnimatePresence mode="wait">
+              <motion.div 
+                key={activeTab}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -5 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="flex items-end justify-between">
                   <div>
-                    <p className="text-[8px] font-black text-ink">Today&apos;s guest movement</p>
-                    <p className="text-[5.5px] text-ink-mute">Arrivals and departures in one queue</p>
+                    <p className="text-[7px] font-black uppercase tracking-[.15em] text-coral-dark">Wednesday · 7 July</p>
+                    <p className="mt-1 text-[15px] font-black text-ink">{activeTab === "Today" ? "Good morning, Basit." : "Reservations pipeline"}</p>
                   </div>
-                  <span className="text-[6px] font-black text-coral-dark">View timeline</span>
+                  <span className="hidden rounded-lg border border-line-soft bg-white px-2.5 py-1.5 text-[7px] font-bold text-ink-soft sm:block">
+                    {activeTab === "Today" ? "Property overview" : "View calendar"}
+                  </span>
                 </div>
-                <div className="mt-2.5 space-y-1.5">
-                  {[
-                    ["108", "Zara Khan", "Arriving · 2 PM", "bg-blue-50 text-blue-700"],
-                    ["104", "Hamza Ahmed", "Checked in", "bg-emerald-50 text-emerald-700"],
-                    ["201", "Rao Family", "Due out · 12 PM", "bg-amber-50 text-amber-700"],
-                  ].map(([room, guest, status, tone]) => (
-                    <div key={room} className="flex items-center gap-2 rounded-lg bg-[#FAF8F5] px-2 py-1.5">
-                      <span className={`grid h-6 w-6 place-items-center rounded-lg text-[6.5px] font-black ${tone}`}>{room}</span>
-                      <div className="min-w-0">
-                        <p className="truncate text-[7px] font-black text-ink">{guest}</p>
-                        <p className="text-[5.5px] font-semibold text-ink-mute">{status}</p>
-                      </div>
-                      <ChevronRight className="ml-auto h-2.5 w-2.5 text-ink-faint" />
-                    </div>
-                  ))}
-                </div>
-              </div>
 
-              <div className="rounded-xl border border-line-soft bg-ink p-3 text-white">
-                <p className="text-[6px] font-black uppercase tracking-[.15em] text-coral">Rooms right now</p>
-                <div className="mt-3 grid grid-cols-2 gap-1.5">
-                  {[
-                    ["9", "Occupied", "text-white"],
-                    ["2", "To clean", "text-amber-300"],
-                    ["1", "Available", "text-emerald-300"],
-                    ["0", "Blocked", "text-white/50"],
-                  ].map(([value, label, tone]) => (
-                    <div key={label} className="rounded-lg border border-white/10 bg-white/[.055] p-2">
-                      <p className={`text-[12px] font-black ${tone}`}>{value}</p>
-                      <p className="mt-0.5 text-[5.5px] font-bold text-white/40">{label}</p>
+                <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                  {metrics.map((metric) => {
+                    const Icon = metric.icon;
+                    return (
+                      <div key={metric.label} className="rounded-xl border border-line-soft bg-white p-2.5 shadow-sm transition-all duration-300">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[6px] font-black uppercase tracking-wider text-ink-mute">{metric.label}</p>
+                          <span className={`grid h-5 w-5 place-items-center rounded-lg ${metric.tone}`}>
+                            <Icon className="h-2.5 w-2.5" />
+                          </span>
+                        </div>
+                        <motion.p 
+                          key={metric.value} 
+                          initial={{ opacity: 0, scale: 0.9 }} 
+                          animate={{ opacity: 1, scale: 1 }} 
+                          className="mt-2 text-[14px] font-black leading-none text-ink"
+                        >
+                          {metric.value}
+                        </motion.p>
+                        <p className="mt-1 text-[5.5px] font-semibold text-ink-mute">{metric.detail}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {activeTab === "Today" ? (
+                  <div className="mt-2 grid gap-2 md:grid-cols-[1.12fr_.88fr]">
+                    <div className="rounded-xl border border-line-soft bg-white p-3 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[8px] font-black text-ink">Today&apos;s guest movement</p>
+                          <p className="text-[5.5px] text-ink-mute">Arrivals and departures in one queue</p>
+                        </div>
+                        <span className="text-[6px] font-black text-coral-dark">View timeline</span>
+                      </div>
+                      <div className="mt-2.5 space-y-1.5">
+                        {[
+                          ["108", "Zara Khan", "Arriving · 2 PM", "bg-blue-50 text-blue-700"],
+                          ["104", "Hamza Ahmed", "Checked in", "bg-emerald-50 text-emerald-700"],
+                          ["201", "Rao Family", "Due out · 12 PM", "bg-amber-50 text-amber-700"],
+                        ].map(([room, guest, status, tone]) => (
+                          <div key={room} className="flex items-center gap-2 rounded-lg bg-[#FAF8F5] px-2 py-1.5">
+                            <span className={`grid h-6 w-6 place-items-center rounded-lg text-[6.5px] font-black ${tone}`}>{room}</span>
+                            <div className="min-w-0">
+                              <p className="truncate text-[7px] font-black text-ink">{guest}</p>
+                              <p className="text-[5.5px] font-semibold text-ink-mute">{status}</p>
+                            </div>
+                            <ChevronRight className="ml-auto h-2.5 w-2.5 text-ink-faint" />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))}
-                </div>
-                <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-white/[.07] px-2 py-1.5">
-                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-300" />
-                  <p className="text-[5.5px] font-bold text-white/60">Housekeeping synced just now</p>
-                </div>
-              </div>
-            </div>
+
+                    <div className="rounded-xl border border-line-soft bg-ink p-3 text-white shadow-sm">
+                      <p className="text-[6px] font-black uppercase tracking-[.15em] text-coral">Rooms right now</p>
+                      <div className="mt-3 grid grid-cols-2 gap-1.5">
+                        {[
+                          ["9", "Occupied", "text-white"],
+                          ["2", "To clean", "text-amber-300"],
+                          ["1", "Available", "text-emerald-300"],
+                          ["0", "Blocked", "text-white/50"],
+                        ].map(([value, label, tone]) => (
+                          <div key={label} className="rounded-lg border border-white/10 bg-white/[.055] p-2">
+                            <p className={`text-[12px] font-black ${tone}`}>{value}</p>
+                            <p className="mt-0.5 text-[5.5px] font-bold text-white/40">{label}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-white/[.07] px-2 py-1.5">
+                        <CheckCircle2 className="h-2.5 w-2.5 text-emerald-300" />
+                        <p className="text-[5.5px] font-bold text-white/60">Housekeeping synced just now</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-2 rounded-xl border border-line-soft bg-white p-3 shadow-sm h-[142px] flex items-center justify-center flex-col">
+                     <CalendarCheck2 className="w-8 h-8 text-coral/40 mb-2" />
+                     <p className="text-[10px] font-bold text-ink">Incoming Reservations</p>
+                     <p className="text-[7px] text-ink-mute mt-1">1 new reservation from direct booking engine</p>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+
           </div>
         </div>
       </div>
 
-      <div className="absolute bottom-0 right-0 flex w-[215px] items-start gap-2.5 rounded-2xl border border-coral/20 bg-ink p-3 text-white shadow-[0_18px_50px_rgba(35,27,22,.28)] sm:right-3">
+      <motion.div 
+        animate={notificationControls}
+        initial={{ opacity: 0, y: 50 }}
+        className="absolute bottom-0 right-0 z-20 flex w-[215px] items-start gap-2.5 rounded-2xl border border-coral/20 bg-ink p-3 text-white shadow-[0_18px_50px_rgba(35,27,22,.28)] sm:right-3"
+      >
         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-coral text-white">
           <BellRing className="h-3.5 w-3.5" />
         </span>
         <div>
           <p className="text-[8px] font-black">New direct booking request</p>
-          <p className="mt-1 text-[6.5px] font-semibold text-white/50">Deluxe Room · 3 nights</p>
+          <p className="mt-1 text-[6.5px] font-semibold text-white/50">Oceanview Suite · 3 nights</p>
           <p className="mt-1.5 text-[6px] font-black uppercase tracking-wider text-coral">Front desk alerted live</p>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -476,6 +577,97 @@ function RoleWorkspaceShowcase() {
 }
 
 
+
+// ─── Booking Engine Mockup ──────────────────────────────────────────────────
+function BookingEngineMockup() {
+  return (
+    <div className="w-full max-w-lg mx-auto rounded-[24px] bg-white border border-line shadow-float overflow-hidden font-body flex flex-col">
+      {/* Browser Window Header */}
+      <div className="h-10 bg-[#f4f4f4] border-b border-line-soft flex items-center px-4 gap-2">
+        <div className="flex gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-red-400"></div>
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
+          <div className="w-2.5 h-2.5 rounded-full bg-green-400"></div>
+        </div>
+        <div className="mx-auto bg-white text-[10px] text-ink-mute font-medium px-6 py-1 rounded-md border border-line-soft shadow-sm">
+          yourhotel.com/book
+        </div>
+        <div className="w-10"></div>
+      </div>
+
+      {/* Widget Header - Hotel Info */}
+      <div className="bg-ink p-6 text-white flex justify-between items-center relative overflow-hidden">
+        <div className="absolute right-0 top-0 w-32 h-32 bg-coral/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="relative z-10">
+          <h3 className="font-display text-[22px] font-medium">The Grand Hotel</h3>
+          <p className="text-[12px] text-white/60 mt-1">Select your dates of stay</p>
+        </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="bg-white border-b border-line-soft p-4">
+        <div className="flex bg-mist rounded-[14px] p-1.5 gap-1 border border-line-soft">
+          <div className="flex-1 bg-white rounded-[10px] shadow-sm px-3 py-2 border border-line-soft">
+             <p className="text-[9px] font-bold uppercase tracking-wider text-ink-mute">Check-in</p>
+             <p className="text-[13px] font-semibold text-ink mt-0.5">Aug 14</p>
+          </div>
+          <div className="flex-1 px-3 py-2 flex flex-col justify-center">
+             <p className="text-[9px] font-bold uppercase tracking-wider text-ink-mute">Check-out</p>
+             <p className="text-[13px] font-semibold text-ink mt-0.5">Aug 17</p>
+          </div>
+          <div className="flex-1 px-3 py-2 flex flex-col justify-center border-l border-line-soft">
+             <p className="text-[9px] font-bold uppercase tracking-wider text-ink-mute">Guests</p>
+             <p className="text-[13px] font-semibold text-ink mt-0.5">2 Adults</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Room Results List */}
+      <div className="p-4 bg-[#F9F8F4] space-y-3 flex-1 max-h-[320px] overflow-hidden relative">
+        {/* Room Card 1 */}
+        <div className="bg-white p-3 rounded-2xl flex gap-4 border border-line shadow-sm hover:border-coral/40 transition-colors">
+          <div className="w-24 h-24 rounded-xl overflow-hidden shrink-0">
+             <img src="https://images.unsplash.com/photo-1578683010236-d716f9a3f461?q=80&w=300&auto=format&fit=crop" alt="Deluxe King" className="w-full h-full object-cover" />
+          </div>
+          <div className="flex-1 flex flex-col justify-between py-1">
+             <div>
+               <p className="font-display text-[16px] font-medium text-ink">Deluxe King</p>
+               <p className="text-[11px] text-ink-soft mt-0.5 line-clamp-1">Spacious 35sqm room with city views.</p>
+             </div>
+             <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-[14px] font-bold text-ink">PKR 20,000<span className="text-[9px] text-ink-mute font-normal"> / night</span></p>
+                </div>
+                <button className="bg-coral text-white text-[12px] font-bold px-4 py-2 rounded-[10px] shadow-pop hover:bg-coral-dark transition-transform hover:scale-105">Select</button>
+             </div>
+          </div>
+        </div>
+
+        {/* Room Card 2 */}
+        <div className="bg-white p-3 rounded-2xl flex gap-4 border border-line shadow-sm opacity-60 grayscale-[30%]">
+          <div className="w-24 h-24 rounded-xl overflow-hidden shrink-0">
+             <img src="https://images.unsplash.com/photo-1566665797739-1674de7a421a?q=80&w=300&auto=format&fit=crop" alt="Executive Suite" className="w-full h-full object-cover" />
+          </div>
+          <div className="flex-1 flex flex-col justify-between py-1">
+             <div>
+               <p className="font-display text-[16px] font-medium text-ink">Executive Suite</p>
+               <p className="text-[10px] text-coral mt-1 font-bold">Sold out for these dates</p>
+             </div>
+             <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-[14px] font-bold text-ink-mute">PKR 45,000<span className="text-[9px] font-normal"> / night</span></p>
+                </div>
+                <button className="bg-mist text-ink-mute text-[12px] font-bold px-4 py-2 rounded-[10px] border border-line-soft" disabled>Sold out</button>
+             </div>
+          </div>
+        </div>
+        
+        {/* Fade Out Gradient */}
+        <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[#F9F8F4] to-transparent pointer-events-none" />
+      </div>
+    </div>
+  );
+}
 
 // ─── Report mockup ──────────────────────────────────────────────────────────
 function ReportMockup() {
@@ -1782,6 +1974,38 @@ export default function Features() {
           <Reveal delay={0.12} variant="rise" className="mt-14">
             <RoleWorkspaceShowcase />
           </Reveal>
+        </div>
+      </section>
+
+      {/* ── BOOKING ENGINE ─────────────────────────────────────────────────── */}
+      <section className="py-24 bg-[#f9f8f4]">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid grid-cols-1 items-center gap-14 lg:grid-cols-2 lg:gap-16">
+            <Reveal>
+              <p className="eyebrow mb-4">Direct Bookings</p>
+              <h2 className="font-display text-[clamp(30px,4vw,46px)] font-medium leading-tight text-ink mb-6">
+                Turn lookers into<br /><span className="text-coral italic">guaranteed arrivals.</span>
+              </h2>
+              <p className="text-[17px] text-ink-soft font-body leading-relaxed mb-6">
+                Stop paying 15-20% OTA commissions on guests who would have booked directly. Our booking engine integrates right into your website, creating a seamless mobile-optimized experience that syncs live with your PMS inventory.
+              </p>
+              <ul className="space-y-3 font-body">
+                {[
+                  "Zero commission on direct bookings",
+                  "Live inventory sync — no overbooking",
+                  "Mobile-first, conversion-optimized checkout",
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-coral shrink-0 mt-0.5" />
+                    <span className="text-ink text-[15px]">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+            <Reveal delay={0.1} variant="rise">
+              <BookingEngineMockup />
+            </Reveal>
+          </div>
         </div>
       </section>
 

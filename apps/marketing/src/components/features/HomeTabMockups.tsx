@@ -1,17 +1,21 @@
 import type { ReactNode } from "react";
 import {
   BellRing,
+  CalendarDays,
   Check,
   ChevronRight,
   CloudOff,
   Download,
+  Globe,
   KeyRound,
   LockKeyhole,
+  Percent,
   RefreshCw,
   ShieldCheck,
   Sparkles,
   TrendingUp,
   UserPlus,
+  Users,
   Wifi,
 } from "lucide-react";
 
@@ -156,6 +160,127 @@ export function FrontDeskMockup() {
           <BellRing className="h-3.5 w-3.5 text-coral-dark" />
           <p className="text-[7.5px] font-bold text-coral-dark">New direct booking · Mountain Suite · 12–14 Jul</p>
           <ChevronRight className="ml-auto h-3 w-3 text-coral-dark" />
+        </div>
+      </div>
+    </BrowserShell>
+  );
+}
+
+export function BookingEngineMockup() {
+  const rooms = [
+    {
+      name: "Mountain Suite",
+      detail: "2 guests · Balcony view",
+      price: "14,500",
+      tint: "from-[#E0532B]/85 to-[#8F2F14]/85",
+      selected: true,
+    },
+    {
+      name: "Deluxe Double",
+      detail: "2 guests · Garden view",
+      price: "9,800",
+      tint: "from-[#2F7256]/85 to-[#173F30]/85",
+      selected: false,
+    },
+  ];
+
+  const lines: [string, string][] = [
+    ["2 nights · Mountain Suite", "29,000"],
+    ["Breakfast × 2", "2,400"],
+  ];
+
+  return (
+    <BrowserShell
+      title="hunzaview.innflo.co / Book your stay"
+      action={
+        <span className="flex shrink-0 items-center gap-1 rounded-full bg-coral-soft px-2 py-1 text-[7px] font-black text-coral-dark">
+          <Percent className="h-2.5 w-2.5" /> 0% COMMISSION
+        </span>
+      }
+    >
+      <div className="bg-[#F8F4EF] p-3 sm:p-4">
+        <div className="mb-3 grid grid-cols-3 gap-2">
+          <Metric label="Direct bookings" value="42" meta="This month" tone="green" />
+          <Metric label="Commission kept" value="214K" meta="Would go to OTAs" tone="coral" />
+          <Metric label="Avg. booking" value="26.8K" meta="2.3 nights" />
+        </div>
+
+        <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1.15fr)_minmax(0,.85fr)]">
+          <div className="overflow-hidden rounded-2xl border border-line-soft bg-white">
+            <div className="flex items-center gap-2 border-b border-line-soft px-3 py-2.5">
+              <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg bg-mist px-2 py-1.5">
+                <CalendarDays className="h-2.5 w-2.5 shrink-0 text-coral-dark" />
+                <span className="truncate text-[7px] font-bold text-ink">12 – 14 Jul · 2 nights</span>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5 rounded-lg bg-mist px-2 py-1.5">
+                <Users className="h-2.5 w-2.5 text-coral-dark" />
+                <span className="text-[7px] font-bold text-ink">2</span>
+              </div>
+            </div>
+            <div className="space-y-2 p-2.5">
+              {rooms.map((room) => (
+                <div
+                  key={room.name}
+                  className={`flex items-center gap-2.5 rounded-xl border p-2 ${
+                    room.selected ? "border-coral/30 bg-[#FFF9F2]" : "border-line-soft bg-[#FCFAF7]"
+                  }`}
+                >
+                  <span className={`h-11 w-12 shrink-0 rounded-lg bg-gradient-to-br ${room.tint}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[9px] font-black text-ink">{room.name}</p>
+                    <p className="truncate text-[6.5px] text-ink-mute">{room.detail}</p>
+                    <p className="mt-1 text-[7.5px] font-black text-ink">
+                      PKR {room.price} <span className="font-semibold text-ink-mute">/ night</span>
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-1 text-[6px] font-black ${
+                      room.selected ? "bg-coral text-white" : "bg-mist text-ink-soft"
+                    }`}
+                  >
+                    {room.selected ? "Selected" : "Select"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative overflow-hidden rounded-2xl bg-ink p-3.5 text-white shadow-pop">
+            <div className="absolute -right-7 -top-7 h-24 w-24 rounded-full bg-coral/20 blur-2xl" />
+            <div className="relative">
+              <p className="text-[7px] font-black uppercase tracking-[0.14em] text-coral">Your booking</p>
+              <p className="mt-1 text-[13px] font-black">Hunza View Lodge</p>
+
+              <div className="mt-3 space-y-1.5">
+                {lines.map(([label, amount]) => (
+                  <div key={label} className="flex items-center justify-between gap-2 rounded-lg bg-white/[0.06] px-2.5 py-1.5">
+                    <span className="truncate text-[7px] font-semibold text-white/70">{label}</span>
+                    <span className="shrink-0 text-[7px] font-black text-white/90">{amount}</span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-emerald-400/10 px-2.5 py-1.5">
+                  <span className="truncate text-[7px] font-semibold text-emerald-300">OTA commission</span>
+                  <span className="shrink-0 text-[7px] font-black text-emerald-300">PKR 0</span>
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-end justify-between border-t border-white/10 pt-2.5">
+                <span className="text-[7px] font-bold text-white/45">TOTAL</span>
+                <span className="text-[14px] font-black leading-none">PKR 31,400</span>
+              </div>
+              <div className="mt-3 flex h-9 items-center justify-center rounded-xl bg-coral text-[8px] font-black shadow-pop">
+                Confirm booking
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-700/15 bg-emerald-50/80 px-3 py-2">
+          <Globe className="h-3.5 w-3.5 shrink-0 text-emerald-700" />
+          <p className="text-[7.5px] font-bold text-emerald-800">
+            Booked on your own site · lands on the front desk instantly
+          </p>
+          <ChevronRight className="ml-auto h-3 w-3 shrink-0 text-emerald-700" />
         </div>
       </div>
     </BrowserShell>

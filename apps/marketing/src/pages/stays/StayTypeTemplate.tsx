@@ -8,7 +8,7 @@ import SplitHeading from "../../components/motion/SplitHeading";
 import MagneticButton from "../../components/motion/MagneticButton";
 import TabbedFeatureBlock from "../../components/features/TabbedFeatureBlock";
 import {
-  FrontDeskMockup, HousekeepingMockup, ReportsSnapshotMockup, ChannelManagerComingSoonMockup,
+  FrontDeskMockup, BookingEngineMockup, HousekeepingMockup, ReportsSnapshotMockup, ChannelManagerComingSoonMockup,
 } from "../../components/features/HomeTabMockups";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -168,6 +168,13 @@ export default function StayTypeTemplate({ eyebrow, heading, image, intro, ctaLa
             copy: "Arrivals, departures, and room status for the whole day — check someone in without leaving this screen.",
             mockup: <FrontDeskMockup />,
             learnMoreTo: "/pms",
+          },
+          {
+            label: "Booking Engine",
+            heading: "Your own booking site, zero commission.",
+            copy: "Guests pick their dates, room and extras on your branded site — the reservation lands on the front desk instantly, and none of it goes to an OTA.",
+            mockup: <BookingEngineMockup />,
+            learnMoreTo: "/booking-engine",
           },
           {
             label: "Automations",

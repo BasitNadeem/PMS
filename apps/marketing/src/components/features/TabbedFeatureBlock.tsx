@@ -74,10 +74,10 @@ export default function TabbedFeatureBlock({
             {tab.label}
           </span>
         </div>
-        <p className="font-display text-[clamp(34px,4vw,52px)] font-medium text-ink leading-[1.08] mb-6">
+        <h3 className="font-display text-[clamp(23px,2.5vw,33px)] font-medium text-ink leading-[1.15] mb-4">
           {tab.heading}
-        </p>
-        <p className="text-[17px] text-ink-soft font-body font-medium leading-relaxed max-w-xl">
+        </h3>
+        <p className="text-[14px] text-ink-soft font-body font-medium leading-relaxed max-w-md">
           {tab.copy}
         </p>
         <Link

@@ -10,10 +10,21 @@
     <title>Innflo — Hotel operations, finally in flow</title>
     <meta name="description" content="A manager-first hotel PMS for reservations, billing, housekeeping, direct bookings, POS, inventory and reporting." />
     <meta name="theme-color" content="#F5EBE4" />
+    <link rel="canonical" href="https://innflo.co/" />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Innflo" />
+    <meta property="og:locale" content="en_PK" />
     <meta property="og:url" content="https://innflo.co/" />
     <meta property="og:title" content="Innflo — Hotel operations, finally in flow" />
     <meta property="og:description" content="One calm operating system for reservations, rooms, guests, folios, housekeeping, dining and reporting." />
+    <!-- Interim card: the 256px app icon renders as a small square thumbnail.
+         Replacing this with a designed 1200x630 image is a meaningful upgrade to
+         link click-through — swap the src and switch twitter:card to
+         summary_large_image at the same time. -->
+    <meta property="og:image" content="https://innflo.co/brand/app-icon-256.png" />
+    <meta property="og:image:width" content="256" />
+    <meta property="og:image:height" content="256" />
+    <meta property="og:image:alt" content="Innflo — hotel property management software" />
     <meta name="twitter:card" content="summary" />
     <script type="application/ld+json">
       {
@@ -41,6 +52,42 @@
             "telephone": "+92 320 0466356"
           }
         ]
+      }
+    </script>
+    <!-- What the product actually is, in a form search engines and AI assistants
+         parse directly. Deliberately omits `offers` (pricing is not public) and
+         `aggregateRating` (inventing review data violates Google's guidelines).
+         featureList covers shipped modules only — Channel Manager is excluded
+         because it is still in development. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Innflo",
+        "applicationCategory": "BusinessApplication",
+        "applicationSubCategory": "Hotel Property Management System",
+        "operatingSystem": "Web browser",
+        "url": "https://innflo.co/",
+        "description": "Innflo is a hotel property management system for independent properties — hotels, guesthouses, hostels, resorts, serviced apartments and glamping sites. It covers reservations, guest profiles, folios and billing, housekeeping, a commission-free direct booking engine, restaurant POS with QR ordering, and operational reporting.",
+        "featureList": [
+          "Reservation management across walk-in, phone, travel agent and online sources",
+          "Guest profiles with stay history and preferences",
+          "Itemised guest folios, payments and invoicing",
+          "Housekeeping task management with an offline-capable mobile app",
+          "Commission-free direct booking engine on the hotel's own domain",
+          "Restaurant point of sale with guest QR ordering and kitchen display",
+          "Corporate and travel-agency accounts with consolidated invoicing",
+          "Operational and financial reporting"
+        ],
+        "provider": {
+          "@type": "Organization",
+          "name": "Innflo",
+          "url": "https://innflo.co/"
+        },
+        "areaServed": {
+          "@type": "Country",
+          "name": "Pakistan"
+        }
       }
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />

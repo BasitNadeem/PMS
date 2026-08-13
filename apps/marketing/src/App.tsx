@@ -118,7 +118,13 @@ function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
     const meta = ROUTE_META[pathname] ?? FALLBACK_META;
-    const url = `${SITE_ORIGIN}${pathname}`;
+    // Prerendering writes each route as dist/<route>/index.html, and nginx's
+    // `try_files $uri $uri/` redirects /pricing to /pricing/ to reach it. The
+    // trailing-slash form is therefore the URL that actually serves a 200, so
+    // it is the one canonical and og:url must advertise — pointing them at a
+    // URL that immediately redirects is a contradictory signal.
+    const canonicalPath = pathname.endsWith("/") ? pathname : `${pathname}/`;
+    const url = `${SITE_ORIGIN}${canonicalPath}`;
 
     // Prerendering runs this in a real browser and snapshots the result, so
     // whatever is set here is what crawlers and link-preview bots ultimately

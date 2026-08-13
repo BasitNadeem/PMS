@@ -1,23 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Innflo public pages. Keep in sync with the routes in src/App.tsx.
+  URLs use a trailing slash: prerendered routes live at dist/<route>/index.html
+  and nginx redirects the slashless form to it, so this is the URL that 200s.
   lastmod is deliberately omitted: a hardcoded date that stops being true is
   worse than no date, since search engines discount lastmod they cannot trust.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://innflo.co/</loc></url>
-  <url><loc>https://innflo.co/pms</loc></url>
-  <url><loc>https://innflo.co/booking-engine</loc></url>
-  <url><loc>https://innflo.co/channel-manager</loc></url>
-  <url><loc>https://innflo.co/financials</loc></url>
-  <url><loc>https://innflo.co/pos</loc></url>
-  <url><loc>https://innflo.co/automations</loc></url>
-  <url><loc>https://innflo.co/statistics</loc></url>
-  <url><loc>https://innflo.co/stays/hotels</loc></url>
-  <url><loc>https://innflo.co/stays/guesthouses</loc></url>
-  <url><loc>https://innflo.co/stays/vacation-rentals</loc></url>
-  <url><loc>https://innflo.co/stays/glamping</loc></url>
-  <url><loc>https://innflo.co/pricing</loc></url>
-  <url><loc>https://innflo.co/about</loc></url>
-  <url><loc>https://innflo.co/contact</loc></url>
+  <url><loc>https://innflo.co/pms/</loc></url>
+  <url><loc>https://innflo.co/booking-engine/</loc></url>
+  <url><loc>https://innflo.co/channel-manager/</loc></url>
+  <url><loc>https://innflo.co/financials/</loc></url>
+  <url><loc>https://innflo.co/pos/</loc></url>
+  <url><loc>https://innflo.co/automations/</loc></url>
+  <url><loc>https://innflo.co/statistics/</loc></url>
+  <url><loc>https://innflo.co/stays/hotels/</loc></url>
+  <url><loc>https://innflo.co/stays/guesthouses/</loc></url>
+  <url><loc>https://innflo.co/stays/vacation-rentals/</loc></url>
+  <url><loc>https://innflo.co/stays/glamping/</loc></url>
+  <url><loc>https://innflo.co/pricing/</loc></url>
+  <url><loc>https://innflo.co/about/</loc></url>
+  <url><loc>https://innflo.co/contact/</loc></url>
 </urlset>

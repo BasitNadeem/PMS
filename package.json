@@ -28,7 +28,8 @@
     "verify-db": "bash scripts/verify-db.sh",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
-    "docker:reset": "docker compose down -v && docker compose up -d"
+    "docker:reset": "docker compose down -v && docker compose up -d",
+    "deploy:marketing": "bash scripts/deploy-marketing.sh"
   },
   "devDependencies": {
     "@types/pg": "^8.11.10",

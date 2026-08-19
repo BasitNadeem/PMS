@@ -17,12 +17,19 @@
     <meta property="og:url" content="https://innflo.co/" />
     <meta property="og:title" content="Innflo — Hotel operations, finally in flow" />
     <meta property="og:description" content="One calm operating system for reservations, rooms, guests, folios, housekeeping, dining and reporting." />
-    <meta property="og:image" content="https://innflo.co/brand/innflo-og-dark.png" />
+    <!-- Social card is 1200x630, but WhatsApp renders most previews as a small
+         SQUARE thumbnail and centre-crops to it. Everything that must stay legible
+         (mark, wordmark, rule, tagline) is inside the centre 630x630; the arcs sit
+         outside it. Changing the artwork? Ship it under a NEW filename — Meta caches
+         OG data by URL, so reusing a path keeps serving the old thumbnail. -->
+    <meta property="og:image" content="https://innflo.co/brand/innflo-og.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Innflo — hotel management software for independent properties" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://innflo.co/brand/innflo-og.png" />
+    <meta name="twitter:image:alt" content="Innflo — hotel management software for independent properties" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",

@@ -333,7 +333,7 @@ export default function Financials() {
       {/* ── Folio ──────────────────────────────────────────────────────────── */}
       <section className="py-20 px-6">
         <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-14 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[45fr_55fr] [&>*]:min-w-0 gap-14 items-center">
             <Reveal>
               <p className="eyebrow mb-4">Guest folios</p>
               <h2 className="font-display text-[clamp(28px,3.4vw,40px)] font-medium leading-tight text-ink mb-5">
@@ -361,7 +361,7 @@ export default function Financials() {
       {/* ── Expenses ───────────────────────────────────────────────────────── */}
       <section className="py-20 px-6 bg-mist border-y border-line">
         <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[55%_45%] gap-14 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[55fr_45fr] [&>*]:min-w-0 gap-14 items-center">
             <Reveal delay={0.1} className="order-2 lg:order-1"><ExpenseBreakdownMockup /></Reveal>
             <Reveal className="order-1 lg:order-2">
               <p className="eyebrow mb-4">Expenses</p>

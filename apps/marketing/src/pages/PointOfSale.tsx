@@ -113,8 +113,8 @@ function PosTerminalMockup() {
         </span>
       </div>
 
-      <div className="grid grid-cols-[1.3fr_1fr]">
-        <div className="p-5 border-r border-line-soft">
+      <div className="grid grid-cols-1 [&>*]:min-w-0 sm:grid-cols-[1.3fr_1fr]">
+        <div className="border-b border-line-soft p-5 sm:border-b-0 sm:border-r">
           <div className="flex gap-1.5 mb-4">
             {TERMINAL_CATEGORIES.map((c, i) => (
               <span
@@ -554,7 +554,7 @@ export default function PointOfSale() {
       {/* ── POS Terminal ───────────────────────────────────────────────────── */}
       <section className="py-20 px-6">
         <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-14 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[45fr_55fr] [&>*]:min-w-0 gap-14 items-center">
             <Reveal>
               <p className="eyebrow mb-4">The terminal</p>
               <h2 className="font-display text-[clamp(28px,3.4vw,40px)] font-medium leading-tight text-ink mb-5">
@@ -582,7 +582,7 @@ export default function PointOfSale() {
       {/* ── Scan-to-order ─────────────────────────────────────────────────── */}
       <section className="py-20 px-6 bg-mist border-y border-line">
         <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[55%_45%] gap-14 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[55fr_45fr] [&>*]:min-w-0 gap-14 items-center">
             <Reveal>
               <p className="eyebrow mb-4">Scan-to-order</p>
               <h2 className="font-display text-[clamp(28px,3.4vw,40px)] font-medium leading-tight text-ink mb-5">
@@ -610,7 +610,7 @@ export default function PointOfSale() {
       {/* ── Kitchen ────────────────────────────────────────────────────────── */}
       <section className="py-20 px-6">
         <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-14 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[45fr_55fr] [&>*]:min-w-0 gap-14 items-center">
             <Reveal className="order-2 lg:order-1">
               <p className="eyebrow mb-4">Kitchen</p>
               <h2 className="font-display text-[clamp(28px,3.4vw,40px)] font-medium leading-tight text-ink mb-5">
@@ -638,7 +638,7 @@ export default function PointOfSale() {
       {/* ── Menu setup + inventory ────────────────────────────────────────── */}
       <section className="py-20 px-6 bg-mist border-y border-line">
         <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[55%_45%] gap-14 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[55fr_45fr] [&>*]:min-w-0 gap-14 items-center">
             <Reveal delay={0.1} className="order-2 lg:order-1"><MenuInventoryMockup /></Reveal>
             <Reveal className="order-1 lg:order-2">
               <p className="eyebrow mb-4">Menu setup</p>
@@ -666,7 +666,7 @@ export default function PointOfSale() {
       {/* ── Settlement ─────────────────────────────────────────────────────── */}
       <section className="py-20 px-6">
         <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[55%_45%] gap-14 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[55fr_45fr] [&>*]:min-w-0 gap-14 items-center">
             <Reveal>
               <p className="eyebrow mb-4">Settlement</p>
               <h2 className="font-display text-[clamp(28px,3.4vw,40px)] font-medium leading-tight text-ink mb-5">

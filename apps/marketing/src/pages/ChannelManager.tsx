@@ -217,6 +217,9 @@ function AvailabilityMockup() {
         <span className="ml-3 text-[11px] text-ink-mute font-semibold tracking-wide">Innflo — Availability</span>
       </div>
 
+      {/* the grid is fixed-width by design — scroll it rather than crop it on narrow screens */}
+      <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div style={{ minWidth: ROOM + COL * days.length }}>
       <div className="flex bg-mist border-b border-line-soft">
         <div style={{ width: ROOM }} className="shrink-0 px-2 py-2">
           <span className="text-[9px] font-bold text-ink-mute uppercase tracking-wider">Room</span>
@@ -233,7 +236,7 @@ function AvailabilityMockup() {
           <div style={{ width: ROOM }} className="shrink-0 px-2">
             <span className="text-[10px] font-bold text-ink-soft">{room.num}</span>
           </div>
-          <div className="relative flex-1" style={{ height: "100%" }}>
+          <div className="relative shrink-0" style={{ width: COL * days.length, height: "100%" }}>
             {room.bars.map((bar, bi) => (
               <div
                 key={bi}
@@ -252,6 +255,8 @@ function AvailabilityMockup() {
           </div>
         </div>
       ))}
+        </div>
+      </div>
     </div>
   );
 }

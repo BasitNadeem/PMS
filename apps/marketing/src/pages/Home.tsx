@@ -12,7 +12,24 @@ import {
   FrontDeskMockup, BookingEngineMockup, HousekeepingMockup, ReportsSnapshotMockup, ChannelManagerComingSoonMockup, TeamAccessMockup,
 } from "../components/features/HomeTabMockups";
 
-const REGIONS = ["Hunza", "Skardu", "Naran", "Gilgit", "Swat", "Murree", "Fairy Meadows", "Kaghan"];
+const REGIONS = [
+  "Lahore",
+  "Hunza",
+  "Karachi",
+  "Skardu",
+  "Islamabad",
+  "Naran",
+  "Peshawar",
+  "Gilgit",
+  "Multan",
+  "Swat",
+  "Faisalabad",
+  "Murree",
+  "Quetta",
+  "Fairy Meadows",
+  "Rawalpindi",
+  "Kaghan",
+];
 
 const SHIFTS: { before: string; after: string }[] = [
   {
@@ -144,7 +161,7 @@ export default function Home() {
         />
 
         <div className="relative mx-auto max-w-7xl px-6 w-full py-20">
-          <div className="grid grid-cols-1 lg:grid-cols-[44%_56%] gap-12 xl:gap-16 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[44fr_56fr] [&>*]:min-w-0 gap-12 xl:gap-16 items-center">
             <div>
               <Reveal variant="fade">
                 <p className="eyebrow mb-6">Hotel property management</p>
@@ -183,7 +200,7 @@ export default function Home() {
               </Reveal>
             </div>
 
-            <div className="lg:-mr-12 xl:-mr-20">
+            <div className="min-w-0">
               <ProductCockpit />
             </div>
           </div>
@@ -196,7 +213,7 @@ export default function Home() {
       <section className="border-y border-line bg-mist py-6 overflow-hidden">
         <div className="flex items-center gap-8">
           <p className="eyebrow whitespace-nowrap pl-6 shrink-0">Built for properties across —</p>
-          <Marquee items={REGIONS} className="text-[15.5px] text-ink-soft font-body flex-1" />
+          <Marquee items={REGIONS} speed={64} className="text-[15.5px] text-ink-soft font-body flex-1" />
         </div>
       </section>
 

@@ -23,29 +23,24 @@ const PRODUCT_LINKS = [
   {
     to: "/pms",
     label: "Property Management System",
-    short: "The operating system for your property. Reservations, billing, housekeeping, you name it.",
+    short: "Front desk, reservations, rooms, housekeeping and guests.",
     icon: Building2,
-    status: "Live",
-    cornerGlow: "rgba(229, 78, 39, .16)",
   },
   {
     to: "/booking-engine",
     label: "Booking Engine",
-    short: "Your direct booking channel, live and commission-free.",
+    short: "Your own branded booking site. Direct reservations, zero commission.",
     icon: Globe2,
-    status: "Live",
-    cornerGlow: "rgba(35, 151, 112, .14)",
   },
   {
     to: "/channel-manager",
     label: "Channel Manager",
-    short: "Bring OTA availability into one calendar. In development.",
+    short: "Booking.com, Airbnb and Agoda on one calendar. In development.",
     icon: RefreshCcw,
-    status: "Roadmap",
-    cornerGlow: "rgba(202, 128, 48, .16)",
   },
 ];
 
+// Deeper reading on what sits inside the products above.
 const MODULE_LINKS = [
   { to: "/financials", label: "Financials", icon: Wallet },
   { to: "/pos", label: "POS & QR dining", icon: UtensilsCrossed },
@@ -148,7 +143,7 @@ export default function Nav() {
             aria-label="Primary navigation"
           >
             <div
-              className="static"
+              className="relative"
               onMouseEnter={() => {
                 setDesktopMenu("product");
                 preloadRoutes([...PRODUCT_LINKS, ...MODULE_LINKS].map((item) => item.to));
@@ -172,61 +167,36 @@ export default function Nav() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 5, scale: 0.99 }}
                     transition={{ duration: 0.22, ease: EASE }}
-                    className="absolute left-1/2 top-full -ml-[450px] pt-4"
+                    className="absolute left-1/2 top-full -ml-[260px] pt-4"
                   >
-                    <div className="w-[900px] overflow-hidden rounded-[26px] border border-line bg-[#fffdfa] p-3 shadow-[0_24px_70px_rgba(42,30,23,.18)]">
-                      <div className="rounded-[22px] border border-[#e6d8cc] bg-[#f1e5dc] p-3.5">
-                        <p className="px-1 pb-3 text-[9.5px] font-black uppercase tracking-[.15em] text-ink">Core products</p>
-                        <div className="grid grid-cols-3 gap-3">
-                          {PRODUCT_LINKS.map((item) => {
-                            const active = location.pathname.startsWith(item.to);
-                            return (
-                              <Link
-                                key={item.to}
-                                to={item.to}
-                                onPointerEnter={() => void preloadRoute(item.to)}
-                                onFocus={() => void preloadRoute(item.to)}
-                                className={`group flex min-h-[205px] flex-col rounded-[19px] border p-5 transition-[border-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 ${
-                                  active
-                                    ? "border-coral/25 shadow-[0_8px_24px_rgba(193,67,35,.08)]"
-                                    : "border-white/80 hover:border-coral/20 hover:shadow-[0_8px_24px_rgba(61,43,32,.07)]"
-                                }`}
-                                style={{
-                                  background: `radial-gradient(circle at 100% 0%, ${item.cornerGlow}, transparent 45%), radial-gradient(circle at 0% 100%, rgba(255,255,255,.72), transparent 38%), ${
-                                    active ? "rgba(253,236,226,.82)" : "rgba(255,252,248,.82)"
-                                  }`,
-                                }}
-                              >
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className={`grid h-10 w-10 place-items-center rounded-[13px] transition-colors ${
-                                    active ? "bg-coral text-white" : "bg-coral-soft text-coral-dark group-hover:bg-coral group-hover:text-white"
-                                  }`}>
-                                    <item.icon className="h-[18px] w-[18px]" />
-                                  </span>
-                                  <span className={`rounded-full px-2 py-1 text-[6.5px] font-black uppercase tracking-[.14em] ${
-                                    item.status === "Live"
-                                      ? "bg-emerald-50 text-emerald-700"
-                                      : "bg-white/80 text-coral-dark"
-                                  }`}>
-                                    {item.status}
-                                  </span>
-                                </div>
-                                <p className={`mt-auto flex items-start gap-1.5 pt-8 text-[13px] font-black leading-snug ${
-                                  active ? "text-coral-dark" : "text-ink group-hover:text-coral-dark"
-                                }`}>
-                                  {item.label}
-                                  <ArrowRight className="mt-0.5 h-3 w-3 shrink-0 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
-                                </p>
-                                <p className="mt-1.5 text-[9.5px] leading-relaxed text-ink-mute">{item.short}</p>
-                              </Link>
-                            );
-                          })}
-                        </div>
+                    <div className="w-[520px] rounded-[24px] border border-line bg-[#fffdfa] p-3 shadow-[0_28px_80px_rgba(42,30,23,.2)]">
+                      <p className="px-2 pb-2 pt-1 text-[9.5px] font-black uppercase tracking-[.15em] text-ink-faint">Core products</p>
+                      <div className="grid gap-1">
+                        {PRODUCT_LINKS.map((item) => {
+                          const active = location.pathname.startsWith(item.to);
+                          return (
+                            <Link
+                              key={item.to}
+                              to={item.to}
+                              onPointerEnter={() => void preloadRoute(item.to)}
+                              onFocus={() => void preloadRoute(item.to)}
+                              className={`flex items-start gap-3 rounded-2xl p-3.5 transition-colors ${active ? "bg-coral-soft" : "hover:bg-mist"}`}
+                            >
+                              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-coral-soft text-coral-dark">
+                                <item.icon className="h-[18px] w-[18px]" />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className={`block text-[13.5px] font-black ${active ? "text-coral-dark" : "text-ink"}`}>{item.label}</span>
+                                <span className="mt-1 block text-[11px] leading-relaxed text-ink-mute">{item.short}</span>
+                              </span>
+                            </Link>
+                          );
+                        })}
                       </div>
 
-                      <div className="mt-2.5 rounded-[20px] border border-[#eee5dc] bg-[#fcf9f5] p-3">
-                        <p className="px-1 pb-2 text-[9.5px] font-black uppercase tracking-[.15em] text-ink">Connected modules</p>
-                        <div className="grid grid-cols-4 gap-2">
+                      <div className="mt-2 border-t border-line-soft px-2 pt-3">
+                        <p className="text-[9.5px] font-black uppercase tracking-[.15em] text-ink-faint">Explore the modules</p>
+                        <div className="mt-1.5 grid grid-cols-2 gap-0.5">
                           {MODULE_LINKS.map((item) => {
                             const active = location.pathname.startsWith(item.to);
                             return (
@@ -235,15 +205,11 @@ export default function Nav() {
                                 to={item.to}
                                 onPointerEnter={() => void preloadRoute(item.to)}
                                 onFocus={() => void preloadRoute(item.to)}
-                                className={`flex min-h-11 items-center gap-2.5 rounded-xl border px-3 text-[10px] font-bold transition-[background-color,border-color,color] ${
-                                  active
-                                    ? "border-coral/20 bg-coral-soft/65 text-coral-dark"
-                                    : "border-[#eee4da] bg-white/75 text-ink-soft hover:border-coral/15 hover:bg-white hover:text-ink"
+                                className={`flex items-center gap-2 rounded-xl px-2 py-2 text-[11.5px] font-bold transition-colors ${
+                                  active ? "text-coral-dark" : "text-ink-soft hover:bg-mist hover:text-ink"
                                 }`}
                               >
-                                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-coral-soft text-coral-dark">
-                                  <item.icon className="h-3.5 w-3.5" />
-                                </span>
+                                <item.icon className="h-3.5 w-3.5 shrink-0 text-coral-dark" />
                                 {item.label}
                               </Link>
                             );
@@ -257,7 +223,7 @@ export default function Nav() {
             </div>
 
             <div
-              className="static"
+              className="relative"
               onMouseEnter={() => {
                 setDesktopMenu("stays");
                 preloadRoutes(STAY_LINKS.map((item) => item.to));
@@ -354,26 +320,31 @@ export default function Nav() {
               className="overflow-hidden lg:hidden"
             >
               <div className="mx-3 max-h-[calc(100vh-100px)] overflow-y-auto border-t border-line-soft px-1 pb-6 pt-4 sm:mx-5">
-                <p className="mb-2 px-2 text-[9px] font-black uppercase tracking-[.18em] text-ink-faint">Product</p>
-                <div className="grid gap-1.5 rounded-2xl border border-[#e6d8cc] bg-[#f1e5dc] p-2 sm:grid-cols-3 sm:gap-2">
+                <p className="mb-2 px-2 text-[9px] font-black uppercase tracking-[.18em] text-ink-faint">Core products</p>
+                <div className="grid gap-1">
                   {PRODUCT_LINKS.map((item) => (
-                    <Link key={item.to} to={item.to} className="relative grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-[#eadfd4] bg-[#fbf7f2] p-3 text-ink sm:block sm:p-4">
-                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] bg-coral-soft text-coral-dark sm:h-10 sm:w-10 sm:rounded-[13px]"><item.icon className="h-[17px] w-[17px] sm:h-[18px] sm:w-[18px]" /></span>
-                      <div className="min-w-0 sm:contents">
-                        <p className="text-[12px] font-black sm:mt-3 sm:text-[13px]">{item.label}</p>
-                        <p className="mt-0.5 line-clamp-1 text-[9.5px] leading-relaxed text-ink-mute sm:mt-1 sm:line-clamp-none sm:text-[10px]">{item.short}</p>
-                      </div>
-                      <span className={`rounded-full px-2 py-1 text-[7px] font-black uppercase tracking-[.14em] sm:absolute sm:right-4 sm:top-4 ${item.status === "Live" ? "bg-emerald-50 text-emerald-700" : "bg-white text-coral-dark"}`}>{item.status}</span>
+                    <Link key={item.to} to={item.to} className="flex items-start gap-3 rounded-2xl p-3">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-coral-soft text-coral-dark">
+                        <item.icon className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[12.5px] font-black text-ink">{item.label}</span>
+                        <span className="mt-0.5 block text-[10.5px] leading-relaxed text-ink-mute">{item.short}</span>
+                      </span>
                     </Link>
                   ))}
                 </div>
 
-                <div className="mt-2 grid grid-cols-2 gap-2 rounded-2xl border border-[#eee5dc] bg-[#fcf9f5] p-2">
-                  {MODULE_LINKS.map((item) => (
-                    <Link key={item.to} to={item.to} className="flex items-center gap-2 rounded-xl border border-[#eee4da] bg-white/75 px-2 py-2.5 text-[11px] font-bold text-ink-soft hover:bg-white">
-                      <item.icon className="h-3.5 w-3.5 text-coral-dark" /> {item.label}
-                    </Link>
-                  ))}
+                <div className="mt-2 border-t border-line-soft px-2 pt-3">
+                  <p className="text-[9px] font-black uppercase tracking-[.18em] text-ink-faint">Explore the modules</p>
+                  <div className="mt-1.5 grid grid-cols-2 gap-0.5">
+                    {MODULE_LINKS.map((item) => (
+                      <Link key={item.to} to={item.to} className="flex items-center gap-2 rounded-xl px-2 py-2 text-[11px] font-bold text-ink-soft">
+                        <item.icon className="h-3.5 w-3.5 shrink-0 text-coral-dark" />
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
 
                 <p className="mb-2 mt-5 px-2 text-[9px] font-black uppercase tracking-[.18em] text-ink-faint">Who it&apos;s for</p>

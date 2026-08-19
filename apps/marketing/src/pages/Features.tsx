@@ -895,10 +895,10 @@ function GuestCrmMockup() {
       <div className="absolute top-[-25px] left-[-25px] w-48 h-48 rounded-full bg-blue-500/5 blur-3xl pointer-events-none" />
       <div className="absolute bottom-[-25px] right-[-25px] w-48 h-48 rounded-full bg-purple-500/5 blur-3xl pointer-events-none" />
 
-      <div className="w-[300px] rounded-[24px] bg-white border border-line shadow-[0_20px_60px_rgba(0,0,0,0.08)] flex flex-col hover:-translate-y-1 transition-transform duration-500">
+      <div className="w-full max-w-[300px] rounded-[24px] bg-white border border-line shadow-[0_20px_60px_rgba(0,0,0,0.08)] flex flex-col hover:-translate-y-1 transition-transform duration-500">
         <div className="p-5 flex items-center gap-4 border-b border-line-soft relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-blue-50 to-transparent" />
-          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-[20px] font-black shadow-lg relative z-10">
+          <div className="w-14 h-14 shrink-0 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-[20px] font-black shadow-lg relative z-10">
             AL
             <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center">
               <span className="w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center">
@@ -906,10 +906,10 @@ function GuestCrmMockup() {
               </span>
             </div>
           </div>
-          <div className="relative z-10">
-            <h3 className="text-[16px] font-black text-ink tracking-tight">Alison Larsen</h3>
-            <p className="text-[11px] text-ink-mute font-medium mt-1">alison.larsen@example.com</p>
-            <div className="flex items-center gap-2 mt-2">
+          <div className="relative z-10 min-w-0 flex-1">
+            <h3 className="truncate text-[16px] font-black text-ink tracking-tight">Alison Larsen</h3>
+            <p className="truncate text-[11px] text-ink-mute font-medium mt-1">alison.larsen@example.com</p>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
               <span className="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200/50 px-2 py-0.5 rounded-full">VIP Guest</span>
               <span className="text-[9px] font-bold text-ink-mute bg-mist px-2 py-0.5 rounded-full">4 Stays</span>
             </div>
@@ -953,7 +953,7 @@ function GuestCrmMockup() {
 // ─── QR & Kitchen Dual Mockup ────────────────────────────────────────────────
 function QrKitchenDualMockup() {
   return (
-    <div className="relative flex flex-col md:flex-row items-center md:items-end gap-6 justify-center select-none w-full max-w-4xl mx-auto">
+    <div className="relative flex flex-col xl:flex-row items-center xl:items-end gap-6 justify-center select-none w-full max-w-4xl mx-auto">
 
       {/* ── PHONE — QR menu app ── */}
       <div
@@ -1081,7 +1081,7 @@ function QrKitchenDualMockup() {
       </div>
 
       {/* ── ARROW between phone and KDS ── */}
-      <div className="hidden md:flex flex-col items-center gap-1 mb-20 z-20 shrink-0">
+      <div className="hidden xl:flex flex-col items-center gap-1 mb-20 z-20 shrink-0">
         <div className="flex flex-col items-center">
           {[0,1,2].map(i => (
             <ChevronRight key={i} className="w-4 h-4 text-coral/60" style={{ marginTop: i === 0 ? 0 : -6 }} />
@@ -1093,7 +1093,7 @@ function QrKitchenDualMockup() {
       </div>
 
       {/* ── KDS — Wide Computer Monitor Screen ── */}
-      <div className="relative flex-1 min-w-[280px] md:min-w-[460px] flex flex-col items-center group">
+      <div className="relative flex-1 min-w-0 flex flex-col items-center group">
         {/* Computer Monitor Body */}
         <div
           className="w-full rounded-2xl overflow-hidden shadow-[0_30px_70px_rgba(0,0,0,0.12)] flex flex-col border bg-[#111315]"
@@ -1212,7 +1212,7 @@ function QrKitchenDualMockup() {
         {/* Folio update toast — floats above base */}
         <div
           className="absolute z-30 flex items-start gap-2.5 px-3 py-2 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.08)] bg-white border border-emerald-200/80"
-          style={{ bottom: 20, right: 30, maxWidth: 210 }}
+          style={{ bottom: 46, right: 30, maxWidth: 210 }}
         >
           <div className="w-5 h-5 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
             <CheckCircle2 className="w-3 h-3 text-emerald-500" />
@@ -1273,12 +1273,12 @@ function OneCalendarMockup() {
         <span className="w-2.5 h-2.5 rounded-full bg-red-400 opacity-60" />
         <span className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-60" />
         <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 opacity-60" />
-        <div className="ml-3 flex-1 flex items-center justify-between">
-          <div className="bg-white border border-line-soft/80 px-3 py-0.5 rounded text-[11px] text-ink-mute flex items-center gap-1.5 max-w-[200px] truncate">
+        <div className="ml-3 flex min-w-0 flex-1 items-center justify-between gap-2">
+          <div className="flex min-w-0 shrink items-center gap-1.5 rounded border border-line-soft/80 bg-white px-3 py-0.5 text-[11px] text-ink-mute max-w-[200px]">
             <Globe className="w-2.5 h-2.5 shrink-0" />
             <span className="truncate">innflo.com/reservations</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200/50 font-bold px-2 py-0.5 rounded-full">Live</span>
             <span className="text-[10px] text-ink-mute font-medium">Jul 2026</span>
           </div>
@@ -1425,16 +1425,16 @@ function ChannelManagerFlowMockup() {
     <div className="rounded-2xl overflow-hidden font-body bg-white border border-line shadow-[0_8px_40px_rgba(0,0,0,0.07)] select-none">
       {/* Browser chrome header */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-mist border-b border-line-soft">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-400 opacity-60" />
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-60" />
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 opacity-60" />
-          <div className="ml-3 bg-white border border-line-soft/80 px-2 py-0.5 rounded text-[11px] text-ink-mute flex items-center gap-1">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className="w-2.5 h-2.5 shrink-0 rounded-full bg-red-400 opacity-60" />
+          <span className="w-2.5 h-2.5 shrink-0 rounded-full bg-amber-400 opacity-60" />
+          <span className="w-2.5 h-2.5 shrink-0 rounded-full bg-emerald-400 opacity-60" />
+          <div className="ml-3 flex min-w-0 items-center gap-1 rounded border border-line-soft/80 bg-white px-2 py-0.5 text-[11px] text-ink-mute">
             <Globe className="w-2.5 h-2.5 shrink-0" />
-            <span>innflo.com/channel-manager</span>
+            <span className="truncate">innflo.com/channel-manager</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <span className="text-[10px] text-coral-dark bg-coral-soft/50 font-bold px-2 py-0.5 rounded-full">Roadmap preview</span>
           <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
         </div>
@@ -1824,7 +1824,7 @@ export default function Features() {
       {/* ── RESERVATIONS ───────────────────────────────────────────────────── */}
       <section id="reservations" className="scroll-mt-24 py-28 overflow-hidden">
         <div className="mx-auto max-w-7xl px-6">
-          <div className="grid grid-cols-1 items-center gap-14 lg:grid-cols-[64%_36%] lg:gap-16">
+          <div className="grid grid-cols-1 items-center gap-14 [&>*]:min-w-0 lg:grid-cols-[64fr_36fr] lg:gap-16">
             {/* Left — Calendar Mockup */}
             <Reveal delay={0.1} variant="rise" className="order-2 lg:order-1">
               <OneCalendarMockup />
@@ -1880,7 +1880,7 @@ export default function Features() {
       {/* ── QR & KITCHEN ───────────────────────────────────────────────────── */}
       <section className="py-28 bg-paper overflow-hidden border-t border-line">
         <div className="mx-auto max-w-7xl px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-[40%_60%] gap-16 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[40fr_60fr] [&>*]:min-w-0 gap-16 items-center">
 
             {/* ── LEFT: Copy ── */}
             <Reveal>
@@ -2012,7 +2012,7 @@ export default function Features() {
       {/* ── REPORTS ────────────────────────────────────────────────────────── */}
       <section className="py-24">
         <div className="mx-auto max-w-7xl px-6">
-          <div className="grid grid-cols-1 items-center gap-14 lg:grid-cols-[55%_45%] lg:gap-16">
+          <div className="grid grid-cols-1 items-center gap-14 [&>*]:min-w-0 lg:grid-cols-[55fr_45fr] lg:gap-16">
             <Reveal delay={0.1} variant="rise" className="order-2 lg:order-1">
               <ReportMockup />
             </Reveal>
@@ -2035,7 +2035,7 @@ export default function Features() {
       {/* ── CHANNEL MANAGER — in development, full section ──────────────────── */}
       <section id="channels" className="py-24 bg-mist border-y border-line">
         <div className="mx-auto max-w-7xl px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-[42%_58%] gap-14 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[42fr_58fr] [&>*]:min-w-0 gap-14 items-center">
             <Reveal>
               <div className="flex items-center gap-3 mb-4">
                 <p className="eyebrow">Channel Manager</p>

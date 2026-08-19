@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Facebook, Instagram, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
+import { ArrowRight, Facebook, Heart, Instagram, Linkedin, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import MagneticButton from "./motion/MagneticButton";
 import {
   CONTACT_EMAIL,
@@ -8,6 +8,9 @@ import {
   FACEBOOK_URL,
   getWhatsAppUrl,
   INSTAGRAM_URL,
+  LINKEDIN_URL,
+  PARENT_COMPANY,
+  PARENT_COMPANY_URL,
   SUPPORT_EMAIL,
 } from "../lib/contact";
 
@@ -57,7 +60,7 @@ export default function Footer() {
                 <span className="font-display text-[26px] font-medium italic leading-none text-paper">Innflo</span>
               </Link>
               <p className="mt-4 max-w-[300px] text-[14px] leading-relaxed" style={{ color: SOFT }}>
-                A manager-first hotel operating system for independent properties—starting in Pakistan.
+                The all-in-one operating system for hotels — front desk, restaurant, and finances running as one. Built in Pakistan.
               </p>
               <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-[11px] font-semibold" style={{ color: SOFT }}>
                 <MapPin className="h-3.5 w-3.5 text-coral" /> Built for hospitality on the ground
@@ -80,6 +83,15 @@ export default function Footer() {
                   className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-white/60 transition-colors hover:border-coral/50 hover:bg-white/10 hover:text-coral"
                 >
                   <Facebook className="h-4 w-4" />
+                </a>
+                <a
+                  href={LINKEDIN_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Innflo on LinkedIn"
+                  className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-white/60 transition-colors hover:border-coral/50 hover:bg-white/10 hover:text-coral"
+                >
+                  <Linkedin className="h-4 w-4" />
                 </a>
               </div>
             </div>
@@ -120,9 +132,22 @@ export default function Footer() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 border-t border-white/10 pt-5 text-[11px] sm:flex-row sm:items-center sm:justify-between" style={{ color: FAINT }}>
-            <p>© {new Date().getFullYear()} Innflo. All rights reserved.</p>
-            <p>Built for real hotels, not demo workflows.</p>
+          <div className="flex flex-col flex-wrap gap-x-6 gap-y-3 border-t border-white/10 pt-5 text-[11px] md:flex-row md:items-center md:justify-between" style={{ color: FAINT }}>
+            <p className="text-center md:text-left">© {new Date().getFullYear()} Innflo. All rights reserved.</p>
+            <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-[13px] sm:text-[14px] md:justify-start md:text-left" style={{ color: SOFT }}>
+              <span>Dreamt up, built, and looked after with</span>
+              <Heart className="h-4 w-4 shrink-0 fill-coral text-coral" aria-label="love" />
+              <span>by</span>
+              <a
+                href={PARENT_COMPANY_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-paper transition-colors hover:text-coral"
+              >
+                {PARENT_COMPANY}
+              </a>
+            </p>
+            <p className="text-center md:text-right">Built for real hotels, not demo workflows.</p>
           </div>
         </div>
 

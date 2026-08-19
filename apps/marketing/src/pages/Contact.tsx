@@ -5,6 +5,7 @@ import {
   Facebook,
   Instagram,
   LifeBuoy,
+  Linkedin,
   Mail,
   MessageCircle,
   PhoneCall,
@@ -21,6 +22,7 @@ import {
   FACEBOOK_URL,
   getWhatsAppUrl,
   INSTAGRAM_URL,
+  LINKEDIN_URL,
   SUPPORT_EMAIL,
 } from "../lib/contact";
 
@@ -169,6 +171,15 @@ export default function Contact() {
                   aria-label="Innflo on Facebook"
                 >
                   <Facebook className="h-4 w-4" />
+                </a>
+                <a
+                  href={LINKEDIN_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="grid h-9 w-9 place-items-center rounded-full border border-line text-ink-soft transition-colors hover:border-coral/40 hover:bg-coral-soft hover:text-coral-dark"
+                  aria-label="Innflo on LinkedIn"
+                >
+                  <Linkedin className="h-4 w-4" />
                 </a>
               </div>
             </div>

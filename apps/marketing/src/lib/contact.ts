@@ -8,6 +8,10 @@ export const CONTACT_WHATSAPP = "923200466356";
 
 export const INSTAGRAM_URL = "https://www.instagram.com/innflo.co/";
 export const FACEBOOK_URL = "https://www.facebook.com/profile.php?id=61592481567754";
+export const LINKEDIN_URL = "https://www.linkedin.com/company/innflopms/";
+
+export const PARENT_COMPANY = "algoniv";
+export const PARENT_COMPANY_URL = "https://www.algoniv.com";
 
 export function getWhatsAppUrl(message?: string) {
   const query = message ? `?text=${encodeURIComponent(message)}` : "";

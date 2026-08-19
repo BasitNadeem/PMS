@@ -623,7 +623,7 @@ export default function Automations() {
       {/* ── Flagship: manager overview ──────────────────────────────────────── */}
       <section className="py-20 px-6">
         <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[55%_45%] gap-14 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[55fr_45fr] [&>*]:min-w-0 gap-14 items-center">
             <Reveal>
               <p className="eyebrow mb-4">Manager overview</p>
               <h2 className="font-display text-[clamp(28px,3.4vw,40px)] font-medium leading-tight text-ink mb-5">
@@ -685,7 +685,7 @@ export default function Automations() {
       {/* ── Housekeeping ──────────────────────────────────────────────────────── */}
       <section className="py-20 px-6 bg-mist border-y border-line">
         <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-14 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[45fr_55fr] [&>*]:min-w-0 gap-14 items-center">
             <Reveal className="order-2 lg:order-1">
               <p className="eyebrow mb-4">Housekeeping</p>
               <h2 className="font-display text-[clamp(28px,3.4vw,40px)] font-medium leading-tight text-ink mb-5">
@@ -712,7 +712,7 @@ export default function Automations() {
       {/* ── Folio automation — routes to Point of Sale ───────────────────────── */}
       <section className="py-20 px-6">
         <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[55%_45%] gap-14 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[55fr_45fr] [&>*]:min-w-0 gap-14 items-center">
             <Reveal>
               <p className="eyebrow mb-4">Folio</p>
               <h2 className="font-display text-[clamp(28px,3.4vw,40px)] font-medium leading-tight text-ink mb-5">
@@ -744,7 +744,7 @@ export default function Automations() {
       {/* ── Inventory — movement + low stock ────────────────────────────────── */}
       <section className="py-20 px-6 bg-mist border-y border-line">
         <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-14 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[45fr_55fr] [&>*]:min-w-0 gap-14 items-center">
             <Reveal className="order-2 lg:order-1">
               <p className="eyebrow mb-4">Inventory</p>
               <h2 className="font-display text-[clamp(28px,3.4vw,40px)] font-medium leading-tight text-ink mb-5">
@@ -771,7 +771,7 @@ export default function Automations() {
       {/* ── Group checkout ────────────────────────────────────────────────────── */}
       <section className="py-20 px-6">
         <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[55%_45%] gap-14 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[55fr_45fr] [&>*]:min-w-0 gap-14 items-center">
             <Reveal>
               <p className="eyebrow mb-4">Group bookings</p>
               <h2 className="font-display text-[clamp(28px,3.4vw,40px)] font-medium leading-tight text-ink mb-5">
@@ -798,7 +798,7 @@ export default function Automations() {
       {/* ── Channel sync — routes to Channel Manager ─────────────────────────── */}
       <section className="py-20 px-6 bg-mist border-y border-line">
         <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-14 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-[45fr_55fr] [&>*]:min-w-0 gap-14 items-center">
             <Reveal className="order-2 lg:order-1">
               <div className="flex items-center gap-3 mb-4">
                 <p className="eyebrow">Channel sync</p>

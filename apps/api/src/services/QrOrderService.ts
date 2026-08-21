@@ -515,6 +515,7 @@ export const QrOrderService = {
           orderNumber:   order.order_number,
           total:         Number(order.total_amount),
           paymentMethod: dto.paymentMethod,
+          occurredAt:    updated.updated_at,
         },
         actorId,
       ).catch(() => { /* logged inside; source id keeps retries idempotent */ });

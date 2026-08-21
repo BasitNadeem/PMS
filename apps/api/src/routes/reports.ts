@@ -4,6 +4,10 @@ import { authenticate } from "../middleware/auth";
 import { tenantMiddleware } from "../middleware/tenant";
 import { requirePermission } from "../middleware/permission";
 import { ReportService } from "../services/ReportService";
+import { HotelMetricsService } from "../services/HotelMetricsService";
+import { getCurrentPKTDate } from "../lib/timezone";
+import { EarlyBirdReportService } from "../services/EarlyBirdReportService";
+import { BookingPaceService } from "../services/BookingPaceService";
 
 const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
@@ -11,7 +15,22 @@ router.use(authenticate, tenantMiddleware);
 const dateRangeSchema = z.object({
   startDate: z.string().date(),
   endDate: z.string().date(),
+}).superRefine((value, ctx) => {
+  if (value.endDate < value.startDate) ctx.addIssue({ code: "custom", path: ["endDate"], message: "End date must be on or after start date" });
+  const days = Math.round((Date.parse(`${value.endDate}T00:00:00Z`) - Date.parse(`${value.startDate}T00:00:00Z`)) / 86_400_000) + 1;
+  if (days > 366) ctx.addIssue({ code: "custom", path: ["endDate"], message: "Report range cannot exceed 366 days" });
 });
+
+const forecastSchema = z.object({
+  startDate: z.string().date().optional(),
+  days: z.coerce.number().int().min(1).max(90).default(10),
+});
+
+function addUtcDays(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
 
 // ── GET /api/reports/daily?date=YYYY-MM-DD ────────────────────────────────────
 
@@ -19,6 +38,38 @@ router.get("/daily", requirePermission("reports:read"), async (req, res) => {
   const { date } = z.object({ date: z.string().date() }).parse(req.query);
   const data = await ReportService.getDailyReport(req.withTenant, req.user!.hotelId, date);
   res.json({ data });
+});
+
+// ── GET /api/reports/early-bird?date=&forecastDays=10 ───────────────────────
+
+router.get("/early-bird", requirePermission("reports:read"), async (req, res) => {
+  const query = z.object({
+    date: z.string().date().optional(),
+    forecastDays: z.coerce.number().int().min(1).max(30).default(10),
+  }).parse(req.query);
+  const data = await EarlyBirdReportService.getReport(
+    req.withTenant,
+    req.user!.hotelId,
+    query.date ?? getCurrentPKTDate(),
+    query.forecastDays,
+    req.user!.userId,
+  );
+  res.json({ data });
+});
+
+// ── GET /api/reports/early-bird/history ─────────────────────────────────────
+
+router.get("/early-bird/history", requirePermission("reports:read"), async (req, res) => {
+  const query = z.object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+  }).parse(req.query);
+  const result = await EarlyBirdReportService.listArchives(
+    req.withTenant,
+    req.user!.hotelId,
+    query,
+  );
+  res.json(result);
 });
 
 // ── GET /api/reports/monthly?year=2026&month=6 ────────────────────────────────
@@ -84,6 +135,46 @@ router.get("/occupancy-trend", requirePermission("reports:read"), async (req, re
 router.get("/adr-revpar", requirePermission("reports:read"), async (req, res) => {
   const { startDate, endDate } = dateRangeSchema.parse(req.query);
   const data = await ReportService.getADRRevPAR(req.withTenant, startDate, endDate);
+  res.json({ data });
+});
+
+// ── GET /api/reports/historical-comparison?startDate=&endDate= ──────────────
+
+router.get("/historical-comparison", requirePermission("reports:read"), async (req, res) => {
+  const { startDate, endDate } = dateRangeSchema.parse(req.query);
+  const data = await ReportService.getHistoricalComparison(req.withTenant, startDate, endDate);
+  res.json({ data });
+});
+
+// ── GET /api/reports/pickup-pace?startDate=&days=30&lookbackDays=7 ──────────
+
+router.get("/pickup-pace", requirePermission("reports:read"), async (req, res) => {
+  const query = z.object({
+    startDate: z.string().date().optional(),
+    days: z.coerce.number().int().min(1).max(90).default(30),
+    lookbackDays: z.coerce.number().int().refine((value) => [1, 7, 14, 30].includes(value), "Lookback must be 1, 7, 14 or 30 days").default(7),
+  }).parse(req.query);
+  const startDate = query.startDate ?? getCurrentPKTDate();
+  if (startDate > addUtcDays(getCurrentPKTDate(), 90)) {
+    throw new z.ZodError([{ code: "custom", path: ["startDate"], message: "Pickup report can start at most 90 days ahead" }]);
+  }
+  const data = await BookingPaceService.getReport(
+    req.withTenant,
+    req.user!.hotelId,
+    startDate,
+    query.days,
+    query.lookbackDays,
+  );
+  res.json({ data });
+});
+
+// ── GET /api/reports/forecast?startDate=&days=10 ─────────────────────────────
+
+router.get("/forecast", requirePermission("reports:read"), async (req, res) => {
+  const query = forecastSchema.parse(req.query);
+  const startDate = query.startDate ?? getCurrentPKTDate();
+  const endDate = addUtcDays(startDate, query.days - 1);
+  const data = await HotelMetricsService.getRange(req.withTenant, startDate, endDate);
   res.json({ data });
 });
 

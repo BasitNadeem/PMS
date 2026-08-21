@@ -44,6 +44,8 @@ export function DirectPaymentModal({ cart, onClose, onSuccess }: DirectPaymentMo
       }),
     onSuccess: (order) => {
       qc.invalidateQueries({ queryKey: ["pos-orders"] });
+      qc.invalidateQueries({ queryKey: ["pos-categories"] });
+      qc.invalidateQueries({ queryKey: ["inventory"] });
       setCompletedOrder(order);
       setSucceeded(true);
     },
@@ -199,4 +201,3 @@ export function DirectPaymentModal({ cart, onClose, onSuccess }: DirectPaymentMo
     </>
   );
 }
-

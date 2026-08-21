@@ -50,6 +50,15 @@ export type CreateReservationDto = z.infer<typeof createReservationSchema>;
 
 export const updateReservationStatusSchema = z.object({
   status: z.nativeEnum(ReservationStatus),
+  reason: z.string().trim().min(3).max(500).optional(),
+}).superRefine((value, ctx) => {
+  if (value.status === ReservationStatus.NO_SHOW && !value.reason) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["reason"],
+      message: "A reason is required when marking a reservation as no-show",
+    });
+  }
 });
 export type UpdateReservationStatusDto = z.infer<typeof updateReservationStatusSchema>;
 
@@ -81,3 +90,43 @@ export const updateReservationSchema = z
     { message: "Check-out must be after check-in", path: ["checkOutDate"] },
   );
 export type UpdateReservationDto = z.infer<typeof updateReservationSchema>;
+
+export const manageCheckedInStaySchema = z.object({
+  newRoomId: z.string().uuid().optional(),
+  checkOutDate: z.string().date().optional(),
+  earlyDepartureTreatment: z.enum(["KEEP_ORIGINAL_CHARGES", "CREDIT_UNUSED_NIGHTS", "CUSTOM_CREDIT"]).default("KEEP_ORIGINAL_CHARGES"),
+  earlyDepartureCreditAmount: z.number().int().positive().optional(),
+  pricingMode: z.enum(["KEEP_RATE", "USE_NEW_ROOM_RATE", "CUSTOM_RATE"]).default("KEEP_RATE"),
+  customRatePerNight: z.number().int().positive().optional(),
+  rebateAmount: z.number().int().min(0).default(0),
+  reason: z.string().trim().min(3, "Enter an internal reason").max(500),
+}).superRefine((value, ctx) => {
+  if (value.pricingMode === "CUSTOM_RATE" && value.customRatePerNight === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["customRatePerNight"],
+      message: "Enter the approved nightly rate",
+    });
+  }
+  if (value.earlyDepartureTreatment === "CUSTOM_CREDIT" && value.earlyDepartureCreditAmount === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["earlyDepartureCreditAmount"],
+      message: "Enter the approved early departure credit",
+    });
+  }
+  if (!value.newRoomId && !value.checkOutDate && value.rebateAmount === 0 && value.pricingMode === "KEEP_RATE") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["newRoomId"],
+      message: "Change the room, check-out date, rate, or rebate",
+    });
+  }
+});
+export type ManageCheckedInStayDto = z.infer<typeof manageCheckedInStaySchema>;
+
+export const reverseReservationLifecycleSchema = z.object({
+  action: z.enum(["CHECK_IN", "CHECK_OUT"]),
+  reason: z.string().trim().min(5, "Enter a clear reversal reason").max(500),
+});
+export type ReverseReservationLifecycleDto = z.infer<typeof reverseReservationLifecycleSchema>;

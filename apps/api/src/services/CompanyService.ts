@@ -2,6 +2,7 @@ import {
   Prisma,
   CompanyLedgerEntryType,
   CompanyInvoiceStatus,
+  FolioPayerType,
   type CompanyPaymentTerms,
   type TenantTx,
 } from "@pms/db";
@@ -18,9 +19,13 @@ import type {
   CompanyLedgerQuery, RecordCompanyPaymentDto, AdjustCompanyLedgerDto,
   CreateCompanyInvoiceDto, AgingReportQuery, ReverseCompanyPaymentDto,
   RefundCompanyCreditDto,
+  ReverseFolioTransferDto,
+  CompanyProductionQuery,
 } from "../schemas/companies";
+import { HotelMetricsService } from "./HotelMetricsService";
 import { createLedgerEntryFromCompanyMovement } from "./CashBookService";
 import { sendEmail } from "./EmailService";
+import { recalculateFolioTotals } from "../utils/folioTotals";
 
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
 
@@ -494,6 +499,7 @@ export const CompanyService = {
       const statusRows = query.status === "all"
         ? rows
         : rows.filter((r) => {
+            if (r.reversedAt) return false;
             if (!OBLIGATION_TYPES.includes(r.type)) return false;
             const open = r.amount - r.settledAmount > 0n;
             return query.status === "open" ? open : !open;
@@ -504,7 +510,7 @@ export const CompanyService = {
       return {
         data: filtered.map((r) => {
           const json = ledgerJson(r);
-          return { ...json, outstanding: Math.max(0, json.amount - json.settledAmount) };
+          return { ...json, outstanding: json.reversedAt ? 0 : Math.max(0, json.amount - json.settledAmount) };
         }),
         meta: paginationMeta(total, query.page, query.limit),
       };
@@ -561,7 +567,7 @@ export const CompanyService = {
     opts: { amount?: number; note?: string; idempotencyKey: string },
   ) {
     const existingMovement = await db.companyLedgerEntry.findFirst({
-      where: { hotelId: actor.hotelId, sourceKey: opts.idempotencyKey },
+      where: { hotelId: actor.hotelId, sourceKey: opts.idempotencyKey, reversedAt: null },
       select: { id: true, amount: true, dueDate: true, companyId: true },
     });
     if (existingMovement) {
@@ -574,7 +580,7 @@ export const CompanyService = {
     // simultaneous checkouts can both observe the same available credit.
     await db.$queryRaw`SELECT id FROM companies WHERE id = ${companyId}::uuid AND hotel_id = ${actor.hotelId}::uuid FOR UPDATE`;
     const movementAfterLock = await db.companyLedgerEntry.findFirst({
-      where: { hotelId: actor.hotelId, sourceKey: opts.idempotencyKey },
+      where: { hotelId: actor.hotelId, sourceKey: opts.idempotencyKey, reversedAt: null },
       select: { id: true, amount: true, dueDate: true, companyId: true },
     });
     if (movementAfterLock) {
@@ -593,7 +599,12 @@ export const CompanyService = {
     const folio = await db.folio.findUnique({
       where: { id: folioId },
       select: {
-        id: true, folioNumber: true, balanceDue: true, isOpen: true,
+        id: true, folioNumber: true, balanceDue: true, guestBalanceDue: true,
+        companyBalanceDue: true, companyResponsibilityTotal: true, isOpen: true,
+        items: {
+          where: { isVoided: false, payerType: "COMPANY" },
+          select: { payerCompanyId: true },
+        },
         reservation: {
           select: {
             id: true, checkInDate: true, checkOutDate: true,
@@ -605,10 +616,26 @@ export const CompanyService = {
     });
     if (!folio) throw new AppError(404, "Folio not found");
 
-    const amount = opts.amount ?? folio.balanceDue;
+    const allocatedCompanyIds = Array.from(new Set(
+      folio.items.map((item) => item.payerCompanyId).filter((id): id is string => id !== null),
+    ));
+    const usesItemAllocations = folio.companyResponsibilityTotal > 0;
+    if (usesItemAllocations) {
+      if (allocatedCompanyIds.length !== 1) {
+        throw new AppError(409, "BTC charges must be assigned to one company before they can be transferred.");
+      }
+      if (allocatedCompanyIds[0] !== companyId) {
+        throw new AppError(409, "The selected company does not match the company assigned to these BTC charges.");
+      }
+    }
+
+    const transferableBalance = usesItemAllocations ? folio.companyBalanceDue : folio.balanceDue;
+    const amount = opts.amount ?? transferableBalance;
     if (amount <= 0) throw new AppError(400, "This folio has nothing left to transfer.");
-    if (amount > folio.balanceDue) {
-      throw new AppError(400, "Cannot transfer more than the folio's outstanding balance.");
+    if (amount > transferableBalance) {
+      throw new AppError(400, usesItemAllocations
+        ? "Cannot transfer more than the outstanding BTC responsibility."
+        : "Cannot transfer more than the folio's outstanding balance.");
     }
 
     const current = await reconcileCompany(db, companyId);
@@ -641,16 +668,20 @@ export const CompanyService = {
       select: { id: true, amount: true, dueDate: true },
     });
 
-    // The folio is settled from the hotel's point of view — the debt now lives
-    // on the company. Leaving balanceDue populated would double-count it in
-    // every outstanding-balance report.
-    await db.folio.update({
+    // Recalculate through the single responsibility engine so Guest/BTC and
+    // legacy total fields cannot drift. The new ledger CHARGE is treated as
+    // company coverage (or legacy Guest coverage for historical allocations).
+    await recalculateFolioTotals(db, folioId);
+    const recalculated = await db.folio.findUniqueOrThrow({
       where: { id: folioId },
-      data: {
-        balanceDue: folio.balanceDue - amount,
-        ...(folio.balanceDue - amount === 0 ? { isOpen: false, closedAt: new Date(), closedBy: actor.userId } : {}),
-      },
+      select: { balanceDue: true },
     });
+    if (recalculated.balanceDue === 0) {
+      await db.folio.update({
+        where: { id: folioId },
+        data: { isOpen: false, closedAt: new Date(), closedBy: actor.userId },
+      });
+    }
 
     // Reconcile, not just recompute: if the company is sitting on unapplied
     // credit from an earlier overpayment, this new charge is settled from it
@@ -682,6 +713,192 @@ export const CompanyService = {
     const result = await withTenant((db) =>
       CompanyService.transferFolio(db, actor, folioId, dto.companyId, { amount: dto.amount, note: dto.note, idempotencyKey: dto.idempotencyKey })
     );
+    notifyHotelDataChanged(actor.hotelId, "companies");
+    return result;
+  },
+
+  async reverseFolioTransfer(
+    withTenant: WithTenantFn,
+    actor: JwtPayload,
+    companyId: string,
+    entryId: string,
+    dto: ReverseFolioTransferDto,
+  ) {
+    const result = await withTenant(async (db) => {
+      await db.$queryRaw`SELECT id FROM companies WHERE id = ${companyId}::uuid AND hotel_id = ${actor.hotelId}::uuid FOR UPDATE`;
+      const company = await requireCompany(db, companyId);
+      const entry = await db.companyLedgerEntry.findFirst({
+        where: { id: entryId, companyId, type: CompanyLedgerEntryType.CHARGE },
+        select: {
+          id: true, amount: true, folioId: true, invoiceId: true,
+          settledAmount: true, reversedAt: true, sourceKey: true,
+        },
+      });
+      if (!entry) throw new AppError(404, "BTC folio transfer not found");
+      if (entry.reversedAt) throw new AppError(409, "This BTC transfer is already reversed.");
+      if (entry.invoiceId) throw new AppError(409, "Void the company invoice before reversing this BTC transfer.");
+      if (!entry.folioId) throw new AppError(409, "This company charge is not linked to a folio transfer.");
+      if (entry.settledAmount > 0n) {
+        throw new AppError(409, "Reverse the company payment applied to this BTC transfer before reversing the transfer itself.");
+      }
+
+      const returnToGuest = dto.payerAction === "RETURN_TO_GUEST";
+      if (returnToGuest) {
+        const [folio, otherActiveTransfers] = await Promise.all([
+          db.folio.findUnique({
+            where: { id: entry.folioId },
+            select: {
+              invoiceId: true,
+              reservation: { select: { id: true, groupId: true } },
+            },
+          }),
+          db.companyLedgerEntry.count({
+            where: {
+              folioId: entry.folioId,
+              type: CompanyLedgerEntryType.CHARGE,
+              reversedAt: null,
+              id: { not: entry.id },
+            },
+          }),
+        ]);
+        if (!folio) throw new AppError(404, "Linked folio not found");
+        if (folio.invoiceId) {
+          throw new AppError(409, "Void the guest folio invoice before returning these charges to the guest.");
+        }
+        if (otherActiveTransfers > 0) {
+          throw new AppError(
+            409,
+            "This folio has another active BTC ledger transfer. Reverse all other BTC transfers before returning its charges to the guest.",
+          );
+        }
+      }
+
+      const reversedAt = new Date();
+
+      await db.companyLedgerEntry.update({
+        where: { id: entry.id },
+        data: {
+          reversedAt, reversedBy: actor.userId,
+          reversalReason: dto.reason, sourceKey: null,
+        },
+      });
+
+      let returnedChargeCount = 0;
+      let clearedReservationCount = 0;
+      if (returnToGuest) {
+        const folioReservation = await db.folio.findUniqueOrThrow({
+          where: { id: entry.folioId },
+          select: { reservation: { select: { id: true, groupId: true } } },
+        });
+        const companyItems = await db.folioItem.findMany({
+          where: {
+            folioId: entry.folioId,
+            isVoided: false,
+            payerType: FolioPayerType.COMPANY,
+            payerCompanyId: companyId,
+          },
+          select: { id: true, payerType: true, payerCompanyId: true },
+        });
+
+        for (const item of companyItems) {
+          await db.folioItemPayerChange.create({
+            data: {
+              hotelId: actor.hotelId,
+              folioItemId: item.id,
+              previousPayerType: item.payerType,
+              previousPayerCompanyId: item.payerCompanyId,
+              newPayerType: FolioPayerType.GUEST,
+              newPayerCompanyId: null,
+              reason: `BTC transfer reversed — returned to guest: ${dto.reason}`,
+              changedBy: actor.userId,
+            },
+          });
+        }
+
+        if (companyItems.length > 0) {
+          const update = await db.folioItem.updateMany({
+            where: { id: { in: companyItems.map((item) => item.id) }, folioId: entry.folioId },
+            data: {
+              payerType: FolioPayerType.GUEST,
+              payerCompanyId: null,
+              allocatedAt: reversedAt,
+              allocatedBy: actor.userId,
+            },
+          });
+          returnedChargeCount = update.count;
+        }
+
+        // Item responsibility is authoritative after this correction. Clear
+        // the older all-or-nothing checkout instruction so it cannot silently
+        // bill the same guest debt back to the company later. Keep companyId:
+        // the stay remains linked to the organisation for CRM/reporting.
+        const clearedReservations = await db.reservation.updateMany({
+          where: folioReservation.reservation.groupId
+            ? { groupId: folioReservation.reservation.groupId, billToCompany: true }
+            : { id: folioReservation.reservation.id, billToCompany: true },
+          data: { billToCompany: false },
+        });
+        clearedReservationCount = clearedReservations.count;
+      }
+
+      await recalculateFolioTotals(db, entry.folioId);
+      const folio = await db.folio.findUniqueOrThrow({
+        where: { id: entry.folioId },
+        select: { balanceDue: true },
+      });
+      if (folio.balanceDue > 0) {
+        await db.folio.update({
+          where: { id: entry.folioId },
+          data: { isOpen: true, closedAt: null, closedBy: null },
+        });
+      }
+      const position = await reconcileCompany(db, companyId);
+      await db.auditLog.create({
+        data: {
+          hotelId: actor.hotelId,
+          userId: actor.userId,
+          action: "COMPANY_FOLIO_TRANSFER_REVERSED",
+          entity: "company_ledger_entry",
+          entityId: entry.id,
+          notes: dto.reason,
+          before: { companyId, folioId: entry.folioId, amount: minor(entry.amount), sourceKey: entry.sourceKey },
+          after: {
+            reversedAt: reversedAt.toISOString(),
+            payerAction: dto.payerAction,
+            returnedChargeCount,
+            clearedReservationCount,
+          },
+        },
+      });
+      if (returnToGuest && returnedChargeCount > 0) {
+        await db.auditLog.create({
+          data: {
+            hotelId: actor.hotelId,
+            userId: actor.userId,
+            action: "FOLIO_PAYER_RETURNED_TO_GUEST",
+            entity: "folio",
+            entityId: entry.folioId,
+            notes: dto.reason,
+            before: { payerType: FolioPayerType.COMPANY, companyId },
+            after: {
+              payerType: FolioPayerType.GUEST,
+              itemCount: returnedChargeCount,
+              clearedReservationCount,
+            },
+          },
+        });
+      }
+      return {
+        entryId: entry.id,
+        folioId: entry.folioId,
+        amount: minor(entry.amount),
+        companyName: company.name,
+        payerAction: dto.payerAction,
+        returnedChargeCount,
+        clearedReservationCount,
+        ...position,
+      };
+    });
     notifyHotelDataChanged(actor.hotelId, "companies");
     return result;
   },
@@ -766,7 +983,8 @@ export const CompanyService = {
     createLedgerEntryFromCompanyMovement(actor.hotelId, {
       id: result.payment.id, companyName: result.companyName,
       amount: result.payment.amount, method: result.payment.paymentMethod ?? dto.method,
-      direction: "INCOMING", entryDate: dto.paidAt,
+      direction: "INCOMING",
+      entryDate: new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(result.payment.entryDate),
     }, actor.userId).catch(() => { /* reconciliation repairs a missed secondary movement */ });
     return result;
   },
@@ -784,20 +1002,21 @@ export const CompanyService = {
       });
       if (!payment) throw new AppError(404, "Company payment not found");
       if (payment.reversedAt) throw new AppError(409, "This company payment is already reversed");
+      const reversedAt = new Date();
       await db.companyLedgerEntry.update({
         where: { id: payment.id },
-        data: { reversedAt: new Date(), reversedBy: actor.userId, reversalReason: dto.reason },
+        data: { reversedAt, reversedBy: actor.userId, reversalReason: dto.reason },
       });
       const position = await reconcileCompany(db, companyId);
       await db.auditLog.create({
         data: { hotelId: actor.hotelId, userId: actor.userId, action: "COMPANY_PAYMENT_REVERSED", entity: "company_ledger_entry", entityId: payment.id, notes: dto.reason, after: { companyId, amount: minor(payment.amount) } },
       });
-      return { payment: { ...payment, amount: minor(payment.amount) }, companyName: company.name, ...position };
+      return { payment: { ...payment, amount: minor(payment.amount), reversedAt }, companyName: company.name, ...position };
     });
     createLedgerEntryFromCompanyMovement(actor.hotelId, {
       id: result.payment.id, companyName: result.companyName, amount: result.payment.amount,
       method: result.payment.paymentMethod ?? "BANK_TRANSFER", direction: "OUTGOING",
-      entryDate: new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date()),
+      occurredAt: result.payment.reversedAt,
     }, actor.userId).catch(() => { /* Balance Book reconciliation repairs this */ });
     notifyHotelDataChanged(actor.hotelId, "companies");
     return result;
@@ -836,7 +1055,8 @@ export const CompanyService = {
     });
     createLedgerEntryFromCompanyMovement(actor.hotelId, {
       id: result.entry.id, companyName: result.companyName, amount: result.entry.amount,
-      method: result.entry.paymentMethod ?? dto.method, direction: "OUTGOING", entryDate: dto.paidAt,
+      method: result.entry.paymentMethod ?? dto.method, direction: "OUTGOING",
+      entryDate: new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(result.entry.entryDate),
     }, actor.userId).catch(() => { /* Balance Book reconciliation repairs this */ });
     notifyHotelDataChanged(actor.hotelId, "companies");
     return result;
@@ -1147,6 +1367,79 @@ export const CompanyService = {
           rooms: { select: { room: { select: { number: true } } }, take: 1 },
         },
       });
+    });
+  },
+
+  async getProduction(withTenant: WithTenantFn, companyId: string, query: CompanyProductionQuery) {
+    return withTenant(async (db) => {
+      const company = await requireCompany(db, companyId);
+      const from = new Date(`${query.from}T00:00:00.000Z`);
+      const toExclusive = new Date(`${query.to}T00:00:00.000Z`);
+      toExclusive.setUTCDate(toExclusive.getUTCDate() + 1);
+      if ((toExclusive.getTime() - from.getTime()) / 86_400_000 > 366) throw new AppError(400, "Production range cannot exceed 366 days");
+
+      const [hotelMetrics, reservations, ledger] = await Promise.all([
+        HotelMetricsService.getRangeFromDb(db, query.from, query.to),
+        db.reservation.findMany({
+          where: { companyId, checkInDate: { lt: toExclusive }, checkOutDate: { gt: from } },
+          orderBy: { checkInDate: "desc" },
+          select: {
+            id: true, confirmationNumber: true, status: true, checkInDate: true, checkOutDate: true,
+            totalAmount: true, guest: { select: { id: true, fullName: true } },
+            rooms: { select: { roomTypeId: true, ratePerNight: true, checkInDate: true, checkOutDate: true, roomType: { select: { name: true } }, room: { select: { number: true } } } },
+          },
+        }),
+        db.companyLedgerEntry.findMany({
+          where: { companyId, reversedAt: null, entryDate: { gte: from, lt: toExclusive } },
+          select: { type: true, amount: true },
+        }),
+      ]);
+
+      const productionStatuses = new Set(["CONFIRMED", "CHECKED_IN", "CHECKED_OUT"]);
+      const active = reservations.filter((reservation) => productionStatuses.has(reservation.status));
+      const roomTypes = new Map<string, { roomTypeName: string; roomNights: number; roomRevenue: number }>();
+      const months = new Map<string, { roomNights: number; roomRevenue: number }>();
+      let roomNights = 0;
+      let roomRevenue = 0;
+      for (const reservation of active) {
+        for (const stay of reservation.rooms) {
+          const start = new Date(Math.max(stay.checkInDate.getTime(), from.getTime()));
+          const end = new Date(Math.min(stay.checkOutDate.getTime(), toExclusive.getTime()));
+          for (let day = start; day < end; day = new Date(day.getTime() + 86_400_000)) {
+            const key = day.toISOString().slice(0, 7);
+            roomNights += 1;
+            roomRevenue += stay.ratePerNight;
+            const type = roomTypes.get(stay.roomTypeId) ?? { roomTypeName: stay.roomType.name, roomNights: 0, roomRevenue: 0 };
+            type.roomNights += 1; type.roomRevenue += stay.ratePerNight; roomTypes.set(stay.roomTypeId, type);
+            const month = months.get(key) ?? { roomNights: 0, roomRevenue: 0 };
+            month.roomNights += 1; month.roomRevenue += stay.ratePerNight; months.set(key, month);
+          }
+        }
+      }
+      const companyContribution = hotelMetrics.contribution.companies.find((entry) => entry.companyId === companyId);
+      const companyTotalRevenue = hotelMetrics.contribution.companies.reduce((sum, entry) => sum + entry.expectedRoomRevenue, 0);
+      const companyTotalNights = hotelMetrics.contribution.companies.reduce((sum, entry) => sum + entry.roomNights, 0);
+      const btcTransferred = ledger.filter((entry) => entry.type === "CHARGE").reduce((sum, entry) => sum + minor(entry.amount), 0);
+      const paymentsReceived = ledger.filter((entry) => entry.type === "PAYMENT").reduce((sum, entry) => sum + minor(entry.amount), 0);
+      return {
+        company: { id: company.id, name: company.name }, range: query,
+        summary: {
+          reservations: new Set(active.map((reservation) => reservation.id)).size,
+          roomNights, roomRevenue, adr: roomNights > 0 ? Math.round(roomRevenue / roomNights) : 0,
+          cancelled: reservations.filter((reservation) => reservation.status === "CANCELLED").length,
+          noShows: reservations.filter((reservation) => reservation.status === "NO_SHOW").length,
+          btcTransferred, paymentsReceived, outstanding: minor(company.balance),
+          companyRoomNightShare: companyTotalNights > 0 ? Math.round(((companyContribution?.roomNights ?? 0) / companyTotalNights) * 1000) / 10 : 0,
+          companyRevenueShare: companyTotalRevenue > 0 ? Math.round(((companyContribution?.expectedRoomRevenue ?? 0) / companyTotalRevenue) * 1000) / 10 : 0,
+        },
+        roomTypes: [...roomTypes.entries()].map(([roomTypeId, value]) => ({ roomTypeId, ...value, adr: Math.round(value.roomRevenue / value.roomNights) })).sort((a, b) => b.roomRevenue - a.roomRevenue),
+        months: [...months.entries()].map(([month, value]) => ({ month, ...value, adr: Math.round(value.roomRevenue / value.roomNights) })).sort((a, b) => a.month.localeCompare(b.month)),
+        recentReservations: reservations.slice(0, 10).map((reservation) => ({
+          id: reservation.id, confirmationNumber: reservation.confirmationNumber, status: reservation.status,
+          checkInDate: reservation.checkInDate, checkOutDate: reservation.checkOutDate, totalAmount: reservation.totalAmount,
+          guest: reservation.guest, rooms: reservation.rooms.map((stay) => ({ number: stay.room.number, roomTypeName: stay.roomType.name })),
+        })),
+      };
     });
   },
 };

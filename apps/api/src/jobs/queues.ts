@@ -61,6 +61,21 @@ export interface OccasionSweepJobData {
   hotelName: string;
 }
 
+export interface BookingPaceJobData {
+  hotelId: string;
+  hotelName: string;
+}
+
+export const bookingPaceQueue = new Queue<BookingPaceJobData, Record<string, unknown>, string>("booking-pace-snapshots", {
+  connection: redisConnectionOptions,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: { type: "exponential", delay: 5_000 },
+    removeOnComplete: 100,
+    removeOnFail: 50,
+  },
+});
+
 export const occasionQueue = new Queue<OccasionSweepJobData, Record<string, unknown>, string>("occasions", {
   connection: redisConnectionOptions,
   defaultJobOptions: {
@@ -111,5 +126,78 @@ export const emailQueue = new Queue<ReservationEmailJobData, Record<string, unkn
     backoff:  { type: "exponential", delay: 5_000 },
     removeOnComplete: 100,
     removeOnFail:     50,
+  },
+});
+
+/** Why a hotel's ARI is being resynced. Diagnostic only — never changes the push. */
+export type ChannexSyncReason =
+  | "RESERVATION"
+  | "RESERVATION_STATUS"
+  | "RESERVATION_EDIT"
+  | "BOOKING_ENGINE"
+  | "ROOM_TYPE_CHANGE"
+  | "ROOM_INVENTORY_BLOCK_CHANGE"
+  | "RATE_PLAN_CHANGE"
+  | "PROVISION"
+  | "NIGHTLY"
+  | "MANUAL";
+
+/**
+ * Identifiers and a window only — never precomputed availability or rates.
+ * The worker recomputes from current state at push time, so a job delayed by
+ * the coalesce window (or a retry) publishes current truth rather than
+ * whatever was true when it was queued.
+ */
+export interface ChannexSyncJobData {
+  hotelId:  string;
+  /** Inclusive ISO YYYY-MM-DD. */
+  dateFrom: string;
+  /** Inclusive ISO YYYY-MM-DD. */
+  dateTo:   string;
+  reason:   ChannexSyncReason;
+}
+
+/**
+ * Identifiers only. The authoritative booking is pulled inside the worker —
+ * webhook delivery can arrive out of order, so the delivered payload is a
+ * trigger, never data.
+ */
+export interface ChannexBookingJobData {
+  hotelId: string;
+  /** channel_webhook_events row this job is settling. */
+  eventId: string;
+  /** Channex booking-revision id to pull and acknowledge. */
+  revisionId: string;
+  eventType: string;
+}
+
+export const channexBookingQueue = new Queue<ChannexBookingJobData, Record<string, unknown>, string>("channex-booking", {
+  connection: redisConnectionOptions,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff:  { type: "exponential", delay: 5_000 },
+    removeOnComplete: 100,
+    removeOnFail:     50,
+  },
+});
+
+export const channexSyncQueue = new Queue<ChannexSyncJobData, Record<string, unknown>, string>("channex-sync", {
+  connection: redisConnectionOptions,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff:  { type: "exponential", delay: 5_000 },
+    removeOnComplete: 100,
+    removeOnFail:     50,
+  },
+});
+
+/** Repeatable sweep that recovers booking revisions no webhook delivered. */
+export const channexPollQueue = new Queue<Record<string, never>, Record<string, unknown>, string>("channex-poll", {
+  connection: redisConnectionOptions,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff:  { type: "exponential", delay: 5_000 },
+    removeOnComplete: 20,
+    removeOnFail:     20,
   },
 });

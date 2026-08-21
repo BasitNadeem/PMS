@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, CalendarX, ChevronLeft, ChevronRight, List, CalendarDays, GanttChartSquare, ChevronRight as ArrowRight, ExternalLink, Star } from "lucide-react";
+import { Plus, CalendarX, ChevronLeft, ChevronRight, ChevronDown, List, CalendarDays, GanttChartSquare, ChevronRight as ArrowRight, ExternalLink, Star } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   reservationsService,
@@ -22,6 +22,7 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { usePermissions } from "@/hooks/usePermissions";
 import { guestsService } from "@/services/guests";
+import { ReservationIdLink } from "@/components/reservations/ReservationIdLink";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -31,7 +32,7 @@ function toLocalIsoDate(d: Date): string {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-type TabKey = "ACTIVE" | "ENQUIRY" | "CONFIRMED" | "CHECKED_IN" | "CHECKED_OUT" | "CANCELLED";
+type TabKey = "ACTIVE" | "ENQUIRY" | "CONFIRMED" | "CHECKED_IN" | "CHECKED_OUT" | "CANCELLED" | "NO_SHOW";
 
 const ACTIVE_STATUSES = "ENQUIRY,CONFIRMED,CHECKED_IN";
 
@@ -42,6 +43,7 @@ const TABS: { key: TabKey; label: string; status?: ReservationStatus; statuses?:
   { key: "CHECKED_IN",  label: "Checked In",  status: "CHECKED_IN" },
   { key: "CHECKED_OUT", label: "Checked Out", status: "CHECKED_OUT" },
   { key: "CANCELLED",   label: "Cancelled",   status: "CANCELLED" },
+  { key: "NO_SHOW",     label: "No Show",     status: "NO_SHOW" },
 ];
 
 const STATUS_LABEL: Record<string, string> = {
@@ -61,6 +63,25 @@ const PAYER_LABEL: Record<string, { label: string; bg: string; text: string }> =
 
 type ViewMode = "list" | "calendar" | "timeline";
 
+const RECENT_COLLAPSED_KEY = "innflo:reservations:recent-collapsed";
+
+function readRecentCollapsedPreference(): boolean {
+  try {
+    return window.localStorage.getItem(RECENT_COLLAPSED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function saveRecentCollapsedPreference(collapsed: boolean): void {
+  try {
+    window.localStorage.setItem(RECENT_COLLAPSED_KEY, String(collapsed));
+  } catch {
+    // Storage can be disabled in private/restricted browser modes. The card
+    // still works for the current page session in that case.
+  }
+}
+
 const VIEW_OPTIONS: { value: ViewMode; label: string; icon: React.ElementType }[] = [
   { value: "list",     label: "List",     icon: List },
   { value: "calendar", label: "Calendar", icon: CalendarDays },
@@ -79,10 +100,11 @@ function nightsBetween(checkIn: string, checkOut: string): number {
 
 // ── Reservation row ───────────────────────────────────────────────────────────
 
-function ReservationRow({ r, groupRoomCount, onOpen }: {
+function ReservationRow({ r, groupRoomCount, onOpen, canReadGuests }: {
   r: ReservationSummary;
   groupRoomCount?: number;
   onOpen: (id: string) => void;
+  canReadGuests: boolean;
 }) {
   const navigate    = useNavigate();
   const statusLabel = STATUS_LABEL[r.status] ?? r.status;
@@ -114,7 +136,7 @@ function ReservationRow({ r, groupRoomCount, onOpen }: {
     <div
       onClick={handleClick}
       className={cn(
-        "group grid grid-cols-2 md:grid-cols-[1.4fr_1.2fr_0.9fr_1.2fr_0.45fr_1fr_100px] gap-3 px-5 py-3.5 items-center cursor-pointer transition-all border-b border-line-soft last:border-0",
+        "group grid grid-cols-[104px_1fr] md:grid-cols-[110px_1.35fr_1.1fr_0.9fr_1.15fr_0.4fr_0.9fr_74px] gap-3 px-5 py-3.5 items-center cursor-pointer transition-all border-b border-line-soft last:border-0",
         // Group rows: inset box-shadow left stripe + a more vibrant dusk hover tint
         // so the different-destination click is viscerally obvious before the click lands.
         isGroup
@@ -122,14 +144,42 @@ function ReservationRow({ r, groupRoomCount, onOpen }: {
           : "hover:bg-line-soft",
       )}
     >
+      {/* BOOKING ID */}
+      <div className="min-w-0">
+        {isGroup ? (
+          <Link
+            to={`/groups/${r.groupId}`}
+            onClick={(event) => event.stopPropagation()}
+            className="group/id inline-flex items-center gap-1 text-[12px] font-bold text-dusk tnum underline decoration-dusk/25 underline-offset-4 hover:decoration-dusk/70"
+          >
+            <span className="truncate">{r.group?.groupRef ?? `GRP-${r.groupId!.slice(0, 8).toUpperCase()}`}</span>
+            <ArrowRight size={11} className="shrink-0 opacity-0 -translate-x-0.5 group-hover/id:opacity-100 group-hover/id:translate-x-0 transition-all" />
+          </Link>
+        ) : (
+          <ReservationIdLink
+            id={r.id}
+            confirmationNumber={r.confirmationNumber || "—"}
+            onClick={(event) => event.stopPropagation()}
+          />
+        )}
+      </div>
+
       {/* GUEST */}
-      <div className="flex items-center gap-3 min-w-0 col-span-2 md:col-span-1">
+      <div className="flex items-center gap-3 min-w-0">
         <Avatar name={r.guest.fullName} size={38} />
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <div className="text-[14px] font-semibold text-ink truncate">
-              {r.bookingContactName ?? r.guest.fullName}
-            </div>
+            {r.bookingContactName || !canReadGuests ? (
+              <div className="text-[14px] font-semibold text-ink truncate">{r.bookingContactName ?? r.guest.fullName}</div>
+            ) : (
+              <Link
+                to={`/guests/${r.guest.id}`}
+                onClick={(event) => event.stopPropagation()}
+                className="text-[14px] font-semibold text-ink truncate hover:text-coral transition-colors"
+              >
+                {r.guest.fullName}
+              </Link>
+            )}
             {r.isVip && <Star size={12} className="text-amber fill-amber shrink-0" />}
           </div>
           {r.bookingContactName && (
@@ -137,14 +187,7 @@ function ReservationRow({ r, groupRoomCount, onOpen }: {
               profile: {r.guest.fullName}
             </div>
           )}
-          <div className="flex items-center gap-1.5 text-[12px] text-ink-faint tnum">
-            <span>{isGroup ? (r.group?.groupRef ?? `GRP-${r.groupId!.slice(0, 8).toUpperCase()}`) : (r.confirmationNumber || "—")}</span>
-            {isGroup && (
-              <span className="rounded-full bg-dusk px-2 py-0.5 text-[10px] font-bold tracking-wide text-white">
-                GROUP
-              </span>
-            )}
-          </div>
+          {isGroup && <div className="mt-0.5 text-[10px] font-bold tracking-wide text-dusk">GROUP BOOKING</div>}
         </div>
       </div>
 
@@ -231,6 +274,7 @@ export default function ReservationsPage() {
   const { has } = usePermissions();
   const canCreate = has("reservations:create");
   const canCreateGroups = has("groups:create");
+  const canReadGuests = has("guests:read");
   const [searchParams, setSearchParams] = useSearchParams();
   const [view, setView]             = useState<ViewMode>(() =>
     searchParams.get("view") === "calendar" ? "calendar" : "list"
@@ -239,7 +283,7 @@ export default function ReservationsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage]             = useState(1);
-  const [sortBy, setSortBy]         = useState<"checkIn" | "checkOut" | "created" | "status">("checkIn");
+  const [sortBy, setSortBy]         = useState<"checkIn" | "checkOut" | "created" | "status">("created");
   const [sortDir, setSortDir]       = useState<"asc" | "desc">("desc");
   const [showChooser, setShowChooser]   = useState(() => searchParams.get("new") === "1");
   const [showNew, setShowNew]           = useState(() => searchParams.get("new") === "single");
@@ -254,6 +298,8 @@ export default function ReservationsPage() {
   const [selectionEnd,   setSelectionEnd]   = useState<Date | null>(null);
   const [hoverDate,      setHoverDate]      = useState<Date | null>(null);
   const [openDrawerId, setOpenDrawerId] = useState<string | null>(null);
+  const [recentLimit, setRecentLimit] = useState(10);
+  const [recentCollapsed, setRecentCollapsed] = useState(readRecentCollapsedPreference);
   const [calYear, setCalYear]       = useState(new Date().getFullYear());
   const [calMonth, setCalMonth]     = useState(new Date().getMonth() + 1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -269,7 +315,14 @@ export default function ReservationsPage() {
   // for this page lifetime so the modal never loses its selected guest while
   // its query is resolving.
   useEffect(() => {
-    if (searchParams.get("new") === "1" || searchParams.get("view")) {
+    // Applied here rather than only in the useState initialiser above: linking
+    // to ?view=calendar from elsewhere in the app does not remount this page
+    // when it is already open, so a mount-only read would silently ignore it.
+    const requestedView = searchParams.get("view");
+    if (requestedView === "calendar" || requestedView === "timeline" || requestedView === "list") {
+      setView(requestedView);
+    }
+    if (searchParams.get("new") === "1" || requestedView) {
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams]);
@@ -280,17 +333,32 @@ export default function ReservationsPage() {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [searchInput]);
 
+  useEffect(() => {
+    saveRecentCollapsedPreference(recentCollapsed);
+  }, [recentCollapsed]);
+
   const activeTab_ = TABS.find((t) => t.key === activeTab);
   const activeStatus   = activeTab_?.status;
   const activeStatuses = activeTab_?.statuses;
-
   const { data, isLoading } = useQuery({
-    queryKey: ["reservations", { status: activeStatus, statuses: activeStatuses, search: debouncedSearch, page, sortBy, sortDir }],
+    queryKey: ["reservations", {
+      tab: activeTab,
+      status: activeStatus,
+      statuses: activeStatuses,
+      search: debouncedSearch,
+      page,
+      limit: 20,
+      sortBy,
+      sortDir,
+    }],
     queryFn: () => reservationsService.getReservations({
       status:   activeStatus,
       statuses: activeStatuses,
       search:   debouncedSearch || undefined,
-      page, limit: 20, sortBy, sortDir,
+      page,
+      limit: 20,
+      sortBy,
+      sortDir,
     }),
     // SSE (mounted once in AppLayout) pushes instant invalidation on real
     // changes — this interval is just a fallback in case the connection drops.
@@ -301,6 +369,19 @@ export default function ReservationsPage() {
     queryKey: ["reservations-counts"],
     queryFn: reservationsService.getCounts,
     staleTime: 30_000,
+  });
+
+  const { data: recentData, isLoading: recentLoading } = useQuery({
+    queryKey: ["reservations", "recent", recentLimit],
+    queryFn: () => reservationsService.getReservations({
+      page: 1,
+      // Pull a buffer because a multi-room group is collapsed into one booking
+      // row below. The visible limit still grows in exact groups of ten.
+      limit: Math.min(100, recentLimit + 30),
+      sortBy: "created",
+      sortDir: "desc",
+    }),
+    refetchInterval: 15_000,
   });
 
   const rawReservations = data?.data ?? [];
@@ -316,6 +397,16 @@ export default function ReservationsPage() {
     !r.groupId || arr.findIndex((x) => x.groupId === r.groupId) === idx
   );
   const totalPages   = meta?.totalPages ?? 1;
+  const recentRaw = recentData?.data ?? [];
+  const recentGroupCounts = recentRaw.reduce<Record<string, number>>((acc, reservation) => {
+    if (reservation.groupId) acc[reservation.groupId] = (acc[reservation.groupId] ?? 0) + 1;
+    return acc;
+  }, {});
+  const recentBookings = recentRaw.filter(
+    (reservation, index, all) => !reservation.groupId || all.findIndex((item) => item.groupId === reservation.groupId) === index,
+  );
+  const recentReservations = recentBookings.slice(0, recentLimit);
+  const canLoadMoreRecent = recentLimit < 100 && (recentBookings.length > recentLimit || (recentData?.meta.total ?? 0) > recentRaw.length);
 
   function clearNewBookingPrefill() {
     setNewCheckIn(undefined);
@@ -471,7 +562,8 @@ export default function ReservationsPage() {
 
       {/* List view */}
       {view === "list" && (
-        <Card pad={false} className="anim-fade-up overflow-hidden">
+        <div className="space-y-12 anim-fade-up">
+        <Card pad={false} className="overflow-hidden">
           {/* Filters bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-line-soft">
             <div className="flex flex-wrap items-center gap-1.5">
@@ -488,6 +580,7 @@ export default function ReservationsPage() {
                   : tab.key === "CHECKED_IN"? { background: "#2F7256", color: "#fff" }
                   : tab.key === "CHECKED_OUT"? { background: "#584238", color: "#fff" }
                   : tab.key === "CANCELLED" ? { background: "#aa4432", color: "#fff" }
+                  : tab.key === "NO_SHOW" ? { background: "#7a4035", color: "#fff" }
                   : { background: "#211e1a", color: "#fff" };
                 return (
                   <button
@@ -522,7 +615,7 @@ export default function ReservationsPage() {
               <SearchInput
                 value={searchInput}
                 onChange={(v) => setSearchInput(v)}
-                placeholder="Search guest, confirmation…"
+                placeholder="Search guest or Res ID…"
                 className="w-full sm:w-64"
               />
               {(() => {
@@ -556,8 +649,8 @@ export default function ReservationsPage() {
           </div>
 
           {/* Column header */}
-          <div className="hidden md:grid grid-cols-[1.4fr_1.2fr_0.9fr_1.2fr_0.45fr_1fr_100px] gap-3 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-ink-faint border-b border-line-soft">
-            <span>Guest</span><span>Booking / Group</span><span>Room</span><span>Dates</span><span>Nights</span><span>Status</span><span />
+          <div className="hidden md:grid grid-cols-[110px_1.35fr_1.1fr_0.9fr_1.15fr_0.4fr_0.9fr_74px] gap-3 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-ink-faint border-b border-line-soft">
+            <span>Booking ID</span><span>Guest</span><span>Booking / Group</span><span>Room</span><span>Dates</span><span>Nights</span><span>Status</span><span />
           </div>
 
           {/* Rows */}
@@ -586,6 +679,7 @@ export default function ReservationsPage() {
                   r={r}
                   groupRoomCount={r.groupId ? groupRoomCounts[r.groupId] : undefined}
                   onOpen={setOpenDrawerId}
+                  canReadGuests={canReadGuests}
                 />
               ))
             )}
@@ -646,6 +740,76 @@ export default function ReservationsPage() {
             </div>
           )}
         </Card>
+
+        <Card pad={false} className="overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setRecentCollapsed((collapsed) => !collapsed)}
+            aria-expanded={!recentCollapsed}
+            className={cn(
+              "flex w-full items-center justify-between gap-4 px-5 py-5 text-left hover:bg-line-soft/45 transition-colors",
+              !recentCollapsed && "border-b border-line-soft",
+            )}
+          >
+            <div>
+              <h2 className="text-[16px] font-bold text-ink">Recent reservations</h2>
+              <p className="mt-1 text-[12px] text-ink-mute">Latest bookings across every status · showing {recentLimit} at a time</p>
+            </div>
+            <span className="inline-flex shrink-0 items-center gap-2 text-[12px] font-semibold text-ink-mute">
+              {recentCollapsed ? "Expand" : "Collapse"}
+              <ChevronDown size={16} className={cn("transition-transform", recentCollapsed && "-rotate-90")} />
+            </span>
+          </button>
+          {!recentCollapsed && (
+            <>
+              <div className="hidden md:grid grid-cols-[110px_1.35fr_1.1fr_0.9fr_1.15fr_0.4fr_0.9fr_74px] gap-3 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-ink-faint border-b border-line-soft">
+                <span>Booking ID</span><span>Guest</span><span>Booking / Group</span><span>Room</span><span>Dates</span><span>Nights</span><span>Status</span><span />
+              </div>
+              <div>
+                {recentLoading ? (
+                  Array.from({ length: 4 }).map((_, index) => (
+                    <div key={index} className="h-[66px] border-b border-line-soft bg-line-soft/20 animate-pulse last:border-0" />
+                  ))
+                ) : recentReservations.length === 0 ? (
+                  <EmptyState icon={CalendarX} title="No reservations yet" subtitle="New bookings will appear here as they are created." />
+                ) : (
+                  recentReservations.map((reservation) => (
+                    <ReservationRow
+                      key={`recent-${reservation.id}`}
+                      r={reservation}
+                      groupRoomCount={reservation.groupId ? recentGroupCounts[reservation.groupId] : undefined}
+                      onOpen={setOpenDrawerId}
+                      canReadGuests={canReadGuests}
+                    />
+                  ))
+                )}
+              </div>
+              {!recentLoading && recentReservations.length > 0 && (canLoadMoreRecent || recentLimit > 10) && (
+                <div className="flex flex-wrap items-center justify-center gap-3 border-t border-line-soft px-5 py-4">
+                  {canLoadMoreRecent && (
+                    <button
+                      type="button"
+                      onClick={() => setRecentLimit((limit) => Math.min(100, limit + 10))}
+                      className="h-9 rounded-full border border-line bg-white px-4 text-[12.5px] font-semibold text-ink-soft hover:border-ink/20 hover:text-ink transition-colors"
+                    >
+                      Load 10 more
+                    </button>
+                  )}
+                  {recentLimit > 10 && (
+                    <button
+                      type="button"
+                      onClick={() => setRecentLimit(10)}
+                      className="text-[12.5px] font-semibold text-ink-mute underline decoration-ink/20 underline-offset-4 hover:text-ink"
+                    >
+                      Show latest 10
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </Card>
+        </div>
       )}
 
       {showChooser && (

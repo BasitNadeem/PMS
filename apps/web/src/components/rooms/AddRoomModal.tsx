@@ -3,14 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, BedDouble } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getErrorMessage } from "@/lib/api";
-import { roomsService, type RoomStatus, type CreateRoomDto } from "@/services/rooms";
+import { roomsService, type CreateRoomDto } from "@/services/rooms";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
-
-const STATUS_OPTIONS: { value: RoomStatus; label: string }[] = [
-  { value: "VACANT_CLEAN",      label: "Available (Clean)" },
-  { value: "UNDER_MAINTENANCE", label: "Maintenance" },
-  { value: "OUT_OF_ORDER",      label: "Out of Order" },
-];
 
 const inputCls = "w-full rounded-xl border border-line bg-mist px-3.5 py-2.5 text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors";
 const labelCls = "block text-[12.5px] font-semibold uppercase tracking-wide text-ink-mute mb-1.5";
@@ -20,7 +14,7 @@ interface AddRoomModalProps { onClose: () => void }
 export function AddRoomModal({ onClose }: AddRoomModalProps) {
   useEscapeKey(onClose);
   const qc = useQueryClient();
-  const [form, setForm] = useState<CreateRoomDto>({ number: "", floor: undefined, roomTypeId: "", status: "VACANT_CLEAN", notes: "" });
+  const [form, setForm] = useState<CreateRoomDto>({ number: "", floor: undefined, roomTypeId: "", notes: "" });
   const [errors, setErrors] = useState<Partial<Record<keyof CreateRoomDto, string>>>({});
 
   const { data: roomTypesResp } = useQuery({ queryKey: ["room-types"], queryFn: roomsService.getRoomTypes });
@@ -83,14 +77,6 @@ export function AddRoomModal({ onClose }: AddRoomModalProps) {
               {roomTypes.map((rt) => <option key={rt.id} value={rt.id}>{rt.name}</option>)}
             </select>
             {errors.roomTypeId && <p className="text-[12px] text-clay mt-1">{errors.roomTypeId}</p>}
-          </div>
-
-          <div>
-            <label className={labelCls}>Status</label>
-            <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as RoomStatus }))}
-              className={cn(inputCls, "cursor-pointer")}>
-              {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
           </div>
 
           <div>

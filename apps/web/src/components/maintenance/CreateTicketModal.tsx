@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, Wrench, Camera, Loader2 } from "lucide-react";
+import { X, Wrench, Camera, Loader2, CalendarOff } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { BASE_URL } from "@/lib/api";
 import { maintenanceService, type MaintenanceCategory, type MaintenancePriority } from "@/services/maintenance";
@@ -29,6 +29,12 @@ const PRIORITY_OPTIONS: { value: MaintenancePriority; label: string }[] = [
 const inputCls = "w-full rounded-xl border border-line bg-mist px-3.5 py-2.5 text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral/40 transition-colors";
 const labelCls = "block text-[12.5px] font-semibold uppercase tracking-wide text-ink-mute mb-1.5";
 
+function addDays(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
 export interface CreateTicketModalProps {
   onClose: () => void;
   initialRoomId?: string;
@@ -39,13 +45,16 @@ export function CreateTicketModal({ onClose, initialRoomId, initialRoomNumber }:
   useEscapeKey(onClose);
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 
   const [roomId,           setRoomId]           = useState(initialRoomId ?? "");
   const [title,            setTitle]            = useState("");
   const [description,      setDescription]      = useState("");
   const [category,         setCategory]         = useState<MaintenanceCategory>("OTHER");
   const [priority,         setPriority]         = useState<MaintenancePriority>("MEDIUM");
-  const [scheduledEndDate, setScheduledEndDate] = useState("");
+  const [roomUnavailable,  setRoomUnavailable]  = useState(false);
+  const [unavailableFrom,  setUnavailableFrom]  = useState(today);
+  const [sellableFrom,     setSellableFrom]     = useState(addDays(today, 1));
   const [photoUrls,        setPhotoUrls]        = useState<string[]>([]);
   const [uploadingCount,   setUploadingCount]   = useState(0);
   const [error,            setError]            = useState<string | null>(null);
@@ -101,7 +110,8 @@ export function CreateTicketModal({ onClose, initialRoomId, initialRoomNumber }:
       priority,
       ...(roomId              && { roomId }),
       ...(description.trim()  && { description: description.trim() }),
-      ...(scheduledEndDate    && { scheduledEndDate }),
+      roomUnavailable,
+      ...(roomUnavailable && { unavailableFrom, sellableFrom }),
       ...(photoUrls.length    && { photoUrls }),
     });
   }
@@ -139,7 +149,14 @@ export function CreateTicketModal({ onClose, initialRoomId, initialRoomNumber }:
             {initialRoomId ? (
               <div className={cn(inputCls, "bg-mist/50 text-ink-mute")}>Room {initialRoomNumber}</div>
             ) : (
-              <select value={roomId} onChange={(e) => setRoomId(e.target.value)} className={cn(inputCls, "cursor-pointer")}>
+              <select
+                value={roomId}
+                onChange={(e) => {
+                  setRoomId(e.target.value);
+                  if (!e.target.value) setRoomUnavailable(false);
+                }}
+                className={cn(inputCls, "cursor-pointer")}
+              >
                 <option value="">No specific room</option>
                 {roomsData?.data.map((room) => (
                   <option key={room.id} value={room.id}>Room {room.number} — {room.roomType.typeName}</option>
@@ -149,21 +166,23 @@ export function CreateTicketModal({ onClose, initialRoomId, initialRoomNumber }:
           </div>
 
           {(roomId || initialRoomId) && (
-            <div>
-              <label className={labelCls}>
-                Room available from <span className="normal-case tracking-normal text-ink-faint font-normal">(optional)</span>
+            <section className={cn("rounded-2xl border p-4 transition-colors", roomUnavailable ? "border-coral/30 bg-coral-soft/40" : "border-line bg-card")}>
+              <label className="flex cursor-pointer items-start gap-3">
+                <input type="checkbox" checked={roomUnavailable} onChange={(event) => setRoomUnavailable(event.target.checked)} className="mt-0.5 h-4 w-4 accent-coral" />
+                <span className="min-w-0">
+                  <span className="flex items-center gap-2 text-[13.5px] font-semibold text-ink"><CalendarOff size={16} className="text-coral" />Room unavailable for sale</span>
+                  <span className="mt-0.5 block text-[12px] leading-relaxed text-ink-mute">Enable only when this issue means guests cannot stay in the room.</span>
+                </span>
               </label>
-              <DatePicker
-                value={scheduledEndDate}
-                onChange={setScheduledEndDate}
-                className="w-full"
-              />
-              {scheduledEndDate && (
-                <p className="mt-1.5 text-[12px] text-amber-600">
-                  Room will be blocked for new reservations until {scheduledEndDate}. Choose carefully.
-                </p>
+
+              {roomUnavailable && (
+                <div className="mt-4 grid gap-4 border-t border-coral/15 pt-4 sm:grid-cols-2">
+                  <div><label className={labelCls}>Unavailable from</label><DatePicker value={unavailableFrom} onChange={(value) => { setUnavailableFrom(value); if (sellableFrom <= value) setSellableFrom(addDays(value, 1)); }} min={today} max={sellableFrom} /></div>
+                  <div><label className={labelCls}>Sell again from</label><DatePicker value={sellableFrom} onChange={setSellableFrom} min={addDays(unavailableFrom, 1)} /></div>
+                  <p className="sm:col-span-2 text-[11.5px] leading-relaxed text-ink-mute">The room disappears from in-app, Booking Engine, and channel availability for these nights. Existing reservations are checked before saving.</p>
+                </div>
               )}
-            </div>
+            </section>
           )}
 
           <div>

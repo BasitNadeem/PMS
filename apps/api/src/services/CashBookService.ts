@@ -8,6 +8,7 @@ import { adminPrisma, Prisma } from "@pms/db";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
 import { notifyHotelDataChanged } from "../lib/realtime";
+import { resolveHotelBusinessDate } from "../lib/businessDate";
 import type { AccountType, BalancesQuery, CreateAccountDto, CreateEntryDto, LedgerQuery, SummaryQuery, TransferDto } from "../schemas/cashbook";
 
 // ── Row types ─────────────────────────────────────────────────────────────────
@@ -527,7 +528,7 @@ export const CashBookService = {
 
 export async function createLedgerEntryFromPayment(
   hotelId: string,
-  payment: { id: string; amount: number; method: string; reservationId: string; entryDate?: string },
+  payment: { id: string; amount: number; method: string; reservationId: string; occurredAt: Date },
   actorId: string,
 ): Promise<void> {
   try {
@@ -555,7 +556,7 @@ export async function createLedgerEntryFromPayment(
         sourceId:      payment.id,
         description:   `Payment — ${ref}`,
         paymentMethod: payment.method,
-        entryDate:     payment.entryDate,
+        entryDate:     await resolveHotelBusinessDate(hotelId, payment.occurredAt),
       } as CreateEntryDto & { sourceId: string },
       actorId,
     );
@@ -567,7 +568,7 @@ export async function createLedgerEntryFromPayment(
 
 export async function createLedgerEntryFromRefund(
   hotelId: string,
-  refund: { id: string; amount: number; method: string; reservationId: string; entryDate?: string },
+  refund: { id: string; amount: number; method: string; reservationId: string; occurredAt: Date },
   actorId: string,
 ): Promise<void> {
   try {
@@ -580,7 +581,7 @@ export async function createLedgerEntryFromRefund(
       sourceType: "PAYMENT_REFUND", sourceId: refund.id,
       description: `Payment refund — ${refund.reservationId.slice(0, 8)}`,
       paymentMethod: refund.method,
-      entryDate: refund.entryDate,
+      entryDate: await resolveHotelBusinessDate(hotelId, refund.occurredAt),
     }, actorId);
   } catch (err) {
     console.error("[CashBook] createLedgerEntryFromRefund error:", refund.id, err);
@@ -592,8 +593,8 @@ export async function createLedgerEntryFromCompanyMovement(
   hotelId: string,
   movement: {
     id: string; companyName: string; amount: number; method: string;
-    direction: "INCOMING" | "OUTGOING"; entryDate?: string;
-  },
+    direction: "INCOMING" | "OUTGOING";
+  } & ({ entryDate: string; occurredAt?: never } | { occurredAt: Date; entryDate?: never }),
   actorId: string,
 ): Promise<void> {
   try {
@@ -608,7 +609,8 @@ export async function createLedgerEntryFromCompanyMovement(
       sourceId: movement.id,
       description: `${movement.direction === "INCOMING" ? "Company payment" : "Company credit refund"} — ${movement.companyName}`,
       paymentMethod: movement.method,
-      entryDate: movement.entryDate,
+      entryDate: movement.entryDate
+        ?? await resolveHotelBusinessDate(hotelId, movement.occurredAt),
     }, actorId);
   } catch (err) {
     console.error("[CashBook] createLedgerEntryFromCompanyMovement error:", movement.id, err);
@@ -618,7 +620,7 @@ export async function createLedgerEntryFromCompanyMovement(
 
 export async function createLedgerEntryFromPosOrder(
   hotelId: string,
-  order: { id: string; orderNumber: string; total: number; paymentMethod: string; entryDate?: string },
+  order: { id: string; orderNumber: string; total: number; paymentMethod: string; occurredAt: Date },
   actorId: string,
 ): Promise<void> {
   try {
@@ -636,7 +638,7 @@ export async function createLedgerEntryFromPosOrder(
         sourceId:      order.id,
         description:   `POS Sale — ${order.orderNumber}`,
         paymentMethod: order.paymentMethod,
-        entryDate:     order.entryDate,
+        entryDate:     await resolveHotelBusinessDate(hotelId, order.occurredAt),
       } as CreateEntryDto & { sourceId: string },
       actorId,
     );
@@ -648,7 +650,7 @@ export async function createLedgerEntryFromPosOrder(
 
 export async function createLedgerEntryFromQrOrder(
   hotelId: string,
-  order: { id: string; orderNumber: string; total: number; paymentMethod: string; entryDate?: string },
+  order: { id: string; orderNumber: string; total: number; paymentMethod: string; occurredAt: Date },
   actorId: string,
 ): Promise<void> {
   try {
@@ -666,7 +668,7 @@ export async function createLedgerEntryFromQrOrder(
         sourceId:      order.id,
         description:   `QR Order — ${order.orderNumber}`,
         paymentMethod: order.paymentMethod,
-        entryDate:     order.entryDate,
+        entryDate:     await resolveHotelBusinessDate(hotelId, order.occurredAt),
       } as CreateEntryDto & { sourceId: string },
       actorId,
     );
@@ -793,8 +795,8 @@ export async function reconcileCashBook(hotelId: string, actorId: string) {
   for (const payment of payments) {
     if (!payment.reservation_id) continue;
     await run(() => payment.is_refund
-      ? createLedgerEntryFromRefund(hotelId, { id: payment.id, amount: payment.amount, method: payment.method, reservationId: payment.reservation_id!, entryDate: dateOf(payment.posted_at) }, actorId)
-      : createLedgerEntryFromPayment(hotelId, { id: payment.id, amount: payment.amount, method: payment.method, reservationId: payment.reservation_id!, entryDate: dateOf(payment.posted_at) }, actorId));
+      ? createLedgerEntryFromRefund(hotelId, { id: payment.id, amount: payment.amount, method: payment.method, reservationId: payment.reservation_id!, occurredAt: payment.posted_at }, actorId)
+      : createLedgerEntryFromPayment(hotelId, { id: payment.id, amount: payment.amount, method: payment.method, reservationId: payment.reservation_id!, occurredAt: payment.posted_at }, actorId));
   }
   for (const expense of expenses) {
     await run(() => createLedgerEntryFromExpense(hotelId, {
@@ -805,13 +807,13 @@ export async function reconcileCashBook(hotelId: string, actorId: string) {
   for (const order of posOrders) {
     await run(() => createLedgerEntryFromPosOrder(hotelId, {
       id: order.id, orderNumber: order.order_number, total: order.total,
-      paymentMethod: order.table_number.slice(5), entryDate: dateOf(order.created_at),
+      paymentMethod: order.table_number.slice(5), occurredAt: order.created_at,
     }, actorId));
   }
   for (const order of qrOrders) {
     await run(() => createLedgerEntryFromQrOrder(hotelId, {
       id: order.id, orderNumber: order.order_number, total: Number(order.total_amount),
-      paymentMethod: order.payment_method, entryDate: dateOf(order.updated_at),
+      paymentMethod: order.payment_method, occurredAt: order.updated_at,
     }, actorId));
   }
   for (const payment of companyPayments) {
@@ -823,7 +825,7 @@ export async function reconcileCashBook(hotelId: string, actorId: string) {
   for (const movement of companyOutflows) {
     await run(() => createLedgerEntryFromCompanyMovement(hotelId, {
       id: movement.id, companyName: movement.company_name, amount: Number(movement.amount),
-      method: movement.payment_method, direction: "OUTGOING", entryDate: dateOf(movement.movement_date),
+      method: movement.payment_method, direction: "OUTGOING", occurredAt: movement.movement_date,
     }, actorId));
   }
   return {
@@ -864,6 +866,7 @@ export async function voidLedgerEntryFromExpense(
         description:   `Void: ${original.description}`,
         paymentMethod: original.payment_method ?? undefined,
         reversalOfEntryId: original.id,
+        entryDate: await resolveHotelBusinessDate(hotelId, new Date()),
       },
       actorId,
     );

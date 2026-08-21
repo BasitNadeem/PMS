@@ -193,12 +193,17 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
   });
 
   const availableCountByType: Record<string, number> = {};
-  const conflictsByType: Record<string, { roomNumber: string; guestName: string }[]> = {};
+  const conflictsByType: Record<string, { roomNumber: string; label: string }[]> = {};
   roomTypes.forEach((rt, i) => {
     const result = availabilityQueries[i]?.data;
     if (result) {
       availableCountByType[rt.id] = result.availableRoomIds.length;
-      conflictsByType[rt.id] = result.conflicts;
+      conflictsByType[rt.id] = result.conflicts.map((conflict) => ({
+        roomNumber: conflict.roomNumber,
+        label: conflict.conflictType === "INVENTORY_BLOCK"
+          ? `${conflict.inventoryBlockType === "OUT_OF_ORDER" ? "out of order" : "out of service"}${conflict.reason ? ` (${conflict.reason})` : ""}`
+          : `booked by ${conflict.guestName ?? "another guest"}`,
+      }));
     }
   });
   const checkingAvailability = availabilityQueries.some((q) => q.isFetching);
@@ -729,7 +734,7 @@ export function NewGroupModal({ onClose, onSuccess, initialPayerType, initialChe
                               </span>{" "}
                               for these dates
                               {conflicts.length > 0 && (
-                                <> — booked by {conflicts.slice(0, 2).map((c) => c.guestName).join(", ")}{conflicts.length > 2 ? ` +${conflicts.length - 2} more` : ""}</>
+                                <> — {conflicts.slice(0, 2).map((c) => `Room ${c.roomNumber} ${c.label}`).join(", ")}{conflicts.length > 2 ? ` +${conflicts.length - 2} more` : ""}</>
                               )}
                               . The remaining {shortfall} will be created as &quot;needs room assignment&quot; and can be assigned manually later.
                             </p>

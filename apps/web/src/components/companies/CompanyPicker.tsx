@@ -19,6 +19,8 @@ export interface CompanyPickerProps {
   nullOptionLabel?: string;
   /** When true, render the null option as the current button value. */
   nullOptionSelected?: boolean;
+  /** Some workflows, such as transferring BTC, require a real company. */
+  allowNullOption?: boolean;
   className?: string;
 }
 
@@ -35,6 +37,7 @@ export function CompanyPicker({
   placeholder,
   nullOptionLabel = "No company — guest pays directly",
   nullOptionSelected,
+  allowNullOption = true,
   className,
 }: CompanyPickerProps) {
   const { has } = usePermissions();
@@ -105,14 +108,16 @@ export function CompanyPicker({
             </div>
 
             <div className="max-h-64 overflow-y-auto scroll-area">
-              <button
-                type="button"
-                onClick={() => { onChange(null); setOpen(false); }}
-                className="w-full px-3 py-2.5 text-left text-[13px] font-semibold text-ink hover:bg-mist transition-colors flex items-center gap-2"
-              >
-                <span className="flex-1">{nullOptionLabel}</span>
-                {isNullOptionSelected && <Check size={14} className="text-coral" />}
-              </button>
+              {allowNullOption && (
+                <button
+                  type="button"
+                  onClick={() => { onChange(null); setOpen(false); }}
+                  className="w-full px-3 py-2.5 text-left text-[13px] font-semibold text-ink hover:bg-mist transition-colors flex items-center gap-2"
+                >
+                  <span className="flex-1">{nullOptionLabel}</span>
+                  {isNullOptionSelected && <Check size={14} className="text-coral" />}
+                </button>
+              )}
 
               {companies.length === 0 ? (
                 <div className="px-3 py-6 text-center text-[13px] text-ink-mute">
@@ -124,7 +129,10 @@ export function CompanyPicker({
                     key={c.id}
                     type="button"
                     onClick={() => { onChange(c); setOpen(false); }}
-                    className="w-full px-3 py-2.5 text-left hover:bg-mist transition-colors border-t border-line-soft"
+                    className={cn(
+                      "w-full px-3 py-2.5 text-left hover:bg-mist transition-colors",
+                      (allowNullOption || companies.indexOf(c) > 0) && "border-t border-line-soft",
+                    )}
                   >
                     <div className="flex items-center gap-2">
                       <span className="flex-1 text-[13.5px] font-semibold text-ink truncate">{c.name}</span>

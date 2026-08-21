@@ -126,7 +126,7 @@ router.get("/", async (req, res) => {
         take: 5,
         orderBy: { createdAt: "desc" },
         include: {
-          guest: { select: { fullName: true } },
+          guest: { select: { id: true, fullName: true } },
           rooms: {
             take: 1,
             include: { room: { select: { number: true } } },
@@ -142,7 +142,7 @@ router.get("/", async (req, res) => {
         take: 20,
         orderBy: { checkInDate: "asc" },
         include: {
-          guest: { select: { fullName: true } },
+          guest: { select: { id: true, fullName: true } },
           rooms: {
             take: 1,
             include: { room: { select: { number: true } } },
@@ -336,6 +336,7 @@ router.get("/", async (req, res) => {
         checkInDate:        r.checkInDate,
         checkOutDate:       r.checkOutDate,
         guestName:          r.guest.fullName,
+        guestId:            r.guest.id,
         roomNumber:         r.rooms[0]?.room.number ?? null,
         groupId:            r.groupId,
         isVip:              r.isVip,
@@ -347,6 +348,7 @@ router.get("/", async (req, res) => {
         checkInDate:        r.checkInDate,
         checkOutDate:       r.checkOutDate,
         guestName:          r.guest.fullName,
+        guestId:            r.guest.id,
         roomNumber:         r.rooms[0]?.room.number ?? null,
         groupId:            r.groupId,
         isVip:              r.isVip,

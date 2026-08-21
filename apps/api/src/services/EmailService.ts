@@ -16,6 +16,27 @@ export interface EmailOptions {
 const BREVO_SEND_URL = "https://api.brevo.com/v3/smtp/email";
 
 export async function sendEmail(options: EmailOptions): Promise<SendResult> {
+  // Local dev without a working Brevo key: print the email and report success,
+  // so every flow that ends in an email can still be exercised end to end. The
+  // banner is deliberately loud — nobody should ever mistake this for a real
+  // send, and the flag is absent from .env.example so it can only ever be on
+  // because someone switched it on by hand.
+  if (env.LOG_EMAILS_INSTEAD_OF_SENDING) {
+    console.log(
+      [
+        "",
+        "┌─────────────────────────────────────────────────────────────────────",
+        "│ EMAIL NOT SENT — LOG_EMAILS_INSTEAD_OF_SENDING=true",
+        `│ To:      ${options.toName} <${options.to}>`,
+        `│ Subject: ${options.subject}`,
+        `│ Body:    ${options.htmlBody.length} chars of HTML`,
+        "└─────────────────────────────────────────────────────────────────────",
+        "",
+      ].join("\n")
+    );
+    return { success: true, messageId: "console-transport" };
+  }
+
   try {
     const res = await fetch(BREVO_SEND_URL, {
       method:  "POST",

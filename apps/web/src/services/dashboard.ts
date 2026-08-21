@@ -54,6 +54,7 @@ export interface DashboardRecentReservation {
   checkInDate:        string;
   checkOutDate:       string;
   guestName:          string;
+  guestId:            string;
   roomNumber:         string | null;
   groupId:            string | null;
   isVip:              boolean;

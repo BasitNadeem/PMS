@@ -13,6 +13,7 @@ import {
   RefreshCw,
   ShieldCheck,
   Sparkles,
+  Tag,
   TrendingUp,
   UserPlus,
   Users,
@@ -537,6 +538,70 @@ export function TeamAccessMockup() {
         </div>
       </BrowserShell>
     </div>
+  );
+}
+
+export function RatePlansMockup() {
+  // Fixed per-room-type rates only. Percentage/fixed rate MODIFIERS are never
+  // depicted — known pricing bug, see product-knowledge/MARKETING_FACTS.md.
+  const plans = [
+    { name: "Standard Rate", type: "STANDARD",    cond: "All year",          rate: "12,000", tone: "bg-ink/8 text-ink-soft" },
+    { name: "Summer Peak",   type: "SEASONAL",    cond: "1 Jun – 31 Aug",    rate: "15,500", tone: "bg-amber-100 text-amber-800", winner: true },
+    { name: "Corporate",     type: "CORPORATE",   cond: "Serena Group",      rate: "10,800", tone: "bg-blue-50 text-blue-700" },
+    { name: "Early Bird",    type: "PROMOTIONAL", cond: "Code required",     rate: "9,900",  tone: "bg-coral-soft text-coral-deep" },
+  ];
+
+  return (
+    <BrowserShell
+      title="Innflo / Rates / Rate plans"
+      action={
+        <span className="flex items-center gap-1 rounded-lg border border-line px-2 py-1 text-[7px] font-bold text-ink-soft">
+          <Tag className="h-2.5 w-2.5" /> New plan
+        </span>
+      }
+    >
+      <div className="bg-[#F8F4EF] p-3 sm:p-4">
+        <div className="space-y-1.5">
+          {plans.map((plan) => (
+            <div
+              key={plan.name}
+              className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 ${
+                plan.winner ? "border-coral bg-coral-soft" : "border-line-soft bg-white"
+              }`}
+            >
+              <span className={`hidden shrink-0 rounded px-1.5 py-0.5 text-[6.5px] font-black tracking-[0.08em] sm:inline ${plan.tone}`}>
+                {plan.type}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className={`block truncate text-[10px] font-black leading-tight ${plan.winner ? "text-coral-deep" : "text-ink"}`}>
+                  {plan.name}
+                </span>
+                <span className="mt-px block truncate text-[7px] text-ink-mute">{plan.cond}</span>
+              </span>
+              <span className={`shrink-0 whitespace-nowrap text-[10px] font-black ${plan.winner ? "text-coral-deep" : "text-ink-mute"}`}>
+                {plan.rate}
+              </span>
+              {plan.winner && (
+                <span className="hidden shrink-0 items-center gap-0.5 rounded-full bg-coral px-1.5 py-[3px] text-[6.5px] font-black text-white sm:flex">
+                  <Check className="h-2 w-2" /> Applied
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-3 flex items-center gap-3 rounded-2xl bg-ink px-3.5 py-3">
+          <span className="min-w-0 flex-1">
+            <span className="block text-[6.5px] font-black uppercase tracking-[0.14em] text-white/40">Quoted for 14 Jul</span>
+            <span className="mt-1 block whitespace-nowrap text-[15px] font-black leading-none text-white">PKR 15,500</span>
+            <span className="mt-1 block truncate text-[7px] text-white/50">Summer Peak · outranks Standard on priority</span>
+          </span>
+          <span className="hidden shrink-0 items-center gap-1 rounded-full bg-coral px-2 py-1 text-[6.5px] font-black uppercase tracking-[0.1em] text-white sm:flex">
+            <LockKeyhole className="h-2.5 w-2.5" /> No manual pricing
+          </span>
+        </div>
+      </div>
+    </BrowserShell>
   );
 }
 

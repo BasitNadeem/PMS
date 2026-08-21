@@ -11,6 +11,9 @@ import {
   createRoomTypeSchema,
   updateRoomTypeSchema,
   checkAvailabilitySchema,
+  createRoomInventoryBlockSchema,
+  cancelRoomInventoryBlockSchema,
+  bulkUpdateRoomReadinessSchema,
 } from "../schemas/rooms";
 
 // ── Room Types router  (mounted at /api/room-types) ───────────────────────────
@@ -52,6 +55,36 @@ roomsRouter.get("/availability", requirePermission("ROOM_READ"), async (req, res
   const query = checkAvailabilitySchema.parse(req.query);
   const result = await RoomService.checkAvailability(req.withTenant, query);
   res.json({ data: result });
+});
+
+// PATCH /api/rooms/bulk/readiness — BEFORE /:id
+roomsRouter.patch("/bulk/readiness", requirePermission("ROOM_UPDATE"), async (req, res) => {
+  const dto = bulkUpdateRoomReadinessSchema.parse(req.body);
+  const data = await RoomService.bulkUpdateReadiness(req.withTenant, req.user!, dto);
+  res.json({ data });
+});
+
+roomsRouter.get("/:id/inventory-blocks", requirePermission("ROOM_READ"), async (req, res) => {
+  const data = await RoomService.listInventoryBlocks(req.withTenant, req.params.id as string);
+  res.json({ data });
+});
+
+roomsRouter.post("/:id/inventory-blocks", requirePermission("ROOM_UPDATE"), async (req, res) => {
+  const dto = createRoomInventoryBlockSchema.parse(req.body);
+  const data = await RoomService.createInventoryBlock(req.withTenant, req.user!, req.params.id as string, dto);
+  res.status(201).json({ data });
+});
+
+roomsRouter.post("/:id/inventory-blocks/:blockId/cancel", requirePermission("ROOM_UPDATE"), async (req, res) => {
+  const dto = cancelRoomInventoryBlockSchema.parse(req.body);
+  const data = await RoomService.cancelInventoryBlock(
+    req.withTenant,
+    req.user!,
+    req.params.id as string,
+    req.params.blockId as string,
+    dto,
+  );
+  res.json({ data });
 });
 
 roomsRouter.get("/:id", requirePermission("ROOM_READ"), async (req, res) => {

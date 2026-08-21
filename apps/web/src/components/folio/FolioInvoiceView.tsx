@@ -72,6 +72,21 @@ export function FolioInvoiceView({ folio, group, onClose }: FolioInvoiceViewProp
   const netCharge = folio.chargesTotal + folio.taxTotal - folio.discountsTotal;
   const items     = [...folio.items].sort((a, b) => a.chargeDate.localeCompare(b.chargeDate));
   const now       = new Date().toISOString();
+  const companyLedgerTransferred = Math.max(
+    0,
+    folio.companyResponsibilityTotal - folio.companyBalanceDue,
+  );
+  const companyNames = Array.from(
+    new Set(
+      folio.items
+        .filter((item) => item.payerType === "COMPANY" && item.payerCompany?.name)
+        .map((item) => item.payerCompany?.name)
+        .filter((name): name is string => Boolean(name)),
+    ),
+  );
+  const companyAccountDestination = companyNames.length === 1
+    ? `${companyNames[0]}'s company account`
+    : "the company account";
 
   return (
     <div
@@ -113,7 +128,9 @@ export function FolioInvoiceView({ folio, group, onClose }: FolioInvoiceViewProp
             )}
           </div>
           <div className="shrink-0 text-right">
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-faint">Guest Folio</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-faint">
+              {folio.companyResponsibilityTotal > 0 ? "Guest / Company Folio" : "Guest Folio"}
+            </p>
             <p className="mt-1 font-mono text-[15px] font-semibold tnum text-ink">{folio.folioNumber}</p>
             <p className="mt-2 text-[11px] text-ink-mute">Issued {fmtDateTime(now)}</p>
             <span
@@ -152,7 +169,7 @@ export function FolioInvoiceView({ folio, group, onClose }: FolioInvoiceViewProp
               <dd className="text-right font-medium tnum text-ink">{nights}</dd>
               {res.confirmationNumber && (
                 <>
-                  <dt className="text-ink-mute">Confirmation</dt>
+                  <dt className="text-ink-mute">Res ID</dt>
                   <dd className="text-right font-medium tnum text-ink">{res.confirmationNumber}</dd>
                 </>
               )}
@@ -171,6 +188,7 @@ export function FolioInvoiceView({ folio, group, onClose }: FolioInvoiceViewProp
                 <tr className="border-b-2 border-ink">
                   <th className="py-2 pr-3 text-left text-[10.5px] font-bold uppercase tracking-wider text-ink-faint">Date</th>
                   <th className="py-2 pr-3 text-left text-[10.5px] font-bold uppercase tracking-wider text-ink-faint">Description</th>
+                  <th className="py-2 pr-3 text-left text-[10.5px] font-bold uppercase tracking-wider text-ink-faint">Payer</th>
                   <th className="py-2 text-right text-[10.5px] font-bold uppercase tracking-wider text-ink-faint">Amount</th>
                 </tr>
               </thead>
@@ -183,6 +201,9 @@ export function FolioInvoiceView({ folio, group, onClose }: FolioInvoiceViewProp
                       <td className="py-2 pr-3 text-ink">
                         {item.description}
                         <span className="text-ink-faint"> · {ITEM_TYPE_LABEL[item.type] ?? item.type}</span>
+                      </td>
+                      <td className="py-2 pr-3 text-[11.5px] font-medium text-ink-mute">
+                        {item.payerType === "COMPANY" ? `BTC · ${item.payerCompany?.name ?? "Company"}` : "Guest"}
                       </td>
                       <td className={`py-2 text-right tnum font-medium ${isDiscount ? "text-pine" : "text-ink"}`}>
                         {isDiscount ? "−" : ""}{fmt(item.amount)}
@@ -222,14 +243,35 @@ export function FolioInvoiceView({ folio, group, onClose }: FolioInvoiceViewProp
             <div className="my-1.5 border-t border-ink/25" />
             <TotalRow label="Total Charges" value={netCharge} bold />
             <TotalRow label="Payments Received" value={-folio.paymentsTotal} tone="pine" />
+            {folio.companyResponsibilityTotal > 0 && (
+              <>
+                <div className="my-1.5 border-t border-ink/15" />
+                <TotalRow label="Guest Responsibility" value={folio.guestResponsibilityTotal} />
+                <TotalRow label="Guest Outstanding" value={folio.guestBalanceDue} bold />
+                <div className="my-1.5 border-t border-ink/15" />
+                <TotalRow label="Company (BTC) Responsibility" value={folio.companyResponsibilityTotal} />
+                {companyLedgerTransferred > 0 && (
+                  <TotalRow label="Transferred to Company Account" value={-companyLedgerTransferred} tone="pine" />
+                )}
+                <TotalRow label="BTC Awaiting Transfer" value={folio.companyBalanceDue} bold />
+              </>
+            )}
             <div className="mt-1.5 flex items-baseline justify-between border-t-2 border-ink pt-2.5">
-              <span className="text-[13.5px] font-bold uppercase tracking-wide text-ink">Balance Due</span>
+              <span className="text-[13.5px] font-bold uppercase tracking-wide text-ink">Folio Balance Due</span>
               <span className={`serif tnum text-[28px] font-bold ${folio.balanceDue > 0 ? "text-coral" : "text-pine"}`}>
                 {fmt(folio.balanceDue)}
               </span>
             </div>
           </div>
         </div>
+
+        {companyLedgerTransferred > 0 && (
+          <div className="mt-5 rounded-lg border border-line-soft bg-paper px-4 py-3 text-[11.5px] leading-relaxed text-ink-mute">
+            <span className="font-semibold text-ink">BTC transfer:</span>{" "}
+            {fmt(companyLedgerTransferred)} was transferred to {companyAccountDestination}.
+            Its payment status is tracked on the company ledger, so it is no longer due on this folio.
+          </div>
+        )}
 
         {/* Signatures */}
         <div className="mt-10 grid grid-cols-2 gap-10">

@@ -84,6 +84,7 @@ export const OperationalReminderService = {
             where: {
               hotelId,
               businessDate: new Date(`${businessDate}T00:00:00.000Z`),
+              reversedAt: null,
             },
             select: { id: true },
           })

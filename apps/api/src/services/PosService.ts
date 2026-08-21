@@ -1,5 +1,5 @@
 import type { TenantTx } from "@pms/db";
-import { FolioItemType } from "@pms/db";
+import { FolioItemType, InventoryTransactionType, Prisma } from "@pms/db";
 import type { JwtPayload } from "../middleware/auth";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
@@ -8,6 +8,85 @@ import { notifyHotelDataChanged } from "../lib/realtime";
 import type { CreateOrderDto, ListOrdersQuery } from "../schemas/pos";
 
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
+
+interface LockedInventoryRow {
+  id: string;
+  name: string;
+  unit: string;
+  current_stock: string;
+  is_active: boolean;
+}
+
+async function reserveInventoryForOrder(
+  db: TenantTx,
+  hotelId: string,
+  orderId: string,
+  actorId: string,
+  orderItems: { posItemId: string; quantity: number }[],
+  posItems: Array<{
+    id: string;
+    name: string;
+    inventoryItemId: string | null;
+    inventoryQtyUsed: Prisma.Decimal | null;
+  }>,
+) {
+  const requiredByInventoryId = new Map<string, { quantity: number; menuItems: string[] }>();
+  for (const orderItem of orderItems) {
+    const posItem = posItems.find((item) => item.id === orderItem.posItemId);
+    if (!posItem?.inventoryItemId || !posItem.inventoryQtyUsed) continue;
+    const required = orderItem.quantity * Number(posItem.inventoryQtyUsed);
+    if (required <= 0) continue;
+    const existing = requiredByInventoryId.get(posItem.inventoryItemId) ?? { quantity: 0, menuItems: [] };
+    existing.quantity += required;
+    if (!existing.menuItems.includes(posItem.name)) existing.menuItems.push(posItem.name);
+    requiredByInventoryId.set(posItem.inventoryItemId, existing);
+  }
+
+  const inventoryIds = [...requiredByInventoryId.keys()].sort();
+  if (inventoryIds.length === 0) return;
+
+  // Lock ingredient rows until the order and its consumption entries commit.
+  // This prevents two tills from both spending the same final stock quantity.
+  const inventory = await db.$queryRaw<LockedInventoryRow[]>(Prisma.sql`
+    SELECT id, name, unit, current_stock::text, is_active
+    FROM inventory_items
+    WHERE hotel_id = ${hotelId}::uuid
+      AND id = ANY(ARRAY[${Prisma.join(inventoryIds)}]::uuid[])
+    ORDER BY id
+    FOR UPDATE
+  `);
+  const inventoryById = new Map(inventory.map((item) => [item.id, item]));
+
+  for (const inventoryId of inventoryIds) {
+    const requirement = requiredByInventoryId.get(inventoryId)!;
+    const item = inventoryById.get(inventoryId);
+    if (!item || !item.is_active) {
+      throw new AppError(409, `${requirement.menuItems.join(", ")} cannot be sold because its linked inventory item is inactive or missing.`);
+    }
+    const available = Number(item.current_stock);
+    if (available < requirement.quantity) {
+      throw new AppError(
+        409,
+        `${requirement.menuItems.join(", ")} is out of stock. ${item.name} requires ${requirement.quantity.toLocaleString("en-PK")} ${item.unit}, but only ${available.toLocaleString("en-PK")} ${item.unit} is available.`,
+      );
+    }
+  }
+
+  for (const inventoryId of inventoryIds) {
+    const requirement = requiredByInventoryId.get(inventoryId)!;
+    await db.inventoryTransaction.create({
+      data: {
+        hotelId,
+        itemId: inventoryId,
+        type: InventoryTransactionType.CONSUMPTION,
+        quantity: requirement.quantity,
+        referenceType: "POS_ORDER",
+        referenceId: orderId,
+        performedBy: actorId,
+      },
+    });
+  }
+}
 
 // ── Status encoding in tableNumber field ──────────────────────────────────────
 // null           → OPEN
@@ -147,6 +226,10 @@ export const PosService = {
         },
         include: { items: true },
       });
+
+      // Stock validation and consumption are part of the same transaction as
+      // the sale. Both direct and folio orders consume physical ingredients.
+      await reserveInventoryForOrder(db, actor.hotelId, order.id, actor.userId, dto.items, posItems);
 
       // FOLIO settlement: post items to guest folio
       if (dto.settlementType === "FOLIO" && dto.reservationId) {

@@ -43,6 +43,10 @@ const CashReconciliationPage       = lazy(() => import("./pages/reports/CashReco
 const AccountingExportPage         = lazy(() => import("./pages/reports/AccountingExportPage"));
 const OccupancyTrendPage           = lazy(() => import("./pages/reports/OccupancyTrendPage"));
 const ADRRevPARPage                = lazy(() => import("./pages/reports/ADRRevPARPage"));
+const HistoricalComparisonPage    = lazy(() => import("./pages/reports/HistoricalComparisonPage"));
+const ForecastPage                 = lazy(() => import("./pages/reports/ForecastPage"));
+const PickupPacePage               = lazy(() => import("./pages/reports/PickupPacePage"));
+const EarlyBirdReportPage          = lazy(() => import("./pages/reports/EarlyBirdReportPage"));
 const RoomTypePerformancePage      = lazy(() => import("./pages/reports/RoomTypePerformancePage"));
 const SourceOfBusinessPage         = lazy(() => import("./pages/reports/SourceOfBusinessPage"));
 const LengthOfStayPage             = lazy(() => import("./pages/reports/LengthOfStayPage"));
@@ -421,7 +425,11 @@ function PmsRoutes() {
         />
         <Route
           path="/operations"
-          element={<Navigate to="/operations/shift-handover" replace />}
+          element={<Navigate to="/operations/early-bird" replace />}
+        />
+        <Route
+          path="/operations/early-bird"
+          element={<PrivateRoute><AppLayout><EarlyBirdReportPage /></AppLayout></PrivateRoute>}
         />
         <Route
           path="/operations/shift-handover"
@@ -522,6 +530,36 @@ function PmsRoutes() {
           }
         />
         <Route
+          path="/reports/forecast"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <ForecastPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/reports/historical-comparison"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <HistoricalComparisonPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/reports/pickup-pace"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <PickupPacePage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
           path="/reports/room-type-performance"
           element={
             <PrivateRoute>
@@ -601,6 +639,7 @@ function PmsRoutes() {
         <Route path="/reports/pos-sales" element={<PrivateRoute><AppLayout><POSSalesPage /></AppLayout></PrivateRoute>} />
         <Route path="/reports/qr-orders" element={<PrivateRoute><AppLayout><QROrdersReportPage /></AppLayout></PrivateRoute>} />
         <Route path="/reports/night-audit" element={<Navigate to="/operations/night-audit" replace />} />
+        <Route path="/reports/early-bird" element={<Navigate to="/operations/early-bird" replace />} />
         <Route
           path="/notifications"
           element={

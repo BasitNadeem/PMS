@@ -68,6 +68,11 @@ enum RoomStatus {
   BLOCKED
 }
 
+enum RoomInventoryBlockType {
+  OUT_OF_ORDER
+  OUT_OF_SERVICE
+}
+
 enum RoomTypeName {
   SINGLE
   DOUBLE
@@ -381,6 +386,9 @@ model Hotel {
   city          String?
   region        String?
   province      String?
+  /// Postal / ZIP code. Required by Channex before a property may connect to
+  /// any OTA — see lib/channexEligibility.validateHotelForChannex.
+  zipCode       String?  @map("zip_code")
   country       String   @default("PK")
   latitude      Decimal? @db.Decimal(10, 7)
   longitude     Decimal? @db.Decimal(10, 7)
@@ -411,6 +419,7 @@ model Hotel {
   users                 HotelUser[]
   roomTypes             RoomType[]
   rooms                 Room[]
+  roomInventoryBlocks   RoomInventoryBlock[]
   guests                Guest[]
   guestSpecialDates     GuestSpecialDate[]
   companies             Company[]
@@ -419,7 +428,10 @@ model Hotel {
   accountingAccounts    AccountingAccount[]
   accountingExports     AccountingExport[]
   reservations          Reservation[]
+  reservationStayChanges ReservationStayChange[]
+  reservationLifecycleReversals ReservationLifecycleReversal[]
   folios                Folio[]
+  folioItemPayerChanges FolioItemPayerChange[]
   payments              Payment[]
   housekeepingTasks     HousekeepingTask[]
   maintenanceTickets    MaintenanceTicket[]
@@ -432,6 +444,7 @@ model Hotel {
   ratePlanCodes         RatePlanCode[]
   upsellItems           UpsellItem[]
   channels              ChannelConfig[]
+  channelWebhookEvents  ChannelWebhookEvent[]
   inventoryItems        InventoryItem[]
   inventoryTransactions InventoryTransaction[]
   staff                 Staff[]
@@ -445,6 +458,8 @@ model Hotel {
   pushSubscriptions     PushSubscription[]
   currentBusinessDate   DateTime?               @map("current_business_date") @db.Date
   nightAuditRecords     NightAuditRecord[]
+  earlyBirdReports      EarlyBirdReportArchive[]
+  bookingPaceSnapshots BookingPaceSnapshot[]
   subscriptionPlanId    String?                 @map("subscription_plan_id") @db.Uuid
   subscriptionPlan      SubscriptionPlan?       @relation(fields: [subscriptionPlanId], references: [id])
   limitOverrides        Json?                   @map("limit_overrides")
@@ -470,11 +485,55 @@ model NightAuditRecord {
   noShowsFlagged   Int      @default(0)
   openBalanceCount Int      @default(0)
   snapshot         Json
+  revision         Int       @default(1)
+  reversedAt       DateTime? @map("reversed_at")
+  reversedBy       String?   @map("reversed_by") @db.Uuid
+  reversalReason   String?   @map("reversal_reason") @db.Text
   hotel            Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  earlyBirdReport  EarlyBirdReportArchive?
 
-  @@unique([hotelId, businessDate])
+  @@unique([hotelId, businessDate, revision])
   @@index([hotelId, businessDate])
+  @@index([hotelId, reversedAt])
   @@map("night_audit_records")
+}
+
+/// Immutable manager-facing morning report. It is created only from an active,
+/// frozen Night Audit and remains attached to that exact audit revision.
+model EarlyBirdReportArchive {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId        String   @map("hotel_id") @db.Uuid
+  nightAuditId   String   @unique @map("night_audit_id") @db.Uuid
+  reportDate     DateTime @map("report_date") @db.Date
+  forecastDays   Int      @default(10) @map("forecast_days")
+  snapshot       Json
+  generatedAt    DateTime @default(now()) @map("generated_at")
+  generatedBy    String   @map("generated_by") @db.Uuid
+
+  hotel      Hotel            @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  nightAudit NightAuditRecord @relation(fields: [nightAuditId], references: [id], onDelete: Restrict)
+
+  @@index([hotelId, reportDate])
+  @@index([hotelId, generatedAt])
+  @@map("early_bird_report_archives")
+}
+
+/// Daily on-the-books observation used for genuine pickup and pace reporting.
+/// Each hotel/date is updated during that date, then becomes an immutable
+/// historical baseline once the observation date has passed.
+model BookingPaceSnapshot {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String   @map("hotel_id") @db.Uuid
+  observationAt   DateTime @map("observation_at") @db.Timestamptz(0)
+  horizonDays     Int      @default(90) @map("horizon_days")
+  snapshot        Json
+  capturedAt      DateTime @default(now()) @map("captured_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  hotel           Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, observationAt])
+  @@index([hotelId, capturedAt])
+  @@map("booking_pace_snapshots")
 }
 
 model SubscriptionPlan {
@@ -577,6 +636,11 @@ model RoomType {
   sortOrder    Int          @default(0) @map("sort_order")
   isActive     Boolean      @default(true) @map("is_active")
 
+  /// Channex room type id, set once by ChannexProvisioningService. NULL means
+  /// this room type has not been pushed to Channex yet — provisioning is
+  /// incremental and resumes from whichever rows are still NULL.
+  channexRoomTypeId String? @map("channex_room_type_id")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -587,6 +651,7 @@ model RoomType {
 
   @@index([hotelId])
   @@index([hotelId, isActive])
+  @@index([hotelId, channexRoomTypeId])
   @@map("room_types")
 }
 
@@ -612,6 +677,7 @@ model Room {
   reservationRooms   ReservationRoom[]
   housekeepingTasks  HousekeepingTask[]
   maintenanceTickets MaintenanceTicket[]
+  inventoryBlocks    RoomInventoryBlock[]
 
   @@unique([hotelId, number])
   @@index([hotelId])
@@ -619,6 +685,35 @@ model Room {
   @@index([hotelId, isActive])
   @@index([roomTypeId])
   @@map("rooms")
+}
+
+/// A dated removal from sellable room inventory. `startDate` is inclusive and
+/// `endDate` is exclusive, matching reservation-room night semantics.
+model RoomInventoryBlock {
+  id        String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId   String                 @map("hotel_id") @db.Uuid
+  roomId    String                 @map("room_id") @db.Uuid
+  maintenanceTicketId String?      @unique @map("maintenance_ticket_id") @db.Uuid
+  type      RoomInventoryBlockType
+  startDate DateTime               @map("start_date") @db.Date
+  endDate   DateTime               @map("end_date") @db.Date
+  reason    String
+  notes     String?
+  createdBy String                 @map("created_by") @db.Uuid
+  cancelledAt DateTime?            @map("cancelled_at")
+  cancelledBy String?              @map("cancelled_by") @db.Uuid
+  cancelReason String?              @map("cancel_reason")
+  createdAt DateTime               @default(now()) @map("created_at")
+  updatedAt DateTime               @updatedAt @map("updated_at")
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room  Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  maintenanceTicket MaintenanceTicket? @relation(fields: [maintenanceTicketId], references: [id], onDelete: SetNull)
+
+  @@index([hotelId, startDate, endDate])
+  @@index([roomId, startDate, endDate])
+  @@index([hotelId, cancelledAt])
+  @@map("room_inventory_blocks")
 }
 
 // ============================================================================
@@ -838,9 +933,18 @@ model Reservation {
   /// ledger instead of blocking checkout. Requires companyId.
   billToCompany Boolean @default(false) @map("bill_to_company")
 
+  /// Human-facing reservation identity (for example RES-000123).
   confirmationNumber String            @unique @map("confirmation_number")
+  /// Previous confirmation reference retained only so historic emails and
+  /// staff searches continue to resolve after the RES-number migration.
+  legacyConfirmationNumber String?     @unique @map("legacy_confirmation_number")
   source             BookingSource     @default(WALK_IN)
+  /// Channex booking id for reservations ingested from a channel manager.
   otaBookingRef      String?           @map("ota_booking_ref")
+  /// Originating sales channel exactly as the channel manager reports it
+  /// (e.g. "BookingCom", "Airbnb"). Kept alongside `source` because the
+  /// BookingSource enum cannot name every OTA Channex supports.
+  otaSource          String?           @map("ota_source")
   status             ReservationStatus @default(CONFIRMED)
   guestType          GuestType         @default(INDIVIDUAL) @map("guest_type")
 
@@ -900,6 +1004,8 @@ model Reservation {
   payments Payment[]
   messages Message[]
   upsells  ReservationUpsell[]
+  stayChanges ReservationStayChange[]
+  lifecycleReversals ReservationLifecycleReversal[]
 
   @@index([hotelId, companyId])
   @@index([hotelId, status])
@@ -938,6 +1044,73 @@ model ReservationRoom {
   @@index([roomId, checkInDate, checkOutDate])
   @@index([roomTypeId])
   @@map("reservation_rooms")
+}
+
+/// Immutable history for changes made after physical check-in. The current
+/// assignment remains on ReservationRoom for compatibility with availability,
+/// room-board and reporting code; this table preserves what changed, why, and
+/// which customer-facing folio entries resulted from it.
+model ReservationStayChange {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId           String   @map("hotel_id") @db.Uuid
+  reservationId     String   @map("reservation_id") @db.Uuid
+  reservationRoomId String   @map("reservation_room_id") @db.Uuid
+
+  changeType       String   @map("change_type")
+  effectiveDate    DateTime @map("effective_date") @db.Date
+  fromRoomId       String   @map("from_room_id") @db.Uuid
+  toRoomId         String   @map("to_room_id") @db.Uuid
+  fromRoomNumber   String   @map("from_room_number")
+  toRoomNumber     String   @map("to_room_number")
+  fromRoomTypeName String   @map("from_room_type_name")
+  toRoomTypeName   String   @map("to_room_type_name")
+  previousRate     Int      @map("previous_rate")
+  newRate          Int      @map("new_rate")
+  previousCheckOut DateTime? @map("previous_check_out") @db.Date
+  newCheckOut      DateTime? @map("new_check_out") @db.Date
+  earlyDepartureTreatment String? @map("early_departure_treatment")
+  earlyDepartureCreditAmount Int @default(0) @map("early_departure_credit_amount")
+  rateAdjustment   Int      @default(0) @map("rate_adjustment")
+  rebateAmount     Int      @default(0) @map("rebate_amount")
+
+  internalReason      String   @map("internal_reason") @db.Text
+  customerDescription String   @map("customer_description")
+  folioItemIds        String[] @default([]) @map("folio_item_ids") @db.Uuid
+  createdBy           String   @map("created_by") @db.Uuid
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  hotel       Hotel       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, createdAt])
+  @@index([reservationId, createdAt])
+  @@index([reservationRoomId])
+  @@map("reservation_stay_changes")
+}
+
+/// Append-only correction record for accidental check-in/check-out actions.
+/// The original audit event is never removed; this records who restored which
+/// state, why, and which operational records were compensated.
+model ReservationLifecycleReversal {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId             String   @map("hotel_id") @db.Uuid
+  reservationId       String   @map("reservation_id") @db.Uuid
+  actionReversed      String   @map("action_reversed")
+  previousStatus      String   @map("previous_status")
+  restoredStatus      String   @map("restored_status")
+  originalActionAt    DateTime @map("original_action_at")
+  reason              String   @db.Text
+  affectedFolioItemIds String[] @default([]) @map("affected_folio_item_ids") @db.Uuid
+  affectedTaskIds     String[] @default([]) @map("affected_task_ids") @db.Uuid
+  createdBy           String   @map("created_by") @db.Uuid
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  hotel       Hotel       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, createdAt])
+  @@index([reservationId, createdAt])
+  @@map("reservation_lifecycle_reversals")
 }
 
 // ============================================================================
@@ -991,6 +1164,11 @@ enum CompanyInvoiceStatus {
   VOID
 }
 
+enum FolioPayerType {
+  GUEST
+  COMPANY
+}
+
 model Company {
   id      String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   hotelId String @map("hotel_id") @db.Uuid
@@ -1040,6 +1218,9 @@ model Company {
   invoices            CompanyInvoice[]
   reservations        Reservation[]
   groupBookings       GroupBooking[]
+  folioItems                       FolioItem[]
+  previousFolioItemPayerChanges    FolioItemPayerChange[] @relation("PreviousFolioItemPayerCompany")
+  newFolioItemPayerChanges         FolioItemPayerChange[] @relation("NewFolioItemPayerCompany")
 
   @@unique([hotelId, name])
   @@index([hotelId])
@@ -1217,6 +1398,14 @@ model Folio {
   paymentsTotal  Int @default(0) @map("payments_total")
   balanceDue     Int @default(0) @map("balance_due")
 
+  /// Responsibility totals are derived from active folio items. Existing
+  /// aggregate columns remain the overall folio totals for compatibility.
+  guestResponsibilityTotal   Int @default(0) @map("guest_responsibility_total")
+  companyResponsibilityTotal Int @default(0) @map("company_responsibility_total")
+  guestBalanceDue            Int @default(0) @map("guest_balance_due")
+  /// Company-assigned amount not yet transferred to the company ledger.
+  companyBalanceDue          Int @default(0) @map("company_balance_due")
+
   isOpen   Boolean   @default(true) @map("is_open")
   closedAt DateTime? @map("closed_at")
   closedBy String?   @map("closed_by") @db.Uuid
@@ -1258,6 +1447,12 @@ model FolioItem {
   roomId         String? @map("room_id") @db.Uuid
   staffId        String? @map("staff_id") @db.Uuid
 
+  /// Who is responsible for this charge. COMPANY requires payerCompanyId.
+  payerType      FolioPayerType @default(GUEST) @map("payer_type")
+  payerCompanyId String?        @map("payer_company_id") @db.Uuid
+  allocatedAt    DateTime?      @map("allocated_at")
+  allocatedBy    String?        @map("allocated_by") @db.Uuid
+
   chargeDate DateTime  @default(now()) @map("charge_date")
   isVoided   Boolean   @default(false) @map("is_voided")
   voidedAt   DateTime? @map("voided_at")
@@ -1270,12 +1465,44 @@ model FolioItem {
 
   folio        Folio         @relation(fields: [folioId], references: [id], onDelete: Cascade)
   posOrderItem PosOrderItem? @relation(fields: [posOrderItemId], references: [id])
+  payerCompany Company?      @relation(fields: [payerCompanyId], references: [id], onDelete: Restrict)
+  payerChanges FolioItemPayerChange[]
 
   @@index([folioId])
   @@index([hotelId, chargeDate])
   @@index([hotelId, type])
   @@index([posOrderItemId])
+  @@index([hotelId, payerType])
+  @@index([payerCompanyId])
   @@map("folio_items")
+}
+
+/// Append-only responsibility history. A payer change is a financial control,
+/// so the previous assignment is retained even when a charge later moves back.
+model FolioItemPayerChange {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String         @map("hotel_id") @db.Uuid
+  folioItemId String         @map("folio_item_id") @db.Uuid
+
+  previousPayerType      FolioPayerType @map("previous_payer_type")
+  previousPayerCompanyId String?        @map("previous_payer_company_id") @db.Uuid
+  newPayerType           FolioPayerType @map("new_payer_type")
+  newPayerCompanyId      String?        @map("new_payer_company_id") @db.Uuid
+
+  reason    String   @db.Text
+  changedBy String   @map("changed_by") @db.Uuid
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  hotel                  Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  folioItem              FolioItem @relation(fields: [folioItemId], references: [id], onDelete: Restrict)
+  previousPayerCompany   Company?  @relation("PreviousFolioItemPayerCompany", fields: [previousPayerCompanyId], references: [id], onDelete: Restrict)
+  newPayerCompany        Company?  @relation("NewFolioItemPayerCompany", fields: [newPayerCompanyId], references: [id], onDelete: Restrict)
+
+  @@index([hotelId, changedAt])
+  @@index([folioItemId, changedAt])
+  @@index([previousPayerCompanyId])
+  @@index([newPayerCompanyId])
+  @@map("folio_item_payer_changes")
 }
 
 model FolioSplit {
@@ -1533,6 +1760,7 @@ model MaintenanceTicket {
   hotel      Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   room       Room? @relation(fields: [roomId], references: [id])
   assignedTo User? @relation("assignedMaintenance", fields: [assignedToId], references: [id])
+  inventoryBlock RoomInventoryBlock?
 
   @@index([hotelId, status])
   @@index([hotelId, priority])
@@ -1829,17 +2057,31 @@ model RatePlanItem {
   roomTypeId String @map("room_type_id") @db.Uuid
   rate       Int
 
+  /// Channex rate plan id. Lives here rather than on RatePlan because Channex
+  /// models a rate plan as (property x room type), which is exactly this row's
+  /// grain — an InnFlo rate plan covering N room types maps to N Channex rate
+  /// plans. NULL means this pair has not been pushed to Channex yet;
+  /// provisioning is opt-in and incremental, so it resumes from whatever is
+  /// still NULL. Only rows where this is NOT NULL are ever included in an
+  /// ARI push.
+  channexRatePlanId String? @map("channex_rate_plan_id")
+
   ratePlan RatePlan @relation(fields: [ratePlanId], references: [id], onDelete: Cascade)
   roomType RoomType @relation(fields: [roomTypeId], references: [id])
 
   @@unique([ratePlanId, roomTypeId])
   @@index([ratePlanId])
   @@index([roomTypeId])
+  @@index([ratePlanId, channexRatePlanId])
   @@map("rate_plan_items")
 }
 
 // ============================================================================
-// CHANNEL MANAGER — Phase 2 stub
+// CHANNEL MANAGER
+//
+// Channex uses ChannelType.CHANNEL_MANAGER. Its `credentials` JSONB carries
+// { channex_property_id, api_key? } — the api_key is an optional per-hotel
+// override of the account-level CHANNEX_API_KEY from env.
 // ============================================================================
 
 model ChannelConfig {
@@ -1866,6 +2108,47 @@ model ChannelConfig {
   @@index([hotelId])
   @@index([hotelId, isActive])
   @@map("channel_configs")
+}
+
+/// Exactly-once ingestion guard for inbound channel-manager events.
+///
+/// Both the webhook endpoint and the polling fallback insert here first, keyed
+/// on (hotelId, provider, sourceKey). Whichever arrives second hits the unique
+/// index and is dropped, so a booking delivered twice is processed once.
+///
+/// Provider-neutral on purpose: this is infrastructure a second channel manager
+/// reuses unchanged, unlike RoomType.channexRoomTypeId which is a Channex UUID.
+model ChannelWebhookEvent {
+  id      String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId String @map("hotel_id") @db.Uuid
+
+  /// Upstream channel manager. "CHANNEX" today; part of the unique key so a
+  /// second provider cannot collide on a shared event-id format.
+  provider  String @default("CHANNEX")
+  /// Provider event / booking-revision id.
+  sourceKey String @map("source_key")
+  /// e.g. "booking_new", "booking_modification", "booking_cancellation".
+  eventType String @map("event_type")
+  /// "WEBHOOK" | "POLL" — which path won the race. Observability only.
+  origin    String @default("WEBHOOK")
+
+  /// Raw delivery payload, retained for debugging ONLY. Delivery can arrive out
+  /// of order, so ingestion always re-pulls authoritative data from the
+  /// provider's booking API. Never read this as a source of truth.
+  payload Json @default("{}")
+
+  /// "PENDING" | "PROCESSED" | "FAILED".
+  status      String    @default("PENDING")
+  attempts    Int       @default(0)
+  error       String?
+  receivedAt  DateTime  @default(now()) @map("received_at")
+  processedAt DateTime? @map("processed_at")
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, provider, sourceKey])
+  @@index([hotelId, status])
+  @@map("channel_webhook_events")
 }
 
 // ============================================================================

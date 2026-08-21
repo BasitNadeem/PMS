@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { RoomStatus, RoomTypeName } from "@pms/db";
+import { RoomInventoryBlockType, RoomStatus, RoomTypeName } from "@pms/db";
 
 // ── Room Types ────────────────────────────────────────────────────────────────
 
@@ -37,13 +37,18 @@ export const createRoomSchema = z.object({
   number:     z.string().trim().min(1),
   floor:      z.number().int().min(0).optional(),
   roomTypeId: z.string().uuid(),
-  status:     z.nativeEnum(RoomStatus).default("VACANT_CLEAN"),
   notes:      z.string().trim().optional(),
 });
 export type CreateRoomDto = z.infer<typeof createRoomSchema>;
 
 export const updateRoomSchema = createRoomSchema.partial();
 export type UpdateRoomDto = z.infer<typeof updateRoomSchema>;
+
+export const bulkUpdateRoomReadinessSchema = z.object({
+  roomIds: z.array(z.string().uuid()).min(1).max(100),
+  status: z.enum(["VACANT_CLEAN", "VACANT_DIRTY"]),
+});
+export type BulkUpdateRoomReadinessDto = z.infer<typeof bulkUpdateRoomReadinessSchema>;
 
 // ── Availability check (proactive conflict warning, before reservation create) ──
 
@@ -57,3 +62,22 @@ export const checkAvailabilitySchema = z.object({
   message: "Provide roomId or roomTypeId, not both — omit both to check all rooms",
 });
 export type CheckAvailabilityQuery = z.infer<typeof checkAvailabilitySchema>;
+
+// ── Dated room inventory blocks ──────────────────────────────────────────────
+
+export const createRoomInventoryBlockSchema = z.object({
+  type: z.nativeEnum(RoomInventoryBlockType),
+  startDate: z.string().date(),
+  endDate: z.string().date(),
+  reason: z.string().trim().min(3).max(200),
+  notes: z.string().trim().max(1000).optional(),
+}).refine((data) => data.endDate > data.startDate, {
+  path: ["endDate"],
+  message: "End date must be after start date",
+});
+export type CreateRoomInventoryBlockDto = z.infer<typeof createRoomInventoryBlockSchema>;
+
+export const cancelRoomInventoryBlockSchema = z.object({
+  reason: z.string().trim().min(3).max(500),
+});
+export type CancelRoomInventoryBlockDto = z.infer<typeof cancelRoomInventoryBlockSchema>;

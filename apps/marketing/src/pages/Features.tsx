@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence, useAnimation } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Reveal from "../components/motion/Reveal";
 import SplitHeading from "../components/motion/SplitHeading";
 import TabbedFeatureBlock from "../components/features/TabbedFeatureBlock";
@@ -10,6 +10,7 @@ import {
   BellRing,
   Calculator,
   CalendarCheck2,
+  CalendarRange,
   ChefHat,
   CheckCircle2,
   ChevronRight,
@@ -22,7 +23,6 @@ import {
   KeyRound,
   LayoutDashboard,
   Lock,
-  MousePointer2,
   Plus,
   ReceiptText,
   RefreshCw,
@@ -30,6 +30,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   Sparkles,
+  Tag,
   UserCog,
   Users,
   Utensils,
@@ -42,243 +43,9 @@ import {
   LiveScheduleMockup, PosTerminalMockup, QrMenuMockup,
   InventoryControlMockup, LiveFolioMockup,
 } from "../components/features/TabModuleMockups";
-
-function PmsHeroMockup() {
-  const cursorControls = useAnimation();
-  const notificationControls = useAnimation();
-  const [revenue, setRevenue] = useState(54);
-  const [arrivals, setArrivals] = useState(4);
-  const [activeTab, setActiveTab] = useState("Today");
-
-  useEffect(() => {
-    let isMounted = true;
-    const runSequence = async () => {
-      while (isMounted) {
-        // 1. Initial State
-        setRevenue(54);
-        setArrivals(4);
-        setActiveTab("Today");
-        cursorControls.set({ x: 300, y: 250, opacity: 0 });
-        notificationControls.set({ y: 50, opacity: 0 });
-        
-        await new Promise(r => setTimeout(r, 1200));
-        if (!isMounted) break;
-
-        // 2. Notification pops up (New direct booking)
-        notificationControls.start({ y: 0, opacity: 1, transition: { type: "spring", stiffness: 200, damping: 20 } });
-        
-        await new Promise(r => setTimeout(r, 1500));
-        if (!isMounted) break;
-        
-        // 3. Update stats (New booking reflects in revenue and arrivals)
-        setRevenue(79);
-        setArrivals(5);
-
-        await new Promise(r => setTimeout(r, 1000));
-        if (!isMounted) break;
-
-        // 4. Cursor moves to 'Reservations' tab and clicks
-        await cursorControls.start({ opacity: 1, transition: { duration: 0.3 } });
-        await cursorControls.start({ x: 40, y: 110, transition: { duration: 1, ease: "easeInOut" } });
-        
-        // Click effect
-        await cursorControls.start({ scale: 0.8, transition: { duration: 0.1 } });
-        setActiveTab("Reservations");
-        await cursorControls.start({ scale: 1, transition: { duration: 0.1 } });
-        
-        await new Promise(r => setTimeout(r, 2500));
-        if (!isMounted) break;
-
-        // 5. Fade out and loop
-        await cursorControls.start({ opacity: 0, transition: { duration: 0.5 } });
-        await notificationControls.start({ y: 20, opacity: 0, transition: { duration: 0.5 } });
-        
-        await new Promise(r => setTimeout(r, 1500));
-      }
-    };
-    
-    runSequence();
-    return () => { isMounted = false; };
-  }, [cursorControls, notificationControls]);
-
-  const metrics = [
-    { label: "Occupancy", value: "75%", detail: "9 / 12 rooms", icon: BedDouble, tone: "bg-emerald-50 text-emerald-700" },
-    { label: "Arrivals", value: arrivals.toString(), detail: "2 before 3 PM", icon: CalendarCheck2, tone: "bg-blue-50 text-blue-700" },
-    { label: "Guests", value: "18", detail: "Currently in-house", icon: Users, tone: "bg-violet-50 text-violet-700" },
-    { label: "Revenue", value: `${revenue}K`, detail: "PKR today", icon: Wallet, tone: "bg-coral-soft text-coral-dark" },
-  ];
-
-  return (
-    <div className="relative mx-auto w-full max-w-[760px] min-w-0 pb-8 pt-3 sm:pl-5">
-      
-      {/* Animated Pointer */}
-      <motion.div 
-        animate={cursorControls}
-        className="absolute z-50 pointer-events-none drop-shadow-[0_4px_8px_rgba(0,0,0,0.15)]"
-        initial={{ x: 300, y: 250, opacity: 0 }}
-      >
-        <MousePointer2 className="w-5 h-5 text-ink fill-white -rotate-12" />
-      </motion.div>
-
-      <div className="overflow-hidden rounded-[26px] border border-line bg-white shadow-[0_32px_90px_rgba(68,43,30,.18)] relative z-10">
-        <div className="flex h-11 items-center justify-between border-b border-line-soft bg-[#FBF8F4] px-4">
-          <div className="flex items-center gap-3">
-            <div className="flex gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#F5A6A0]" />
-              <span className="h-2.5 w-2.5 rounded-full bg-[#F5D183]" />
-              <span className="h-2.5 w-2.5 rounded-full bg-[#9EDDC7]" />
-            </div>
-            <span className="text-[9px] font-black tracking-wide text-ink-mute">Innflo · Central Inn</span>
-          </div>
-          <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[7px] font-black text-emerald-700">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-            LIVE
-          </span>
-        </div>
-
-        <div className="grid bg-[#F7F3EE] sm:grid-cols-[88px_minmax(0,1fr)]">
-          <aside className="hidden border-r border-line-soft bg-ink px-2.5 py-4 text-white sm:block">
-            <div className="mb-5 flex items-center gap-1.5 px-1">
-              <span className="grid h-6 w-6 place-items-center rounded-lg bg-coral text-[9px] font-black">I</span>
-              <span className="text-[9px] font-black">Innflo</span>
-            </div>
-            {["Today", "Reservations", "Rooms", "Guests", "Billing", "Reports"].map((item) => (
-              <div
-                key={item}
-                className={`mb-1 rounded-lg px-2 py-2 text-[6.5px] font-bold transition-colors ${
-                  activeTab === item ? "bg-white/10 text-white" : "text-white/50"
-                }`}
-              >
-                {item}
-              </div>
-            ))}
-          </aside>
-
-          <div className="min-w-0 p-3.5 sm:p-4 relative">
-            
-            <AnimatePresence mode="wait">
-              <motion.div 
-                key={activeTab}
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="text-[7px] font-black uppercase tracking-[.15em] text-coral-dark">Wednesday · 7 July</p>
-                    <p className="mt-1 text-[15px] font-black text-ink">{activeTab === "Today" ? "Good morning, Basit." : "Reservations pipeline"}</p>
-                  </div>
-                  <span className="hidden rounded-lg border border-line-soft bg-white px-2.5 py-1.5 text-[7px] font-bold text-ink-soft sm:block">
-                    {activeTab === "Today" ? "Property overview" : "View calendar"}
-                  </span>
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
-                  {metrics.map((metric) => {
-                    const Icon = metric.icon;
-                    return (
-                      <div key={metric.label} className="rounded-xl border border-line-soft bg-white p-2.5 shadow-sm transition-all duration-300">
-                        <div className="flex items-center justify-between">
-                          <p className="text-[6px] font-black uppercase tracking-wider text-ink-mute">{metric.label}</p>
-                          <span className={`grid h-5 w-5 place-items-center rounded-lg ${metric.tone}`}>
-                            <Icon className="h-2.5 w-2.5" />
-                          </span>
-                        </div>
-                        <motion.p 
-                          key={metric.value} 
-                          initial={{ opacity: 0, scale: 0.9 }} 
-                          animate={{ opacity: 1, scale: 1 }} 
-                          className="mt-2 text-[14px] font-black leading-none text-ink"
-                        >
-                          {metric.value}
-                        </motion.p>
-                        <p className="mt-1 text-[5.5px] font-semibold text-ink-mute">{metric.detail}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {activeTab === "Today" ? (
-                  <div className="mt-2 grid gap-2 md:grid-cols-[1.12fr_.88fr]">
-                    <div className="rounded-xl border border-line-soft bg-white p-3 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-[8px] font-black text-ink">Today&apos;s guest movement</p>
-                          <p className="text-[5.5px] text-ink-mute">Arrivals and departures in one queue</p>
-                        </div>
-                        <span className="text-[6px] font-black text-coral-dark">View timeline</span>
-                      </div>
-                      <div className="mt-2.5 space-y-1.5">
-                        {[
-                          ["108", "Zara Khan", "Arriving · 2 PM", "bg-blue-50 text-blue-700"],
-                          ["104", "Hamza Ahmed", "Checked in", "bg-emerald-50 text-emerald-700"],
-                          ["201", "Rao Family", "Due out · 12 PM", "bg-amber-50 text-amber-700"],
-                        ].map(([room, guest, status, tone]) => (
-                          <div key={room} className="flex items-center gap-2 rounded-lg bg-[#FAF8F5] px-2 py-1.5">
-                            <span className={`grid h-6 w-6 place-items-center rounded-lg text-[6.5px] font-black ${tone}`}>{room}</span>
-                            <div className="min-w-0">
-                              <p className="truncate text-[7px] font-black text-ink">{guest}</p>
-                              <p className="text-[5.5px] font-semibold text-ink-mute">{status}</p>
-                            </div>
-                            <ChevronRight className="ml-auto h-2.5 w-2.5 text-ink-faint" />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-line-soft bg-ink p-3 text-white shadow-sm">
-                      <p className="text-[6px] font-black uppercase tracking-[.15em] text-coral">Rooms right now</p>
-                      <div className="mt-3 grid grid-cols-2 gap-1.5">
-                        {[
-                          ["9", "Occupied", "text-white"],
-                          ["2", "To clean", "text-amber-300"],
-                          ["1", "Available", "text-emerald-300"],
-                          ["0", "Blocked", "text-white/50"],
-                        ].map(([value, label, tone]) => (
-                          <div key={label} className="rounded-lg border border-white/10 bg-white/[.055] p-2">
-                            <p className={`text-[12px] font-black ${tone}`}>{value}</p>
-                            <p className="mt-0.5 text-[5.5px] font-bold text-white/40">{label}</p>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-white/[.07] px-2 py-1.5">
-                        <CheckCircle2 className="h-2.5 w-2.5 text-emerald-300" />
-                        <p className="text-[5.5px] font-bold text-white/60">Housekeeping synced just now</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-2 rounded-xl border border-line-soft bg-white p-3 shadow-sm h-[142px] flex items-center justify-center flex-col">
-                     <CalendarCheck2 className="w-8 h-8 text-coral/40 mb-2" />
-                     <p className="text-[10px] font-bold text-ink">Incoming Reservations</p>
-                     <p className="text-[7px] text-ink-mute mt-1">1 new reservation from direct booking engine</p>
-                  </div>
-                )}
-              </motion.div>
-            </AnimatePresence>
-
-          </div>
-        </div>
-      </div>
-
-      <motion.div 
-        animate={notificationControls}
-        initial={{ opacity: 0, y: 50 }}
-        className="absolute bottom-0 right-0 z-20 flex w-[215px] items-start gap-2.5 rounded-2xl border border-coral/20 bg-ink p-3 text-white shadow-[0_18px_50px_rgba(35,27,22,.28)] sm:right-3"
-      >
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-coral text-white">
-          <BellRing className="h-3.5 w-3.5" />
-        </span>
-        <div>
-          <p className="text-[8px] font-black">New direct booking request</p>
-          <p className="mt-1 text-[6.5px] font-semibold text-white/50">Oceanview Suite · 3 nights</p>
-          <p className="mt-1.5 text-[6px] font-black uppercase tracking-wider text-coral">Front desk alerted live</p>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
+import PmsHeroMockup from "../components/features/PmsHeroMockup";
+import RatePlanMockup from "../components/features/RatePlanMockup";
+import ReservationTimelineMockup from "../components/features/ReservationTimelineMockup";
 
 function RoleWorkspaceShowcase() {
   const roles = [
@@ -1230,181 +997,6 @@ function QrKitchenDualMockup() {
   );
 }
 
-// ─── One Calendar Mockup ─────────────────────────────────────────────────────
-function OneCalendarMockup() {
-  // July 2026 calendar — Mon 7 to Sun 20 (2 weeks)
-  const days = ["Mon 7","Tue 8","Wed 9","Thu 10","Fri 11","Sat 12","Sun 13","Mon 14","Tue 15","Wed 16","Thu 17","Fri 18","Sat 19","Sun 20"];
-  const COL = 52; // px per day column
-  const ROW_H = 44; // px per room row
-  const ROOM_W = 130; // px for room label column
-
-  // bookings: { room, label, source, start (0-indexed), span, color, vip, blocked }
-  const bookings = [
-    { room: 0, label: "Ahmed R.",    source: "Walk-in",      start: 0, span: 4, color: "#059669", vip: false },
-    { room: 0, label: "Hamza A.",    source: "Booking.com",  start: 5, span: 4, color: "#2563EB", vip: false },
-    { room: 0, label: "Nadia S. 👑",  source: "Direct",       start: 10, span: 4, color: "#9333EA", vip: true  },
-
-    { room: 1, label: "Bilal M.",    source: "Agoda",        start: 1, span: 5, color: "#059669", vip: false },
-    { room: 1, label: "Rao F.",      source: "Airbnb",       start: 7, span: 5, color: "#D97706", vip: false },
-    { room: 1, label: "Enquiry",     source: "WhatsApp",     start: 13, span: 1, color: "#94A3B8", vip: false },
-
-    { room: 2, label: "Group — 12 rooms", source: "Expedia", start: 0, span: 7, color: "#2563EB", vip: false },
-    { room: 2, label: "Zara K. 👑",  source: "Direct",       start: 8, span: 5, color: "#9333EA", vip: true  },
-
-    { room: 3, label: "Ali M.",      source: "Bookme.pk",    start: 2, span: 3, color: "#059669", vip: false },
-    { room: 3, label: "Pending",     source: "Phone",        start: 6, span: 3, color: "#94A3B8", vip: false },
-    { room: 3, label: "Sarah T. 👑",  source: "Direct",       start: 10, span: 4, color: "#9333EA", vip: true  },
-  ];
-
-  const rooms = [
-    { label: "101 · Deluxe Double", clean: true },
-    { label: "102 · Deluxe Double", clean: true },
-    { label: "103–114 · Suite Block", clean: false },
-    { label: "201 · Sea View Suite", clean: true },
-  ];
-
-  // "Now" is between day index 4 and 5 (Fri 11)
-  const nowX = ROOM_W + COL * 4 + COL * 0.5;
-
-  return (
-    <div className="rounded-2xl overflow-hidden bg-white border border-line shadow-[0_8px_40px_rgba(0,0,0,0.07)] font-body select-none">
-      {/* Browser chrome */}
-      <div className="flex items-center gap-2 px-4 py-2.5 bg-mist border-b border-line-soft">
-        <span className="w-2.5 h-2.5 rounded-full bg-red-400 opacity-60" />
-        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-60" />
-        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 opacity-60" />
-        <div className="ml-3 flex min-w-0 flex-1 items-center justify-between gap-2">
-          <div className="flex min-w-0 shrink items-center gap-1.5 rounded border border-line-soft/80 bg-white px-3 py-0.5 text-[11px] text-ink-mute max-w-[200px]">
-            <Globe className="w-2.5 h-2.5 shrink-0" />
-            <span className="truncate">innflo.com/reservations</span>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200/50 font-bold px-2 py-0.5 rounded-full">Live</span>
-            <span className="text-[10px] text-ink-mute font-medium">Jul 2026</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-line-soft bg-paper">
-        <div className="flex items-center gap-2">
-          <span className="text-[11.5px] font-black text-ink tracking-tight">July 2026</span>
-          <span className="text-[9.5px] font-bold text-ink-mute bg-mist px-2 py-0.5 rounded-full">← Week →</span>
-        </div>
-        <div className="flex items-center gap-3 text-[9.5px] font-bold text-ink-mute">
-          <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-[#059669]" />Checked In</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-[#2563EB]" />Confirmed</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-[#D97706]" />Enquiry</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-[#9333EA]" />VIP 👑</span>
-        </div>
-      </div>
-
-      {/* Grid */}
-      <div className="overflow-x-auto">
-        <div className="relative overflow-hidden" style={{ minWidth: ROOM_W + COL * days.length + 2 }}>
-          {/* Header row — days */}
-          <div className="flex bg-mist border-b border-line-soft sticky top-0 z-10">
-            <div style={{ width: ROOM_W, minWidth: ROOM_W }} className="px-3 py-2 text-[9px] font-bold text-ink-mute uppercase tracking-wider shrink-0">
-              Room · Type
-            </div>
-            {days.map((d, i) => (
-              <div
-                key={d}
-                style={{ width: COL, minWidth: COL }}
-                className={`text-center text-[9px] py-2 font-bold shrink-0 border-l border-line-soft/40 ${
-                  i === 4 ? "text-coral-dark bg-coral-soft/50" : "text-ink-mute"
-                }`}
-              >
-                {d.split(" ")[0]}<br />{d.split(" ")[1]}
-              </div>
-            ))}
-          </div>
-
-          {/* Room rows */}
-          {rooms.map((room, rowIdx) => (
-            <div key={room.label} className="flex border-b border-line-soft/50 last:border-b-0 relative" style={{ height: ROW_H }}>
-              {/* Room label */}
-              <div
-                style={{ width: ROOM_W, minWidth: ROOM_W, height: ROW_H }}
-                className="flex items-center px-3 gap-2 border-r border-line-soft/60 bg-paper shrink-0"
-              >
-                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${room.clean ? "bg-emerald-500" : "bg-amber-400"}`} />
-                <span className="text-[10px] font-bold text-ink truncate leading-tight">{room.label}</span>
-              </div>
-
-              {/* Day cells */}
-              <div className="flex flex-1 relative" style={{ height: ROW_H }}>
-                {days.map((_, colIdx) => (
-                  <div
-                    key={colIdx}
-                    style={{ width: COL, minWidth: COL, height: ROW_H }}
-                    className={`border-l border-line-soft/30 shrink-0 ${colIdx === 4 ? "bg-coral-soft/10" : colIdx >= 6 && colIdx <= 6 ? "bg-mist/40" : ""}`}
-                  />
-                ))}
-
-                {/* Booking bars for this row */}
-                {bookings
-                  .filter(b => b.room === rowIdx)
-                  .map((b, bIdx) => (
-                    <div
-                      key={bIdx}
-                      className="absolute flex items-center group"
-                      style={{
-                        left: b.start * COL + 3,
-                        top: 6,
-                        height: ROW_H - 12,
-                        width: b.span * COL - 6,
-                      }}
-                    >
-                      <div
-                        className="w-full h-full rounded-lg flex items-center px-2 gap-1.5 overflow-hidden relative"
-                        style={{ background: b.color, opacity: b.source === "WhatsApp" ? 0.65 : 0.9 }}
-                      >
-                        {b.vip && (
-                          <Crown className="w-2.5 h-2.5 text-amber-300 shrink-0" />
-                        )}
-                        <span className="text-white text-[9.5px] font-bold truncate leading-none">{b.label}</span>
-                        {b.span >= 3 && (
-                          <span
-                            className="ml-auto text-[7.5px] text-white/70 font-medium truncate shrink-0 hidden group-hover:block"
-                          >
-                            {b.source}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                }
-              </div>
-            </div>
-          ))}
-
-          {/* NOW indicator line */}
-          <div
-            className="absolute top-[54px] bottom-0 pointer-events-none"
-            style={{ left: nowX, width: 2, background: "#E0532B", zIndex: 20 }}
-          >
-            <div className="absolute top-[-6px] left-[-5px] w-3 h-3 rounded-full bg-coral shadow-[0_0_6px_rgba(224,83,43,0.6)]" />
-          </div>
-        </div>
-      </div>
-
-      {/* Footer — source legend */}
-      <div className="px-4 py-2.5 border-t border-line-soft bg-mist flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-3 flex-wrap text-[9px] font-medium text-ink-mute">
-          {["Walk-in","Phone","WhatsApp","Direct","Booking.com","Agoda","Airbnb","Expedia","Bookme.pk"].map(s => (
-            <span key={s} className="bg-white border border-line-soft px-1.5 py-0.5 rounded font-semibold">{s}</span>
-          ))}
-        </div>
-        <div className="flex items-center gap-1.5 text-[9px] text-coral-dark font-bold">
-          <Lock className="w-2.5 h-2.5" />
-          <span>No double-booking</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Channel Manager — channels → Innflo → calendar flow diagram ───────────
 function ChannelManagerFlowMockup() {
   const channels = [
@@ -1668,7 +1260,7 @@ export default function Features() {
             </h1>
             <Reveal delay={0.55}>
               <p className="mt-7 max-w-xl text-[18px] font-medium leading-relaxed text-ink-soft">
-                Reservations, rooms, guests, folios, housekeeping, dining, inventory and reporting—one connected operating system built for independent hotel teams.
+                Reservations, rooms, rates, guests, folios, housekeeping, dining, inventory and reporting—one connected operating system built for independent hotel teams.
               </p>
             </Reveal>
             <Reveal delay={0.65}>
@@ -1827,7 +1419,7 @@ export default function Features() {
           <div className="grid grid-cols-1 items-center gap-14 [&>*]:min-w-0 lg:grid-cols-[64fr_36fr] lg:gap-16">
             {/* Left — Calendar Mockup */}
             <Reveal delay={0.1} variant="rise" className="order-2 lg:order-1">
-              <OneCalendarMockup />
+              <ReservationTimelineMockup />
             </Reveal>
 
             {/* Right — Copy */}
@@ -1853,6 +1445,41 @@ export default function Features() {
                   </li>
                 ))}
               </ul>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* ── RATE PLANS ─────────────────────────────────────────────────────── */}
+      <section id="rates" className="scroll-mt-24 border-t border-line bg-paper py-28 overflow-hidden">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid grid-cols-1 items-center gap-14 [&>*]:min-w-0 lg:grid-cols-[38fr_62fr] lg:gap-16">
+            <Reveal>
+              <p className="eyebrow mb-5">Rate plans &amp; pricing</p>
+              <h2 className="font-display text-[clamp(34px,4.5vw,52px)] font-medium leading-tight text-ink mb-6">
+                Stop pricing<br />rooms from memory.
+              </h2>
+              <p className="text-[17px] text-ink-soft font-body leading-relaxed mb-8">
+                Set a standard rate, a seasonal one, a corporate one and a code-only promo — each with its own date window, minimum stay and priority. When a stay gets quoted, Innflo works out which plan applies and shows you why that one won.
+              </p>
+              <ul className="space-y-4 font-body text-[15.5px] text-ink-soft">
+                {[
+                  { icon: <CalendarRange className="w-4 h-4 text-coral shrink-0 mt-0.5" />, text: "Seasonal plans with start and end dates, day-of-week targeting and a minimum length of stay" },
+                  { icon: <Users className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />, text: "Corporate and travel-agent rates linked to a company account, with a flat contracted discount" },
+                  { icon: <Tag className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />, text: "Promo and access codes with their own validity window and usage limit — including single-use codes" },
+                  { icon: <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />, text: "Every quote reports which plan it came from, so a rate is never a mystery on the folio" },
+                  { icon: <span className="text-ink-soft font-bold text-[16px] leading-none shrink-0 mt-0.5">—</span>, text: "The same plans price the public Booking Engine, so your site and your desk never disagree" },
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    {item.icon}
+                    <span>{item.text}</span>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+
+            <Reveal delay={0.1} variant="rise">
+              <RatePlanMockup />
             </Reveal>
           </div>
         </div>

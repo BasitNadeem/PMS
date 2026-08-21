@@ -80,6 +80,12 @@ export const companyLedgerQuerySchema = z.object({
 });
 export type CompanyLedgerQuery = z.infer<typeof companyLedgerQuerySchema>;
 
+export const companyProductionQuerySchema = z.object({
+  from: z.string().date(),
+  to: z.string().date(),
+}).refine((value) => value.from <= value.to, { path: ["to"], message: "End date must be on or after start date" });
+export type CompanyProductionQuery = z.infer<typeof companyProductionQuerySchema>;
+
 export const recordCompanyPaymentSchema = z.object({
   amount:    rupeesToPaisa.refine((v) => v > 0, "Amount must be greater than zero"),
   method:    z.nativeEnum(PaymentMethod).default("BANK_TRANSFER"),
@@ -126,6 +132,12 @@ export const reverseCompanyPaymentSchema = z.object({
   reason: z.string().trim().min(3).max(300),
 });
 export type ReverseCompanyPaymentDto = z.infer<typeof reverseCompanyPaymentSchema>;
+
+export const reverseFolioTransferSchema = z.object({
+  reason: z.string().trim().min(5, "Enter a clear reason for reversing the BTC transfer").max(300),
+  payerAction: z.enum(["KEEP_COMPANY", "RETURN_TO_GUEST"]).default("KEEP_COMPANY"),
+});
+export type ReverseFolioTransferDto = z.infer<typeof reverseFolioTransferSchema>;
 
 export const refundCompanyCreditSchema = z.object({
   amount:    rupeesToPaisa.refine((v) => v > 0, "Amount must be greater than zero"),

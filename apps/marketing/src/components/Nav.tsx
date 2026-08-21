@@ -180,14 +180,20 @@ export default function Nav() {
                               to={item.to}
                               onPointerEnter={() => void preloadRoute(item.to)}
                               onFocus={() => void preloadRoute(item.to)}
-                              className={`flex items-start gap-3 rounded-2xl p-3.5 transition-colors ${active ? "bg-coral-soft" : "hover:bg-mist"}`}
+                              className={`group flex items-start gap-3 rounded-2xl p-3.5 transition-colors duration-200 ${
+                                active ? "bg-coral-soft" : "hover:bg-coral-soft focus-visible:bg-coral-soft focus-visible:outline-none"
+                              }`}
                             >
-                              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-coral-soft text-coral-dark">
+                              <span
+                                className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-colors duration-200 ${
+                                  active ? "bg-coral text-white" : "bg-coral-soft text-coral-dark group-hover:bg-coral group-hover:text-white"
+                                }`}
+                              >
                                 <item.icon className="h-[18px] w-[18px]" />
                               </span>
                               <span className="min-w-0 flex-1">
-                                <span className={`block text-[13.5px] font-black ${active ? "text-coral-dark" : "text-ink"}`}>{item.label}</span>
-                                <span className="mt-1 block text-[11px] leading-relaxed text-ink-mute">{item.short}</span>
+                                <span className={`block text-[13.5px] font-black transition-colors duration-200 ${active ? "text-coral-dark" : "text-ink group-hover:text-coral-dark"}`}>{item.label}</span>
+                                <span className="mt-1 block text-[11px] leading-relaxed text-ink-mute transition-colors duration-200 group-hover:text-ink-soft">{item.short}</span>
                               </span>
                             </Link>
                           );
@@ -205,8 +211,10 @@ export default function Nav() {
                                 to={item.to}
                                 onPointerEnter={() => void preloadRoute(item.to)}
                                 onFocus={() => void preloadRoute(item.to)}
-                                className={`flex items-center gap-2 rounded-xl px-2 py-2 text-[11.5px] font-bold transition-colors ${
-                                  active ? "text-coral-dark" : "text-ink-soft hover:bg-mist hover:text-ink"
+                                className={`flex items-center gap-2 rounded-xl px-2 py-2 text-[11.5px] font-bold transition-colors duration-200 ${
+                                  active
+                                    ? "bg-coral-soft text-coral-dark"
+                                    : "text-ink-soft hover:bg-coral-soft hover:text-coral-dark focus-visible:bg-coral-soft focus-visible:text-coral-dark focus-visible:outline-none"
                                 }`}
                               >
                                 <item.icon className="h-3.5 w-3.5 shrink-0 text-coral-dark" />
@@ -259,14 +267,20 @@ export default function Nav() {
                               to={item.to}
                               onPointerEnter={() => void preloadRoute(item.to)}
                               onFocus={() => void preloadRoute(item.to)}
-                              className={`flex items-start gap-3 rounded-2xl p-3.5 transition-colors ${active ? "bg-coral-soft" : "hover:bg-mist"}`}
+                              className={`group flex items-start gap-3 rounded-2xl p-3.5 transition-colors duration-200 ${
+                                active ? "bg-coral-soft" : "hover:bg-coral-soft focus-visible:bg-coral-soft focus-visible:outline-none"
+                              }`}
                             >
-                              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-coral-soft text-coral-dark">
+                              <span
+                                className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl transition-colors duration-200 ${
+                                  active ? "bg-coral text-white" : "bg-coral-soft text-coral-dark group-hover:bg-coral group-hover:text-white"
+                                }`}
+                              >
                                 <item.icon className="h-4 w-4" />
                               </span>
-                              <span>
-                                <span className={`block text-[12px] font-black ${active ? "text-coral-dark" : "text-ink"}`}>{item.label}</span>
-                                <span className="mt-1 block text-[10px] leading-relaxed text-ink-mute">{item.copy}</span>
+                              <span className="min-w-0">
+                                <span className={`block text-[12px] font-black transition-colors duration-200 ${active ? "text-coral-dark" : "text-ink group-hover:text-coral-dark"}`}>{item.label}</span>
+                                <span className="mt-1 block text-[10px] leading-relaxed text-ink-mute transition-colors duration-200 group-hover:text-ink-soft">{item.copy}</span>
                               </span>
                             </Link>
                           );
@@ -350,7 +364,7 @@ export default function Nav() {
                 <p className="mb-2 mt-5 px-2 text-[9px] font-black uppercase tracking-[.18em] text-ink-faint">Who it&apos;s for</p>
                 <div className="grid grid-cols-2 gap-1">
                   {STAY_LINKS.map((item) => (
-                    <Link key={item.to} to={item.to} className="flex items-center gap-2 rounded-xl px-2 py-2.5 text-[11px] font-bold text-ink-soft hover:bg-mist">
+                    <Link key={item.to} to={item.to} className="flex items-center gap-2 rounded-xl px-2 py-2.5 text-[11px] font-bold text-ink-soft transition-colors hover:bg-coral-soft hover:text-coral-dark">
                       <item.icon className="h-3.5 w-3.5 text-coral-dark" /> {item.label}
                     </Link>
                   ))}

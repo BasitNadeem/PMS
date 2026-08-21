@@ -54,6 +54,8 @@ export function PostToRoomModal({ cart, onClose, onSuccess }: PostToRoomModalPro
       }),
     onSuccess: (order) => {
       qc.invalidateQueries({ queryKey: ["pos-orders"] });
+      qc.invalidateQueries({ queryKey: ["pos-categories"] });
+      qc.invalidateQueries({ queryKey: ["inventory"] });
       const roomNum = order.roomNumber ?? selected?.rooms[0]?.room.number ?? "?";
       onSuccess(`Posted to Room ${roomNum}`);
       onClose();

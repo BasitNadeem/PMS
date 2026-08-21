@@ -51,9 +51,11 @@ const ALL_PERMISSIONS: { key: string; module: string; action: string; displayNam
   { key: "RESERVATION_CANCEL",   module: "reservation",  action: "cancel",   displayName: "Cancel Reservations" },
   { key: "RESERVATION_CHECKIN",  module: "reservation",  action: "checkin",  displayName: "Check In Guests" },
   { key: "RESERVATION_CHECKOUT", module: "reservation",  action: "checkout", displayName: "Check Out Guests" },
+  { key: "RESERVATION_REVERSE",  module: "reservation",  action: "reverse",  displayName: "Reverse Check-In / Checkout" },
   // Folios
   { key: "FOLIO_READ",           module: "folio",        action: "read",     displayName: "View Folios" },
   { key: "FOLIO_UPDATE",         module: "folio",        action: "update",   displayName: "Edit Folios" },
+  { key: "FOLIO_ALLOCATE_PAYER", module: "folio",        action: "allocate", displayName: "Allocate Guest / Company Charges" },
   // Payments
   { key: "PAYMENT_READ",         module: "payment",      action: "read",     displayName: "View Payments" },
   { key: "PAYMENT_CREATE",       module: "payment",      action: "create",   displayName: "Record Payments" },
@@ -124,6 +126,7 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "RESERVATION_READ", "RESERVATION_CREATE", "RESERVATION_UPDATE",
     "RESERVATION_CANCEL", "RESERVATION_CHECKIN", "RESERVATION_CHECKOUT",
     "FOLIO_READ", "FOLIO_UPDATE",
+    "FOLIO_ALLOCATE_PAYER",
     "PAYMENT_READ", "PAYMENT_CREATE",
     // Reception books agency guests and settles them at checkout, but cannot
     // create companies, move credit limits, or write debt off.
@@ -151,6 +154,7 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "RESERVATION_READ",
     "GUEST_READ",
     "FOLIO_READ", "FOLIO_UPDATE",
+    "FOLIO_ALLOCATE_PAYER",
     "PAYMENT_READ", "PAYMENT_CREATE", "PAYMENT_REFUND",
     "INVOICE_READ", "INVOICE_CREATE", "INVOICE_UPDATE",
     "REPORT_READ",
@@ -242,6 +246,7 @@ const MODULE_PERMISSIONS: { key: string; module: string; action: string; display
     { key: "nightAudit:read",           module: "nightAudit",    action: "read",        displayName: "View Night Audit" },
     { key: "nightAudit:run",            module: "nightAudit",    action: "run",         displayName: "Run Night Audit" },
     { key: "nightAudit:markNoShow",     module: "nightAudit",    action: "markNoShow",  displayName: "Mark No-Shows During Audit" },
+    { key: "nightAudit:reverse",        module: "nightAudit",    action: "reverse",     displayName: "Reverse Latest Night Audit" },
 ];
 
 const MODULE_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
@@ -267,7 +272,7 @@ const MODULE_ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "team:read", "team:create", "team:update",
     "reports:read",
     "shiftHandover:read", "shiftHandover:submit", "shiftHandover:signoff", "shiftHandover:acknowledge",
-    "nightAudit:read", "nightAudit:run", "nightAudit:markNoShow",
+    "nightAudit:read", "nightAudit:run", "nightAudit:markNoShow", "nightAudit:reverse",
     "settings:read", "settings:update",
   ],
 

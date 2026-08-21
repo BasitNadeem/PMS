@@ -2,16 +2,8 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, BedDouble } from "lucide-react";
 import { cn } from "../../lib/cn";
-import { roomsService, type Room, type RoomStatus, type UpdateRoomDto } from "../../services/rooms";
+import { roomsService, type Room, type UpdateRoomDto } from "../../services/rooms";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
-
-const STATUS_OPTIONS: { value: RoomStatus; label: string }[] = [
-  { value: "VACANT_CLEAN",  label: "Available (Clean)" },
-  { value: "VACANT_DIRTY",  label: "Available (Dirty)" },
-  { value: "OCCUPIED",      label: "Occupied" },
-  { value: "BLOCKED",       label: "Blocked" },
-  { value: "OUT_OF_ORDER",  label: "Out of Order" },
-];
 
 const inputCls = "h-11 w-full rounded-xl bg-mist border border-line px-3.5 text-sm text-ink placeholder:text-ink-faint outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all";
 const labelCls = "block text-[12.5px] font-semibold uppercase tracking-wide text-ink-mute mb-1.5";
@@ -28,7 +20,6 @@ export function EditRoomModal({ room, onClose }: EditRoomModalProps) {
     number:     room.number,
     floor:      room.floor ?? undefined,
     roomTypeId: room.roomTypeId,
-    status:     room.status,
     notes:      room.notes ?? "",
   });
 
@@ -126,16 +117,11 @@ export function EditRoomModal({ room, onClose }: EditRoomModalProps) {
           </div>
 
           <div>
-            <label className={labelCls}>Status</label>
-            <select
-              value={form.status ?? "VACANT_CLEAN"}
-              onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as RoomStatus }))}
-              className={cn(inputCls, "cursor-pointer")}
-            >
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+            <label className={labelCls}>Current room state</label>
+            <div className="flex h-11 items-center rounded-xl border border-line bg-mist/60 px-3.5 text-sm font-medium text-ink-mute">
+              {room.status === "VACANT_CLEAN" ? "Available · Clean" : room.status === "VACANT_DIRTY" ? "Available · Needs cleaning" : room.status === "OCCUPIED" ? "Occupied" : room.status === "UNDER_MAINTENANCE" ? "Under maintenance" : room.status === "OUT_OF_ORDER" ? "Out of order" : "Blocked"}
+            </div>
+            <p className="mt-1.5 text-[11.5px] text-ink-faint">Updated by reservations, housekeeping, maintenance, and inventory controls.</p>
           </div>
 
           <div>

@@ -15,6 +15,13 @@ export const updateSettingsSchema = z.object({
   address:      z.string().trim().optional(),
   city:         z.string().trim().optional(),
   country:      z.string().trim().optional(),
+  // Required by Channex before a property can connect to any OTA.
+  region:       z.string().trim().optional(),
+  zipCode:      z.string().trim().max(20).optional(),
+  // Sent to Channex as strings; stored as Decimal(10,7). Nullable so a hotel
+  // can clear a wrong pin rather than being stuck with it.
+  latitude:     z.number().min(-90).max(90).nullable().optional(),
+  longitude:    z.number().min(-180).max(180).nullable().optional(),
   cancellationPolicy:  z.string().trim().max(5000).nullable().optional(),
   bookingPaymentTerms: z.string().trim().max(10000).nullable().optional(),
   // settings JSON fields — stored in hotel.settings
@@ -99,3 +106,16 @@ export const updateRolePermissionsSchema = z.object({
 });
 
 export type UpdateRolePermissionsDto = z.infer<typeof updateRolePermissionsSchema>;
+
+/** Rate plans are opt-in for OTA distribution — see ChannexProvisioningService. */
+export const provisionChannexSchema = z.object({
+  ratePlanIds: z.array(z.string().uuid()).optional(),
+});
+export type ProvisionChannexDto = z.infer<typeof provisionChannexSchema>;
+
+export const updateChannelManagerSchema = z.object({
+  isActive:      z.boolean().optional(),
+  syncInventory: z.boolean().optional(),
+  syncRates:     z.boolean().optional(),
+});
+export type UpdateChannelManagerDto = z.infer<typeof updateChannelManagerSchema>;

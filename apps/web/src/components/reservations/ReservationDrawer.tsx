@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   X, Copy, Phone, Mail, BadgeCheck, MapPin,
-  LogIn, Check, Receipt, BedDouble, Users, Star, ArrowRight, Plus, Tag, Pencil,
+  LogIn, Check, Receipt, BedDouble, Users, Star, ArrowRight, Plus, Tag, Pencil, UserX,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { api } from "@/lib/api";
+import { currentPKTDate } from "@/lib/pktDate";
 import {
   reservationsService,
   type ReservationStatus,
@@ -15,8 +16,10 @@ import { Drawer } from "@/components/ui/Drawer";
 import { Avatar } from "@/components/ui/Avatar";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { usePermissions } from "@/hooks/usePermissions";
+import { ReservationIdLink } from "@/components/reservations/ReservationIdLink";
 import { AddChargeModal } from "@/components/folio/AddChargeModal";
 import { EditReservationModal } from "@/components/reservations/EditReservationModal";
+import { ManageStayModal } from "@/components/reservations/ManageStayModal";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -73,8 +76,12 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
   const navigate = useNavigate();
   const { has } = usePermissions();
   const canUpdate = has("reservations:update");
+  const canUpdateBilling = has("billing:update");
+  const canReadGuests = has("guests:read");
   const [showAddCharge, setShowAddCharge] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showNoShow, setShowNoShow] = useState(false);
+  const [noShowReason, setNoShowReason] = useState("");
 
   const { data: reservation, isLoading } = useQuery({
     queryKey: ["reservation", reservationId],
@@ -96,14 +103,18 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
   });
 
   const statusMutation = useMutation({
-    mutationFn: (status: ReservationStatus) =>
-      reservationsService.updateReservationStatus(reservationId!, status),
+    // NO_SHOW is rejected by the API without a reason, so the reason travels
+    // with the status rather than being a separate call.
+    mutationFn: ({ status, reason }: { status: ReservationStatus; reason?: string }) =>
+      reservationsService.updateReservationStatus(reservationId!, status, reason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["reservation", reservationId] });
       qc.invalidateQueries({ queryKey: ["reservations"] });
       qc.invalidateQueries({ queryKey: ["reservations-counts"] });
       qc.invalidateQueries({ queryKey: ["rooms"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      setShowNoShow(false);
+      setNoShowReason("");
       onStatusChange?.();
     },
   });
@@ -141,7 +152,11 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
               <Avatar name={reservation.guest.fullName} size={52} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="serif text-[24px] leading-tight text-ink">{reservation.guest.fullName}</h3>
+                  {canReadGuests ? (
+                    <Link to={`/guests/${reservation.guest.id}`} className="serif text-[24px] leading-tight text-ink hover:text-coral transition-colors">{reservation.guest.fullName}</Link>
+                  ) : (
+                    <h3 className="serif text-[24px] leading-tight text-ink">{reservation.guest.fullName}</h3>
+                  )}
                   {reservation.groupId && (
                     <Link
                       to={`/groups/${reservation.groupId}`}
@@ -171,7 +186,7 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
                   )}
                 </div>
                 <div className="mt-0.5 flex items-center gap-2 text-[13px] text-ink-mute tnum">
-                  <span>{reservation.confirmationNumber}</span>
+                  <ReservationIdLink id={reservation.id} confirmationNumber={reservation.confirmationNumber} />
                   {reservation.confirmationNumber && (
                     <button
                       onClick={() => navigator.clipboard?.writeText(reservation.confirmationNumber)}
@@ -182,12 +197,21 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
                   )}
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="grid place-items-center h-9 w-9 rounded-full hover:bg-line-soft text-ink-mute transition-colors -mr-1 -mt-1"
-              >
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-1.5 -mr-1 -mt-1">
+                <Link
+                  to={`/reservations/${reservation.id}`}
+                  onClick={onClose}
+                  className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-canvas px-3.5 text-[12px] font-semibold text-ink-soft transition-colors hover:border-coral/30 hover:bg-coral-soft hover:text-coral"
+                >
+                  View reservation <ArrowRight size={13} />
+                </Link>
+                <button
+                  onClick={onClose}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-mute transition-colors hover:bg-line-soft"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             {/* Scrollable body */}
@@ -340,7 +364,7 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
                   <Receipt size={16} /> Folio
                 </Link>
               )}
-              {canUpdate && !["CHECKED_OUT", "CANCELLED", "NO_SHOW"].includes(reservation.status) && (
+              {canUpdate && (reservation.status !== "CHECKED_IN" || canUpdateBilling) && !["CHECKED_OUT", "CANCELLED", "NO_SHOW"].includes(reservation.status) && (
                 <button
                   onClick={() => setShowEdit(true)}
                   className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full border border-line text-ink-soft text-sm font-semibold hover:bg-line-soft hover:text-ink transition-colors"
@@ -385,7 +409,7 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
                 <>
                   {canUpdate && (reservation.status === "ENQUIRY" || reservation.status === "CONFIRMED") && (
                     <button
-                      onClick={() => statusMutation.mutate("CANCELLED")}
+                      onClick={() => statusMutation.mutate({ status: "CANCELLED" })}
                       disabled={statusMutation.isPending}
                       className="h-10 px-4 rounded-full border border-clay/30 text-clay text-sm font-semibold hover:bg-clay-soft transition-colors disabled:opacity-40"
                     >
@@ -394,16 +418,28 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
                   )}
                   {canUpdate && reservation.status === "ENQUIRY" && (
                     <button
-                      onClick={() => statusMutation.mutate("CONFIRMED")}
+                      onClick={() => statusMutation.mutate({ status: "CONFIRMED" })}
                       disabled={statusMutation.isPending}
                       className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-slate text-white text-sm font-semibold hover:brightness-95 transition-all shadow-pop disabled:opacity-40"
                     >
                       <Check size={16} /> Confirm
                     </button>
                   )}
+                  {/* Mirrors the API rule: only a confirmed booking whose
+                      arrival has already come round can be a no-show. */}
+                  {canUpdate && reservation.status === "CONFIRMED"
+                    && reservation.checkInDate.slice(0, 10) <= currentPKTDate() && (
+                    <button
+                      onClick={() => setShowNoShow(true)}
+                      disabled={statusMutation.isPending}
+                      className="inline-flex items-center gap-2 h-10 px-4 rounded-full border border-amber/40 text-amber text-sm font-semibold hover:bg-amber-soft transition-colors disabled:opacity-40"
+                    >
+                      <UserX size={15} /> No show
+                    </button>
+                  )}
                   {canUpdate && reservation.status === "CONFIRMED" && (
                     <button
-                      onClick={() => statusMutation.mutate("CHECKED_IN")}
+                      onClick={() => statusMutation.mutate({ status: "CHECKED_IN" })}
                       disabled={statusMutation.isPending}
                       className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-pine text-white text-sm font-semibold hover:bg-pine-deep transition-all shadow-pop disabled:opacity-40"
                     >
@@ -444,15 +480,78 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
           onClose={() => setShowAddCharge(false)}
         />
       )}
+      {showNoShow && reservation && (
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-ink/40 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md overflow-hidden rounded-xl2 bg-card shadow-float">
+            <div className="flex items-start gap-3 border-b border-line-soft px-6 py-5">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-soft text-amber"><UserX size={18} /></span>
+              <div className="min-w-0">
+                <h3 className="text-[16px] font-bold text-ink">Mark as no-show</h3>
+                <p className="mt-0.5 text-[13px] text-ink-mute">This is recorded in the audit trail.</p>
+              </div>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-[13.5px] leading-relaxed text-ink-mute">
+                <span className="font-semibold text-ink">{reservation.guest.fullName}</span> will move to the No Show list and the room will be released from booking inventory.
+              </p>
+              <label className="mt-4 block">
+                <span className="mb-2 block text-[12px] font-bold uppercase tracking-wider text-ink-faint">Reason <span className="text-clay">*</span></span>
+                <textarea
+                  value={noShowReason}
+                  onChange={(event) => setNoShowReason(event.target.value)}
+                  rows={3}
+                  maxLength={500}
+                  autoFocus
+                  placeholder="For example: Guest did not arrive and could not be reached"
+                  className="w-full resize-none rounded-xl border border-line bg-white px-4 py-3 text-[13.5px] text-ink outline-none focus:border-amber focus:ring-2 focus:ring-amber/10"
+                />
+              </label>
+              {statusMutation.isError && (
+                <p className="mt-2 text-[13px] font-semibold text-clay">
+                  Could not mark this reservation as a no-show. Please try again.
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col-reverse gap-2 border-t border-line-soft bg-mist/60 px-6 py-4 sm:flex-row sm:justify-end">
+              <button
+                onClick={() => { setShowNoShow(false); setNoShowReason(""); }}
+                className="h-10 rounded-full border border-line px-5 text-sm font-semibold text-ink-soft hover:bg-white"
+              >
+                Keep reservation
+              </button>
+              <button
+                onClick={() => statusMutation.mutate({ status: "NO_SHOW", reason: noShowReason.trim() })}
+                disabled={noShowReason.trim().length < 3 || statusMutation.isPending}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-amber px-5 text-sm font-semibold text-white hover:brightness-95 disabled:pointer-events-none disabled:opacity-40"
+              >
+                <UserX size={15} /> {statusMutation.isPending ? "Updating…" : "Confirm no-show"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showEdit && reservation && (
-        <EditReservationModal
-          reservation={reservation}
-          onClose={() => setShowEdit(false)}
-          onSuccess={() => {
-            setShowEdit(false);
-            onStatusChange?.();
-          }}
-        />
+        reservation.status === "CHECKED_IN" ? (
+          canUpdateBilling ? (
+            <ManageStayModal
+              reservation={reservation}
+              onClose={() => setShowEdit(false)}
+              onSuccess={() => {
+                setShowEdit(false);
+                onStatusChange?.();
+              }}
+            />
+          ) : null
+        ) : (
+          <EditReservationModal
+            reservation={reservation}
+            onClose={() => setShowEdit(false)}
+            onSuccess={() => {
+              setShowEdit(false);
+              onStatusChange?.();
+            }}
+          />
+        )
       )}
     </>
   );

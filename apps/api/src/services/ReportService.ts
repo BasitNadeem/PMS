@@ -2,6 +2,7 @@ import type { TenantTx } from "@pms/db";
 import { adminPrisma, FolioItemType, PaymentStatus, HousekeepingTaskStatus, MaintenanceStatus } from "@pms/db";
 import { ExpenseService } from "./ExpenseService";
 import { getPKTDayRange, getPKTRangeFromStrings, getPKTMonthRange } from "../lib/timezone";
+import { HotelMetricsService } from "./HotelMetricsService";
 
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
 
@@ -31,6 +32,32 @@ function overlapDays(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): number
   const end = aEnd < bEnd ? aEnd : bEnd;
   const diff = end.getTime() - start.getTime();
   return diff > 0 ? diff / 86_400_000 : 0;
+}
+
+function isoDay(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function shiftIsoDays(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return isoDay(value);
+}
+
+function shiftIsoYear(date: string, years: number): string {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  const month = value.getUTCMonth();
+  value.setUTCFullYear(value.getUTCFullYear() + years);
+  // 29 February becomes the last valid day of February, not 1 March.
+  if (value.getUTCMonth() !== month) value.setUTCDate(0);
+  return isoDay(value);
+}
+
+function metricVariance(current: number, comparison: number) {
+  return {
+    absolute: current - comparison,
+    percentage: comparison === 0 ? null : Math.round(((current - comparison) / Math.abs(comparison)) * 1_000) / 10,
+  };
 }
 
 type PaymentMethodKey = "cash" | "card" | "jazzcash" | "easypaisa" | "bankTransfer" | "other";
@@ -948,195 +975,131 @@ export const ReportService = {
   // ── OCCUPANCY TREND ─────────────────────────────────────────────────────────
 
   async getOccupancyTrend(withTenant: WithTenantFn, startDate: string, endDate: string) {
-    const { start, end } = utcRange(startDate, endDate);
-    const [sy, sm, sd] = startDate.split("-").map(Number);
-
-    return withTenant(async (db) => {
-      const [totalRooms, reservations] = await Promise.all([
-        db.room.count({ where: { isActive: true } }),
-        db.reservation.findMany({
-          where: {
-            status: { notIn: ["CANCELLED", "NO_SHOW"] },
-            checkInDate: { lt: end },
-            checkOutDate: { gt: start },
-          },
-          select: { checkInDate: true, checkOutDate: true },
-        }),
-      ]);
-
-      const dayMs = 86_400_000;
-      const days = Math.round((end.getTime() - start.getTime()) / dayMs);
-
-      let peakDate = startDate;
-      let peakRate = 0;
-      let lowestDate = startDate;
-      let lowestRate = 100;
-      let totalOccupied = 0;
-
-      const dailyBreakdown = Array.from({ length: days }, (_, i) => {
-        const dayStart = new Date(start.getTime() + i * dayMs);
-        const dayEnd = new Date(start.getTime() + (i + 1) * dayMs);
-        const dateStr = new Date(Date.UTC(sy, sm - 1, sd + i)).toISOString().slice(0, 10);
-
-        const occupied = reservations.filter(
-          (r) => r.checkInDate < dayEnd && r.checkOutDate > dayStart,
-        ).length;
-
-        const occupancyRate =
-          totalRooms > 0 ? Math.round((occupied / totalRooms) * 1000) / 10 : 0;
-
-        totalOccupied += occupied;
-
-        if (occupancyRate > peakRate) { peakRate = occupancyRate; peakDate = dateStr; }
-        if (i === 0 || occupancyRate < lowestRate) { lowestRate = occupancyRate; lowestDate = dateStr; }
-
-        return { date: dateStr, totalRooms, occupied, occupancyRate };
-      });
-
-      const avgOccupancy =
-        days > 0
-          ? Math.round(
-              (dailyBreakdown.reduce((s, d) => s + d.occupancyRate, 0) / days) * 10,
-            ) / 10
-          : 0;
-
-      return {
-        dailyBreakdown,
-        summary: { avgOccupancy, peakDate, peakRate, lowestDate, lowestRate, totalRoomNights: totalOccupied },
-      };
-    });
+    const report = await HotelMetricsService.getRange(withTenant, startDate, endDate);
+    const peak = report.days.reduce((best, day) => day.occupancyRate > best.occupancyRate ? day : best, report.days[0]);
+    const lowest = report.days.reduce((best, day) => day.occupancyRate < best.occupancyRate ? day : best, report.days[0]);
+    return {
+      dailyBreakdown: report.days.map((day) => ({ date: day.date, totalRooms: day.sellableRooms, occupied: day.roomsSold, occupancyRate: day.occupancyRate })),
+      summary: {
+        avgOccupancy: report.summary.occupancyRate,
+        peakDate: peak?.date ?? startDate,
+        peakRate: peak?.occupancyRate ?? 0,
+        lowestDate: lowest?.date ?? startDate,
+        lowestRate: lowest?.occupancyRate ?? 0,
+        totalRoomNights: report.summary.roomsSold,
+      },
+    };
   },
 
   // ── ADR / RevPAR ────────────────────────────────────────────────────────────
 
   async getADRRevPAR(withTenant: WithTenantFn, startDate: string, endDate: string) {
-    const { start, end } = utcRange(startDate, endDate);
-    const [sy, sm, sd] = startDate.split("-").map(Number);
+    const report = await HotelMetricsService.getRange(withTenant, startDate, endDate);
+    return {
+      dailyBreakdown: report.days.map((day) => ({
+        date: day.date,
+        adr: day.adr,
+        revpar: day.revpar,
+        roomsSold: day.roomsSold,
+        sellableRooms: day.sellableRooms,
+        outOfServiceRooms: day.outOfServiceRooms,
+        occupancyRate: day.occupancyRate,
+        roomRevenue: day.expectedRoomRevenue,
+      })),
+      summary: {
+        avgADR: report.summary.adr,
+        avgRevPAR: report.summary.revpar,
+        totalRoomRevenue: report.summary.expectedRoomRevenue,
+        totalRoomsSold: report.summary.roomsSold,
+        sellableRoomNights: report.summary.sellableRoomNights,
+        outOfServiceRoomNights: report.summary.outOfServiceRoomNights,
+        occupancyRate: report.summary.occupancyRate,
+      },
+    };
+  },
+
+  // ── HISTORICAL PERFORMANCE COMPARISON ────────────────────────────────────
+
+  async getHistoricalComparison(withTenant: WithTenantFn, startDate: string, endDate: string) {
+    const dayCount = Math.round((Date.parse(`${endDate}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`)) / 86_400_000) + 1;
+    const previous = { startDate: shiftIsoDays(startDate, -dayCount), endDate: shiftIsoDays(startDate, -1) };
+    const lastYear = { startDate: shiftIsoYear(startDate, -1), endDate: shiftIsoYear(endDate, -1) };
+
+    const buildPeriod = async (db: TenantTx, range: { startDate: string; endDate: string }) => {
+      const metrics = await HotelMetricsService.getRangeFromDb(db, range.startDate, range.endDate);
+      const { start, end } = utcRange(range.startDate, range.endDate);
+      const cancellations = await db.reservation.count({
+        where: { status: "CANCELLED", cancelledAt: { gte: start, lt: end } },
+      });
+      const categories = new Map(metrics.contribution.categories.map((item) => [item.category, item]));
+      const reservations = metrics.contribution.categories.reduce((sum, item) => sum + item.reservations, 0);
+      const group = categories.get("GROUP");
+      // The category classifier intentionally labels company-backed group stays
+      // as GROUP. Sum the dedicated company breakdown here so company production
+      // still includes those rooms instead of silently losing them.
+      const companyRevenue = metrics.contribution.companies.reduce((sum, item) => sum + item.expectedRoomRevenue, 0);
+      const companyRoomNights = metrics.contribution.companies.reduce((sum, item) => sum + item.roomNights, 0);
+      return {
+        startDate: range.startDate,
+        endDate: range.endDate,
+        summary: {
+          occupancyRate: metrics.summary.occupancyRate,
+          adr: metrics.summary.adr,
+          revpar: metrics.summary.revpar,
+          roomRevenue: metrics.summary.expectedRoomRevenue,
+          reservations,
+          roomNights: metrics.summary.roomsSold,
+          cancellations,
+          companyRevenue,
+          companyRoomNights,
+          groupRevenue: group?.expectedRoomRevenue ?? 0,
+          groupRoomNights: group?.roomNights ?? 0,
+        },
+        days: metrics.days.map((day) => ({
+          date: day.date,
+          occupancyRate: day.occupancyRate,
+          adr: day.adr,
+          revpar: day.revpar,
+          roomRevenue: day.expectedRoomRevenue,
+          roomNights: day.roomsSold,
+        })),
+      };
+    };
 
     return withTenant(async (db) => {
-      const [totalRooms, folioItems, occupancyReservations] = await Promise.all([
-        db.room.count({ where: { isActive: true } }),
-        db.folioItem.findMany({
-          where: {
-            chargeDate: { gte: start, lt: end },
-            isVoided: false,
-            type: FolioItemType.ROOM_CHARGE,
-          },
-          select: { amount: true, chargeDate: true },
-        }),
-        db.reservation.findMany({
-          where: {
-            status: { in: ["CHECKED_IN", "CHECKED_OUT"] },
-            checkInDate: { lt: end },
-            checkOutDate: { gt: start },
-          },
-          select: { checkInDate: true, checkOutDate: true },
-        }),
+      const [current, previousPeriod, samePeriodLastYear] = await Promise.all([
+        buildPeriod(db, { startDate, endDate }),
+        buildPeriod(db, previous),
+        buildPeriod(db, lastYear),
       ]);
-
-      const dayMs = 86_400_000;
-      const days = Math.round((end.getTime() - start.getTime()) / dayMs);
-      let totalRoomRevenue = 0;
-      let totalRoomsSold = 0;
-
-      const dailyBreakdown = Array.from({ length: days }, (_, i) => {
-        const dayStart = new Date(start.getTime() + i * dayMs);
-        const dayEnd = new Date(start.getTime() + (i + 1) * dayMs);
-        const dateStr = new Date(Date.UTC(sy, sm - 1, sd + i)).toISOString().slice(0, 10);
-
-        const dayRevenue = folioItems
-          .filter((fi) => fi.chargeDate >= dayStart && fi.chargeDate < dayEnd)
-          .reduce((s, fi) => s + fi.amount, 0);
-
-        const roomsSold = occupancyReservations.filter(
-          (r) => r.checkInDate < dayEnd && r.checkOutDate > dayStart,
-        ).length;
-
-        const adr = roomsSold > 0 ? Math.round(dayRevenue / roomsSold) : 0;
-        const revpar = totalRooms > 0 ? Math.round(dayRevenue / totalRooms) : 0;
-
-        totalRoomRevenue += dayRevenue;
-        totalRoomsSold += roomsSold;
-
-        return { date: dateStr, adr, revpar, roomsSold, roomRevenue: dayRevenue };
+      const attachVariance = (comparison: typeof current) => ({
+        ...comparison,
+        variance: Object.fromEntries(
+          Object.entries(current.summary).map(([key, value]) => [key, metricVariance(value, comparison.summary[key as keyof typeof comparison.summary])]),
+        ),
       });
-
-      const avgADR = totalRoomsSold > 0 ? Math.round(totalRoomRevenue / totalRoomsSold) : 0;
-      const totalAvailableNights = totalRooms * days;
-      const avgRevPAR =
-        totalAvailableNights > 0 ? Math.round(totalRoomRevenue / totalAvailableNights) : 0;
-
-      return {
-        dailyBreakdown,
-        summary: { avgADR, avgRevPAR, totalRoomRevenue, totalRoomsSold },
-      };
+      return { current, previousPeriod: attachVariance(previousPeriod), samePeriodLastYear: attachVariance(samePeriodLastYear) };
     });
   },
 
   // ── ROOM TYPE PERFORMANCE ───────────────────────────────────────────────────
 
   async getRoomTypePerformance(withTenant: WithTenantFn, startDate: string, endDate: string) {
-    const { start, end } = utcRange(startDate, endDate);
-    const days = Math.round((end.getTime() - start.getTime()) / 86_400_000);
-
-    return withTenant(async (db) => {
-      const [roomTypes, occupancyRooms, roomChargeItems, allRooms] = await Promise.all([
-        db.roomType.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
-        db.reservationRoom.findMany({
-          where: {
-            checkInDate: { lt: end },
-            checkOutDate: { gt: start },
-            reservation: { status: { notIn: ["CANCELLED", "NO_SHOW"] } },
-          },
-          select: { roomTypeId: true, roomId: true, checkInDate: true, checkOutDate: true },
-        }),
-        db.folioItem.findMany({
-          where: {
-            chargeDate: { gte: start, lt: end },
-            isVoided: false,
-            type: FolioItemType.ROOM_CHARGE,
-          },
-          select: { amount: true, roomId: true },
-        }),
-        db.room.findMany({ where: { isActive: true }, select: { id: true, roomTypeId: true } }),
-      ]);
-
-      const roomToType = new Map(allRooms.map((r) => [r.id, r.roomTypeId]));
-      const roomCountByType = new Map<string, number>();
-      for (const r of allRooms) {
-        roomCountByType.set(r.roomTypeId, (roomCountByType.get(r.roomTypeId) ?? 0) + 1);
-      }
-
-      const occupiedNightsByType = new Map<string, number>();
-      for (const rr of occupancyRooms) {
-        const nights = overlapDays(rr.checkInDate, rr.checkOutDate, start, end);
-        occupiedNightsByType.set(rr.roomTypeId, (occupiedNightsByType.get(rr.roomTypeId) ?? 0) + nights);
-      }
-
-      const revenueByType = new Map<string, number>();
-      for (const fi of roomChargeItems) {
-        if (!fi.roomId) continue;
-        const typeId = roomToType.get(fi.roomId);
-        if (!typeId) continue;
-        revenueByType.set(typeId, (revenueByType.get(typeId) ?? 0) + fi.amount);
-      }
-
-      return roomTypes
-        .map((rt) => {
-          const roomCount = roomCountByType.get(rt.id) ?? 0;
-          const occupiedNights = Math.round((occupiedNightsByType.get(rt.id) ?? 0) * 10) / 10;
-          const revenue = revenueByType.get(rt.id) ?? 0;
-          const possibleNights = roomCount * days;
-          const adr = occupiedNights > 0 ? Math.round(revenue / occupiedNights) : 0;
-          const occupancyRate =
-            possibleNights > 0
-              ? Math.round((occupiedNights / possibleNights) * 1000) / 10
-              : 0;
-          return { roomTypeName: rt.name, totalRooms: roomCount, occupiedNights, occupancyRate, revenue, adr };
-        })
-        .filter((rt) => rt.totalRooms > 0)
-        .sort((a, b) => b.revenue - a.revenue);
-    });
+    const report = await HotelMetricsService.getRange(withTenant, startDate, endDate);
+    return report.roomTypes.map((roomType) => {
+      const roomNights = roomType.days.reduce((sum, day) => sum + day.physicalRooms, 0);
+      const sellableNights = roomType.days.reduce((sum, day) => sum + day.sellableRooms, 0);
+      const occupiedNights = roomType.days.reduce((sum, day) => sum + day.roomsSold, 0);
+      const revenue = roomType.days.reduce((sum, day) => sum + day.expectedRoomRevenue, 0);
+      return {
+        roomTypeName: roomType.name,
+        totalRooms: report.days.length > 0 ? Math.round(roomNights / report.days.length) : 0,
+        occupiedNights,
+        occupancyRate: sellableNights > 0 ? Math.round((occupiedNights / sellableNights) * 1_000) / 10 : 0,
+        revenue,
+        adr: occupiedNights > 0 ? Math.round(revenue / occupiedNights) : 0,
+      };
+    }).sort((a, b) => b.revenue - a.revenue);
   },
 
   // ── SOURCE OF BUSINESS ──────────────────────────────────────────────────────

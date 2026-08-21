@@ -101,7 +101,14 @@ export const ExpenseService = {
     // Auto-entry in cash book — fire-and-forget, never fails the expense
     createLedgerEntryFromExpense(
       hotelId,
-      { id: expense.id, amount: expense.amount, paymentMethod: expense.payment_method, description: expense.description, paidTo: expense.paid_to },
+      {
+        id: expense.id,
+        amount: expense.amount,
+        paymentMethod: expense.payment_method,
+        description: expense.description,
+        paidTo: expense.paid_to,
+        entryDate: new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(expense.date),
+      },
       actorId,
     ).catch(() => { /* already logged inside */ });
 

@@ -2,13 +2,13 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  CalendarDays, BarChart3, ClipboardList,
+  CalendarDays, CalendarRange, BarChart3, ClipboardList,
   TrendingUp, ShoppingCart, ReceiptText, CreditCard,
   AlertCircle, RotateCcw, Scale, FileSpreadsheet,
   BedDouble, Users, Wrench, Package, Utensils,
   ChevronDown, ChevronRight, Search,
   Banknote, LogIn, LogOut, Sparkles, Moon,
-  Lock,
+  Lock, Sunrise,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { TONE } from "@/components/ui/StatusBadge";
@@ -126,6 +126,13 @@ const CATEGORIES: Category[] = [
     icon: ClipboardList,
     reports: [
       {
+        id: "early-bird",
+        name: "Early Bird Report",
+        description: "Manager morning brief: closed day, today's movement, exceptions and forward outlook",
+        icon: Sunrise,
+        route: "/operations/early-bird",
+      },
+      {
         id: "shift-history",
         name: "Shift Reports",
         description: "Review submitted handovers, cash counts, variances and approvals",
@@ -148,6 +155,9 @@ const CATEGORIES: Category[] = [
     reports: [
       { id: "occ-daily", name: "Occupancy Trend", description: "Daily occupancy rate over a date range", icon: BarChart3, route: "/reports/occupancy-trend" },
       { id: "adr", name: "ADR / RevPAR Analysis", description: "Average daily rate and revenue per available room", icon: TrendingUp, route: "/reports/adr-revpar" },
+      { id: "historical-comparison", name: "Historical Comparison", description: "Compare occupancy, ADR, RevPAR and production with earlier periods", icon: Scale, route: "/reports/historical-comparison" },
+      { id: "pickup-pace", name: "Pickup & Pace", description: "See how many room-nights and how much revenue have been added since an earlier snapshot", icon: TrendingUp, route: "/reports/pickup-pace" },
+      { id: "forecast", name: "Hotel Forecast", description: "Next 7–30 days of occupancy, room availability and expected revenue", icon: CalendarRange, route: "/reports/forecast" },
       { id: "room-type-perf", name: "Room Type Performance", description: "Occupancy and revenue split by room type", icon: BedDouble, route: "/reports/room-type-performance" },
       { id: "length-of-stay", name: "Length of Stay Report", description: "Average stay duration and distribution", icon: CalendarDays, route: "/reports/length-of-stay" },
       { id: "source-of-business", name: "Source of Business", description: "Booking source breakdown with revenue per channel", icon: ShoppingCart, route: "/reports/source-of-business" },

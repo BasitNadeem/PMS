@@ -1,11 +1,13 @@
 import { useState } from "react";
 import {
+  AlertTriangle,
   ArrowRight,
   CheckCircle2,
   Facebook,
   Instagram,
   LifeBuoy,
   Linkedin,
+  Loader2,
   Mail,
   MessageCircle,
   PhoneCall,
@@ -14,6 +16,7 @@ import {
 } from "lucide-react";
 import Reveal from "../components/motion/Reveal";
 import SplitHeading from "../components/motion/SplitHeading";
+import { submitWalkthroughRequest } from "../lib/leads";
 import {
   CONTACT_EMAIL,
   CONTACT_PHONE_DISPLAY,
@@ -41,6 +44,8 @@ type ContactForm = {
   email: string;
   currentSystem: string;
   message: string;
+  /** Honeypot — see the hidden field in the form below. Always "" for a human. */
+  website: string;
 };
 
 const initialForm: ContactForm = {
@@ -52,32 +57,73 @@ const initialForm: ContactForm = {
   email: "",
   currentSystem: "",
   message: "",
+  website: "",
 };
+
+type Status = "idle" | "sending" | "sent" | "error";
 
 export default function Contact() {
   const [form, setForm] = useState<ContactForm>(initialForm);
+  const [status, setStatus] = useState<Status>("idle");
+  const [errorMessage, setErrorMessage] = useState("");
 
   function update(key: keyof ContactForm) {
     return (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm((current) => ({ ...current, [key]: event.target.value }));
   }
 
-  function submit(event: React.FormEvent) {
+  // One body, reused by every channel, so a visitor who falls back to WhatsApp
+  // or email still sends exactly the detail the form collected.
+  const enquiryBody = [
+    "Hi Innflo, I’d like to book a product walkthrough.",
+    "",
+    `Name: ${form.name}`,
+    `Property: ${form.property || "Not provided"}`,
+    `City: ${form.city || "Not provided"}`,
+    `Rooms: ${form.rooms || "Not provided"}`,
+    `Phone: ${form.phone || "Not provided"}`,
+    `Email: ${form.email}`,
+    `Current system: ${form.currentSystem || "Not provided"}`,
+    "",
+    `What we need: ${form.message || "A general Innflo walkthrough."}`,
+  ].join("\n");
+
+  const enquiryWhatsAppUrl = getWhatsAppUrl(enquiryBody);
+  const enquiryMailtoUrl =
+    `mailto:${CONTACT_EMAIL}` +
+    `?subject=${encodeURIComponent("Walkthrough request")}` +
+    `&body=${encodeURIComponent(enquiryBody)}`;
+
+  /**
+   * Record the lead on our own servers FIRST, and only then offer WhatsApp.
+   *
+   * This used to jump straight to wa.me, which quietly lost every visitor who
+   * could not finish there — desktop without WhatsApp Web paired, an in-app
+   * browser, a popup blocker. WhatsApp is now an optional accelerator on the
+   * success screen, where the click is a fresh user gesture and so never gets
+   * blocked the way a popup opened after an await would be.
+   */
+  async function submit(event: React.FormEvent) {
     event.preventDefault();
-    const body = [
-      "Hi Innflo, I’d like to book a product walkthrough.",
-      "",
-      `Name: ${form.name}`,
-      `Property: ${form.property || "Not provided"}`,
-      `City: ${form.city || "Not provided"}`,
-      `Rooms: ${form.rooms || "Not provided"}`,
-      `Phone: ${form.phone || "Not provided"}`,
-      `Email: ${form.email}`,
-      `Current system: ${form.currentSystem || "Not provided"}`,
-      "",
-      `What we need: ${form.message || "A general Innflo walkthrough."}`,
-    ].join("\n");
-    window.open(getWhatsAppUrl(body), "_blank", "noopener,noreferrer");
+    if (status === "sending") return;
+
+    setStatus("sending");
+    setErrorMessage("");
+
+    const result = await submitWalkthroughRequest(form);
+
+    if (result.ok) {
+      setStatus("sent");
+      return;
+    }
+    setErrorMessage(result.message);
+    setStatus("error");
+  }
+
+  function reset() {
+    setForm(initialForm);
+    setStatus("idle");
+    setErrorMessage("");
   }
 
   const whatsappUrl = getWhatsAppUrl("Hi Innflo, I’d like to learn more about the hotel PMS.");
@@ -191,11 +237,50 @@ export default function Contact() {
           </Reveal>
 
           <Reveal delay={0.08}>
-            <form onSubmit={submit} className="rounded-[30px] border border-line bg-card p-6 shadow-float sm:p-9">
+            {status === "sent" ? (
+            <div className="rounded-[30px] border border-line bg-card p-6 shadow-float sm:p-9">
+              <span className="grid h-14 w-14 place-items-center rounded-2xl bg-[#EAF6EE]">
+                <CheckCircle2 className="h-7 w-7 text-[#2F7256]" />
+              </span>
+              <h2 className="mt-6 font-display text-[34px] font-medium leading-tight">
+                Got it{form.name.trim() === "" ? "" : `, ${form.name.trim().split(" ")[0]}`}.
+              </h2>
+              <p className="mt-3 text-[14px] leading-relaxed text-ink-soft">
+                Your request is with our team, and a confirmation is on its way to{" "}
+                <span className="font-bold text-ink">{form.email}</span>. We’ll come back to you
+                to arrange a time.
+              </p>
+
+              <div className="mt-7 rounded-2xl border border-line-soft bg-mist p-5">
+                <p className="text-[12px] font-bold text-ink">Want to get moving now?</p>
+                <p className="mt-1 text-[12px] leading-relaxed text-ink-mute">
+                  Carry the conversation into WhatsApp with your answers already written out.
+                  Entirely optional—we have everything we need.
+                </p>
+                <a
+                  href={enquiryWhatsAppUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-flex h-11 items-center gap-2 rounded-full bg-[#EAF6EE] px-5 text-[13px] font-bold text-[#215C3A] transition-colors hover:bg-[#DFF0E5]"
+                >
+                  <MessageCircle className="h-4 w-4" /> Continue on WhatsApp
+                </a>
+              </div>
+
+              <button
+                type="button"
+                onClick={reset}
+                className="mt-6 text-[12px] font-bold text-ink-mute underline underline-offset-4 transition-colors hover:text-coral-dark"
+              >
+                Send another request
+              </button>
+            </div>
+            ) : (
+            <form onSubmit={submit} className="relative rounded-[30px] border border-line bg-card p-6 shadow-float sm:p-9">
               <div className="mb-8">
                 <p className="eyebrow mb-3">Book your walkthrough</p>
                 <h2 className="font-display text-[34px] font-medium">A little context goes a long way.</h2>
-                <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">Required fields are marked. Submitting opens a WhatsApp conversation with everything already written.</p>
+                <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">Required fields are marked. We’ll confirm by email straight away—and you can carry on in WhatsApp afterwards if you prefer.</p>
               </div>
 
               <div className="grid gap-5 sm:grid-cols-2">
@@ -241,11 +326,67 @@ export default function Contact() {
                 <textarea rows={4} value={form.message} onChange={update("message")} placeholder="The modules, bottlenecks or questions you want us to focus on." className={`${inputCls} mt-2 resize-none`} />
               </label>
 
-              <button type="submit" className="mt-7 inline-flex h-13 w-full items-center justify-center rounded-full bg-coral px-8 py-3.5 text-[14px] font-bold text-white shadow-pop hover:bg-coral-dark">
-                Prepare my walkthrough <Send className="ml-2 h-4 w-4" />
+              {/* Honeypot. Off-screen and aria-hidden, so no person and no screen
+                  reader ever meets it; the server drops anything that arrives
+                  with it filled in. */}
+              <div aria-hidden="true" className="pointer-events-none absolute left-[-9999px] h-0 w-0 overflow-hidden">
+                <label>
+                  Website
+                  <input
+                    type="text"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={form.website}
+                    onChange={update("website")}
+                  />
+                </label>
+              </div>
+
+              {status === "error" && (
+                <div className="mt-7 rounded-2xl border border-[#E7BBAC] bg-[#FDF2ED] p-5" role="alert">
+                  <p className="flex items-start gap-2 text-[13px] font-bold text-coral-deep">
+                    <AlertTriangle className="mt-px h-4 w-4 shrink-0" />
+                    {errorMessage}
+                  </p>
+                  <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">
+                    Nothing is lost—your answers are still here. Try again, or send the same
+                    details to us directly:
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <a
+                      href={enquiryWhatsAppUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-10 items-center gap-2 rounded-full bg-[#EAF6EE] px-4 text-[12px] font-bold text-[#215C3A] transition-colors hover:bg-[#DFF0E5]"
+                    >
+                      <MessageCircle className="h-4 w-4" /> Send on WhatsApp
+                    </a>
+                    <a
+                      href={enquiryMailtoUrl}
+                      className="inline-flex h-10 items-center gap-2 rounded-full bg-mist px-4 text-[12px] font-bold text-ink transition-colors hover:bg-line-soft"
+                    >
+                      <Mail className="h-4 w-4 text-coral-dark" /> Email us instead
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={status === "sending"}
+                className="mt-7 inline-flex h-12 w-full items-center justify-center rounded-full bg-coral px-8 text-[14px] font-bold text-white shadow-pop transition-colors hover:bg-coral-dark disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {status === "sending" ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending your request…</>
+                ) : status === "error" ? (
+                  <>Try again <Send className="ml-2 h-4 w-4" /></>
+                ) : (
+                  <>Prepare my walkthrough <Send className="ml-2 h-4 w-4" /></>
+                )}
               </button>
               <p className="mt-4 text-center text-[11px] leading-relaxed text-ink-mute">Your details are used only to respond to this enquiry.</p>
             </form>
+            )}
           </Reveal>
         </div>
       </section>

@@ -29,6 +29,14 @@ router.get("/preflight", requirePermission("nightAudit:read"), async (req, res) 
   res.json({ data });
 });
 
+// GET /api/night-audit/snapshot?date=YYYY-MM-DD
+// Live preview of the same centralized snapshot that Night Audit freezes.
+router.get("/snapshot", requirePermission("nightAudit:read"), async (req, res) => {
+  const { date } = z.object({ date: z.string().date() }).parse(req.query);
+  const data = await NightAuditService.getBusinessDaySnapshot(req.withTenant, req.user!.hotelId, date);
+  res.json({ data });
+});
+
 // POST /api/night-audit/no-show/:reservationId
 router.post("/no-show/:reservationId", requirePermission("nightAudit:markNoShow"), async (req, res) => {
   const { reservationId } = z.object({ reservationId: z.string().uuid() }).parse(req.params);
@@ -66,6 +74,24 @@ router.get("/history", requirePermission("nightAudit:read"), async (req, res) =>
   }).parse(req.query);
   const result = await NightAuditService.listAuditRecords(req.withTenant, req.user!.hotelId, { page, limit });
   res.json(result);
+});
+
+// POST /api/night-audit/:id/reverse
+// Reopens only the latest closed business day and preserves the original
+// immutable record as a reversed revision in the audit trail.
+router.post("/:id/reverse", requirePermission("nightAudit:reverse"), async (req, res) => {
+  const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+  const { reason } = z.object({
+    reason: z.string().trim().min(10, "Give a clear reason (at least 10 characters)").max(1000),
+  }).parse(req.body);
+  const data = await NightAuditService.reverseAudit(
+    req.withTenant,
+    req.user!.hotelId,
+    id,
+    req.user!.userId,
+    reason,
+  );
+  res.json({ data });
 });
 
 // GET /api/night-audit/:id

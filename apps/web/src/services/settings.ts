@@ -13,6 +13,10 @@ export interface HotelSettings {
   address: string | null;
   city: string | null;
   country: string;
+  region: string | null;
+  zipCode: string | null;
+  latitude: string | null;
+  longitude: string | null;
   isActive: boolean;
   description: string | null;
   amenities: string[];
@@ -30,6 +34,10 @@ export interface UpdateSettingsDto {
   address?: string;
   city?: string;
   country?: string;
+  region?: string;
+  zipCode?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   starRating?: number | null;
   description?: string;
   timezone?: string;
@@ -159,6 +167,88 @@ export interface ExportAllData {
   }>;
 }
 
+// ── Channel Manager ──────────────────────────────────────────────────────────
+
+export interface ChannexRatePlanPair {
+  id: string;
+  roomTypeId: string;
+  roomTypeName: string | null;
+  synced: boolean;
+}
+
+export interface ChannexRatePlanStatus {
+  id: string;
+  name: string;
+  type: string;
+  synced: boolean;
+  partiallySynced: boolean;
+  eligible: boolean;
+  exclusionReason: string | null;
+  exclusionLabel: string | null;
+  pairs: ChannexRatePlanPair[];
+}
+
+export interface ChannexIngestionAlert {
+  id: string;
+  kind: "OVERBOOKING" | "GENERIC";
+  sourceKey: string;
+  eventType: string;
+  origin: string;
+  message: string;
+  attempts: number;
+  receivedAt: string;
+}
+
+export interface ChannelManagerStatus {
+  provisioned: boolean;
+  propertyId: string | null;
+  isActive: boolean;
+  syncInventory: boolean;
+  syncRates: boolean;
+  lastSyncAt: string | null;
+  lastSyncStatus: string | null;
+  lastSyncError: string | null;
+  validation: { valid: boolean; missing: string[] };
+  fieldLocations: Record<string, string>;
+  ingestionAlerts: {
+    overbookings: ChannexIngestionAlert[];
+    failures: ChannexIngestionAlert[];
+    overbookingCount: number;
+    failureCount: number;
+  };
+  roomTypes: { id: string; name: string; synced: boolean }[];
+  ratePlans: ChannexRatePlanStatus[];
+  summary: {
+    roomTypesSynced: number;
+    roomTypesTotal: number;
+    ratePlansSynced: number;
+    ratePlansEligible: number;
+    ratePlansExcluded: number;
+    ratePlanPairsSynced: number;
+    ratePlanPairsTotal: number;
+  };
+}
+
+export interface ProvisionOutcome {
+  id: string;
+  ratePlanId?: string;
+  name: string;
+  status: "CREATED" | "UPDATED" | "SKIPPED" | "FAILED";
+  channexId?: string;
+  reason?: string;
+  error?: string;
+}
+
+export interface ProvisionResult {
+  success: boolean;
+  error?: string;
+  missingFields?: string[];
+  propertyId?: string;
+  propertyStatus?: string;
+  roomTypes: ProvisionOutcome[];
+  ratePlans: ProvisionOutcome[];
+}
+
 export const settingsService = {
   getSettings: async (): Promise<HotelSettings> => {
     const res = await api.get("/api/settings");
@@ -195,5 +285,32 @@ export const settingsService = {
   },
   deactivateHotel: async (): Promise<void> => {
     await api.post("/api/settings/deactivate");
+  },
+
+  // ── Channel Manager ────────────────────────────────────────────────────────
+  getChannelManager: async (): Promise<ChannelManagerStatus> => {
+    const res = await api.get("/api/settings/channel-manager");
+    return res.data.data;
+  },
+  provisionChannelManager: async (ratePlanIds?: string[]): Promise<ProvisionResult> => {
+    // 422 carries the missing-field list, so it is a real result, not an error.
+    const res = await api.post(
+      "/api/settings/channel-manager/provision",
+      { ratePlanIds },
+      { validateStatus: (status) => status === 200 || status === 422 },
+    );
+    return res.data.data;
+  },
+  updateChannelManager: async (
+    dto: { isActive?: boolean; syncInventory?: boolean; syncRates?: boolean },
+  ): Promise<{ isActive: boolean; syncInventory: boolean; syncRates: boolean }> => {
+    const res = await api.patch("/api/settings/channel-manager", dto);
+    return res.data.data;
+  },
+  syncChannelManagerNow: async (): Promise<void> => {
+    await api.post("/api/settings/channel-manager/sync");
+  },
+  acknowledgeChannelAlert: async (alertId: string): Promise<void> => {
+    await api.post(`/api/settings/channel-manager/alerts/${alertId}/acknowledge`);
   },
 };

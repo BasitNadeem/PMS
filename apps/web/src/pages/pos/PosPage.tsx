@@ -123,16 +123,30 @@ export default function PosPage() {
   const cartTotal     = cart.reduce((s, i) => s + i.price * i.quantity, 0);
   const cartItemCount = cart.reduce((s, i) => s + i.quantity, 0);
 
+  function maxSellableQuantity(item: PosItem): number | null {
+    if (!item.inventoryItemId || !item.inventoryQtyUsed) return null;
+    if (!item.inventoryIsActive) return 0;
+    return Math.max(0, Math.floor((item.inventoryCurrentStock ?? 0) / item.inventoryQtyUsed));
+  }
+
   function addToCart(item: PosItem) {
+    const maxQuantity = maxSellableQuantity(item);
     setCart((prev) => {
       const existing = prev.find((c) => c.posItemId === item.id);
+      if (maxQuantity !== null && (existing?.quantity ?? 0) >= maxQuantity) return prev;
       if (existing) return prev.map((c) => c.posItemId === item.id ? { ...c, quantity: c.quantity + 1 } : c);
       return [...prev, { posItemId: item.id, name: item.name, price: item.price, quantity: 1 }];
     });
   }
   function setQty(posItemId: string, qty: number) {
     if (qty <= 0) setCart((prev) => prev.filter((c) => c.posItemId !== posItemId));
-    else          setCart((prev) => prev.map((c) => c.posItemId === posItemId ? { ...c, quantity: qty } : c));
+    else {
+      const item = terminalCats.flatMap((category) => category.items).find((candidate) => candidate.id === posItemId);
+      const maxQuantity = item ? maxSellableQuantity(item) : null;
+      setCart((prev) => prev.map((c) => c.posItemId === posItemId
+        ? { ...c, quantity: maxQuantity === null ? qty : Math.min(qty, maxQuantity) }
+        : c));
+    }
   }
   function clearCart() {
     setCart([]);
@@ -236,12 +250,16 @@ export default function PosPage() {
                   {filteredItems.map((item) => {
                     const qty = cart.find((c) => c.posItemId === item.id)?.quantity ?? 0;
                     const active = qty > 0;
+                    const maxQuantity = maxSellableQuantity(item);
+                    const soldOut = maxQuantity === 0;
                     return (
                       <button
                         key={item.id}
                         onClick={() => addToCart(item)}
+                        disabled={soldOut}
                         className={cn(
                           "relative text-left rounded-2xl p-4 transition-all min-h-[130px] flex flex-col gap-1 active:scale-[0.97]",
+                          soldOut && "cursor-not-allowed opacity-60 grayscale-[0.25] active:scale-100",
                           active
                             ? "bg-coral text-white shadow-float ring-0"
                             : "bg-card border border-line hover:border-coral/40 hover:shadow-md",
@@ -262,6 +280,12 @@ export default function PosPage() {
                           {item.name}
                         </p>
 
+                        {soldOut && (
+                          <span className="absolute right-3 top-3 rounded-full bg-clay-soft px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-clay">
+                            Sold out
+                          </span>
+                        )}
+
                         {/* Description */}
                         {item.description && (
                           <p className={cn(
@@ -280,7 +304,7 @@ export default function PosPage() {
                           )}>
                             {formatPKR(item.price)}
                           </span>
-                          {!active && (
+                          {!active && !soldOut && (
                             <span className="grid place-items-center w-7 h-7 rounded-full bg-coral-soft text-coral">
                               <Plus size={14} />
                             </span>

@@ -14,6 +14,10 @@ export interface PosItem {
   sortOrder: number;
   inventoryItemId:  string | null;
   inventoryQtyUsed: number | null;
+  inventoryItemName: string | null;
+  inventoryUnit: string | null;
+  inventoryCurrentStock: number | null;
+  inventoryIsActive: boolean | null;
   photoUrl: string | null;
   // QR guest-menu visibility — independent of isAvailable (POS terminal).
   isQrVisible: boolean;

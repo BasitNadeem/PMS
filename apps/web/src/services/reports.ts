@@ -289,12 +289,226 @@ export interface ADRRevPARDay {
   adr: number;
   revpar: number;
   roomsSold: number;
+  sellableRooms: number;
+  outOfServiceRooms: number;
+  occupancyRate: number;
   roomRevenue: number;
 }
 
 export interface ADRRevPARReport {
   dailyBreakdown: ADRRevPARDay[];
-  summary: { avgADR: number; avgRevPAR: number; totalRoomRevenue: number; totalRoomsSold: number };
+  summary: {
+    avgADR: number;
+    avgRevPAR: number;
+    totalRoomRevenue: number;
+    totalRoomsSold: number;
+    sellableRoomNights: number;
+    outOfServiceRoomNights: number;
+    occupancyRate: number;
+  };
+}
+
+export interface HistoricalComparisonSummary {
+  occupancyRate: number;
+  adr: number;
+  revpar: number;
+  roomRevenue: number;
+  reservations: number;
+  roomNights: number;
+  cancellations: number;
+  companyRevenue: number;
+  companyRoomNights: number;
+  groupRevenue: number;
+  groupRoomNights: number;
+}
+
+export interface HistoricalComparisonPeriod {
+  startDate: string;
+  endDate: string;
+  summary: HistoricalComparisonSummary;
+  days: Array<{
+    date: string;
+    occupancyRate: number;
+    adr: number;
+    revpar: number;
+    roomRevenue: number;
+    roomNights: number;
+  }>;
+}
+
+export interface HistoricalComparisonReport {
+  current: HistoricalComparisonPeriod;
+  previousPeriod: HistoricalComparisonPeriod & { variance: Record<keyof HistoricalComparisonSummary, { absolute: number; percentage: number | null }> };
+  samePeriodLastYear: HistoricalComparisonPeriod & { variance: Record<keyof HistoricalComparisonSummary, { absolute: number; percentage: number | null }> };
+}
+
+export interface PickupPaceSummary {
+  sellableRoomNights: number;
+  roomsSold: number;
+  expectedRoomRevenue: number;
+  occupancyRate: number;
+  adr: number;
+  revpar: number;
+}
+
+export interface PickupPaceDelta {
+  roomNights: number;
+  revenue: number;
+  occupancyPoints: number;
+  roomNightsPerDay: number;
+  revenuePerDay: number;
+}
+
+export interface PickupPaceReport {
+  startDate: string;
+  endDate: string;
+  requestedLookbackDays: number;
+  current: { observationAt: string; summary: PickupPaceSummary };
+  pickupBaseline: { observationAt: string; elapsedDays: number; summary: PickupPaceSummary | null } | null;
+  lastYearBaseline: { observationAt: string; summary: PickupPaceSummary | null } | null;
+  pickup: PickupPaceDelta | null;
+  lastYearVariance: { roomNights: number; revenue: number; occupancyPoints: number } | null;
+  days: Array<{
+    date: string;
+    sellableRooms: number;
+    roomsSold: number;
+    occupancyRate: number;
+    expectedRoomRevenue: number;
+    pickupRooms: number | null;
+    pickupRevenue: number | null;
+    lastYearRoomsSold: number | null;
+  }>;
+  roomTypes: Array<{ id: string; name: string; current: PickupPaceSummary; pickup: PickupPaceDelta | null }>;
+  collection: { startedAt: string; pickupAvailable: boolean; lastYearAvailable: boolean };
+}
+
+// ── Hotel forecast ───────────────────────────────────────────────────────────
+
+export interface ForecastDay {
+  date: string;
+  physicalRooms: number;
+  outOfServiceRooms: number;
+  sellableRooms: number;
+  roomsSold: number;
+  availableRooms: number;
+  occupancyRate: number;
+  adr: number;
+  revpar: number;
+  expectedRoomRevenue: number;
+  arrivals: number;
+  departures: number;
+  stayovers: number;
+}
+
+export interface ForecastRoomTypeDay extends ForecastDay {
+  roomTypeId: string;
+  roomTypeName: string;
+}
+
+export interface ForecastReport {
+  startDate: string;
+  endDate: string;
+  days: ForecastDay[];
+  roomTypes: Array<{ id: string; name: string; days: ForecastRoomTypeDay[] }>;
+  contribution: {
+    categories: Array<{ category: string; reservations: number; roomNights: number; expectedRoomRevenue: number; percentage: number }>;
+    companies: Array<{ companyId: string; companyName: string; reservations: number; roomNights: number; expectedRoomRevenue: number; percentage: number }>;
+  };
+  operational: {
+    enquiryDemand: Array<{ date: string; rooms: number }>;
+    groups: Array<{ groupId: string; groupName: string; groupRef: string | null; arrivalDate: string; departureDate: string; rooms: number }>;
+    maintenanceReturns: Array<{ blockId: string; date: string; roomNumber: string; roomTypeName: string; reason: string }>;
+  };
+  summary: {
+    physicalRoomNights: number;
+    outOfServiceRoomNights: number;
+    sellableRoomNights: number;
+    roomsSold: number;
+    availableRoomNights: number;
+    expectedRoomRevenue: number;
+    occupancyRate: number;
+    adr: number;
+    revpar: number;
+  };
+}
+
+export interface EarlyBirdReport {
+  archiveId: string | null;
+  auditReversedAt: string | null;
+  reportDate: string;
+  generatedAt: string;
+  hotelName: string;
+  closedDay: {
+    businessDate: string;
+    source: "FROZEN_AUDIT";
+    isStale: boolean;
+    auditId: string | null;
+    auditRevision: number;
+    runAt: string | null;
+    snapshot: import("@/services/nightAudit").BusinessDaySnapshot;
+    topSellingItems: {
+      pos: Array<{ name: string; quantity: number; revenue: number }>;
+      qr: Array<{ name: string; quantity: number; revenue: number }>;
+    };
+  };
+  today: {
+    metrics: ForecastDay;
+    arrivals: Array<{
+      id: string;
+      confirmationNumber: string;
+      status: string;
+      estimatedArrivalTime: string | null;
+      isVip: boolean;
+      guestName: string;
+      roomNumbers: string[];
+      companyName: string | null;
+      groupName: string | null;
+    }>;
+    departures: Array<{
+      id: string;
+      confirmationNumber: string;
+      guestName: string;
+      roomNumbers: string[];
+      guestBalance: number;
+      companyBalance: number;
+      totalBalance: number;
+    }>;
+    stayovers: number;
+    roomStatus: Record<string, number>;
+    housekeeping: Array<{ id: string; taskType: string; status: string; priority: number; isEscalated: boolean; room: { number: string } }>;
+    maintenance: Array<{ id: string; ticketNumber: string; title: string; priority: string; status: string; room: { number: string } | null }>;
+    outstandingFolios: Array<{
+      id: string;
+      folioNumber: string;
+      balanceDue: number;
+      guestBalanceDue: number;
+      companyBalanceDue: number;
+      reservationId: string | null;
+      reservationNumber: string | null;
+      guestName: string;
+    }>;
+    outstandingSummary: { count: number; total: number; guest: number; company: number };
+    lowStock: Array<{ id: string; name: string; unit: string; currentStock: number; reorderLevel: number; parLevel: number; urgency: string }>;
+    latestNightShift: {
+      shiftDate: string;
+      notes: string | null;
+      variance: number;
+      varianceReason: string | null;
+      handoverBriefing: unknown;
+      signedOffAt: string | null;
+    } | null;
+  };
+  outlook: ForecastReport;
+}
+
+export interface EarlyBirdArchive {
+  id: string;
+  reportDate: string;
+  forecastDays: number;
+  generatedAt: string;
+  nightAuditId: string;
+  auditRevision: number;
+  auditReversedAt: string | null;
 }
 
 // ── Room Type Performance report ─────────────────────────────────────────────
@@ -553,6 +767,16 @@ export const reportsService = {
     return res.data.data;
   },
 
+  getEarlyBirdReport: async (date: string, forecastDays: number): Promise<EarlyBirdReport> => {
+    const res = await api.get("/api/reports/early-bird", { params: { date, forecastDays } });
+    return res.data.data;
+  },
+
+  getEarlyBirdHistory: async (page = 1, limit = 20): Promise<{ data: EarlyBirdArchive[]; meta: import("@/services/rooms").PaginationMeta }> => {
+    const res = await api.get("/api/reports/early-bird/history", { params: { page, limit } });
+    return res.data;
+  },
+
   getMonthlyReport: async (year: number, month: number): Promise<MonthlyReport> => {
     const res = await api.get("/api/reports/monthly", { params: { year, month } });
     return res.data.data;
@@ -590,6 +814,21 @@ export const reportsService = {
 
   getADRRevPAR: async (startDate: string, endDate: string): Promise<ADRRevPARReport> => {
     const res = await api.get("/api/reports/adr-revpar", { params: { startDate, endDate } });
+    return res.data.data;
+  },
+
+  getHistoricalComparison: async (startDate: string, endDate: string): Promise<HistoricalComparisonReport> => {
+    const res = await api.get("/api/reports/historical-comparison", { params: { startDate, endDate } });
+    return res.data.data;
+  },
+
+  getPickupPace: async (startDate: string, days: number, lookbackDays: number): Promise<PickupPaceReport> => {
+    const res = await api.get("/api/reports/pickup-pace", { params: { startDate, days, lookbackDays } });
+    return res.data.data;
+  },
+
+  getForecast: async (startDate: string, days: number): Promise<ForecastReport> => {
+    const res = await api.get("/api/reports/forecast", { params: { startDate, days } });
     return res.data.data;
   },
 

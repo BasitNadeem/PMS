@@ -13,6 +13,19 @@ import { getEffectiveLimits, checkFeatureAccess } from "../lib/subscription";
 import { adminPrisma } from "@pms/db";
 import { getCurrentPKTDate } from "../lib/timezone";
 import { occasionQueue } from "../jobs/queues";
+import {
+  ChannexProvisioningService,
+  acknowledgeIngestionAlert,
+} from "../services/ChannexProvisioningService";
+import { enqueueChannexSync } from "../lib/channexSync";
+import {
+  scheduleHotelChannexSync,
+  cancelHotelChannexSync,
+} from "../jobs/channexScheduler";
+import {
+  provisionChannexSchema,
+  updateChannelManagerSchema,
+} from "../schemas/settings";
 
 const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
@@ -289,6 +302,99 @@ router.post("/deactivate", async (req, res) => {
   );
 
   res.json({ data: { success: true } });
+});
+
+// ── Channel Manager (Channex) ────────────────────────────────────────────────
+// OWNER-only throughout, enforced inline per the convention at the top of this
+// file. Distribution controls pricing and inventory on public OTAs — this is
+// not something a front-desk account should be able to switch on.
+
+function requireOwner(role: string): void {
+  if (role !== "OWNER") {
+    throw new AppError(403, "Only the hotel owner can manage channel distribution");
+  }
+}
+
+// GET /api/settings/channel-manager — connection, mapping and alert snapshot
+router.get("/channel-manager", async (req, res) => {
+  requireOwner(req.user!.role);
+  const status = await ChannexProvisioningService.getStatus(req.user!.hotelId);
+  res.json({ data: status });
+});
+
+// POST /api/settings/channel-manager/provision — create or refresh the property
+router.post("/channel-manager/provision", async (req, res) => {
+  requireOwner(req.user!.role);
+  const body = provisionChannexSchema.parse(req.body ?? {});
+  const result = await ChannexProvisioningService.provisionHotel(req.user!.hotelId, {
+    ratePlanIds: body.ratePlanIds,
+  });
+
+  // 422 rather than 500 when the hotel is simply incomplete: the response
+  // carries the exact field list, which the panel renders as a checklist.
+  res.status(result.success ? 200 : (result.missingFields ? 422 : 502)).json({
+    data: result,
+    ...(result.error && { error: result.error }),
+  });
+});
+
+// PATCH /api/settings/channel-manager — activation and per-direction sync toggles
+router.patch("/channel-manager", async (req, res) => {
+  requireOwner(req.user!.role);
+  const body = updateChannelManagerSchema.parse(req.body);
+  const hotelId = req.user!.hotelId;
+
+  const existing = await adminPrisma.channelConfig.findUnique({
+    where: { hotelId_channelType: { hotelId, channelType: "CHANNEL_MANAGER" } },
+  });
+  if (!existing) throw new AppError(404, "Channel manager is not set up for this hotel");
+
+  const updated = await adminPrisma.channelConfig.update({
+    where: { hotelId_channelType: { hotelId, channelType: "CHANNEL_MANAGER" } },
+    data: {
+      ...(body.isActive      !== undefined && { isActive:      body.isActive }),
+      ...(body.syncInventory !== undefined && { syncInventory: body.syncInventory }),
+      ...(body.syncRates     !== undefined && { syncRates:     body.syncRates }),
+    },
+  });
+
+  // The nightly repeatable follows activation, so a disconnected hotel stops
+  // being swept and a reconnected one resumes without a redeploy.
+  if (body.isActive === true)  await scheduleHotelChannexSync(hotelId);
+  if (body.isActive === false) await cancelHotelChannexSync(hotelId);
+
+  await req.withTenant((db) =>
+    db.auditLog.create({
+      data: {
+        hotelId, userId: req.user!.userId,
+        action: "CHANNEL_MANAGER_UPDATE", entity: "channel_config", entityId: updated.id,
+        after: JSON.parse(JSON.stringify(body)),
+      },
+    }),
+  );
+
+  res.json({ data: { isActive: updated.isActive, syncInventory: updated.syncInventory, syncRates: updated.syncRates } });
+});
+
+// POST /api/settings/channel-manager/sync — "Sync now"
+// Mirrors the manual occasion sweep above: enqueue, never run inline.
+router.post("/channel-manager/sync", async (req, res) => {
+  requireOwner(req.user!.role);
+  const queued = await enqueueChannexSync({
+    hotelId: req.user!.hotelId,
+    reason:  "MANUAL",
+    immediate: true,
+  });
+  res.json({ data: { queued } });
+});
+
+// POST /api/settings/channel-manager/alerts/:id/acknowledge
+// Clears a handled overbooking or failure so the panel reflects reality.
+router.post("/channel-manager/alerts/:id/acknowledge", async (req, res) => {
+  requireOwner(req.user!.role);
+  const cleared = await acknowledgeIngestionAlert(req.user!.hotelId, req.params.id as string);
+  if (!cleared) throw new AppError(404, "Alert not found or already cleared");
+  res.json({ data: { acknowledged: true } });
 });
 
 export default router;

@@ -4,6 +4,7 @@ import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
 import { acquireSubscriptionQuotaLock, checkRoomLimit } from "../lib/subscription";
 import { notifyHotelDataChanged } from "../lib/realtime";
+import { queueChannexSync } from "../lib/channexSync";
 import type {
   ListRoomsQuery,
   CreateRoomDto,
@@ -12,6 +13,9 @@ import type {
   CreateRoomTypeDto,
   UpdateRoomTypeDto,
   CheckAvailabilityQuery,
+  CreateRoomInventoryBlockDto,
+  CancelRoomInventoryBlockDto,
+  BulkUpdateRoomReadinessDto,
 } from "../schemas/rooms";
 
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
@@ -92,6 +96,10 @@ export const RoomService = {
       return updated;
     }).then((result) => {
       notifyHotelDataChanged(actor.hotelId);
+      // default_rate is the base every rate falls back to, and occupancy and
+      // room counts feed availability — any of them moving invalidates the
+      // whole published horizon, so this resyncs the full window.
+      queueChannexSync({ hotelId: actor.hotelId, reason: "ROOM_TYPE_CHANGE" });
       return result;
     });
   },
@@ -109,7 +117,29 @@ export const RoomService = {
       Promise.all([
         db.room.findMany({
           where,
-          include: { roomType: true },
+          include: {
+            roomType: true,
+            reservationRooms: {
+              where: { reservation: { status: "CHECKED_IN" } },
+              orderBy: { actualCheckIn: "desc" },
+              take: 1,
+              select: {
+                reservation: {
+                  select: {
+                    id: true,
+                    confirmationNumber: true,
+                    checkOutDate: true,
+                    guest: { select: { id: true, fullName: true } },
+                  },
+                },
+              },
+            },
+            inventoryBlocks: {
+              where: { cancelledAt: null, endDate: { gt: new Date() } },
+              orderBy: { startDate: "asc" },
+              take: 1,
+            },
+          },
           orderBy: [{ floor: "asc" }, { number: "asc" }],
           skip,
           take: query.limit,
@@ -117,7 +147,16 @@ export const RoomService = {
         db.room.count({ where }),
       ])
     );
-    return { data: items, meta: paginationMeta(total, query.page, query.limit) };
+    return {
+      data: items.map(({ reservationRooms, ...room }) => ({
+        ...room,
+        currentReservation:
+          room.status === "OCCUPIED"
+            ? reservationRooms[0]?.reservation ?? null
+            : null,
+      })),
+      meta: paginationMeta(total, query.page, query.limit),
+    };
   },
 
   async getRoom(withTenant: WithTenantFn, id: string) {
@@ -146,7 +185,6 @@ export const RoomService = {
           roomTypeId: dto.roomTypeId,
           number:     dto.number,
           floor:      dto.floor,
-          status:     dto.status,
           notes:      dto.notes,
         },
         include: { roomType: true },
@@ -203,6 +241,56 @@ export const RoomService = {
     });
   },
 
+  async bulkUpdateReadiness(
+    withTenant: WithTenantFn,
+    actor: JwtPayload,
+    dto: BulkUpdateRoomReadinessDto,
+  ) {
+    const result = await withTenant(async (db) => {
+      const roomIds = [...new Set(dto.roomIds)];
+      const rooms = await db.room.findMany({
+        where: { id: { in: roomIds }, isActive: true },
+        select: {
+          id: true,
+          number: true,
+          status: true,
+          inventoryBlocks: {
+            where: { cancelledAt: null, endDate: { gt: new Date() } },
+            take: 1,
+            select: { id: true },
+          },
+        },
+      });
+      if (rooms.length !== roomIds.length) throw new AppError(404, "One or more selected rooms were not found");
+
+      const unsafe = rooms.filter((room) =>
+        !["VACANT_CLEAN", "VACANT_DIRTY"].includes(room.status) || room.inventoryBlocks.length > 0,
+      );
+      if (unsafe.length > 0) {
+        throw new AppError(
+          409,
+          `Only vacant rooms can be changed in bulk. Remove room${unsafe.length === 1 ? "" : "s"} ${unsafe.map((room) => room.number).join(", ")} from the selection.`,
+        );
+      }
+
+      await db.room.updateMany({ where: { id: { in: roomIds } }, data: { status: dto.status } });
+      await db.auditLog.createMany({
+        data: rooms.map((room) => ({
+          hotelId: actor.hotelId,
+          userId: actor.userId,
+          action: "ROOM_READINESS_BULK_UPDATE",
+          entity: "room",
+          entityId: room.id,
+          before: { status: room.status },
+          after: { status: dto.status },
+        })),
+      });
+      return { updated: rooms.length, roomIds, status: dto.status };
+    });
+    notifyHotelDataChanged(actor.hotelId);
+    return result;
+  },
+
   async deactivateRoom(withTenant: WithTenantFn, actor: JwtPayload, id: string) {
     return withTenant(async (db) => {
       const existing = await db.room.findUnique({ where: { id } });
@@ -231,6 +319,7 @@ export const RoomService = {
       const rooms = await db.room.findMany({
         where: {
           isActive: true,
+          status: { notIn: ["OUT_OF_ORDER", "BLOCKED"] },
           ...(query.roomId      && { id: query.roomId }),
           ...(query.roomTypeId  && { roomTypeId: query.roomTypeId }),
         },
@@ -258,23 +347,162 @@ export const RoomService = {
         },
       });
 
+      const inventoryBlockRows = await db.roomInventoryBlock.findMany({
+        where: {
+          roomId: { in: rooms.map((room) => room.id) },
+          cancelledAt: null,
+          startDate: { lt: new Date(query.checkOutDate) },
+          endDate: { gt: new Date(query.checkInDate) },
+        },
+        select: { id: true, roomId: true, type: true, startDate: true, endDate: true, reason: true },
+      });
+
       const conflictByRoomId = new Map(conflictRows.map((c) => [c.roomId, c]));
-      const availableRoomIds = rooms.filter((r) => !conflictByRoomId.has(r.id)).map((r) => r.id);
+      const blockByRoomId = new Map(inventoryBlockRows.map((block) => [block.roomId, block]));
+      const availableRoomIds = rooms
+        .filter((room) => !conflictByRoomId.has(room.id) && !blockByRoomId.has(room.id))
+        .map((room) => room.id);
       const conflicts = rooms
-        .filter((r) => conflictByRoomId.has(r.id))
+        .filter((r) => conflictByRoomId.has(r.id) || blockByRoomId.has(r.id))
         .map((r) => {
-          const c = conflictByRoomId.get(r.id)!;
+          const c = conflictByRoomId.get(r.id);
+          const block = blockByRoomId.get(r.id);
+          if (block) {
+            return {
+              roomId: r.id,
+              roomNumber: r.number,
+              conflictType: "INVENTORY_BLOCK" as const,
+              inventoryBlockType: block.type,
+              reason: block.reason,
+              checkInDate: block.startDate,
+              checkOutDate: block.endDate,
+              guestName: null,
+              confirmationNumber: null,
+            };
+          }
           return {
             roomId:              r.id,
             roomNumber:          r.number,
-            guestName:           c.reservation.guest.fullName,
-            confirmationNumber:  c.reservation.confirmationNumber,
-            checkInDate:         c.checkInDate,
-            checkOutDate:        c.checkOutDate,
+            conflictType:        "RESERVATION" as const,
+            inventoryBlockType:  null,
+            reason:              null,
+            guestName:           c!.reservation.guest.fullName,
+            confirmationNumber:  c!.reservation.confirmationNumber,
+            checkInDate:         c!.checkInDate,
+            checkOutDate:        c!.checkOutDate,
           };
         });
 
       return { availableRoomIds, totalRooms: rooms.length, conflicts };
     });
+  },
+
+  async listInventoryBlocks(withTenant: WithTenantFn, roomId: string) {
+    return withTenant(async (db) => {
+      const room = await db.room.findUnique({ where: { id: roomId }, select: { id: true } });
+      if (!room) throw new AppError(404, "Room not found");
+      return db.roomInventoryBlock.findMany({
+        where: { roomId },
+        orderBy: [{ cancelledAt: "asc" }, { startDate: "desc" }],
+      });
+    });
+  },
+
+  async createInventoryBlock(
+    withTenant: WithTenantFn,
+    actor: JwtPayload,
+    roomId: string,
+    dto: CreateRoomInventoryBlockDto,
+  ) {
+    const result = await withTenant(async (db) => {
+      const room = await db.room.findUnique({ where: { id: roomId }, select: { id: true, number: true, isActive: true } });
+      if (!room || !room.isActive) throw new AppError(404, "Room not found");
+
+      const startDate = new Date(dto.startDate);
+      const endDate = new Date(dto.endDate);
+      const reservationConflict = await db.reservationRoom.findFirst({
+        where: {
+          roomId,
+          checkInDate: { lt: endDate },
+          checkOutDate: { gt: startDate },
+          reservation: { status: { notIn: ["CANCELLED", "CHECKED_OUT", "NO_SHOW"] } },
+        },
+        include: {
+          room: { select: { number: true } },
+          reservation: { select: { confirmationNumber: true, guest: { select: { fullName: true } } } },
+        },
+      });
+      if (reservationConflict) {
+        throw new AppError(409, `Room ${room.number} already has reservation ${reservationConflict.reservation.confirmationNumber} during these dates. Move or update that reservation before removing the room from inventory.`);
+      }
+
+      const existingBlock = await db.roomInventoryBlock.findFirst({
+        where: { roomId, cancelledAt: null, startDate: { lt: endDate }, endDate: { gt: startDate } },
+      });
+      if (existingBlock) throw new AppError(409, `Room ${room.number} already has an inventory block overlapping these dates.`);
+
+      const block = await db.roomInventoryBlock.create({
+        data: {
+          hotelId: actor.hotelId,
+          roomId,
+          type: dto.type,
+          startDate,
+          endDate,
+          reason: dto.reason,
+          notes: dto.notes,
+          createdBy: actor.userId,
+        },
+      });
+      await db.auditLog.create({
+        data: {
+          hotelId: actor.hotelId,
+          userId: actor.userId,
+          action: "ROOM_INVENTORY_BLOCK_CREATE",
+          entity: "room_inventory_block",
+          entityId: block.id,
+          after: JSON.parse(JSON.stringify({ roomId, roomNumber: room.number, ...dto })),
+        },
+      });
+      return block;
+    });
+    notifyHotelDataChanged(actor.hotelId);
+    queueChannexSync({ hotelId: actor.hotelId, reason: "ROOM_INVENTORY_BLOCK_CHANGE" });
+    return result;
+  },
+
+  async cancelInventoryBlock(
+    withTenant: WithTenantFn,
+    actor: JwtPayload,
+    roomId: string,
+    blockId: string,
+    dto: CancelRoomInventoryBlockDto,
+  ) {
+    const result = await withTenant(async (db) => {
+      const block = await db.roomInventoryBlock.findFirst({ where: { id: blockId, roomId } });
+      if (!block) throw new AppError(404, "Inventory block not found");
+      if (block.maintenanceTicketId) {
+        throw new AppError(409, "This inventory block is managed by a maintenance ticket. Resolve or edit the ticket instead.");
+      }
+      if (block.cancelledAt) throw new AppError(409, "This inventory block is already cancelled");
+      const cancelled = await db.roomInventoryBlock.update({
+        where: { id: blockId },
+        data: { cancelledAt: new Date(), cancelledBy: actor.userId, cancelReason: dto.reason },
+      });
+      await db.auditLog.create({
+        data: {
+          hotelId: actor.hotelId,
+          userId: actor.userId,
+          action: "ROOM_INVENTORY_BLOCK_CANCEL",
+          entity: "room_inventory_block",
+          entityId: blockId,
+          before: JSON.parse(JSON.stringify(block)),
+          after: JSON.parse(JSON.stringify({ cancelReason: dto.reason })),
+        },
+      });
+      return cancelled;
+    });
+    notifyHotelDataChanged(actor.hotelId);
+    queueChannexSync({ hotelId: actor.hotelId, reason: "ROOM_INVENTORY_BLOCK_CHANGE" });
+    return result;
   },
 };

@@ -497,14 +497,38 @@ export default function RatePlansPage() {
             <p className="text-[13px] text-ink-mute">Manage rates by room type, season, and dates</p>
           </div>
         </div>
-        {canCreate && (
-          <button
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-coral text-white text-[13px] font-semibold hover:bg-coral-dark transition-colors shadow-pop shrink-0"
-          >
-            <Plus size={15} /> New Rate Plan
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          <div className="inline-flex items-center rounded-full border border-line bg-card p-1 shadow-soft">
+            {([
+              { label: "Active",   value: true       },
+              { label: "All",      value: undefined  },
+              { label: "Inactive", value: false      },
+            ] as { label: string; value: boolean | undefined }[]).map((opt) => (
+              <button
+                key={String(opt.value)}
+                type="button"
+                onClick={() => setShowActive(opt.value)}
+                aria-pressed={showActive === opt.value}
+                className={cn(
+                  "h-9 rounded-full px-5 text-[13px] transition-colors",
+                  showActive === opt.value
+                    ? "bg-coral-soft font-bold text-coral-deep"
+                    : "font-semibold text-ink hover:text-coral-deep",
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          {canCreate && (
+            <button
+              onClick={openCreate}
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-coral text-white text-[13px] font-semibold hover:bg-coral-dark transition-colors shadow-pop shrink-0"
+            >
+              <Plus size={15} /> New Rate Plan
+            </button>
+          )}
+        </div>
       </div>
 
       {actionError && (
@@ -512,26 +536,6 @@ export default function RatePlansPage() {
           {actionError}
         </div>
       )}
-
-      {/* Filter */}
-      <div className="inline-flex items-center gap-0.5 rounded-full bg-line-soft p-1">
-        {([
-          { label: "Active",   value: true       },
-          { label: "All",      value: undefined  },
-          { label: "Inactive", value: false      },
-        ] as { label: string; value: boolean | undefined }[]).map((opt) => (
-          <button
-            key={String(opt.value)}
-            onClick={() => setShowActive(opt.value)}
-            className={cn(
-              "rounded-full px-4 h-9 text-[13px] font-semibold transition-all",
-              showActive === opt.value ? "bg-card text-ink shadow-pop" : "text-ink-mute hover:text-ink-soft",
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
 
       {/* Table */}
       <Card className="!p-0 overflow-hidden">

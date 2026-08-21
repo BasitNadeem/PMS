@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Trash2, Check, Printer, LogOut, AlertTriangle, Building2, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Trash2, Check, Printer, LogOut, AlertTriangle, Building2, RotateCcw, UserRound, Wallet, X } from "lucide-react";
 import { reservationsService } from "@/services/reservations";
 import { groupsService } from "@/services/groups";
 import { cn } from "@/lib/cn";
@@ -18,6 +18,9 @@ import { Card } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
 import { StatusBadge, toneOf } from "@/components/ui/StatusBadge";
 import { usePermissions } from "@/hooks/usePermissions";
+import { ReservationIdLink } from "@/components/reservations/ReservationIdLink";
+import { AllocatePayerModal } from "@/components/folio/AllocatePayerModal";
+import { bannerMessageFor } from "@/lib/formErrors";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -69,6 +72,7 @@ export default function FolioPage() {
   const canRecordPayment = has("billing:create");
   const canRefundPayment = has("billing:delete");
   const canBillToCompany = has("companies:post");
+  const canAllocatePayer = has("billing:update");
   const canVoidCharge = has("billing:delete");
   const canCheckOut = has("reservations:update");
   const { toasts, addToast, removeToast } = useToast();
@@ -78,6 +82,9 @@ export default function FolioPage() {
   const [showFbReceipt,    setShowFbReceipt]    = useState(false);
   const [showInvoice,      setShowInvoice]      = useState(false);
   const [refundPayment,    setRefundPayment]    = useState<{ id: string; amount: number } | null>(null);
+  const [allocationMode, setAllocationMode] = useState(false);
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(() => new Set());
+  const [showAllocatePayer, setShowAllocatePayer] = useState(false);
 
   function invalidateFolioAndBilling() {
     // Folio mutations affect both the detail view and every filtered/sorted
@@ -146,7 +153,7 @@ export default function FolioPage() {
       addToast("Group checked out successfully");
       navigate("/reservations");
     },
-    onError: () => addToast("Failed to check out group", "error"),
+    onError: (error) => addToast(bannerMessageFor(error) ?? "Failed to check out group", "error"),
   });
 
   // Individual room checkout — for SPLIT billing.
@@ -170,7 +177,7 @@ export default function FolioPage() {
         navigate(groupId ? `/groups/${groupId}` : "/reservations");
       }
     },
-    onError: () => addToast("Failed to check out", "error"),
+    onError: (error) => addToast(bannerMessageFor(error) ?? "Failed to check out", "error"),
   });
 
   if (isLoading) {
@@ -191,8 +198,44 @@ export default function FolioPage() {
   }
 
   const res     = folio.reservation;
-  const total   = folio.chargesTotal + folio.taxTotal - folio.discountsTotal;
   const folioStatus = folio.isOpen ? "Open" : "Settled";
+  const selectedItems = folio.items.filter((item) => selectedItemIds.has(item.id));
+  const hasCompanyResponsibility = folio.companyResponsibilityTotal > 0;
+  const companyNames = Array.from(new Set(
+    folio.items
+      .filter((item) => item.payerType === "COMPANY" && item.payerCompany?.name)
+      .map((item) => item.payerCompany!.name),
+  ));
+  const assignedCompanyIds = Array.from(new Set(
+    folio.items
+      .filter((item) => item.payerType === "COMPANY" && item.payerCompanyId)
+      .map((item) => item.payerCompanyId!),
+  ));
+  const assignedCompanyId = assignedCompanyIds.length === 1 ? assignedCompanyIds[0] : null;
+  const hasLegacyWholeFolioBtc = !hasCompanyResponsibility && res.billToCompany && Boolean(res.companyId);
+
+  function setSelection(itemIds: string[]) {
+    setSelectedItemIds(new Set(itemIds));
+  }
+
+  function toggleSelected(itemId: string) {
+    setSelectedItemIds((current) => {
+      const next = new Set(current);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  }
+
+  function closeAllocationMode() {
+    setAllocationMode(false);
+    setSelectedItemIds(new Set());
+  }
+
+  function changePayerFor(itemIds: string[]) {
+    setSelectedItemIds(new Set(itemIds));
+    setShowAllocatePayer(true);
+  }
 
   // Group items by type
   const grouped = new Map<FolioItemType, FolioLineItem[]>();
@@ -233,7 +276,7 @@ export default function FolioPage() {
             {res.confirmationNumber && (
               <>
                 <span className="h-1 w-1 rounded-full bg-ink-faint" />
-                <span className="tnum">{res.confirmationNumber}</span>
+                <ReservationIdLink id={res.id} confirmationNumber={res.confirmationNumber} className="py-0.5" />
               </>
             )}
           </div>
@@ -278,7 +321,47 @@ export default function FolioPage() {
         <div className="lg:col-span-2 space-y-4">
           {/* Itemized charges grouped by kind */}
           <Card>
-            <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-ink-faint">Itemized charges</div>
+            <div className="mb-3 flex min-h-8 items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">Charges &amp; who pays</div>
+                {allocationMode && (
+                  <div className="mt-0.5 text-[12px] text-ink-mute">Select what the guest or company is responsible for.</div>
+                )}
+              </div>
+              {folio.isOpen && canAllocatePayer && folio.items.length > 0 && (
+                allocationMode ? (
+                  <button type="button" onClick={closeAllocationMode} className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12px] font-semibold text-ink-mute transition-colors hover:bg-mist hover:text-ink">
+                    <X size={13} /> Done
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => setAllocationMode(true)} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line bg-card px-3 text-[12px] font-semibold text-ink-soft transition-colors hover:border-coral/30 hover:text-coral">
+                    <UserRound size={13} /> Change who pays
+                  </button>
+                )
+              )}
+            </div>
+            {allocationMode && (
+              <div className="mb-3 rounded-xl border border-line bg-mist/65 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="mr-1 text-[11px] font-bold uppercase tracking-wider text-ink-faint">Quick select</span>
+                  <button type="button" onClick={() => setSelection(folio.items.filter((item) => item.type === "ROOM_CHARGE").map((item) => item.id))} className="rounded-full border border-line bg-card px-3 py-1.5 text-[11.5px] font-semibold text-ink-soft hover:border-coral/30 hover:text-coral">
+                    Room only
+                  </button>
+                  <button type="button" onClick={() => setSelection(folio.items.filter((item) => item.type === "ROOM_CHARGE" || item.type === "TAX").map((item) => item.id))} className="rounded-full border border-line bg-card px-3 py-1.5 text-[11.5px] font-semibold text-ink-soft hover:border-coral/30 hover:text-coral">
+                    Room &amp; tax
+                  </button>
+                  <button type="button" onClick={() => setSelection(folio.items.map((item) => item.id))} className="rounded-full border border-line bg-card px-3 py-1.5 text-[11.5px] font-semibold text-ink-soft hover:border-coral/30 hover:text-coral">
+                    All charges
+                  </button>
+                  {selectedItemIds.size > 0 && (
+                    <button type="button" onClick={() => setSelection([])} className="px-2 py-1.5 text-[11.5px] font-semibold text-ink-mute hover:text-ink">Clear</button>
+                  )}
+                  <button type="button" disabled={selectedItemIds.size === 0} onClick={() => setShowAllocatePayer(true)} className="ml-auto h-8 rounded-full bg-ink px-4 text-[12px] font-semibold text-white transition-colors hover:bg-ink-soft disabled:cursor-not-allowed disabled:opacity-35">
+                    Continue{selectedItemIds.size > 0 ? ` · ${selectedItemIds.size}` : ""}
+                  </button>
+                </div>
+              </div>
+            )}
             {folio.items.length === 0 ? (
               <div className="rounded-xl border border-dashed border-line py-8 flex flex-col items-center gap-3">
                 <p className="text-[13px] text-ink-mute">No charges yet</p>
@@ -310,15 +393,49 @@ export default function FolioPage() {
                         </span>
                       </div>
                       {items.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between px-4 py-2 pl-[52px] group">
-                          <div className="min-w-0">
+                        <div
+                          key={item.id}
+                          className={cn(
+                            "group flex items-center justify-between gap-3 px-4 py-2 pl-[52px] transition-colors",
+                            allocationMode && "cursor-pointer hover:bg-mist/70",
+                            selectedItemIds.has(item.id) && "bg-coral-soft/35",
+                          )}
+                          onClick={() => allocationMode && toggleSelected(item.id)}
+                        >
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            {allocationMode && (
+                              <input
+                                type="checkbox"
+                                checked={selectedItemIds.has(item.id)}
+                                onChange={() => toggleSelected(item.id)}
+                                onClick={(event) => event.stopPropagation()}
+                                className="h-4 w-4 shrink-0 accent-coral"
+                                aria-label={`Select ${item.description}`}
+                              />
+                            )}
                             <span className="text-[13px] text-ink-soft">{item.description}</span>
+                            <button
+                              type="button"
+                              disabled={!folio.isOpen || !canAllocatePayer}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                changePayerFor([item.id]);
+                              }}
+                              title={folio.isOpen && canAllocatePayer ? "Change who pays this charge" : undefined}
+                              className={cn(
+                              "inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold transition-all",
+                              item.payerType === "COMPANY" ? "bg-coral-soft text-coral-dark" : "bg-dusk-soft text-dusk",
+                              folio.isOpen && canAllocatePayer && "cursor-pointer ring-1 ring-transparent hover:ring-current focus:outline-none focus:ring-1 focus:ring-current",
+                            )}>
+                              {item.payerType === "COMPANY" ? <Building2 size={10} /> : <UserRound size={10} />}
+                              {item.payerType === "COMPANY" ? `BTC · ${item.payerCompany?.name ?? "Company"}` : "Guest"}
+                            </button>
                           </div>
                           <div className="flex items-center gap-3 shrink-0">
                             <span className="text-[12px] text-ink-faint tnum">{fmtDate(item.chargeDate)}</span>
                             {folio.isOpen && canVoidCharge && (
                               <button
-                                onClick={() => voidMutation.mutate(item.id)}
+                                onClick={(event) => { event.stopPropagation(); voidMutation.mutate(item.id); }}
                                 disabled={voidMutation.isPending}
                                 className="opacity-0 group-hover:opacity-100 text-ink-faint hover:text-clay transition-all disabled:opacity-40"
                                 title="Remove"
@@ -387,9 +504,9 @@ export default function FolioPage() {
         {/* RIGHT — Settlement */}
         <div className="space-y-4">
           <Card pad={false} className="overflow-hidden">
-            <div className="p-5 pb-4">
-              <div className="mb-4 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-faint">Settlement</div>
-              <div className="space-y-2.5">
+            <div className="p-5">
+              <div className="mb-3.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-faint">Settlement</div>
+              <div className="space-y-2">
                 <div className="flex items-center justify-between text-[13.5px]">
                   <span className="text-ink-mute">Total charges</span>
                   <span className="font-semibold text-ink tnum">{fmtPkr(folio.chargesTotal)}</span>
@@ -412,102 +529,139 @@ export default function FolioPage() {
                 </div>
               </div>
 
-              <div className={cn(
-                "mt-4 rounded-xl border px-4 py-3.5",
-                folio.balanceDue > 0 ? "border-coral/20 bg-coral-soft/60" : "border-pine/20 bg-pine-soft",
-              )}>
-                <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-faint">Balance due</div>
-                <div className={cn("mt-1 serif text-[30px] leading-none tnum", folio.balanceDue > 0 ? "text-coral" : "text-pine-deep")}>
-                  {fmtPkr(folio.balanceDue)}
+              {hasCompanyResponsibility ? (
+                <div className="mt-3.5 border-t border-line-soft pt-3.5 space-y-2">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="flex items-center gap-1.5 text-[12.5px] text-ink-mute">
+                      <UserRound size={13} className="text-dusk" /> Guest due
+                      <span className="text-[11px] text-ink-faint">of {fmtPkr(folio.guestResponsibilityTotal)}</span>
+                    </span>
+                    <span className="serif text-[19px] leading-none text-dusk tnum">{fmtPkr(folio.guestBalanceDue)}</span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] text-ink-mute">
+                      <Building2 size={13} className="shrink-0 text-coral" />
+                      <span className="truncate" title={companyNames.join(", ")}>
+                        {companyNames.join(", ") || "Company (BTC)"}
+                      </span>
+                    </span>
+                    <span className="serif text-[19px] leading-none text-coral tnum">{fmtPkr(folio.companyBalanceDue)}</span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3 border-t border-line-soft pt-2.5">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-faint">Total outstanding</span>
+                    <span className="serif text-[24px] leading-none text-ink tnum">{fmtPkr(folio.balanceDue)}</span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="mt-3.5 flex items-baseline justify-between gap-3 border-t border-line-soft pt-3.5">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-faint">
+                    {folio.balanceDue > 0 ? "Balance due" : "Balance"}
+                  </span>
+                  <span className={cn(
+                    "serif text-[28px] leading-none tnum",
+                    folio.balanceDue > 0 ? "text-coral" : "text-pine-deep",
+                  )}>
+                    {fmtPkr(folio.balanceDue)}
+                  </span>
+                </div>
+              )}
             </div>
 
-            <div className="border-t border-line-soft bg-mist/30 p-5 space-y-4">
-              {/* 1 — Settle the balance */}
-              <div className="space-y-2.5">
-                <div className="text-[10.5px] font-bold uppercase tracking-[0.13em] text-ink-faint">
-                  {folio.balanceDue > 0 && folio.isOpen ? "Settle balance" : "Payment status"}
+            {/* Actions share one flat stack — every button is the same height,
+                radius and icon size, so the column reads as a single list
+                rather than nested cards at competing sizes. */}
+            <div className="border-t border-line-soft bg-mist/30 p-5 space-y-2.5">
+              {folio.guestBalanceDue > 0 && folio.isOpen ? (
+                <>
+                  {canRecordPayment && (
+                    <button
+                      onClick={() => setShowRecordPayment(true)}
+                      className="w-full h-11 rounded-full bg-coral text-white text-sm font-semibold hover:bg-coral-dark transition-colors flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      <Wallet size={16} /> Record payment
+                    </button>
+                  )}
+                  {canBillToCompany && !hasCompanyResponsibility && (
+                    <button
+                      onClick={() => setShowBillToCompany(true)}
+                      className="w-full h-11 rounded-full border border-line bg-card text-ink-soft text-sm font-semibold hover:border-ink-faint hover:text-ink transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Building2 size={16} /> Bill to a company
+                    </button>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center justify-center gap-2 h-11 rounded-full bg-pine-soft text-pine-deep text-sm font-semibold">
+                  <Check size={16} strokeWidth={2.5} /> {hasCompanyResponsibility && folio.companyBalanceDue > 0 ? "Guest settled" : "Settled"}
                 </div>
-                {folio.balanceDue > 0 && folio.isOpen ? (
-                  <>
-                    {canRecordPayment && (
-                      <button
-                        onClick={() => setShowRecordPayment(true)}
-                        className="w-full h-11 rounded-xl bg-coral text-white font-semibold text-sm hover:bg-coral-dark transition-colors flex items-center justify-center gap-2 shadow-sm"
-                      >
-                        Record payment
-                      </button>
-                    )}
-                    {canBillToCompany && (
-                      <button
-                        onClick={() => setShowBillToCompany(true)}
-                        className="w-full h-11 rounded-xl border border-line bg-card text-ink-soft text-[13.5px] font-semibold hover:border-ink-faint hover:text-ink transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Building2 size={16} />
-                        Bill to a company
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex items-center justify-center gap-2 h-11 rounded-xl bg-pine-soft text-pine-deep text-sm font-semibold">
-                    <Check size={16} strokeWidth={2.5} /> Settled
-                  </div>
-                )}
-              </div>
+              )}
 
-              {/* 2 — Check Out — smart about group vs individual billing */}
+              {hasCompanyResponsibility && folio.isOpen && folio.companyBalanceDue > 0 && (
+                <div className="space-y-2 rounded-xl bg-coral-soft/45 p-3">
+                  <p className="text-[12.5px] leading-snug text-ink-soft">
+                    <span className="font-semibold text-coral-dark">{fmtPkr(folio.companyBalanceDue)} BTC pending.</span>{" "}
+                    Transfer the company-assigned charges to its ledger.
+                  </p>
+                  {canBillToCompany && (
+                    <button
+                      onClick={() => setShowBillToCompany(true)}
+                      className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-ink text-[13px] font-semibold text-white transition-colors hover:bg-ink-soft"
+                    >
+                      <Building2 size={15} /> Transfer BTC to company
+                    </button>
+                  )}
+                </div>
+              )}
+
               {canCheckOut && res.status === "CHECKED_IN" && (() => {
                 const mutation      = isGroupSingleBill ? checkOutGroupMutation : checkOutMutation;
                 const isPending     = mutation.isPending;
                 const label         = isGroupSingleBill ? "Check Out Group" : "Check Out";
                 const pendingLabel  = isGroupSingleBill ? "Checking out group…" : "Checking out…";
 
-                return folio.balanceDue > 0 ? (
-                  <div className="space-y-2.5 rounded-xl border border-line bg-card p-3.5">
-                    <div className="text-[10.5px] font-bold uppercase tracking-[0.13em] text-ink-faint">Checkout</div>
-                    <div className="flex items-start gap-2 rounded-lg bg-amber-soft px-3 py-2.5 text-[12px] leading-snug text-amber">
-                      <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                      <span>Outstanding balance of {fmtPkr(folio.balanceDue)}. Settle before checking out.</span>
-                    </div>
-                    <button
-                      onClick={() => mutation.mutate()}
-                      disabled={isPending}
-                      className="w-full h-10 rounded-lg border border-line text-ink-mute text-[12.5px] font-semibold hover:border-ink-faint hover:text-ink transition-colors flex items-center justify-center gap-2 disabled:opacity-40"
-                    >
-                      <LogOut size={15} />
-                      {isPending ? pendingLabel : `${label} anyway`}
-                    </button>
-                  </div>
+                const guestMustPay = hasCompanyResponsibility
+                  ? folio.guestBalanceDue > 0
+                  : folio.balanceDue > 0 && !hasLegacyWholeFolioBtc;
+                const btcWillTransfer = hasCompanyResponsibility && folio.companyBalanceDue > 0;
+
+                return guestMustPay ? (
+                  <>
+                    <p className="flex items-start gap-2 pt-1 text-[12px] leading-snug text-amber">
+                      <AlertTriangle size={14} className="mt-px shrink-0" />
+                      <span>Guest balance of {fmtPkr(hasCompanyResponsibility ? folio.guestBalanceDue : folio.balanceDue)} must be settled before checkout.</span>
+                    </p>
+                  </>
                 ) : (
-                  <div className="space-y-2.5 rounded-xl border border-line bg-card p-3.5">
-                    <div className="text-[10.5px] font-bold uppercase tracking-[0.13em] text-ink-faint">Ready to checkout</div>
+                  <>
+                    {btcWillTransfer && (
+                      <p className="pt-1 text-[12px] leading-snug text-ink-mute">
+                        {fmtPkr(folio.companyBalanceDue)} BTC will move to {companyNames[0] ?? "the assigned company"}'s ledger.
+                      </p>
+                    )}
                     {isGroupSingleBill && (
-                      <p className="text-[12px] text-ink-mute">
+                      <p className="pt-1 text-[12px] leading-snug text-ink-mute">
                         Single-bill group · all {groupData?.summary?.totalRooms ?? ""} rooms will be checked out together
                       </p>
                     )}
                     <button
                       onClick={() => mutation.mutate()}
                       disabled={isPending}
-                      className="w-full h-11 rounded-xl bg-coral text-white font-semibold text-sm hover:bg-coral-dark transition-colors flex items-center justify-center gap-2 disabled:opacity-40"
+                      className="w-full h-11 rounded-full bg-coral text-white text-sm font-semibold hover:bg-coral-dark transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-40"
                     >
                       <LogOut size={16} />
                       {isPending ? pendingLabel : label}
                     </button>
-                  </div>
+                  </>
                 );
               })()}
 
-              {/* 3 — Document action, deliberately quiet. */}
-              <div className="border-t border-line-soft pt-3">
-                <button
-                  onClick={() => setShowInvoice(true)}
-                  className="w-full h-9 text-ink-mute text-[12.5px] font-semibold hover:text-ink transition-colors flex items-center justify-center gap-2"
-                >
-                  <Printer size={15} /> Print invoice
-                </button>
-              </div>
+              {/* Document action, deliberately quiet. */}
+              <button
+                onClick={() => setShowInvoice(true)}
+                className="w-full h-10 mt-1 rounded-full text-ink-mute text-[13px] font-semibold hover:bg-line-soft hover:text-ink transition-colors flex items-center justify-center gap-2"
+              >
+                <Printer size={15} /> Print invoice
+              </button>
             </div>
           </Card>
 
@@ -518,7 +672,7 @@ export default function FolioPage() {
               className="flex items-center justify-between text-[13px] font-semibold text-coral hover:text-coral-dark transition-colors"
             >
               <span>View reservation</span>
-              <span>→</span>
+              <ArrowRight size={15} />
             </Link>
           </Card>
         </div>
@@ -561,15 +715,29 @@ export default function FolioPage() {
       {showBillToCompany && folio && (
         <BillToCompanyModal
           reservationId={reservationId!}
-          balanceDue={folio.balanceDue}
+          balanceDue={hasCompanyResponsibility ? folio.companyBalanceDue : folio.guestBalanceDue}
           defaultCompanyId={res?.companyId ?? null}
+          assignedCompanyId={hasCompanyResponsibility ? assignedCompanyId : null}
+          mode={hasCompanyResponsibility ? "BTC" : "FULL_FOLIO"}
           onClose={() => setShowBillToCompany(false)}
           onSuccess={(m) => addToast(m)}
         />
       )}
 
       {showRecordPayment && folio && (
-        <RecordPaymentModal reservationId={reservationId!} balanceDue={folio.balanceDue} onClose={() => setShowRecordPayment(false)} />
+        <RecordPaymentModal reservationId={reservationId!} balanceDue={folio.guestBalanceDue} onClose={() => setShowRecordPayment(false)} />
+      )}
+      {showAllocatePayer && selectedItems.length > 0 && (
+        <AllocatePayerModal
+          reservationId={reservationId!}
+          items={selectedItems}
+          defaultCompanyId={res.companyId}
+          onClose={() => setShowAllocatePayer(false)}
+          onSuccess={(message) => {
+            addToast(message);
+            closeAllocationMode();
+          }}
+        />
       )}
       {refundPayment && (
         <RefundPaymentModal reservationId={reservationId!} paymentId={refundPayment.id} refundableAmount={refundPayment.amount}

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, Link } from "react-router-dom";
-import { ArrowLeft, FileSpreadsheet, DollarSign } from "lucide-react";
+import { ArrowLeft, FileSpreadsheet, DollarSign, BedDouble } from "lucide-react";
 import {
   ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend,
@@ -79,7 +79,7 @@ export default function ADRRevPARPage() {
       ) : !report ? null : (
         <div className="space-y-6">
           {/* KPI cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <Card>
               <div className="flex items-start">
                 <span className="grid place-items-center h-10 w-10 rounded-xl" style={{ background: TONE.pine.bg, color: TONE.pine.fg }}>
@@ -89,6 +89,16 @@ export default function ADRRevPARPage() {
               <div className="mt-4">
                 <div className="serif text-[28px] leading-none text-ink tnum">{formatPKR(report.summary.avgADR)}</div>
                 <div className="mt-1.5 text-[13px] font-semibold text-ink-soft">Avg Daily Rate (ADR)</div>
+              </div>
+            </Card>
+            <Card>
+              <div className="flex items-start">
+                <span className="grid place-items-center h-10 w-10 rounded-xl bg-mist text-ink-soft"><BedDouble size={20} /></span>
+              </div>
+              <div className="mt-4">
+                <div className="serif text-[28px] leading-none text-ink tnum">{report.summary.occupancyRate}%</div>
+                <div className="mt-1.5 text-[13px] font-semibold text-ink-soft">Sellable occupancy</div>
+                <div className="mt-1 text-[11.5px] text-ink-faint">{report.summary.outOfServiceRoomNights} room-nights out of service</div>
               </div>
             </Card>
             <Card>
@@ -119,7 +129,7 @@ export default function ADRRevPARPage() {
           <Card pad={false}>
             <div className="p-5 pb-3">
               <h2 className="serif text-[18px] text-ink leading-tight">ADR vs RevPAR Trend</h2>
-              <p className="text-[12.5px] text-ink-mute mt-0.5">Amounts in PKR (÷100 from paisas)</p>
+              <p className="text-[12.5px] text-ink-mute mt-0.5">Room-night revenue against sellable inventory; taxes and extras excluded.</p>
             </div>
             <div className="px-4 pb-5" style={{ height: 280 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -170,6 +180,8 @@ export default function ADRRevPARPage() {
                   <tr>
                     <th className={thCls}>Date</th>
                     <th className={thRightCls}>Rooms Sold</th>
+                    <th className={thRightCls}>Sellable</th>
+                    <th className={thRightCls}>Occupancy</th>
                     <th className={thRightCls}>Room Revenue</th>
                     <th className={thRightCls}>ADR</th>
                     <th className={thRightCls}>RevPAR</th>
@@ -180,6 +192,8 @@ export default function ADRRevPARPage() {
                     <tr key={d.date}>
                       <td className={tdCls}>{new Date(d.date).toLocaleDateString("en-PK", { weekday: "short", day: "numeric", month: "short" })}</td>
                       <td className={tdRightCls}>{d.roomsSold}</td>
+                      <td className={tdRightCls}>{d.sellableRooms}{d.outOfServiceRooms > 0 ? <span className="ml-1 text-[11px] text-coral">−{d.outOfServiceRooms}</span> : null}</td>
+                      <td className={tdRightCls}>{d.occupancyRate}%</td>
                       <td className={tdRightCls}>{formatPKR(d.roomRevenue)}</td>
                       <td className={tdRightCls} style={{ color: TONE.pine.fg, fontWeight: 600 }}>{formatPKR(d.adr)}</td>
                       <td className={tdRightCls} style={{ color: TONE.coral.fg, fontWeight: 600 }}>{formatPKR(d.revpar)}</td>

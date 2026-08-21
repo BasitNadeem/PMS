@@ -1,5 +1,5 @@
 import type { TenantTx } from "@pms/db";
-import { MaintenanceStatus, RoomStatus, UserRole } from "@pms/db";
+import { MaintenanceStatus, UserRole } from "@pms/db";
 import type { JwtPayload } from "../middleware/auth";
 import { NotificationService } from "./NotificationService";
 import { notifyHotelDataChanged } from "../lib/realtime";
@@ -11,6 +11,7 @@ import type {
 } from "../schemas/maintenance";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
+import { queueChannexSync } from "../lib/channexSync";
 
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
 
@@ -48,6 +49,51 @@ function mapTicket<T extends { createdAt: Date; priority: string; status: Mainte
   return { ...ticket, isOverdue: isOverdue(ticket.createdAt, ticket.priority, ticket.status) };
 }
 
+async function assertInventoryDatesAvailable(
+  db: TenantTx,
+  roomId: string,
+  startDate: Date,
+  endDate: Date,
+  excludeBlockId?: string,
+) {
+  const reservation = await db.reservationRoom.findFirst({
+    where: {
+      roomId,
+      checkInDate: { lt: endDate },
+      checkOutDate: { gt: startDate },
+      reservation: { status: { notIn: ["CANCELLED", "CHECKED_OUT", "NO_SHOW"] } },
+    },
+    select: {
+      reservation: { select: { confirmationNumber: true, guest: { select: { fullName: true } } } },
+    },
+  });
+  if (reservation) {
+    throw new AppError(
+      409,
+      `This room is reserved for ${reservation.reservation.guest.fullName} (${reservation.reservation.confirmationNumber}) during those dates. Move or update that reservation first.`,
+    );
+  }
+
+  const overlappingBlock = await db.roomInventoryBlock.findFirst({
+    where: {
+      roomId,
+      cancelledAt: null,
+      startDate: { lt: endDate },
+      endDate: { gt: startDate },
+      ...(excludeBlockId && { id: { not: excludeBlockId } }),
+    },
+  });
+  if (overlappingBlock) {
+    throw new AppError(409, "This room already has an inventory block overlapping those dates.");
+  }
+}
+
+const ticketInclude = {
+  room: { select: { id: true, number: true, floor: true } },
+  assignedTo: { select: { id: true, name: true } },
+  inventoryBlock: true,
+} as const;
+
 export function computeMaintenanceSummary(
   tickets: { createdAt: Date; priority: string; status: MaintenanceStatus }[],
 ) {
@@ -74,10 +120,7 @@ export const MaintenanceService = {
       Promise.all([
         db.maintenanceTicket.findMany({
           where,
-          include: {
-            room:       { select: { id: true, number: true, floor: true } },
-            assignedTo: { select: { id: true, name: true } },
-          },
+          include: ticketInclude,
           orderBy: [{ createdAt: "desc" }],
           skip,
           take: query.limit,
@@ -96,10 +139,7 @@ export const MaintenanceService = {
     const ticket = await withTenant((db) =>
       db.maintenanceTicket.findUnique({
         where: { id: ticketId },
-        include: {
-          room:       { select: { id: true, number: true, floor: true } },
-          assignedTo: { select: { id: true, name: true } },
-        },
+        include: ticketInclude,
       })
     );
     if (!ticket) throw new AppError(404, "Maintenance ticket not found");
@@ -108,10 +148,16 @@ export const MaintenanceService = {
 
   async createTicket(withTenant: WithTenantFn, actor: JwtPayload, dto: CreateTicketDto) {
     const ticket = await withTenant(async (db) => {
-      let room: { id: string; status: RoomStatus } | null = null;
+      let room: { id: string; number: string } | null = null;
       if (dto.roomId) {
-        room = await db.room.findUnique({ where: { id: dto.roomId }, select: { id: true, status: true } });
+        room = await db.room.findUnique({ where: { id: dto.roomId }, select: { id: true, number: true } });
         if (!room) throw new AppError(404, "Room not found");
+      }
+
+      const unavailableFrom = dto.roomUnavailable ? new Date(dto.unavailableFrom!) : null;
+      const sellableFrom = dto.roomUnavailable ? new Date(dto.sellableFrom!) : null;
+      if (room && unavailableFrom && sellableFrom) {
+        await assertInventoryDatesAvailable(db, room.id, unavailableFrom, sellableFrom);
       }
 
       const created = await db.maintenanceTicket.create({
@@ -126,22 +172,25 @@ export const MaintenanceService = {
           priority:     dto.priority,
           assignedToId: dto.assignedToId ?? null,
           scheduledFor:    dto.scheduledFor ? new Date(dto.scheduledFor) : null,
-          scheduledEndDate: dto.scheduledEndDate ? new Date(dto.scheduledEndDate) : null,
+          scheduledEndDate: sellableFrom ?? (dto.scheduledEndDate ? new Date(dto.scheduledEndDate) : null),
           photoUrls:       dto.photoUrls ?? [],
         },
-        include: {
-          room:       { select: { id: true, number: true, floor: true } },
-          assignedTo: { select: { id: true, name: true } },
-        },
+        include: ticketInclude,
       });
 
-      if (
-        room &&
-        (room.status === RoomStatus.VACANT_CLEAN || room.status === RoomStatus.VACANT_DIRTY)
-      ) {
-        await db.room.update({
-          where: { id: room.id },
-          data:  { status: RoomStatus.UNDER_MAINTENANCE },
+      if (room && unavailableFrom && sellableFrom) {
+        await db.roomInventoryBlock.create({
+          data: {
+            hotelId: actor.hotelId,
+            roomId: room.id,
+            maintenanceTicketId: created.id,
+            type: "OUT_OF_SERVICE",
+            startDate: unavailableFrom,
+            endDate: sellableFrom,
+            reason: `Maintenance: ${dto.title}`,
+            notes: dto.description,
+            createdBy: actor.userId,
+          },
         });
       }
 
@@ -152,7 +201,14 @@ export const MaintenanceService = {
           action:   "MAINTENANCE_TICKET_CREATE",
           entity:   "maintenance_ticket",
           entityId: created.id,
-          after:    JSON.parse(JSON.stringify({ title: dto.title, category: dto.category, priority: dto.priority })),
+          after:    JSON.parse(JSON.stringify({
+            title: dto.title,
+            category: dto.category,
+            priority: dto.priority,
+            roomUnavailable: dto.roomUnavailable,
+            unavailableFrom: dto.unavailableFrom,
+            sellableFrom: dto.sellableFrom,
+          })),
         },
       });
 
@@ -168,7 +224,7 @@ export const MaintenanceService = {
         } catch { /* notifications are non-critical */ }
       }
 
-      return created;
+      return db.maintenanceTicket.findUniqueOrThrow({ where: { id: created.id }, include: ticketInclude });
     });
 
     if (dto.priority === "URGENT") {
@@ -191,6 +247,9 @@ export const MaintenanceService = {
     }
 
     notifyHotelDataChanged(actor.hotelId);
+    if (dto.roomUnavailable) {
+      queueChannexSync({ hotelId: actor.hotelId, reason: "ROOM_INVENTORY_BLOCK_CHANGE", dateFrom: dto.unavailableFrom, dateTo: dto.sellableFrom });
+    }
     return mapTicket(ticket);
   },
 
@@ -203,7 +262,7 @@ export const MaintenanceService = {
     const newStatus = dto.status as MaintenanceStatus;
 
     const ticket = await withTenant(async (db) => {
-      const existing = await db.maintenanceTicket.findUnique({ where: { id: ticketId } });
+      const existing = await db.maintenanceTicket.findUnique({ where: { id: ticketId }, include: { inventoryBlock: true } });
       if (!existing) throw new AppError(404, "Maintenance ticket not found");
 
       const allowed = ALLOWED_TRANSITIONS[existing.status];
@@ -220,41 +279,35 @@ export const MaintenanceService = {
           ...(newStatus === MaintenanceStatus.RESOLVED && { resolvedAt: now }),
           ...(newStatus !== MaintenanceStatus.RESOLVED && newStatus !== MaintenanceStatus.CLOSED && { resolvedAt: null }),
         },
-        include: {
-          room:       { select: { id: true, number: true, floor: true } },
-          assignedTo: { select: { id: true, name: true } },
-        },
+        include: ticketInclude,
       });
 
       if (
         (newStatus === MaintenanceStatus.RESOLVED || newStatus === MaintenanceStatus.CLOSED) &&
         existing.roomId
       ) {
-        const room = await db.room.findUnique({ where: { id: existing.roomId }, select: { id: true, status: true } });
-
-        if (room?.status === RoomStatus.UNDER_MAINTENANCE) {
-          const otherOpenTickets = await db.maintenanceTicket.count({
-            where: {
-              roomId: existing.roomId,
-              status: { in: OPEN_STATUSES },
-              id:     { not: ticketId },
-            },
-          });
-
-          if (otherOpenTickets === 0) {
-            await db.room.update({
-              where: { id: room.id },
-              data:  { status: RoomStatus.VACANT_DIRTY },
+        if (existing.inventoryBlock) {
+          const blockWasActive = !existing.inventoryBlock.cancelledAt && existing.inventoryBlock.endDate > now;
+          if (blockWasActive) {
+            await db.roomInventoryBlock.update({
+              where: { id: existing.inventoryBlock.id },
+              data: {
+                cancelledAt: now,
+                cancelledBy: actor.userId,
+                cancelReason: `Maintenance resolved: ${dto.resolutionNotes ?? "Work completed"}`,
+              },
             });
+          }
 
+          if (blockWasActive) {
             await db.housekeepingTask.create({
               data: {
-                hotelId:       actor.hotelId,
-                roomId:        room.id,
-                taskType:      "MAINTENANCE_CLEAN",
-                priority:      2, // NORMAL
+                hotelId: actor.hotelId,
+                roomId: existing.roomId,
+                taskType: "MAINTENANCE_CLEAN",
+                priority: 2,
                 scheduledDate: now,
-                notes:         `Post-maintenance clean — ticket ${existing.ticketNumber}`,
+                notes: `Post-maintenance clean — ticket ${existing.ticketNumber}`,
               },
             });
           }
@@ -273,10 +326,13 @@ export const MaintenanceService = {
         },
       });
 
-      return updated;
+      return db.maintenanceTicket.findUniqueOrThrow({ where: { id: updated.id }, include: ticketInclude });
     });
 
     notifyHotelDataChanged(actor.hotelId);
+    if (ticket.inventoryBlock) {
+      queueChannexSync({ hotelId: actor.hotelId, reason: "ROOM_INVENTORY_BLOCK_CHANGE" });
+    }
     return mapTicket(ticket);
   },
 
@@ -287,8 +343,25 @@ export const MaintenanceService = {
     dto: UpdateTicketDto,
   ) {
     const ticket = await withTenant(async (db) => {
-      const existing = await db.maintenanceTicket.findUnique({ where: { id: ticketId } });
+      const existing = await db.maintenanceTicket.findUnique({ where: { id: ticketId }, include: { inventoryBlock: true } });
       if (!existing) throw new AppError(404, "Maintenance ticket not found");
+
+      if (dto.roomUnavailable === true && !existing.roomId) {
+        throw new AppError(400, "A room is required before this ticket can remove inventory from sale.");
+      }
+      if (
+        dto.roomUnavailable === true &&
+        (existing.status === MaintenanceStatus.RESOLVED || existing.status === MaintenanceStatus.CLOSED)
+      ) {
+        throw new AppError(409, "Reopen the maintenance ticket before removing this room from sale.");
+      }
+
+      const wantsInventoryChange = dto.roomUnavailable !== undefined;
+      const unavailableFrom = dto.roomUnavailable === true ? new Date(dto.unavailableFrom!) : null;
+      const sellableFrom = dto.roomUnavailable === true ? new Date(dto.sellableFrom!) : null;
+      if (existing.roomId && unavailableFrom && sellableFrom) {
+        await assertInventoryDatesAvailable(db, existing.roomId, unavailableFrom, sellableFrom, existing.inventoryBlock?.id);
+      }
 
       const updated = await db.maintenanceTicket.update({
         where: { id: ticketId },
@@ -299,15 +372,56 @@ export const MaintenanceService = {
           ...(dto.title         !== undefined && { title:         dto.title }),
           ...(dto.description   !== undefined && { description:   dto.description }),
           ...(dto.scheduledFor     !== undefined && { scheduledFor:    dto.scheduledFor ? new Date(dto.scheduledFor) : null }),
-          ...(dto.scheduledEndDate !== undefined && { scheduledEndDate: dto.scheduledEndDate ? new Date(dto.scheduledEndDate) : null }),
+          ...(dto.roomUnavailable === true
+            ? { scheduledEndDate: sellableFrom }
+            : dto.roomUnavailable === false
+              ? { scheduledEndDate: null }
+            : dto.scheduledEndDate !== undefined
+              ? { scheduledEndDate: dto.scheduledEndDate ? new Date(dto.scheduledEndDate) : null }
+              : {}),
           ...(dto.estimatedCost !== undefined && { estimatedCost: dto.estimatedCost }),
           ...(dto.actualCost    !== undefined && { actualCost:    dto.actualCost }),
         },
-        include: {
-          room:       { select: { id: true, number: true, floor: true } },
-          assignedTo: { select: { id: true, name: true } },
-        },
+        include: ticketInclude,
       });
+
+      if (wantsInventoryChange && existing.inventoryBlock) {
+        if (dto.roomUnavailable === false) {
+          if (!existing.inventoryBlock.cancelledAt) {
+            await db.roomInventoryBlock.update({
+              where: { id: existing.inventoryBlock.id },
+              data: { cancelledAt: new Date(), cancelledBy: actor.userId, cancelReason: "Maintenance no longer removes room from sale" },
+            });
+          }
+        } else {
+          await db.roomInventoryBlock.update({
+            where: { id: existing.inventoryBlock.id },
+            data: {
+              startDate: unavailableFrom!,
+              endDate: sellableFrom!,
+              reason: `Maintenance: ${dto.title ?? existing.title}`,
+              notes: dto.description !== undefined ? dto.description : existing.description,
+              cancelledAt: null,
+              cancelledBy: null,
+              cancelReason: null,
+            },
+          });
+        }
+      } else if (dto.roomUnavailable === true && existing.roomId) {
+        await db.roomInventoryBlock.create({
+          data: {
+            hotelId: actor.hotelId,
+            roomId: existing.roomId,
+            maintenanceTicketId: existing.id,
+            type: "OUT_OF_SERVICE",
+            startDate: unavailableFrom!,
+            endDate: sellableFrom!,
+            reason: `Maintenance: ${dto.title ?? existing.title}`,
+            notes: dto.description !== undefined ? dto.description : existing.description,
+            createdBy: actor.userId,
+          },
+        });
+      }
 
       await db.auditLog.create({
         data: {
@@ -320,10 +434,13 @@ export const MaintenanceService = {
         },
       });
 
-      return updated;
+      return db.maintenanceTicket.findUniqueOrThrow({ where: { id: updated.id }, include: ticketInclude });
     });
 
     notifyHotelDataChanged(actor.hotelId);
+    if (dto.roomUnavailable !== undefined) {
+      queueChannexSync({ hotelId: actor.hotelId, reason: "ROOM_INVENTORY_BLOCK_CHANGE", dateFrom: dto.unavailableFrom, dateTo: dto.sellableFrom });
+    }
     return mapTicket(ticket);
   },
 

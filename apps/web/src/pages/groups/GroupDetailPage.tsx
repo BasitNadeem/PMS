@@ -18,6 +18,8 @@ import { guestsService, type GuestSummary } from "@/services/guests";
 import { roomsService, type Room } from "@/services/rooms";
 import { reservationsService } from "@/services/reservations";
 import { EditReservationModal } from "@/components/reservations/EditReservationModal";
+import { ManageStayModal } from "@/components/reservations/ManageStayModal";
+import { ReservationIdLink } from "@/components/reservations/ReservationIdLink";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge, TONE } from "@/components/ui/StatusBadge";
 import { Avatar } from "@/components/ui/Avatar";
@@ -237,7 +239,9 @@ function GroupRoomEditLoader({
   });
 
   if (!reservation) return null;
-  return <EditReservationModal reservation={reservation} onClose={onClose} onSuccess={onSuccess} />;
+  return reservation.status === "CHECKED_IN"
+    ? <ManageStayModal reservation={reservation} onClose={onClose} onSuccess={onSuccess} />
+    : <EditReservationModal reservation={reservation} onClose={onClose} onSuccess={onSuccess} />;
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -249,6 +253,8 @@ export default function GroupDetailPage() {
   const { has } = usePermissions();
   const canUpdate = has("groups:update");
   const canEditReservation = has("reservations:update");
+  const canUpdateBilling = has("billing:update");
+  const canReadGuests = has("guests:read");
   const { toasts, addToast, removeToast } = useToast();
   const [showAddGuest, setShowAddGuest] = useState(false);
   const [assignTarget, setAssignTarget] = useState<{ reservationId: string; roomTypeId: string; roomTypeName: string } | null>(null);
@@ -408,8 +414,8 @@ export default function GroupDetailPage() {
               </div>
             )}
 
-            <div className="hidden md:grid grid-cols-[1.4fr_1.4fr_1fr_auto] gap-3 px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-ink-faint border-b border-line-soft">
-              <span>Room</span><span>Guest</span><span>Status</span><span />
+            <div className="hidden md:grid grid-cols-[22%_12%_26%_16%_minmax(0,1fr)] gap-4 px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-ink-faint border-b border-line-soft">
+              <span>Room</span><span>Res ID</span><span>Guest</span><span>Status</span><span />
             </div>
 
             {group.reservations.length === 0 ? (
@@ -418,9 +424,9 @@ export default function GroupDetailPage() {
               group.reservations.map((r: GroupReservation) => (
                 <div
                   key={r.id}
-                  className="grid grid-cols-2 md:grid-cols-[1.4fr_1.4fr_1fr_auto] gap-3 px-5 py-3.5 items-center border-b border-line-soft last:border-0"
+                  className="grid grid-cols-[1fr_110px] md:grid-cols-[22%_12%_26%_16%_minmax(0,1fr)] gap-4 px-5 py-3.5 items-center border-b border-line-soft last:border-0"
                 >
-                  <div className="text-[13.5px] font-semibold text-ink">
+                  <div className="min-w-0 text-[13.5px] font-semibold text-ink">
                     {r.room ? (
                       r.room.pending ? (
                         canUpdate ? (
@@ -434,13 +440,18 @@ export default function GroupDetailPage() {
                           <span className="text-amber">TBD</span>
                         )
                       ) : (
-                        <span>{r.room.number} <span className="text-ink-mute font-medium">· {r.room.roomType.name}</span></span>
+                        <span className="block truncate">{r.room.number} <span className="text-ink-mute font-medium">· {r.room.roomType.name}</span></span>
                       )
                     ) : "—"}
                   </div>
-                  <div className="text-[13.5px] text-ink-soft truncate">{r.guest?.fullName ?? "—"}</div>
+                  <div className="min-w-0"><ReservationIdLink id={r.id} confirmationNumber={r.confirmationNumber} /></div>
+                  <div className="col-span-2 min-w-0 text-[13.5px] text-ink-soft truncate md:col-span-1">
+                    {r.guest && canReadGuests ? (
+                      <Link to={`/guests/${r.guest.id}`} className="font-semibold hover:text-coral transition-colors">{r.guest.fullName}</Link>
+                    ) : (r.guest?.fullName ?? "—")}
+                  </div>
                   <div><StatusBadge status={RES_STATUS_LABEL[r.status] ?? r.status} size="sm" /></div>
-                  <div className="flex items-center justify-end gap-2">
+                  <div className="col-span-2 flex items-center justify-end gap-2 md:col-span-1">
                     {/* For SPLIT billing: surface the folio link directly on the room row so
                         staff don't have to navigate through the reservation detail to settle */}
                     {group.billingType === "SPLIT" && r.status === "CHECKED_IN" && r.folio && (
@@ -452,7 +463,7 @@ export default function GroupDetailPage() {
                         {r.folio.balanceDue > 0 ? "Settle folio" : "Check out"}
                       </Link>
                     )}
-                    {canEditReservation && !["CHECKED_OUT", "CANCELLED", "NO_SHOW"].includes(r.status) && (
+                    {canEditReservation && (r.status !== "CHECKED_IN" || canUpdateBilling) && !["CHECKED_OUT", "CANCELLED", "NO_SHOW"].includes(r.status) && (
                       <button
                         onClick={() => setEditReservationId(r.id)}
                         className="inline-flex items-center gap-1 rounded-full h-8 px-3 text-[12px] font-semibold bg-line-soft text-ink-mute hover:text-ink-soft transition-all whitespace-nowrap"
@@ -464,7 +475,7 @@ export default function GroupDetailPage() {
                       to={`/reservations/${r.id}`}
                       className="inline-flex items-center gap-1 rounded-full h-8 px-3 text-[12px] font-semibold bg-line-soft text-ink-mute hover:text-ink-soft transition-all whitespace-nowrap"
                     >
-                      View Reservation <ExternalLink size={12} />
+                      Open <ExternalLink size={12} />
                     </Link>
                   </div>
                 </div>

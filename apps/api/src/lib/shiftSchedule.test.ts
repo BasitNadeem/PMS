@@ -67,3 +67,13 @@ test("custom schedule produces contiguous PKT windows", () => {
   assert.equal(evening.end.toISOString(), night.start.toISOString());
   assert.equal(night.end.toISOString(), "2026-07-31T02:00:00.000Z");
 });
+
+test("the same transaction timestamp resolves independently for each hotel's schedule", () => {
+  const occurredAt = new Date("2026-08-12T01:30:00.000Z"); // 06:30 PKT
+  assert.equal(getOperationalBusinessDate({
+    shiftMorningStart: "06:00", shiftEveningStart: "14:00", shiftNightStart: "22:00",
+  }, occurredAt), "2026-08-12");
+  assert.equal(getOperationalBusinessDate({
+    shiftMorningStart: "07:00", shiftEveningStart: "15:00", shiftNightStart: "23:00",
+  }, occurredAt), "2026-08-11");
+});

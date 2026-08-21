@@ -1,9 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { Calendar as DateCalendar } from "react-date-range";
+import "react-date-range/dist/styles.css";
+import "react-date-range/dist/theme/default.css";
 import {
   ArrowLeft, CheckCircle2, AlertTriangle, Minus, Plus, ChevronLeft, ChevronDown,
-  Lock, Calendar, FileText, ShieldCheck, UserRound, Users, Gift, Cake, Heart,
+  Lock, Calendar, FileText, ShieldCheck, UserRound, Users, Gift, Cake, Heart, X,
 } from "lucide-react";
 import {
   bookingEngineService,
@@ -76,6 +80,122 @@ function Input({
         className,
       )}
     />
+  );
+}
+
+// ── Date field ────────────────────────────────────────────────────────────────
+// The native <input type="date"> picker renders in the browser's own chrome,
+// which ignores the engine accent. This mirrors the app's DatePicker instead so
+// the calendar matches the rest of the booking engine.
+
+function toLocalDateString(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function parseLocalDate(s: string): Date {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function DateField({
+  value, onChange, max, placeholder = "Select date", icon,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  max?: string;
+  placeholder?: string;
+  icon: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const width = 336;
+    const height = 380;
+    const left = Math.min(rect.left, window.innerWidth - width - 12);
+    const flipUp = rect.bottom + height > window.innerHeight && rect.top > height;
+    setCoords({
+      top: flipUp ? rect.top - height - 8 : rect.bottom + 8,
+      left: Math.max(12, left),
+    });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      if (popoverRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const handleScrollOrResize = () => setOpen(false);
+    document.addEventListener("mousedown", handleClick, true);
+    document.addEventListener("keydown", handleKey);
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    window.addEventListener("resize", handleScrollOrResize);
+    return () => {
+      document.removeEventListener("mousedown", handleClick, true);
+      document.removeEventListener("keydown", handleKey);
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+      window.removeEventListener("resize", handleScrollOrResize);
+    };
+  }, [open]);
+
+  const display = value
+    ? new Intl.DateTimeFormat("en-PK", { day: "numeric", month: "long", year: "numeric" }).format(parseLocalDate(value))
+    : "";
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "flex w-full items-center gap-2.5 rounded-xl bg-white px-4 py-3 text-left text-[15px] outline-none transition-all",
+          open ? "border-2 border-gray-900 shadow-[0_0_0_4px_rgba(0,0,0,0.04)]" : "border border-gray-200",
+        )}
+      >
+        <span className="shrink-0 text-gray-400">{icon}</span>
+        <span className={cn("flex-1 truncate", display ? "text-gray-900" : "text-gray-300")}>
+          {display || placeholder}
+        </span>
+        {value ? (
+          <span
+            role="button"
+            tabIndex={-1}
+            aria-label="Clear date"
+            onClick={(e) => { e.stopPropagation(); onChange(""); setOpen(false); }}
+            className="shrink-0 rounded-full p-0.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+          >
+            <X size={14} />
+          </span>
+        ) : (
+          <Calendar size={15} className="shrink-0 text-gray-400" />
+        )}
+      </button>
+
+      {open && createPortal(
+        <div
+          ref={popoverRef}
+          style={{ position: "fixed", top: coords.top, left: coords.left }}
+          className="z-[100] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
+        >
+          <DateCalendar
+            date={value ? parseLocalDate(value) : new Date()}
+            onChange={(d: Date) => { onChange(toLocalDateString(d)); setOpen(false); }}
+            maxDate={max ? parseLocalDate(max) : undefined}
+            color="rgb(var(--be-accent))"
+          />
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 
@@ -343,7 +463,7 @@ function SuccessScreen({ confirmation, themeKey }: {
               </>
             ) : (
               <div className="px-4 py-4 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400 mb-1">Confirmation Number</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400 mb-1">Res ID</p>
                 <p className="font-mono text-[28px] font-bold" style={{ color: "rgb(var(--be-accent))" }}>
                   {confirmation.rooms[0].confirmationNumber}
                 </p>
@@ -664,26 +784,22 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
 
                   <div className="grid gap-4 border-t border-[rgb(var(--be-accent))]/15 bg-white/55 px-4 py-4 sm:grid-cols-2 sm:px-5">
                     <Field label="Birthday" optional>
-                      <span className="relative block">
-                        <Cake size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <Input
-                          type="date" max={new Date().toISOString().slice(0, 10)}
-                          value={form.dateOfBirth}
-                          onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
-                          className="pl-10"
-                        />
-                      </span>
+                      <DateField
+                        icon={<Cake size={15} />}
+                        placeholder="Select your birthday"
+                        max={new Date().toISOString().slice(0, 10)}
+                        value={form.dateOfBirth}
+                        onChange={(v) => setForm((f) => ({ ...f, dateOfBirth: v }))}
+                      />
                     </Field>
                     <Field label="Anniversary" optional>
-                      <span className="relative block">
-                        <Heart size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <Input
-                          type="date" max={new Date().toISOString().slice(0, 10)}
-                          value={form.anniversaryDate}
-                          onChange={(e) => setForm((f) => ({ ...f, anniversaryDate: e.target.value }))}
-                          className="pl-10"
-                        />
-                      </span>
+                      <DateField
+                        icon={<Heart size={15} />}
+                        placeholder="Select your anniversary"
+                        max={new Date().toISOString().slice(0, 10)}
+                        value={form.anniversaryDate}
+                        onChange={(v) => setForm((f) => ({ ...f, anniversaryDate: v }))}
+                      />
                     </Field>
                   </div>
 

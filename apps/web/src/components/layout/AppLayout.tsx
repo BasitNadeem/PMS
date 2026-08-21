@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, BedDouble, Users, Users2, Building2, CalendarCheck,
+  LayoutDashboard, BedDouble, Users, Users2, Building2, CalendarCheck, CalendarDays,
   Sparkles, ShoppingCart, FileBarChart, LogOut,
   ChevronsUpDown, ChevronDown, PanelLeftClose, PanelLeftOpen, TrendingUp, Menu, X, Settings,
-  Receipt, TrendingDown, BookOpen, Wrench, ClipboardList, ChefHat, Monitor, Package, Network, Moon, Tag, Globe,
+  Receipt, TrendingDown, BookOpen, Wrench, ClipboardList, ChefHat, Monitor, Package, Network, Moon, Tag, Globe, CalendarRange, Sunrise,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useQuery } from "@tanstack/react-query";
@@ -164,6 +164,8 @@ const NAV_ITEMS: NavItem[] = [
   {
     to: "/operations", label: "Operations", icon: ClipboardList, permission: "shiftHandover:read", section: "management",
     children: [
+      { to: "/operations/early-bird", label: "Early Bird Report", icon: Sunrise, permission: "reports:read" },
+      { to: "/reports/forecast", label: "Forecast", icon: CalendarRange, permission: "reports:read" },
       { to: "/operations/shift-handover", label: "Shift Handover", icon: ClipboardList, permission: "shiftHandover:read" },
       { to: "/operations/night-audit", label: "Night Audit", icon: Moon, permission: "nightAudit:read", featureGate: "nightAudit" },
     ],
@@ -744,6 +746,7 @@ const SIDEBAR_FULL = 252;
 
 export function AppLayout({ children }: AppLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { has } = usePermissions();
   useEscapeKey(() => setMobileNavOpen(false), mobileNavOpen);
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("sidebarCollapsed") === "true",
@@ -841,7 +844,19 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
 
         {/* Desktop search — shares the same row as the page top padding, saving vertical space */}
-        <div className="hidden lg:flex sticky top-0 z-30 items-center justify-end bg-paper/95 backdrop-blur-sm px-7 h-8 border-b border-line/40">
+        <div className="hidden lg:flex sticky top-0 z-30 items-center justify-end gap-1 bg-paper/95 backdrop-blur-sm px-7 h-8 border-b border-line/40">
+          {/* Sits left of the search field so it keeps its position when the
+              search input expands. */}
+          {has("reservations:read") && (
+            <Link
+              to="/reservations?view=calendar"
+              title="Reservation calendar"
+              aria-label="Reservation calendar"
+              className="grid place-items-center h-9 w-9 rounded-full text-ink-mute hover:bg-line-soft hover:text-ink-soft transition-colors"
+            >
+              <CalendarDays size={17} />
+            </Link>
+          )}
           <GlobalSearchBar />
         </div>
 

@@ -307,7 +307,7 @@ export default function BookingEngineHubPage() {
         </Card>
       ) : (
         <>
-        <div className="mb-6 flex gap-6 border-b border-line">
+        <div className="mb-6 flex w-full items-stretch border-b border-line">
           {([
             { key: "overview", label: "Overview" },
             { key: "upsells",  label: "Extras & Add-ons" },
@@ -317,10 +317,10 @@ export default function BookingEngineHubPage() {
               type="button"
               onClick={() => setActiveTab(tab.key)}
               className={cn(
-                "-mb-px border-b-2 pb-2.5 text-[14px] font-bold transition-colors",
+                "relative min-w-max flex-1 px-5 py-4 text-center text-[14px] transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-[3px]",
                 activeTab === tab.key
-                  ? "border-coral text-coral"
-                  : "border-transparent text-ink-mute hover:text-ink-soft",
+                  ? "rounded-t-xl bg-coral-soft/70 font-black text-coral after:bg-coral"
+                  : "font-semibold text-ink after:bg-transparent hover:text-coral",
               )}
             >
               {tab.label}
@@ -396,7 +396,7 @@ export default function BookingEngineHubPage() {
                 <Card className="anim-fade-up text-center !py-10"><CalendarDays size={22} className="mx-auto text-ink-faint mb-2" /><p className="text-[14px] font-semibold text-ink-soft">No Booking Engine reservations in this period</p><p className="text-[13px] text-ink-faint mt-1">Try a longer range, or share your direct booking link.</p></Card>
               ) : (
                 <Card pad={false} className="anim-fade-up overflow-hidden">
-                  <div className="hidden md:grid grid-cols-[1fr_1fr_0.8fr_0.8fr_0.6fr] gap-3 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-ink-faint border-b border-line-soft"><span>Confirmation #</span><span>Guest</span><span>Check-in</span><span>Status</span><span>Rooms</span></div>
+                  <div className="hidden md:grid grid-cols-[1fr_1fr_0.8fr_0.8fr_0.6fr] gap-3 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-ink-faint border-b border-line-soft"><span>Res ID</span><span>Guest</span><span>Check-in</span><span>Status</span><span>Rooms</span></div>
                   {insights.recent.map((booking) => <Link key={booking.id} to={booking.isGroup ? `/groups/${booking.id}` : `/reservations/${booking.id}`} className="grid grid-cols-2 md:grid-cols-[1fr_1fr_0.8fr_0.8fr_0.6fr] gap-3 px-5 py-3 items-center border-b border-line-soft last:border-0 hover:bg-mist transition-colors"><span className="text-[13px] font-semibold text-ink">{booking.confirmationNumber}</span><span className="text-[13px] text-ink-soft truncate">{booking.guestName}</span><span className="hidden md:block text-[13px] text-ink-mute">{fmtDate(booking.checkInDate)}</span><span className="hidden md:block"><StatusBadge status={STATUS_LABEL[booking.status] ?? booking.status} size="sm" /></span><span className="hidden md:block text-[12.5px] text-ink-faint">{booking.roomCount} room{booking.roomCount === 1 ? "" : "s"}</span></Link>)}
                 </Card>
               )}

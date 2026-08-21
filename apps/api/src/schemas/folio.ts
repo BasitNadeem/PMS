@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FolioItemType, PaymentMethod } from "@pms/db";
+import { FolioItemType, FolioPayerType, PaymentMethod } from "@pms/db";
 
 export const addFolioItemSchema = z.object({
   description: z.string().trim().min(1, "Description is required"),
@@ -23,6 +23,21 @@ export const refundPaymentSchema = z.object({
   reason: z.string().trim().min(3, "Refund reason is required").max(500),
 });
 export type RefundPaymentDto = z.infer<typeof refundPaymentSchema>;
+
+export const allocateFolioItemsSchema = z.object({
+  itemIds: z.array(z.string().uuid()).min(1, "Select at least one folio charge").max(200),
+  payerType: z.nativeEnum(FolioPayerType),
+  companyId: z.string().uuid().nullish(),
+  reason: z.string().trim().min(3, "Enter an allocation reason (at least 3 characters)").max(500),
+}).superRefine((value, ctx) => {
+  if (value.payerType === FolioPayerType.COMPANY && !value.companyId) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["companyId"], message: "Choose the company responsible for these charges" });
+  }
+  if (value.payerType === FolioPayerType.GUEST && value.companyId) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["companyId"], message: "Guest allocation cannot include a company" });
+  }
+});
+export type AllocateFolioItemsDto = z.infer<typeof allocateFolioItemsSchema>;
 
 export const billingListSchema = z.object({
   page:         z.coerce.number().int().min(1).default(1),

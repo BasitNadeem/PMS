@@ -16,18 +16,34 @@ export const PosMenuService = {
   // (e.g. QR-only categories) — used by the Menu Setup admin screen so staff
   // can still find and edit them.
   async listCategories(withTenant: WithTenantFn, includeInactive = false) {
-    return withTenant((db) =>
-      db.posCategory.findMany({
+    return withTenant(async (db) => {
+      const categories = await db.posCategory.findMany({
         where:   includeInactive ? {} : { isActive: true },
         include: {
           items: {
             where:   includeInactive ? {} : { isAvailable: true },
+            include: {
+              inventoryItem: {
+                select: { name: true, unit: true, currentStock: true, isActive: true },
+              },
+            },
             orderBy: { sortOrder: "asc" },
           },
         },
         orderBy: { sortOrder: "asc" },
-      }),
-    );
+      });
+
+      return categories.map((category) => ({
+        ...category,
+        items: category.items.map(({ inventoryItem, ...item }) => ({
+          ...item,
+          inventoryItemName: inventoryItem?.name ?? null,
+          inventoryUnit: inventoryItem?.unit ?? null,
+          inventoryCurrentStock: inventoryItem ? Number(inventoryItem.currentStock) : null,
+          inventoryIsActive: inventoryItem?.isActive ?? null,
+        })),
+      }));
+    });
   },
 
   async createCategory(withTenant: WithTenantFn, actor: JwtPayload, dto: CreateCategoryDto) {

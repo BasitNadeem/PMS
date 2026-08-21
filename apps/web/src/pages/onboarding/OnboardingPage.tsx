@@ -31,7 +31,7 @@ import { cn } from "@/lib/cn";
 import { hotelsService } from "@/services/hotels";
 import { authService } from "@/services/auth";
 import { settingsService, type ThemeKey, type UpdateSettingsDto } from "@/services/settings";
-import { roomsService, type RoomStatus, type RoomTypeName } from "@/services/rooms";
+import { roomsService, type RoomTypeName } from "@/services/rooms";
 import { usersService, type Role } from "@/services/users";
 import { applyTheme } from "@/lib/theme";
 import { pkrInWords } from "@/lib/numberToWords";
@@ -667,7 +667,6 @@ function StepRooms({ onBack, onNext }: { onBack: () => void; onNext: () => void 
         number: roomForm.number.trim(),
         floor,
         roomTypeId: selectedRoomType.id,
-        status: "VACANT_CLEAN" as RoomStatus,
       });
       setRecentRooms((current) => [`${room.number} · ${selectedRoomType.name}`, ...current].slice(0, 4));
       setRoomForm({ number: "", floor: "" });

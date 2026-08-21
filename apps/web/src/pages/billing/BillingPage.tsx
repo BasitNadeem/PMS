@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Avatar } from "@/components/ui/Avatar";
 import { toneOf } from "@/components/ui/StatusBadge";
+import { ReservationIdLink } from "@/components/reservations/ReservationIdLink";
 
 function formatPkr(paise: number): string {
   const r = paise / 100;
@@ -63,7 +64,15 @@ function FolioRow({ folio }: { folio: BillingFolio }) {
         <div className="min-w-0">
           <div className="text-[14.5px] font-semibold text-ink truncate">{folio.reservation.guest.fullName}</div>
           <div className="flex items-center gap-1.5 text-[12px] text-ink-faint tnum">
-            <span>{folio.reservation.confirmationNumber || "—"}</span>
+            {folio.reservation.confirmationNumber ? (
+              <ReservationIdLink
+                id={folio.reservation.id}
+                confirmationNumber={folio.reservation.confirmationNumber}
+                onClick={(event) => event.stopPropagation()}
+              />
+            ) : (
+              <span>—</span>
+            )}
             {isGroup && (
               <span
                 onClick={(e) => { e.stopPropagation(); navigate(`/groups/${folio.reservation.groupId}`); }}

@@ -20,6 +20,7 @@ import { NotificationService } from "../services/NotificationService";
 import { generateGroupRef } from "../services/GroupService";
 import { notifyHotelDataChanged } from "../lib/realtime";
 import { enqueueReservationEmail } from "../lib/reservationEmails";
+import { queueChannexSync } from "../lib/channexSync";
 import { calculateAccommodationCharges } from "../lib/accommodationCharges";
 import {
   bookingAvailabilitySchema,
@@ -342,7 +343,7 @@ router.post("/:hotelSlug/book", bookSubmitLimit, async (req, res) => {
   const reservation = await wt(async (db) => {
     // 1. Re-verify availability inline (atomic with reservation creation)
     const allRooms = await db.room.findMany({
-      where:  { roomTypeId: dto.roomTypeId, isActive: true },
+      where:  { roomTypeId: dto.roomTypeId, isActive: true, status: { notIn: ["OUT_OF_ORDER", "BLOCKED"] } },
       select: { id: true },
     });
     if (allRooms.length === 0) {
@@ -357,7 +358,11 @@ router.post("/:hotelSlug/book", bookSubmitLimit, async (req, res) => {
       },
       select: { roomId: true },
     });
-    const bookedSet  = new Set(bookedRoomIds.map((r) => r.roomId));
+    const blockedRoomIds = await db.roomInventoryBlock.findMany({
+      where: { roomId: { in: allRooms.map((r) => r.id) }, cancelledAt: null, startDate: { lt: new Date(dto.checkOutDate) }, endDate: { gt: new Date(dto.checkInDate) } },
+      select: { roomId: true },
+    });
+    const bookedSet  = new Set([...bookedRoomIds, ...blockedRoomIds].map((r) => r.roomId));
     const freeRoom   = allRooms.find((r) => !bookedSet.has(r.id));
     if (!freeRoom) {
       throw new AppError(409, "No rooms available for the selected dates. Please choose different dates.");
@@ -492,6 +497,15 @@ router.post("/:hotelSlug/book", bookSubmitLimit, async (req, res) => {
     }
   }
 
+  // A direct booking races OTA inventory for the same rooms — republish before
+  // a channel resells what this guest just took.
+  queueChannexSync({
+    hotelId:  hotel.id,
+    reason:   "BOOKING_ENGINE",
+    dateFrom: dto.checkInDate,
+    dateTo:   dto.checkOutDate,
+  });
+
   notifyHotelDataChanged(hotel.id, "reservation_created");
 
   res.status(201).json({
@@ -561,7 +575,7 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
     const allocationSlots: Array<{ roomTypeId: string; capacity: number }> = [];
     for (const item of dto.items) {
       const allRooms = await db.room.findMany({
-        where:  { roomTypeId: item.roomTypeId, isActive: true },
+        where:  { roomTypeId: item.roomTypeId, isActive: true, status: { notIn: ["OUT_OF_ORDER", "BLOCKED"] } },
         select: { id: true, roomType: { select: { name: true, maxOccupancy: true } } },
       });
       if (allRooms.length === 0) {
@@ -577,7 +591,11 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
         },
         select: { roomId: true },
       });
-      const bookedSet   = new Set(bookedIds.map((r) => r.roomId));
+      const blockedIds = await db.roomInventoryBlock.findMany({
+        where: { roomId: { in: allRooms.map((r) => r.id) }, cancelledAt: null, startDate: { lt: new Date(dto.checkOutDate) }, endDate: { gt: new Date(dto.checkInDate) } },
+        select: { roomId: true },
+      });
+      const bookedSet   = new Set([...bookedIds, ...blockedIds].map((r) => r.roomId));
       const freeRooms   = allRooms.filter((r) => !bookedSet.has(r.id));
       if (freeRooms.length < item.quantity) {
         throw new AppError(409, `Only ${freeRooms.length} room(s) available for ${allRooms[0].roomType.name} (${item.quantity} requested).`);
@@ -673,7 +691,7 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
     for (const item of dto.items) {
       // Re-fetch available rooms (still within the same transaction)
       const allRooms = await db.room.findMany({
-        where:  { roomTypeId: item.roomTypeId, isActive: true },
+        where:  { roomTypeId: item.roomTypeId, isActive: true, status: { notIn: ["OUT_OF_ORDER", "BLOCKED"] } },
         select: { id: true },
       });
       const bookedIds = await db.reservationRoom.findMany({
@@ -685,7 +703,11 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
         },
         select: { roomId: true },
       });
-      const bookedSet = new Set(bookedIds.map((r) => r.roomId));
+      const blockedIds = await db.roomInventoryBlock.findMany({
+        where: { roomId: { in: allRooms.map((r) => r.id) }, cancelledAt: null, startDate: { lt: new Date(dto.checkOutDate) }, endDate: { gt: new Date(dto.checkInDate) } },
+        select: { roomId: true },
+      });
+      const bookedSet = new Set([...bookedIds, ...blockedIds].map((r) => r.roomId));
       const freeRooms = allRooms.filter((r) => !bookedSet.has(r.id));
       const rateInfo = rateMap.get(item.roomTypeId);
       const ratePerNight = rateInfo?.ratePerNight ?? 0;
@@ -827,6 +849,14 @@ router.post("/:hotelSlug/book-multi", bookSubmitLimit, async (req, res) => {
       console.error("Failed to enqueue multi-room booking request email:", err);
     }
   }
+
+  // Same race as the single-room path, across more rooms at once.
+  queueChannexSync({
+    hotelId:  hotel.id,
+    reason:   "BOOKING_ENGINE",
+    dateFrom: dto.checkInDate,
+    dateTo:   dto.checkOutDate,
+  });
 
   notifyHotelDataChanged(hotel.id, "reservation_created");
 

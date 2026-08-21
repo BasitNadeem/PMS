@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Wrench, AlertTriangle, Clock, Plus, Flame, EllipsisVertical, Sparkles,
+  Wrench, AlertTriangle, Clock, Plus, Flame, EllipsisVertical, Sparkles, CalendarOff,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/cn";
@@ -15,6 +15,7 @@ import {
 } from "@/services/maintenance";
 import { CreateTicketModal } from "@/components/maintenance/CreateTicketModal";
 import { ResolveTicketModal } from "@/components/maintenance/ResolveTicketModal";
+import { MaintenanceAvailabilityModal } from "@/components/maintenance/MaintenanceAvailabilityModal";
 import { Card } from "@/components/ui/Card";
 import { toneOf, type ToneConfig } from "@/components/ui/StatusBadge";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -85,10 +86,11 @@ function SumCard({ icon: Icon, tone, n, label, delay = 0 }: {
 
 // ── Ticket card ───────────────────────────────────────────────────────────────
 
-function TicketCard({ ticket, onStatusChange, onResolve, canUpdate }: {
+function TicketCard({ ticket, onStatusChange, onResolve, onEditAvailability, canUpdate }: {
   ticket: MaintenanceTicket;
   onStatusChange: (id: string, status: MaintenanceStatus) => void;
   onResolve: (ticket: MaintenanceTicket) => void;
+  onEditAvailability: (ticket: MaintenanceTicket) => void;
   canUpdate: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -130,6 +132,11 @@ function TicketCard({ ticket, onStatusChange, onResolve, canUpdate }: {
             <>
               <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
               <div className="absolute right-0 top-8 z-20 w-44 rounded-xl border border-line bg-card shadow-float p-1.5 anim-scale-in">
+                {ticket.room && ticket.status !== "RESOLVED" && ticket.status !== "CLOSED" && (
+                  <button onClick={() => { setMenuOpen(false); onEditAvailability(ticket); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-ink-mute hover:bg-line-soft hover:text-ink">
+                    <CalendarOff size={14} /> Room availability
+                  </button>
+                )}
                 {transitions.length === 0 ? (
                   <div className="px-2.5 py-2 text-[12.5px] text-ink-faint italic">No further actions</div>
                 ) : (
@@ -168,6 +175,11 @@ function TicketCard({ ticket, onStatusChange, onResolve, canUpdate }: {
         {ticket.isOverdue && (
           <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold bg-clay-soft text-clay">
             <AlertTriangle size={11} /> Overdue
+          </span>
+        )}
+        {ticket.inventoryBlock && !ticket.inventoryBlock.cancelledAt && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-coral-soft px-2 py-0.5 text-[11px] font-bold text-coral">
+            <CalendarOff size={11} /> Out of sale until {new Date(ticket.inventoryBlock.endDate).toLocaleDateString("en-PK", { day: "numeric", month: "short", timeZone: "UTC" })}
           </span>
         )}
       </div>
@@ -249,6 +261,7 @@ export default function MaintenanceTicketsPage() {
   const [activeTab, setActiveTab]             = useState<TabStatus>("ALL");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [resolvingTicket, setResolvingTicket] = useState<MaintenanceTicket | null>(null);
+  const [availabilityTicket, setAvailabilityTicket] = useState<MaintenanceTicket | null>(null);
 
   const { data: summaryData } = useQuery({
     queryKey: ["maintenance-summary"],
@@ -380,6 +393,7 @@ export default function MaintenanceTicketsPage() {
                         ticket={ticket}
                         onStatusChange={handleStatusChange}
                         onResolve={setResolvingTicket}
+                        onEditAvailability={setAvailabilityTicket}
                         canUpdate={canUpdate}
                       />
                     ))
@@ -397,6 +411,7 @@ export default function MaintenanceTicketsPage() {
               ticket={ticket}
               onStatusChange={handleStatusChange}
               onResolve={setResolvingTicket}
+              onEditAvailability={setAvailabilityTicket}
               canUpdate={canUpdate}
             />
           ))}
@@ -409,6 +424,10 @@ export default function MaintenanceTicketsPage() {
 
       {resolvingTicket && (
         <ResolveTicketModal ticket={resolvingTicket} onClose={() => setResolvingTicket(null)} />
+      )}
+
+      {availabilityTicket && (
+        <MaintenanceAvailabilityModal ticket={availabilityTicket} onClose={() => setAvailabilityTicket(null)} />
       )}
     </div>
   );

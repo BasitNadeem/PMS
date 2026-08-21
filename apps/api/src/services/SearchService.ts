@@ -39,7 +39,7 @@ export const SearchService = {
       if (allowedTypes.has("reservation")) {
         tasks.push(
           db.reservation.findMany({
-            where: { OR: [{ confirmationNumber: ci }, { guest: { fullName: ci } }] },
+            where: { OR: [{ confirmationNumber: ci }, { legacyConfirmationNumber: ci }, { guest: { fullName: ci } }] },
             take: RESULTS_PER_TYPE,
             orderBy: { createdAt: "desc" },
             include: { guest: { select: { fullName: true } } },

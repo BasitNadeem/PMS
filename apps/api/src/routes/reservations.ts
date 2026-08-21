@@ -7,6 +7,8 @@ import {
   createReservationSchema,
   updateReservationStatusSchema,
   updateReservationSchema,
+  manageCheckedInStaySchema,
+  reverseReservationLifecycleSchema,
 } from "../schemas/reservations";
 import { ReservationService } from "../services/ReservationService";
 import { getPKTMonthRange } from "../lib/timezone";
@@ -100,8 +102,27 @@ router.post("/", requirePermission("RESERVATION_CREATE"), async (req, res) => {
 // PATCH /api/reservations/:id/status
 router.patch("/:id/status", requirePermission("RESERVATION_UPDATE"), async (req, res) => {
   const id = req.params.id as string;
-  const { status } = updateReservationStatusSchema.parse(req.body);
-  const updated = await ReservationService.updateStatus(req.withTenant, req.user!, id, status);
+  const { status, reason } = updateReservationStatusSchema.parse(req.body);
+  const updated = await ReservationService.updateStatus(req.withTenant, req.user!, id, status, reason);
+  res.json({ data: updated });
+});
+
+// POST /api/reservations/:id/manage-stay — explicit post-check-in workflow.
+// Kept separate from ordinary reservation edits because room operations and
+// folio adjustments must commit atomically.
+router.post("/:id/manage-stay", requirePermission("RESERVATION_UPDATE"), async (req, res) => {
+  const id = req.params.id as string;
+  const body = manageCheckedInStaySchema.parse(req.body);
+  const updated = await ReservationService.manageCheckedInStay(req.withTenant, req.user!, id, body);
+  res.json({ data: updated });
+});
+
+// POST /api/reservations/:id/reverse-lifecycle — compensating correction for
+// an accidental check-in or checkout. Original events remain in the audit log.
+router.post("/:id/reverse-lifecycle", requirePermission("RESERVATION_REVERSE"), async (req, res) => {
+  const id = req.params.id as string;
+  const body = reverseReservationLifecycleSchema.parse(req.body);
+  const updated = await ReservationService.reverseLifecycle(req.withTenant, req.user!, id, body);
   res.json({ data: updated });
 });
 

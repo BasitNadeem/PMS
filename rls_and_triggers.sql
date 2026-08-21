@@ -107,6 +107,7 @@ CREATE POLICY hotel_isolation ON hotels
 SELECT enable_hotel_rls('hotel_users');
 SELECT enable_hotel_rls('room_types');
 SELECT enable_hotel_rls('rooms');
+SELECT enable_hotel_rls('room_inventory_blocks');
 SELECT enable_hotel_rls('guests');
 SELECT enable_hotel_rls('guest_special_dates');
 SELECT enable_hotel_rls('accounting_accounts');
@@ -115,11 +116,14 @@ SELECT enable_hotel_rls('companies');
 SELECT enable_hotel_rls('company_ledger_entries');
 SELECT enable_hotel_rls('company_invoices');
 SELECT enable_hotel_rls('reservations');
+SELECT enable_hotel_rls('reservation_stay_changes');
+SELECT enable_hotel_rls('reservation_lifecycle_reversals');
 -- reservation_rooms has no hotel_id — handled in open-access section below
 SELECT enable_hotel_rls('group_bookings');
 -- group_members has no hotel_id — handled in open-access section below
 SELECT enable_hotel_rls('folios');
 SELECT enable_hotel_rls('folio_items');
+SELECT enable_hotel_rls('folio_item_payer_changes');
 -- folio_splits has no hotel_id — handled in open-access section below
 SELECT enable_hotel_rls('payments');
 SELECT enable_hotel_rls('pos_categories');
@@ -136,6 +140,7 @@ SELECT enable_hotel_rls('rate_plan_codes');
 SELECT enable_hotel_rls('upsell_items');
 -- reservation_upsells has no hotel_id — handled in open-access section below
 SELECT enable_hotel_rls('channel_configs');
+SELECT enable_hotel_rls('channel_webhook_events');
 SELECT enable_hotel_rls('staff');
 SELECT enable_hotel_rls('shift_reports');
 SELECT enable_hotel_rls('tax_configs');
@@ -154,6 +159,10 @@ DROP POLICY IF EXISTS hotel_isolation ON night_audit_records;
 CREATE POLICY hotel_isolation ON night_audit_records
   USING      ("hotelId" = current_hotel_id())
   WITH CHECK ("hotelId" = current_hotel_id());
+
+-- Immutable Early Bird archives are tenant-scoped by their mapped hotel_id.
+SELECT enable_hotel_rls('early_bird_report_archives');
+SELECT enable_hotel_rls('booking_pace_snapshots');
 
 
 -- ── Tables without a direct hotel_id (accessed via parent FK) ────────────────
@@ -283,8 +292,7 @@ CREATE SEQUENCE IF NOT EXISTS seq_invoice      START 1 CACHE 10;
 CREATE OR REPLACE FUNCTION next_confirmation_number()
 RETURNS TEXT LANGUAGE plpgsql AS $$
 BEGIN
-  RETURN 'HPM-' || TO_CHAR(NOW(), 'YYYY') || '-'
-         || LPAD(NEXTVAL('seq_reservation')::TEXT, 5, '0');
+  RETURN 'RES-' || LPAD(NEXTVAL('seq_reservation')::TEXT, 6, '0');
 END;
 $$;
 
@@ -830,6 +838,28 @@ CREATE INDEX IF NOT EXISTS idx_roles_system
 CREATE INDEX IF NOT EXISTS idx_users_active
   ON users (email)
   WHERE deleted_at IS NULL;
+
+-- ── Channel manager (Channex) ─────────────────────────────────────────────────
+-- Webhook tenant resolution: Channex sends a property_id and nothing else that
+-- identifies the hotel, so every inbound event does
+--   credentials->>'channex_property_id'  →  hotel_id
+-- on an unauthenticated hot path. Expression index — Prisma cannot express it.
+CREATE INDEX IF NOT EXISTS idx_channel_configs_channex_property
+  ON channel_configs ((credentials ->> 'channex_property_id'))
+  WHERE is_active = true;
+
+-- Unprocessed inbound events (webhook retry sweep, polling fallback reconcile)
+CREATE INDEX IF NOT EXISTS idx_channel_webhook_events_pending
+  ON channel_webhook_events (hotel_id, received_at)
+  WHERE status <> 'PROCESSED';
+
+-- Reverse lookup: a Channex rate plan id resolves to exactly one rate_plan_item.
+-- Unique so a single Channex rate plan can never be mapped to two local rows —
+-- that would make ARI pushes fight each other. Partial because unprovisioned
+-- rows are all NULL and must not collide.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rate_plan_items_channex_id
+  ON rate_plan_items (channex_rate_plan_id)
+  WHERE channex_rate_plan_id IS NOT NULL;
 
 
 -- ============================================================================

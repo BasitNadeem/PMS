@@ -106,7 +106,7 @@ function ArrivalsTable({ rows }: { rows: DailyArrival[] }) {
     <table className="w-full text-sm border-collapse">
       <thead>
         <tr>
-          <th className={thCls}>Confirmation</th>
+          <th className={thCls}>Res ID</th>
           <th className={thCls}>Guest</th>
           <th className={thCls}>Room</th>
           <th className={thCls}>Nights</th>
@@ -137,7 +137,7 @@ function DeparturesTable({ rows }: { rows: DailyDeparture[] }) {
     <table className="w-full text-sm border-collapse">
       <thead>
         <tr>
-          <th className={thCls}>Confirmation</th>
+          <th className={thCls}>Res ID</th>
           <th className={thCls}>Guest</th>
           <th className={thCls}>Room</th>
           <th className={thCls}>Nights</th>
@@ -174,7 +174,7 @@ function StayOversTable({ rows }: { rows: DailyStayOver[] }) {
     <table className="w-full text-sm border-collapse">
       <thead>
         <tr>
-          <th className={thCls}>Confirmation</th>
+          <th className={thCls}>Res ID</th>
           <th className={thCls}>Guest</th>
           <th className={thCls}>Room</th>
           <th className={thCls}>Check-out Date</th>

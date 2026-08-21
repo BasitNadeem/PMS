@@ -12,6 +12,7 @@ import {
 } from "../schemas/ratePlans";
 import { RatePlanService } from "../services/RatePlanService";
 import { checkFeatureAccess } from "../lib/subscription";
+import { queueChannexSync } from "../lib/channexSync";
 
 const router: Router = Router();
 
@@ -49,6 +50,10 @@ router.post("/", requirePermission("RATE_CREATE"), async (req, res) => {
     body,
     req.user!
   );
+  // Rate plan structure changed — republish the whole horizon. Only pairs
+  // carrying a channex_rate_plan_id are actually pushed, so a brand-new
+  // unprovisioned plan is a cheap no-op rather than a leak.
+  queueChannexSync({ hotelId: req.user!.hotelId, reason: "RATE_PLAN_CHANGE" });
   res.status(201).json({ data: plan });
 });
 
@@ -63,6 +68,7 @@ router.patch("/:id", requirePermission("RATE_UPDATE"), async (req, res) => {
     body,
     req.user!
   );
+  queueChannexSync({ hotelId: req.user!.hotelId, reason: "RATE_PLAN_CHANGE" });
   res.json({ data: plan });
 });
 
@@ -75,6 +81,7 @@ router.patch("/:id/activate", requirePermission("RATE_UPDATE"), async (req, res)
     req.params.id as string,
     req.user!
   );
+  queueChannexSync({ hotelId: req.user!.hotelId, reason: "RATE_PLAN_CHANGE" });
   res.status(204).send();
 });
 
@@ -123,6 +130,7 @@ router.delete("/:id", requirePermission("RATE_DELETE"), async (req, res) => {
     req.params.id as string,
     req.user!
   );
+  queueChannexSync({ hotelId: req.user!.hotelId, reason: "RATE_PLAN_CHANGE" });
   res.status(204).send();
 });
 

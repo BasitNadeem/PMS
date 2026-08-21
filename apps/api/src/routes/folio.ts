@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authenticate } from "../middleware/auth";
 import { tenantMiddleware } from "../middleware/tenant";
 import { requirePermission } from "../middleware/permission";
-import { addFolioItemSchema, addPaymentSchema, refundPaymentSchema } from "../schemas/folio";
+import { addFolioItemSchema, addPaymentSchema, allocateFolioItemsSchema, refundPaymentSchema } from "../schemas/folio";
 import { FolioService } from "../services/FolioService";
 import { createLedgerEntryFromPayment, createLedgerEntryFromRefund } from "../services/CashBookService";
 import { CompanyService } from "../services/CompanyService";
@@ -27,7 +27,7 @@ router.post("/:reservationId/folio/payments/:paymentId/refund", requirePermissio
   res.status(201).json({ data: refund });
   createLedgerEntryFromRefund(
     req.user!.hotelId,
-    { id: refund.id, amount: refund.amount, method: refund.method, reservationId },
+    { id: refund.id, amount: refund.amount, method: refund.method, reservationId, occurredAt: refund.postedAt },
     req.user!.userId,
   ).catch(() => { /* logged and repairable by source id */ });
 });
@@ -38,6 +38,13 @@ router.post("/:reservationId/folio/items", requirePermission("FOLIO_UPDATE"), as
   const dto  = addFolioItemSchema.parse(req.body);
   const item = await FolioService.addItem(req.withTenant, req.user!, reservationId, dto);
   res.status(201).json({ data: item });
+});
+
+router.post("/:reservationId/folio/items/allocate-payer", requirePermission("FOLIO_ALLOCATE_PAYER"), async (req, res) => {
+  const { reservationId } = req.params as { reservationId: string };
+  const dto = allocateFolioItemsSchema.parse(req.body);
+  const result = await FolioService.allocateItems(req.withTenant, req.user!, reservationId, dto);
+  res.json({ data: result });
 });
 
 // DELETE /api/reservations/:reservationId/folio/items/:itemId
@@ -57,7 +64,7 @@ router.post("/:reservationId/folio/payments", requirePermission("PAYMENT_CREATE"
   // Auto-entry in cash book — fire-and-forget, never fails the payment
   createLedgerEntryFromPayment(
     req.user!.hotelId,
-    { id: payment.id, amount: payment.amount, method: payment.method, reservationId },
+    { id: payment.id, amount: payment.amount, method: payment.method, reservationId, occurredAt: payment.postedAt },
     req.user!.userId,
   ).catch(() => { /* already logged inside */ });
 });

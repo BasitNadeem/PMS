@@ -22,7 +22,7 @@ const VISIBLE_PERMISSION_KEYS = new Set([
   "team:read", "team:create", "team:update", "team:delete",
   "reports:read",
   "shiftHandover:read", "shiftHandover:submit", "shiftHandover:signoff", "shiftHandover:acknowledge",
-  "nightAudit:read", "nightAudit:run", "nightAudit:markNoShow",
+  "nightAudit:read", "nightAudit:run", "nightAudit:markNoShow", "nightAudit:reverse",
   "settings:read", "settings:update",
 ]);
 
@@ -56,7 +56,7 @@ const PAIRED_PERMISSION_KEYS: Record<string, string[]> = {
   ],
   "billing:read":        ["FOLIO_READ", "PAYMENT_READ", "INVOICE_READ"],
   "billing:create":      ["PAYMENT_CREATE", "INVOICE_CREATE"],
-  "billing:update":      ["FOLIO_UPDATE", "INVOICE_UPDATE"],
+  "billing:update":      ["FOLIO_UPDATE", "FOLIO_ALLOCATE_PAYER", "INVOICE_UPDATE"],
   "billing:delete":      ["PAYMENT_REFUND"],
   "housekeeping:read":   ["HOUSEKEEPING_READ"],
   "housekeeping:create": ["HOUSEKEEPING_CREATE"],

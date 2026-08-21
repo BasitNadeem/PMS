@@ -50,7 +50,7 @@ function BucketTable({ entries, label, totalBalance, accentColor }: BucketTableP
             <tr>
               <th className={thCls}>Guest</th>
               <th className={thCls}>Room</th>
-              <th className={thCls}>Confirmation #</th>
+              <th className={thCls}>Res ID</th>
               <th className={thCls}>Checkout Date</th>
               <th className={thRightCls}>Days</th>
               <th className={thRightCls}>Balance</th>

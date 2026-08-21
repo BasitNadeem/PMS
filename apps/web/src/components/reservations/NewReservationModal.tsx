@@ -654,11 +654,10 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
                 <div className="rounded-xl border border-clay/25 bg-clay-soft px-4 py-3 flex items-start gap-2.5">
                   <ShieldAlert size={16} className="text-clay shrink-0 mt-0.5" />
                   <p className="text-[13px] text-ink-soft">
-                    <span className="font-semibold text-clay">Room {roomConflict.roomNumber} is already booked</span> for{" "}
-                    {roomConflict.guestName} from{" "}
+                    <span className="font-semibold text-clay">Room {roomConflict.roomNumber} is {roomConflict.conflictType === "INVENTORY_BLOCK" ? roomConflict.inventoryBlockType === "OUT_OF_ORDER" ? "out of order" : "out of service" : "already booked"}</span>{roomConflict.conflictType === "RESERVATION" ? ` for ${roomConflict.guestName ?? "another guest"}` : roomConflict.reason ? ` (${roomConflict.reason})` : ""} from{" "}
                     {new Date(roomConflict.checkInDate).toLocaleDateString("en-PK", { day: "numeric", month: "short" })} to{" "}
                     {new Date(roomConflict.checkOutDate).toLocaleDateString("en-PK", { day: "numeric", month: "short" })}
-                    {roomConflict.confirmationNumber ? ` (#${roomConflict.confirmationNumber})` : ""}.
+                    {roomConflict.confirmationNumber ? ` (Res ID ${roomConflict.confirmationNumber})` : ""}.
                     Please pick a different room or date.
                   </p>
                 </div>

@@ -291,7 +291,7 @@ export function EditReservationModal({ reservation, onClose, onSuccess }: EditRe
                     {roomConflict.guestName} from{" "}
                     {new Date(roomConflict.checkInDate).toLocaleDateString("en-PK", { day: "numeric", month: "short" })} to{" "}
                     {new Date(roomConflict.checkOutDate).toLocaleDateString("en-PK", { day: "numeric", month: "short" })}
-                    {roomConflict.confirmationNumber ? ` (#${roomConflict.confirmationNumber})` : ""}. Please pick a different room or date.
+                    {roomConflict.confirmationNumber ? ` (Res ID ${roomConflict.confirmationNumber})` : ""}. Please pick a different room or date.
                   </p>
                 </div>
               )}

@@ -26,13 +26,13 @@ const STATUS_STYLE: Record<string, {
   CHECKED_IN:  { bg: "#2E8A5C", fg: "#FFFFFF", rail: "#195C3A", border: "#227048", shadow: "rgba(25,92,58,0.28)", label: "Checked In" },
   CHECKED_OUT: { bg: "#5B5568", fg: "#FFFFFF", rail: "#362F42", border: "#463F52", shadow: "rgba(54,47,66,0.26)", label: "Checked Out" },
   CANCELLED:   { bg: "#C23B3B", fg: "#FFFFFF", rail: "#7E2323", border: "#9C2E2E", shadow: "rgba(126,35,35,0.28)", label: "Cancelled" },
-  // Kept so a stray No Show / Waitlisted reservation still renders with its
-  // own color on the bar — just dropped from the legend below (line ~440).
   NO_SHOW:     { bg: "#8B4A3D", fg: "#FFFFFF", rail: "#5C2E24", border: "#713A2F", shadow: "rgba(92,46,36,0.24)", label: "No Show" },
+  // Waitlisted stays out of the legend: it is a queue state with no room
+  // assigned, so it never draws a bar on a room row.
   WAITLISTED:  { bg: "#6C5A94", fg: "#FFFFFF", rail: "#453A63", border: "#574880", shadow: "rgba(69,58,99,0.24)", label: "Waitlisted" },
 };
 
-const LEGEND_STATUSES = ["ENQUIRY", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED"];
+const LEGEND_STATUSES = ["ENQUIRY", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "NO_SHOW", "CANCELLED"];
 
 const ROOM_STATUS_STYLE: Record<string, {
   label: string; bg: string; fg: string; border: string; dot: string;
@@ -356,7 +356,7 @@ export function TimelineView({
 
             {isThisMonth && (
               <div
-                className="absolute bottom-0 top-0 z-[4] w-px bg-coral/55 pointer-events-none"
+                className="absolute bottom-0 top-0 z-[2] w-px bg-coral/55 pointer-events-none"
                 style={{ left: ROOM_COL + (todayDay - 1) * COL_WIDTH + COL_WIDTH / 2 }}
               >
                 <span className="absolute -left-[3px] top-0 h-[7px] w-[7px] rounded-full bg-coral shadow-sm" />
@@ -472,7 +472,11 @@ export function TimelineView({
                                 : `0 2px 7px ${s.shadow}`,
                               transform:    isHovered ? "translateY(-1px)" : "none",
                               transition:   "box-shadow 0.15s ease, transform 0.15s ease",
-                              zIndex:       isHovered ? 20 : 10,
+                              // Must stay below the sticky room column (z-5), or
+                              // bars slide over the room numbers while scrolling
+                              // horizontally instead of passing behind them.
+                              // Order here: day cell (1) < today line (2) < bar.
+                              zIndex:       isHovered ? 4 : 3,
                             }}
                           >
                             {showName && (

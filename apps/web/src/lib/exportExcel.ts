@@ -12,6 +12,7 @@ import type {
   CashReconciliationReport,
   OccupancyTrendReport,
   ADRRevPARReport,
+  ForecastReport,
   RoomTypePerformanceRow,
   SourceOfBusinessRow,
   LengthOfStayReport,
@@ -28,7 +29,9 @@ import type {
   LowStockReorderReport,
   POSSalesReport,
   QROrdersReport,
+  EarlyBirdReport,
 } from "@/services/reports";
+import type { CompanyProduction } from "@/services/companies";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -50,6 +53,109 @@ function writeSubscriptionFile(workbook: XLSX.WorkBook, filename: string): void 
 
 function rupees(paisas: number): number {
   return Math.floor(paisas / 100);
+}
+
+export function exportEarlyBirdReportToExcel(report: EarlyBirdReport): void {
+  const workbook = XLSX.utils.book_new();
+  const closed = report.closedDay.snapshot;
+  const summary = [
+    ["Innflo Early Bird Report", report.hotelName],
+    ["Report date", report.reportDate],
+    ["Closed business date", report.closedDay.businessDate],
+    ["Night Audit revision", report.closedDay.auditRevision],
+    ["Generated at", report.generatedAt],
+    [],
+    ["Metric", "Value (PKR where applicable)"],
+    ["Physical rooms", closed.occupancy.physicalRooms],
+    ["Sellable rooms", closed.occupancy.sellableRooms],
+    ["Rooms sold", closed.occupancy.roomsSold],
+    ["Occupancy %", closed.occupancy.occupancyRate],
+    ["ADR", rupees(closed.occupancy.adr)],
+    ["RevPAR", rupees(closed.occupancy.revpar)],
+    ["Room revenue", rupees(closed.revenue.roomRevenue)],
+    ["POS revenue", rupees(closed.revenue.posRevenue)],
+    ["QR revenue", rupees(closed.revenue.qrRevenue)],
+    ["Expenses", rupees(closed.revenue.expenses)],
+    ["Guest outstanding", rupees(closed.reconciliation.guestOutstanding)],
+    ["Company (BTC) outstanding", rupees(closed.reconciliation.companyOutstanding)],
+  ];
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(summary), "Morning Summary");
+
+  const movements = [
+    ["Type", "Reservation", "Guest", "Room(s)", "Company", "Group", "Balance (PKR)"],
+    ...report.today.arrivals.map((row) => [
+      "Arrival", row.confirmationNumber, row.guestName, row.roomNumbers.join(", "),
+      row.companyName ?? "", row.groupName ?? "", 0,
+    ]),
+    ...report.today.departures.map((row) => [
+      "Departure", row.confirmationNumber, row.guestName, row.roomNumbers.join(", "),
+      "", "", rupees(row.totalBalance),
+    ]),
+  ];
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(movements), "Today Movements");
+
+  const forecast = [
+    ["Date", "Physical", "Out of service", "Sellable", "Sold", "Available", "Occupancy %", "ADR (PKR)", "RevPAR (PKR)", "Expected revenue (PKR)"],
+    ...report.outlook.days.map((day) => [
+      day.date, day.physicalRooms, day.outOfServiceRooms, day.sellableRooms, day.roomsSold,
+      day.availableRooms, day.occupancyRate, rupees(day.adr), rupees(day.revpar), rupees(day.expectedRoomRevenue),
+    ]),
+  ];
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(forecast), "Forward Outlook");
+
+  const operations = [
+    ["Area", "Reference", "Description", "Status", "Priority"],
+    ...report.today.housekeeping.map((task) => ["Housekeeping", task.room.number, task.taskType, task.status, String(task.priority)]),
+    ...report.today.maintenance.map((ticket) => ["Maintenance", ticket.ticketNumber, ticket.title, ticket.status, ticket.priority]),
+    ...report.today.lowStock.map((item) => ["Inventory", item.name, `${item.currentStock} ${item.unit}; reorder ${item.reorderLevel}`, item.urgency, ""]),
+  ];
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(operations), "Operations");
+
+  const contribution = [
+    ["Type", "Name", "Room nights", "Expected room revenue (PKR)"],
+    ...report.outlook.contribution.companies.map((company) => ["Company", company.companyName, company.roomNights, rupees(company.expectedRoomRevenue)]),
+    ...report.outlook.operational.groups.map((group) => ["Group", group.groupName, group.rooms, ""]),
+  ];
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(contribution), "Business Contribution");
+  writeSubscriptionFile(workbook, `Early-Bird-Report-${report.reportDate}.xlsx`);
+}
+
+export function exportCompanyProductionToExcel(report: CompanyProduction): void {
+  const workbook = XLSX.utils.book_new();
+  const summary = [
+    ["Innflo Company Production Report", report.company.name],
+    ["Period", `${report.range.from} to ${report.range.to}`],
+    [],
+    ["Metric", "Value"],
+    ["Reservations", report.summary.reservations],
+    ["Room nights", report.summary.roomNights],
+    ["Room revenue (PKR)", rupees(report.summary.roomRevenue)],
+    ["ADR (PKR)", rupees(report.summary.adr)],
+    ["Cancelled", report.summary.cancelled],
+    ["No-shows", report.summary.noShows],
+    ["Transferred to BTC (PKR)", rupees(report.summary.btcTransferred)],
+    ["Payments received (PKR)", rupees(report.summary.paymentsReceived)],
+    ["Current outstanding (PKR)", rupees(report.summary.outstanding)],
+    ["Share of company-linked room nights (%)", report.summary.companyRoomNightShare],
+    ["Share of company-linked revenue (%)", report.summary.companyRevenueShare],
+  ];
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(summary), "Summary");
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+    ["Room type", "Room nights", "Room revenue (PKR)", "ADR (PKR)"],
+    ...report.roomTypes.map((row) => [row.roomTypeName, row.roomNights, rupees(row.roomRevenue), rupees(row.adr)]),
+  ]), "Room Types");
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+    ["Month", "Room nights", "Room revenue (PKR)", "ADR (PKR)"],
+    ...report.months.map((row) => [row.month, row.roomNights, rupees(row.roomRevenue), rupees(row.adr)]),
+  ]), "Monthly Production");
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+    ["Res ID", "Guest", "Status", "Check-in", "Check-out", "Rooms"],
+    ...report.recentReservations.map((row) => [
+      row.confirmationNumber, row.guest.fullName, row.status, row.checkInDate, row.checkOutDate,
+      row.rooms.map((room) => `Room ${room.number} · ${room.roomTypeName}`).join(", "),
+    ]),
+  ]), "Recent Stays");
+  writeSubscriptionFile(workbook, `Company-Production-${slugify(report.company.name)}-${report.range.from}-${report.range.to}.xlsx`);
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -164,7 +270,7 @@ export function exportDailyReportExcel(report: DailyReport) {
     "Arrivals",
     `${report.hotel.name} — ${period}`,
     [{
-      headers: ["Confirmation #", "Guest Name", "Room(s)", "Nights", "Amount (PKR)", "Status"],
+      headers: ["Res ID", "Guest Name", "Room(s)", "Nights", "Amount (PKR)", "Status"],
       rows: report.arrivals.length > 0
         ? report.arrivals.map((a) => [
           a.confirmationNumber, a.guestName, a.roomNumber,
@@ -181,7 +287,7 @@ export function exportDailyReportExcel(report: DailyReport) {
     "Departures",
     `${report.hotel.name} — ${period}`,
     [{
-      headers: ["Confirmation #", "Guest Name", "Room(s)", "Nights", "Charged (PKR)", "Paid (PKR)", "Balance (PKR)"],
+      headers: ["Res ID", "Guest Name", "Room(s)", "Nights", "Charged (PKR)", "Paid (PKR)", "Balance (PKR)"],
       rows: report.departures.length > 0
         ? report.departures.map((d) => [
           d.confirmationNumber, d.guestName, d.roomNumber,
@@ -198,7 +304,7 @@ export function exportDailyReportExcel(report: DailyReport) {
     "Stay-overs",
     `${report.hotel.name} — ${period}`,
     [{
-      headers: ["Confirmation #", "Guest Name", "Room(s)", "Check-out Date", "Nights Remaining"],
+      headers: ["Res ID", "Guest Name", "Room(s)", "Check-out Date", "Nights Remaining"],
       rows: report.stayOvers.length > 0
         ? report.stayOvers.map((s) => [
           s.confirmationNumber, s.guestName, s.roomNumber,
@@ -596,7 +702,7 @@ export function exportOutstandingBalancesToExcel(report: OutstandingBalancesRepo
       },
       {
         label: "ALL OUTSTANDING FOLIOS",
-        headers: ["Aging Bucket", "Guest", "Room(s)", "Confirmation #", "Checkout Date", "Days Outstanding", "Balance (PKR)"],
+        headers: ["Aging Bucket", "Guest", "Room(s)", "Res ID", "Checkout Date", "Days Outstanding", "Balance (PKR)"],
         rows: allEntries.length > 0
           ? allEntries.map((e) => [
             e.bucket,
@@ -763,20 +869,26 @@ export function exportADRRevPARToExcel(report: ADRRevPARReport, startDate: strin
     [
       {
         label: "SUMMARY",
-        headers: ["Avg ADR (PKR)", "Avg RevPAR (PKR)", "Total Room Revenue (PKR)", "Total Rooms Sold"],
+        headers: ["Avg ADR (PKR)", "Avg RevPAR (PKR)", "Total Room Revenue (PKR)", "Total Rooms Sold", "Sellable Room Nights", "Out of Service", "Occupancy %"],
         rows: [[
           rupees(report.summary.avgADR),
           rupees(report.summary.avgRevPAR),
           rupees(report.summary.totalRoomRevenue),
           report.summary.totalRoomsSold,
+          report.summary.sellableRoomNights,
+          report.summary.outOfServiceRoomNights,
+          report.summary.occupancyRate,
         ]],
       },
       {
         label: "DAILY BREAKDOWN",
-        headers: ["Date", "Rooms Sold", "Room Revenue (PKR)", "ADR (PKR)", "RevPAR (PKR)"],
+        headers: ["Date", "Rooms Sold", "Sellable Rooms", "Out of Service", "Occupancy %", "Room Revenue (PKR)", "ADR (PKR)", "RevPAR (PKR)"],
         rows: report.dailyBreakdown.map((d) => [
           d.date,
           d.roomsSold,
+          d.sellableRooms,
+          d.outOfServiceRooms,
+          d.occupancyRate,
           rupees(d.roomRevenue),
           rupees(d.adr),
           rupees(d.revpar),
@@ -784,9 +896,49 @@ export function exportADRRevPARToExcel(report: ADRRevPARReport, startDate: strin
       },
     ],
   );
-  setColWidths(ws, [14, 14, 22, 16, 16]);
+  setColWidths(ws, [14, 14, 16, 16, 14, 22, 16, 16]);
   XLSX.utils.book_append_sheet(wb, ws, "ADR RevPAR");
   writeSubscriptionFile(wb, `ADR-RevPAR-${startDate}-to-${endDate}.xlsx`);
+}
+
+// ── Hotel Forecast ───────────────────────────────────────────────────────────
+
+export function exportForecastToExcel(report: ForecastReport) {
+  const wb = XLSX.utils.book_new();
+  const daily = buildSheet("Hotel Forecast", `${report.startDate} to ${report.endDate}`, [
+    {
+      label: "SUMMARY",
+      headers: ["Occupancy %", "ADR (PKR)", "RevPAR (PKR)", "Expected Room Revenue (PKR)", "Sold Room Nights", "Sellable Room Nights", "Out of Service"],
+      rows: [[report.summary.occupancyRate, rupees(report.summary.adr), rupees(report.summary.revpar), rupees(report.summary.expectedRoomRevenue), report.summary.roomsSold, report.summary.sellableRoomNights, report.summary.outOfServiceRoomNights]],
+    },
+    {
+      label: "DAILY FORECAST",
+      headers: ["Date", "Arrivals", "Departures", "Stayovers", "Physical Rooms", "Out of Service", "Sellable Rooms", "Rooms Sold", "Available Rooms", "Occupancy %", "ADR (PKR)", "RevPAR (PKR)", "Expected Revenue (PKR)"],
+      rows: report.days.map((day) => [day.date, day.arrivals, day.departures, day.stayovers, day.physicalRooms, day.outOfServiceRooms, day.sellableRooms, day.roomsSold, day.availableRooms, day.occupancyRate, rupees(day.adr), rupees(day.revpar), rupees(day.expectedRoomRevenue)]),
+    },
+  ]);
+  setColWidths(daily, [14, 12, 12, 12, 16, 16, 16, 14, 16, 14, 16, 16, 24]);
+  XLSX.utils.book_append_sheet(wb, daily, "Daily Forecast");
+
+  const roomTypes = buildSheet("Room Type Forecast", `${report.startDate} to ${report.endDate}`, [{
+    headers: ["Date", "Room Type", "Physical", "Out of Service", "Sellable", "Sold", "Available", "Occupancy %", "ADR (PKR)", "RevPAR (PKR)", "Expected Revenue (PKR)"],
+    rows: report.roomTypes.flatMap((roomType) => roomType.days.map((day) => [day.date, roomType.name, day.physicalRooms, day.outOfServiceRooms, day.sellableRooms, day.roomsSold, day.availableRooms, day.occupancyRate, rupees(day.adr), rupees(day.revpar), rupees(day.expectedRoomRevenue)])),
+  }]);
+  setColWidths(roomTypes, [14, 24, 12, 16, 12, 10, 12, 14, 16, 16, 24]);
+  XLSX.utils.book_append_sheet(wb, roomTypes, "Room Types");
+
+  const contribution = buildSheet("Business Contribution", `${report.startDate} to ${report.endDate}`, [{
+    label: "BY BUSINESS TYPE",
+    headers: ["Type", "Reservations", "Room Nights", "Expected Revenue (PKR)", "Share %"],
+    rows: report.contribution.categories.map((row) => [row.category, row.reservations, row.roomNights, rupees(row.expectedRoomRevenue), row.percentage]),
+  }, {
+    label: "BY COMPANY",
+    headers: ["Company", "Reservations", "Room Nights", "Expected Revenue (PKR)", "Share %"],
+    rows: report.contribution.companies.map((row) => [row.companyName, row.reservations, row.roomNights, rupees(row.expectedRoomRevenue), row.percentage]),
+  }]);
+  setColWidths(contribution, [28, 14, 14, 24, 12]);
+  XLSX.utils.book_append_sheet(wb, contribution, "Contribution");
+  writeSubscriptionFile(wb, `Hotel-Forecast-${report.startDate}-to-${report.endDate}.xlsx`);
 }
 
 // ── ROOM TYPE PERFORMANCE ─────────────────────────────────────────────────────
@@ -1482,7 +1634,7 @@ export function exportAllDataToExcel(data: ExportAllData) {
     "Reservations",
     `${hotelName} — All Reservations`,
     [{
-      headers: ["Confirmation #", "Guest", "Phone", "Room(s)", "Room Type", "Check-in", "Check-out", "Adults", "Children", "Source", "Rate/Night (PKR)", "Status", "Created"],
+      headers: ["Res ID", "Guest", "Phone", "Room(s)", "Room Type", "Check-in", "Check-out", "Adults", "Children", "Source", "Rate/Night (PKR)", "Status", "Created"],
       rows: data.reservations.map((r) => [
         r.confirmationNumber,
         r.guest.fullName,

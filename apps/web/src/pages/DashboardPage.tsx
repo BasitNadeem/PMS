@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   PlaneLanding, PlaneTakeoff, Banknote, Wallet, Sparkles,
   Calendar, Sun, ArrowRight, LogIn, Plus, Check, X,
@@ -28,6 +28,7 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { getCurrentUserName } from "@/lib/jwt";
 import { usePermissions } from "@/hooks/usePermissions";
+import { ReservationIdLink } from "@/components/reservations/ReservationIdLink";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -782,6 +783,8 @@ function formatUpcomingDate(checkInDate: string): string {
 
 function ArrivalsPanel({ reservations, upcoming }: { reservations: DashboardRecentReservation[]; upcoming: DashboardRecentReservation[] }) {
   const navigate = useNavigate();
+  const { has } = usePermissions();
+  const canReadGuests = has("guests:read");
   const [tab, setTab] = React.useState<"arrivals" | "inhouse" | "upcoming">("arrivals");
 
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
@@ -849,14 +852,29 @@ function ArrivalsPanel({ reservations, upcoming }: { reservations: DashboardRece
                 <Avatar name={guestName} size={42} />
                 <div className="min-w-0 flex-1 leading-tight">
                   <div className="flex items-center gap-2">
-                    <span className="text-[14.5px] font-semibold text-ink truncate">{guestName}</span>
+                    {canReadGuests ? (
+                      <Link
+                        to={`/guests/${r.guestId}`}
+                        onClick={(event) => event.stopPropagation()}
+                        className="text-[14.5px] font-semibold text-ink truncate hover:text-coral transition-colors"
+                      >
+                        {guestName}
+                      </Link>
+                    ) : (
+                      <span className="text-[14.5px] font-semibold text-ink truncate">{guestName}</span>
+                    )}
                     {r.isVip && (
                       <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-soft px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-amber">
                         <Star size={10} className="fill-amber" /> VIP
                       </span>
                     )}
                     {!showAsGroup && (
-                      <span className="text-[12px] text-ink-faint tnum">{r.confirmationNumber}</span>
+                      <ReservationIdLink
+                        id={r.id}
+                        confirmationNumber={r.confirmationNumber}
+                        onClick={(event) => event.stopPropagation()}
+                        className="py-0.5"
+                      />
                     )}
                     {isGroup && (
                       <span className="rounded-full bg-dusk-soft px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-dusk">

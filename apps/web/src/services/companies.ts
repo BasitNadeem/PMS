@@ -138,6 +138,47 @@ export interface CompanyReservation {
   rooms: Array<{ room: { number: string } }>;
 }
 
+export interface CompanyProduction {
+  company: { id: string; name: string };
+  range: { from: string; to: string };
+  summary: {
+    reservations: number;
+    roomNights: number;
+    roomRevenue: number;
+    adr: number;
+    cancelled: number;
+    noShows: number;
+    btcTransferred: number;
+    paymentsReceived: number;
+    outstanding: number;
+    companyRoomNightShare: number;
+    companyRevenueShare: number;
+  };
+  roomTypes: Array<{
+    roomTypeId: string;
+    roomTypeName: string;
+    roomNights: number;
+    roomRevenue: number;
+    adr: number;
+  }>;
+  months: Array<{
+    month: string;
+    roomNights: number;
+    roomRevenue: number;
+    adr: number;
+  }>;
+  recentReservations: Array<{
+    id: string;
+    confirmationNumber: string;
+    status: string;
+    checkInDate: string;
+    checkOutDate: string;
+    totalAmount: number;
+    guest: { id: string; fullName: string };
+    rooms: Array<{ number: string; roomTypeName: string }>;
+  }>;
+}
+
 export interface AgingReportRow {
   company: {
     id: string; name: string; type: CompanyType;
@@ -252,6 +293,11 @@ export const companiesService = {
     return res.data.data;
   },
 
+  production: async (id: string, from: string, to: string): Promise<CompanyProduction> => {
+    const res = await api.get(`/api/companies/${id}/production`, { params: { from, to } });
+    return res.data.data;
+  },
+
   recordPayment: async (id: string, dto: RecordPaymentDto) => {
     const res = await api.post(`/api/companies/${id}/payments`, dto);
     return res.data.data as {
@@ -265,6 +311,25 @@ export const companiesService = {
   reversePayment: async (id: string, paymentId: string, reason: string) => {
     const res = await api.post(`/api/companies/${id}/payments/${paymentId}/reverse`, { reason });
     return res.data.data as { balance: number; unappliedCredit: number };
+  },
+
+  reverseFolioTransfer: async (
+    id: string,
+    entryId: string,
+    dto: { reason: string; payerAction: "KEEP_COMPANY" | "RETURN_TO_GUEST" },
+  ) => {
+    const res = await api.post(`/api/companies/${id}/folio-transfers/${entryId}/reverse`, dto);
+    return res.data.data as {
+      entryId: string;
+      folioId: string;
+      amount: number;
+      companyName: string;
+      payerAction: "KEEP_COMPANY" | "RETURN_TO_GUEST";
+      returnedChargeCount: number;
+      clearedReservationCount: number;
+      balance: number;
+      unappliedCredit: number;
+    };
   },
 
   refundCredit: async (id: string, dto: {

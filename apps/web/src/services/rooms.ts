@@ -26,6 +26,13 @@ export interface Room {
   notes: string | null;
   isActive: boolean;
   roomType: RoomType;
+  currentReservation: {
+    id: string;
+    confirmationNumber: string;
+    checkOutDate: string;
+    guest: { id: string; fullName: string };
+  } | null;
+  inventoryBlocks: RoomInventoryBlock[];
   createdAt: string;
   updatedAt: string;
 }
@@ -60,7 +67,6 @@ export interface CreateRoomDto {
   number: string;
   floor?: number;
   roomTypeId: string;
-  status: RoomStatus;
   notes?: string;
 }
 
@@ -82,10 +88,33 @@ export interface UpdateRoomTypeDto extends Partial<CreateRoomTypeDto> {}
 export interface RoomConflict {
   roomId: string;
   roomNumber: string;
-  guestName: string;
-  confirmationNumber: string;
+  conflictType: "RESERVATION" | "INVENTORY_BLOCK";
+  inventoryBlockType: RoomInventoryBlockType | null;
+  reason: string | null;
+  guestName: string | null;
+  confirmationNumber: string | null;
   checkInDate: string;
   checkOutDate: string;
+}
+
+export type RoomInventoryBlockType = "OUT_OF_ORDER" | "OUT_OF_SERVICE";
+
+export interface RoomInventoryBlock {
+  id: string;
+  hotelId: string;
+  roomId: string;
+  maintenanceTicketId: string | null;
+  type: RoomInventoryBlockType;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  notes: string | null;
+  createdBy: string;
+  cancelledAt: string | null;
+  cancelledBy: string | null;
+  cancelReason: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AvailabilityResult {
@@ -95,9 +124,23 @@ export interface AvailabilityResult {
 }
 
 export const roomsService = {
-  getRooms: async (status?: RoomStatus): Promise<{ data: Room[]; meta: PaginationMeta }> => {
-    const res = await api.get("/api/rooms", { params: status ? { status } : undefined });
+  getRooms: async (status?: RoomStatus, page = 1, limit = 100): Promise<{ data: Room[]; meta: PaginationMeta }> => {
+    const res = await api.get("/api/rooms", { params: { ...(status ? { status } : {}), page, limit } });
     return res.data;
+  },
+
+  getAllRooms: async (): Promise<{ data: Room[]; meta: PaginationMeta }> => {
+    const first = await roomsService.getRooms(undefined, 1, 100);
+    if (first.meta.totalPages <= 1) return first;
+    const remaining = await Promise.all(
+      Array.from({ length: first.meta.totalPages - 1 }, (_, index) => roomsService.getRooms(undefined, index + 2, 100)),
+    );
+    return { data: [first, ...remaining].flatMap((response) => response.data), meta: first.meta };
+  },
+
+  bulkUpdateReadiness: async (roomIds: string[], status: "VACANT_CLEAN" | "VACANT_DIRTY") => {
+    const res = await api.patch("/api/rooms/bulk/readiness", { roomIds, status });
+    return res.data.data as { updated: number; roomIds: string[]; status: RoomStatus };
   },
 
   getRoomById: async (id: string): Promise<Room> => {
@@ -142,6 +185,27 @@ export const roomsService = {
     excludeReservationId?: string;
   }): Promise<AvailabilityResult> => {
     const res = await api.get("/api/rooms/availability", { params });
+    return res.data.data;
+  },
+
+  getInventoryBlocks: async (roomId: string): Promise<RoomInventoryBlock[]> => {
+    const res = await api.get(`/api/rooms/${roomId}/inventory-blocks`);
+    return res.data.data;
+  },
+
+  createInventoryBlock: async (roomId: string, dto: {
+    type: RoomInventoryBlockType;
+    startDate: string;
+    endDate: string;
+    reason: string;
+    notes?: string;
+  }): Promise<RoomInventoryBlock> => {
+    const res = await api.post(`/api/rooms/${roomId}/inventory-blocks`, dto);
+    return res.data.data;
+  },
+
+  cancelInventoryBlock: async (roomId: string, blockId: string, reason: string): Promise<RoomInventoryBlock> => {
+    const res = await api.post(`/api/rooms/${roomId}/inventory-blocks/${blockId}/cancel`, { reason });
     return res.data.data;
   },
 };

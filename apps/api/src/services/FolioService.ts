@@ -1,7 +1,7 @@
 import type { TenantTx } from "@pms/db";
-import { FolioItemType } from "@pms/db";
+import { FolioItemType, FolioPayerType } from "@pms/db";
 import type { JwtPayload } from "../middleware/auth";
-import type { AddFolioItemDto, AddPaymentDto, BillingListQuery, RefundPaymentDto } from "../schemas/folio";
+import type { AddFolioItemDto, AddPaymentDto, AllocateFolioItemsDto, BillingListQuery, RefundPaymentDto } from "../schemas/folio";
 import { AppError } from "../utils/AppError";
 import { getPKTDayRange, getCurrentPKTDate } from "../lib/timezone";
 import { paginationMeta } from "../utils/pagination";
@@ -19,6 +19,7 @@ export const FolioService = {
           items: {
             where:   { isVoided: false },
             orderBy: { chargeDate: "desc" },
+            include: { payerCompany: { select: { id: true, name: true } } },
           },
           payments: {
             orderBy: { postedAt: "desc" },
@@ -96,6 +97,125 @@ export const FolioService = {
     });
   },
 
+  async allocateItems(
+    withTenant: WithTenantFn,
+    actor: JwtPayload,
+    reservationId: string,
+    dto: AllocateFolioItemsDto,
+  ) {
+    const result = await withTenant(async (db) => {
+      const folio = await db.folio.findUnique({
+        where: { reservationId },
+        select: {
+          id: true,
+          isOpen: true,
+          invoiceId: true,
+          companyLedgerEntries: {
+            where: { type: "CHARGE", reversedAt: null },
+            select: { id: true },
+            take: 1,
+          },
+        },
+      });
+      if (!folio) throw new AppError(404, "Folio not found");
+      if (!folio.isOpen) throw new AppError(409, "Payer responsibility cannot be changed on a closed folio.");
+      if (folio.invoiceId) throw new AppError(409, "Payer responsibility cannot be changed after this folio was invoiced.");
+      if (folio.companyLedgerEntries.length > 0) {
+        throw new AppError(409, "Reverse the existing Bill to company (BTC) ledger transfer before changing payer responsibility.");
+      }
+
+      let companyName: string | null = null;
+      if (dto.payerType === FolioPayerType.COMPANY) {
+        const company = await db.company.findFirst({
+          where: { id: dto.companyId!, isActive: true, deletedAt: null },
+          select: { name: true },
+        });
+        if (!company) throw new AppError(404, "Active company not found for this hotel");
+        companyName = company.name;
+      }
+
+      const items = await db.folioItem.findMany({
+        where: { id: { in: dto.itemIds }, folioId: folio.id, isVoided: false },
+        select: { id: true, payerType: true, payerCompanyId: true },
+      });
+      if (items.length !== new Set(dto.itemIds).size) {
+        throw new AppError(400, "One or more selected charges do not belong to this active folio.");
+      }
+
+      const newCompanyId = dto.payerType === FolioPayerType.COMPANY ? dto.companyId! : null;
+      if (newCompanyId) {
+        const otherCompanyItem = await db.folioItem.findFirst({
+          where: {
+            folioId: folio.id,
+            isVoided: false,
+            payerType: FolioPayerType.COMPANY,
+            id: { notIn: dto.itemIds },
+            payerCompanyId: { not: newCompanyId },
+          },
+          select: { payerCompany: { select: { name: true } } },
+        });
+        if (otherCompanyItem) {
+          throw new AppError(
+            409,
+            `This folio already has BTC charges assigned to ${otherCompanyItem.payerCompany?.name ?? "another company"}. Move those charges back to Guest before selecting a different company.`,
+          );
+        }
+      }
+
+      const changedItems = items.filter((item) =>
+        item.payerType !== dto.payerType || item.payerCompanyId !== newCompanyId
+      );
+      if (changedItems.length === 0) throw new AppError(409, "The selected charges already have that payer responsibility.");
+
+      for (const item of changedItems) {
+        await db.folioItemPayerChange.create({
+          data: {
+            hotelId: actor.hotelId,
+            folioItemId: item.id,
+            previousPayerType: item.payerType,
+            previousPayerCompanyId: item.payerCompanyId,
+            newPayerType: dto.payerType,
+            newPayerCompanyId: newCompanyId,
+            reason: dto.reason,
+            changedBy: actor.userId,
+          },
+        });
+      }
+
+      await db.folioItem.updateMany({
+        where: { id: { in: changedItems.map((item) => item.id) }, folioId: folio.id },
+        data: {
+          payerType: dto.payerType,
+          payerCompanyId: newCompanyId,
+          allocatedAt: new Date(),
+          allocatedBy: actor.userId,
+        },
+      });
+      await recalculateFolioTotals(db, folio.id);
+
+      await db.auditLog.create({
+        data: {
+          hotelId: actor.hotelId,
+          userId: actor.userId,
+          action: "FOLIO_PAYER_ALLOCATED",
+          entity: "folio",
+          entityId: folio.id,
+          notes: dto.reason,
+          after: {
+            itemIds: changedItems.map((item) => item.id),
+            payerType: dto.payerType,
+            companyId: newCompanyId,
+            companyName,
+          },
+        },
+      });
+
+      return { updatedCount: changedItems.length, payerType: dto.payerType, companyId: newCompanyId, companyName };
+    });
+    notifyHotelDataChanged(actor.hotelId);
+    return result;
+  },
+
   async voidItem(
     withTenant: WithTenantFn,
     actor: JwtPayload,
@@ -150,9 +270,26 @@ export const FolioService = {
     const payment = await withTenant(async (db) => {
       const folio = await db.folio.findUnique({
         where:  { reservationId },
-        select: { id: true },
+        select: {
+          id: true, isOpen: true, balanceDue: true,
+          guestBalanceDue: true, companyResponsibilityTotal: true,
+        },
       });
       if (!folio) throw new AppError(404, "Folio not found");
+      if (!folio.isOpen) throw new AppError(409, "Cannot record a payment on a closed folio.");
+
+      const payableByGuest = folio.companyResponsibilityTotal > 0
+        ? folio.guestBalanceDue
+        : folio.balanceDue;
+      if (payableByGuest <= 0) {
+        throw new AppError(409, "The guest has no outstanding balance to pay.");
+      }
+      if (dto.amount > payableByGuest) {
+        throw new AppError(
+          400,
+          `This payment exceeds the guest's outstanding balance of PKR ${(payableByGuest / 100).toLocaleString("en-PK")}.`,
+        );
+      }
 
       const payment = await db.payment.create({
         data: {

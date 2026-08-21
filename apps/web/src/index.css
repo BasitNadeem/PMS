@@ -422,6 +422,53 @@ body {
   @page { margin: 20mm; size: A4; }
 }
 
+/* ── Early Bird print — isolate the manager morning report ───────────────── */
+@media print {
+  @page { size: A4 portrait; margin: 12mm; }
+  body.early-bird-mode * {
+    visibility: hidden;
+  }
+  body.early-bird-mode .early-bird-print-area,
+  body.early-bird-mode .early-bird-print-area * {
+    visibility: visible;
+  }
+  body.early-bird-mode .early-bird-print-area {
+    position: static;
+    width: 100%;
+    margin: 0;
+    color: #211e1a;
+    background: #fff !important;
+  }
+  body.early-bird-mode .early-bird-print-area,
+  body.early-bird-mode .early-bird-print-area * { box-shadow: none !important; animation: none !important; transition: none !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .early-bird-document { color: #211e1a; font-family: Arial, sans-serif; font-size: 8pt; }
+  .early-bird-document-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 8mm; margin-bottom: 4mm; border-bottom: 2px solid #211e1a; padding-bottom: 4mm; }
+  .early-bird-document-header p { margin: 0 0 1mm; color: #77716a; font-size: 7pt; font-weight: 700; letter-spacing: .15em; }
+  .early-bird-document-header h1 { margin: 0 0 1mm; font-family: Georgia, serif; font-size: 22pt; font-weight: 400; }
+  .early-bird-document-header span { color: #6f6962; font-size: 8pt; }
+  .early-bird-document-meta { display: grid; gap: .8mm; text-align: right; }
+  .early-bird-document-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.5mm; margin-bottom: 3mm; }
+  .early-bird-document-metrics > div { display: grid; gap: .6mm; border: 1px solid #d9d3ca; border-radius: 2mm; padding: 2.5mm; }
+  .early-bird-document-metrics span { color: #8b847c; font-size: 6.8pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+  .early-bird-document-metrics strong { font-size: 12pt; }
+  .early-bird-document-metrics small { color: #8b847c; font-size: 7pt; }
+  .early-bird-document-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3mm; align-items: start; }
+  .early-bird-document-section, .early-bird-document-forecast { break-inside: avoid; page-break-inside: avoid; border: 1px solid #d9d3ca; border-radius: 2mm; padding: 2.5mm 3mm; }
+  .early-bird-document-section h2, .early-bird-document-forecast h2 { margin: 0 0 1.5mm; font-size: 9pt; }
+  .early-bird-document-section table, .early-bird-document-forecast table { width: 100%; border-collapse: collapse; }
+  .early-bird-document-section tr + tr, .early-bird-document-forecast tbody tr { border-top: 1px solid #ece8e2; }
+  .early-bird-document-section th, .early-bird-document-section td, .early-bird-document-forecast th, .early-bird-document-forecast td { padding: 1.1mm 0; }
+  .early-bird-document-section th { width: 62%; color: #746e67; text-align: left; font-weight: 400; }
+  .early-bird-document-section td { text-align: right; font-weight: 700; }
+  .early-bird-document-warning { color: #bd3f22; }
+  .early-bird-document-forecast { margin-top: 3mm; }
+  .early-bird-document-forecast thead { color: #746e67; font-size: 6.8pt; text-transform: uppercase; }
+  .early-bird-document-forecast th, .early-bird-document-forecast td { text-align: right; }
+  .early-bird-document-forecast th:first-child, .early-bird-document-forecast td:first-child { text-align: left; }
+  .early-bird-document-alert { border: 1px solid #d5a271; background: #fff8ed; padding: 2.5mm; color: #9c351f; }
+  .early-bird-document footer { margin-top: 4mm; border-top: 1px solid #d9d3ca; padding-top: 2mm; text-align: center; color: #8b847c; font-size: 7pt; }
+}
+
 /* ── Receipt print — scoped to body.receipt-mode, does not affect A4 reports ── */
 @media print {
   body.receipt-mode * {
@@ -459,4 +506,74 @@ body {
     box-shadow: none;
     margin: 0;
   }
+}
+
+/* ── Night Audit print — isolate the frozen business-day report ───────────── */
+@media print {
+  @page { size: A4 portrait; margin: 12mm; }
+
+  html,
+  body,
+  #root {
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body.night-audit-mode * {
+    visibility: hidden;
+  }
+  body.night-audit-mode .night-audit-print-area,
+  body.night-audit-mode .night-audit-print-area * {
+    visibility: visible;
+  }
+  body.night-audit-mode .night-audit-print-area {
+    position: static;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    color: #211e1a;
+    background: #fff !important;
+    font-size: 9pt;
+    line-height: 1.35;
+  }
+
+  body.night-audit-mode .night-audit-print-area,
+  body.night-audit-mode .night-audit-print-area * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    animation: none !important;
+    transition: none !important;
+    box-shadow: none !important;
+  }
+
+  .night-audit-document { color: #211e1a; font-family: Arial, sans-serif; }
+  .night-audit-document-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 10mm; border-bottom: 2px solid #211e1a; padding-bottom: 4mm; margin-bottom: 4mm; }
+  .night-audit-document-header p { margin: 0 0 1.5mm; font-size: 7.5pt; font-weight: 700; letter-spacing: .16em; color: #77716a; }
+  .night-audit-document-header h1 { margin: 0 0 1mm; font-family: Georgia, serif; font-size: 22pt; font-weight: 400; }
+  .night-audit-document-header span { font-size: 8.5pt; color: #6f6962; }
+  .night-audit-document-meta { display: grid; gap: 1mm; text-align: right; white-space: nowrap; }
+  .night-audit-document-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2.5mm; margin-bottom: 3mm; }
+  .night-audit-document-metrics > div { display: grid; gap: .7mm; border: 1px solid #d9d3ca; border-radius: 2mm; padding: 2.5mm; }
+  .night-audit-document-metrics span { font-size: 7pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #8b847c; }
+  .night-audit-document-metrics strong { font-size: 13pt; }
+  .night-audit-document-metrics small { font-size: 7pt; color: #8b847c; }
+  .night-audit-document-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3mm; align-items: start; }
+  .night-audit-document-section { break-inside: avoid; page-break-inside: avoid; border: 1px solid #d9d3ca; border-radius: 2mm; padding: 2.5mm 3mm; }
+  .night-audit-document-section h2, .night-audit-document-note h2 { margin: 0 0 1.5mm; font-size: 9pt; }
+  .night-audit-document-section table { width: 100%; border-collapse: collapse; font-size: 7.7pt; }
+  .night-audit-document-section tr + tr { border-top: 1px solid #ece8e2; }
+  .night-audit-document-section th, .night-audit-document-section td { padding: 1.2mm 0; }
+  .night-audit-document-section th { width: 62%; text-align: left; font-weight: 400; color: #746e67; }
+  .night-audit-document-section td { text-align: right; font-weight: 700; }
+  .night-audit-document-warning { color: #bd3f22; }
+  .night-audit-document-note, .night-audit-document-reversed, .night-audit-document-legacy { break-inside: avoid; margin-top: 3mm; border: 1px solid #d5a271; background: #fff8ed; padding: 2.5mm 3mm; }
+  .night-audit-document-note p { margin: 0; font-size: 8pt; line-height: 1.45; }
+  .night-audit-document-reversed { display: grid; gap: 1mm; margin: 0 0 3mm; }
+  .night-audit-document-reversed strong { color: #bd3f22; letter-spacing: .1em; }
+  .night-audit-document-reversed small, .night-audit-document-legacy { font-size: 7.5pt; color: #746e67; }
+  .night-audit-document footer { margin-top: 4mm; border-top: 1px solid #d9d3ca; padding-top: 2mm; text-align: center; font-size: 7pt; color: #8b847c; }
 }

@@ -18,6 +18,8 @@ import { CreateInvoiceModal } from "@/components/companies/CreateInvoiceModal";
 import { InvoiceDetailModal } from "@/components/companies/InvoiceDetailModal";
 import { RefundCompanyCreditModal } from "@/components/companies/RefundCompanyCreditModal";
 import { CompanyRatesSection } from "@/components/companies/CompanyRatesSection";
+import { CompanyProductionSection } from "@/components/companies/CompanyProductionSection";
+import { ReverseBtcTransferModal, type BtcReversalPayerAction } from "@/components/companies/ReverseBtcTransferModal";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Segmented } from "@/components/ui/Segmented";
@@ -70,13 +72,20 @@ function LedgerRow({ entry, onReverse }: { entry: LedgerEntry; onReverse?: (entr
         {isCredit ? "−" : "+"}{pkr(entry.amount)}
       </div>
 
-      <div className="text-right">
-        {entry.type === "CHARGE" ? (
-          entry.outstanding > 0 ? (
-            <span className="text-[13.5px] font-semibold text-ink tabular-nums">{pkr(entry.outstanding)}</span>
-          ) : (
-            <StatusBadge status="Settled" size="sm" dot={false} />
-          )
+      <div className="flex items-center justify-end gap-3 text-right">
+        {entry.reversedAt ? (
+          <StatusBadge status="Reversed" size="sm" dot={false} />
+        ) : entry.type === "CHARGE" ? (
+          <>
+            {entry.outstanding > 0 ? (
+              <span className="text-[13.5px] font-semibold text-ink tabular-nums">{pkr(entry.outstanding)}</span>
+            ) : (
+              <StatusBadge status="Settled" size="sm" dot={false} />
+            )}
+            {entry.folioId && entry.settledAmount === 0 && onReverse && (
+              <button onClick={() => onReverse(entry)} className="text-[12px] font-semibold text-clay hover:underline">Reverse</button>
+            )}
+          </>
         ) : entry.type === "PAYMENT" && !entry.reversedAt && onReverse ? (
           <button onClick={() => onReverse(entry)} className="text-[12px] font-semibold text-clay hover:underline">Reverse</button>
         ) : (
@@ -103,10 +112,15 @@ export default function CompanyDetailPage() {
   const canCreateRates = has("rates:create");
   const canUpdateRates = has("rates:update");
 
-  const [tab, setTab] = useState(() => searchParams.get("tab") === "rates" ? "rates" : "ledger");
+  const [tab, setTab] = useState(() => {
+    const requested = searchParams.get("tab");
+    return requested === "invoices" || requested === "rates" || requested === "production" ? requested : "overview";
+  });
+  const [overviewSection, setOverviewSection] = useState<"ledger" | "stays">("ledger");
   const [ledgerFilter, setLedgerFilter] = useState<"all" | "open" | "settled">("all");
   const [modal, setModal] = useState<null | "edit" | "payment" | "credit" | "adjust" | "invoice" | "refundCredit">(null);
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
+  const [btcTransferToReverse, setBtcTransferToReverse] = useState<LedgerEntry | null>(null);
 
   const { data: company, isLoading } = useQuery({
     queryKey: ["company", id],
@@ -117,13 +131,13 @@ export default function CompanyDetailPage() {
   const { data: ledger } = useQuery({
     queryKey: ["company-ledger", id, ledgerFilter],
     queryFn:  () => companiesService.ledger(id!, { status: ledgerFilter, limit: 100 }),
-    enabled:  Boolean(id) && tab === "ledger",
+    enabled:  Boolean(id) && tab === "overview" && overviewSection === "ledger",
   });
 
   const { data: reservations } = useQuery({
     queryKey: ["company-reservations", id],
     queryFn:  () => companiesService.reservations(id!),
-    enabled:  Boolean(id) && tab === "stays",
+    enabled:  Boolean(id) && tab === "overview" && overviewSection === "stays",
   });
 
   const { data: invoices } = useQuery({
@@ -145,6 +159,38 @@ export default function CompanyDetailPage() {
         qc.invalidateQueries({ queryKey: ["companies"] }),
       ]);
       addToast("Company payment reversed.", "success");
+    },
+    onError: (error) => addToast(
+      (error as { response?: { data?: { error?: string } } }).response?.data?.error ?? error.message,
+      "error",
+    ),
+  });
+  const reverseFolioTransfer = useMutation({
+    mutationFn: ({
+      entry,
+      reason,
+      payerAction,
+    }: { entry: LedgerEntry; reason: string; payerAction: BtcReversalPayerAction }) =>
+      companiesService.reverseFolioTransfer(id!, entry.id, { reason, payerAction }),
+    onSuccess: async (result) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["company", id] }),
+        qc.invalidateQueries({ queryKey: ["company-ledger", id] }),
+        qc.invalidateQueries({ queryKey: ["company-invoices", id] }),
+        qc.invalidateQueries({ queryKey: ["companies"] }),
+        qc.invalidateQueries({ queryKey: ["folio"] }),
+        qc.invalidateQueries({ queryKey: ["billing-folios"] }),
+        qc.invalidateQueries({ queryKey: ["billing-summary"] }),
+      ]);
+      setBtcTransferToReverse(null);
+      addToast(
+        result.payerAction === "RETURN_TO_GUEST"
+          ? result.returnedChargeCount > 0
+            ? `${pkr(result.amount)} transfer reversed and ${result.returnedChargeCount} charge${result.returnedChargeCount === 1 ? "" : "s"} returned to the guest.`
+            : `${pkr(result.amount)} transfer reversed and the BTC billing instruction was removed.`
+          : `${pkr(result.amount)} BTC transfer reversed. The charges remain assigned to ${result.companyName}.`,
+        "success",
+      );
     },
     onError: (error) => addToast(
       (error as { response?: { data?: { error?: string } } }).response?.data?.error ?? error.message,
@@ -220,6 +266,30 @@ export default function CompanyDetailPage() {
         </div>
       </div>
 
+      <nav className="mb-6 flex w-full items-stretch overflow-x-auto border-b border-line" aria-label="Company workspace">
+        {[
+          { value: "overview", label: "Overview" },
+          { value: "invoices", label: "Invoices" },
+          ...(canReadRates ? [{ value: "rates", label: "Negotiated rates" }] : []),
+          { value: "production", label: "Production report" },
+        ].map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => setTab(option.value)}
+            className={cn(
+              "relative min-w-max flex-1 px-5 py-4 text-center text-[13px] transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-[3px] after:transition-colors",
+              tab === option.value
+                ? "rounded-t-xl bg-coral-soft/70 font-black text-coral after:bg-coral"
+                : "font-semibold text-ink after:bg-transparent hover:text-coral",
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </nav>
+
+      {tab === "overview" && <>
       {/* Money summary */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <Card className="px-4 py-3.5">
@@ -307,18 +377,16 @@ export default function CompanyDetailPage() {
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <Segmented
+          <Segmented
           options={[
             { value: "ledger",   label: "Account" },
             { value: "stays",    label: "Stays" },
-            { value: "invoices", label: "Invoices" },
-            ...(canReadRates ? [{ value: "rates", label: "Negotiated rates" }] : []),
           ]}
-          value={tab}
-          onChange={setTab}
+          value={overviewSection}
+          onChange={(value) => setOverviewSection(value as "ledger" | "stays")}
           size="sm"
         />
-        {tab === "ledger" && (
+        {overviewSection === "ledger" && (
           <Segmented
             options={[
               { value: "all",     label: "All" },
@@ -330,12 +398,9 @@ export default function CompanyDetailPage() {
             size="sm"
           />
         )}
-        {tab === "invoices" && has("companies:invoice") && (
-          <Button size="sm" leftIcon={FileText} onClick={() => setModal("invoice")}>New invoice</Button>
-        )}
       </div>
 
-      {tab === "ledger" && (
+      {overviewSection === "ledger" && (
         <Card pad={false}>
           <div className="hidden md:grid grid-cols-[1.6fr_1fr_0.9fr_0.9fr_0.9fr] gap-3 px-5 py-2.5 text-[11.5px] font-bold uppercase tracking-wide text-ink-mute border-b border-line-soft">
             <div>Description</div>
@@ -355,14 +420,20 @@ export default function CompanyDetailPage() {
               <LedgerRow
                 key={e.id}
                 entry={e}
-                onReverse={has("companies:payment") ? (entry) => reversePayment.mutate(entry) : undefined}
+                onReverse={
+                  e.type === "PAYMENT" && has("companies:payment")
+                    ? (entry) => reversePayment.mutate(entry)
+                    : e.type === "CHARGE" && e.folioId && e.settledAmount === 0 && has("companies:post")
+                      ? (entry) => setBtcTransferToReverse(entry)
+                      : undefined
+                }
               />
             ))
           )}
         </Card>
       )}
 
-      {tab === "stays" && (
+      {overviewSection === "stays" && (
         <Card pad={false}>
           {(reservations ?? []).length === 0 ? (
             <EmptyState
@@ -399,9 +470,29 @@ export default function CompanyDetailPage() {
           )}
         </Card>
       )}
+      </>}
+
+      {btcTransferToReverse && (
+        <ReverseBtcTransferModal
+          entry={btcTransferToReverse}
+          companyName={company.name}
+          loading={reverseFolioTransfer.isPending}
+          onClose={() => setBtcTransferToReverse(null)}
+          onConfirm={({ reason, payerAction }) => reverseFolioTransfer.mutate({
+            entry: btcTransferToReverse,
+            reason,
+            payerAction,
+          })}
+        />
+      )}
 
       {tab === "invoices" && (
-        <Card pad={false}>
+        <div className="space-y-4">
+          <div className="flex items-end justify-between gap-3">
+            <div><h2 className="serif text-[26px] text-ink">Company invoices</h2><p className="mt-1 text-[13px] text-ink-mute">Consolidated BTC statements and their settlement status.</p></div>
+            {has("companies:invoice") && <Button size="sm" leftIcon={FileText} onClick={() => setModal("invoice")}>New invoice</Button>}
+          </div>
+          <Card pad={false}>
           {(invoices ?? []).length === 0 ? (
             <EmptyState
               icon={FileText}
@@ -436,7 +527,8 @@ export default function CompanyDetailPage() {
               </div>
             ))
           )}
-        </Card>
+          </Card>
+        </div>
       )}
 
       {tab === "rates" && canReadRates && (
@@ -447,6 +539,8 @@ export default function CompanyDetailPage() {
           canEditFallback={has("companies:update")}
         />
       )}
+
+      {tab === "production" && <CompanyProductionSection companyId={company.id} />}
 
       {modal === "edit" && (
         <CompanyFormModal

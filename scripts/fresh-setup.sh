@@ -133,7 +133,7 @@ EXPECTED_TABLES=(
   hotels users roles permissions role_permissions hotel_users
   room_types rooms
   guests guest_blacklist
-  reservations reservation_rooms
+  reservations reservation_rooms reservation_stay_changes
   group_bookings group_members
   folios folio_items folio_splits
   payments invoices
@@ -143,7 +143,7 @@ EXPECTED_TABLES=(
   inventory_items inventory_transactions
   conversations messages
   rate_plans rate_plan_items
-  channel_configs
+  channel_configs channel_webhook_events
   staff shift_reports
   tax_configs
   audit_logs notifications

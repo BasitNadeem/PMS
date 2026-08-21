@@ -9,7 +9,7 @@ import { ArrowRight, ShieldCheck, LifeBuoy, Cloud, Activity, Plus, Check, X } fr
 import TabbedFeatureBlock from "../components/features/TabbedFeatureBlock";
 import ProductCockpit from "../components/ProductCockpit";
 import {
-  FrontDeskMockup, BookingEngineMockup, HousekeepingMockup, ReportsSnapshotMockup, ChannelManagerComingSoonMockup, TeamAccessMockup,
+  FrontDeskMockup, BookingEngineMockup, RatePlansMockup, HousekeepingMockup, ReportsSnapshotMockup, ChannelManagerComingSoonMockup, TeamAccessMockup,
 } from "../components/features/HomeTabMockups";
 
 const REGIONS = [
@@ -176,7 +176,7 @@ export default function Home() {
               </h1>
               <Reveal delay={0.5}>
                 <p className="text-[18px] text-ink-soft leading-relaxed max-w-md mb-10 font-body font-medium">
-                  Reservations, rooms, guests, folios, housekeeping, dining and reporting—one calm operating system for independent hotels.
+                  Reservations, rooms, rates, guests, folios, housekeeping, dining and reporting—one calm operating system for independent hotels.
                 </p>
               </Reveal>
               <Reveal delay={0.62}>
@@ -275,6 +275,13 @@ export default function Home() {
             copy: "Guests pick their dates, room and extras on your branded site — the reservation lands on the front desk instantly, and none of it goes to an OTA.",
             mockup: <BookingEngineMockup />,
             learnMoreTo: "/booking-engine",
+          },
+          {
+            label: "Rates & Offers",
+            heading: "The right rate, picked for you.",
+            copy: "Set a standard rate, a seasonal one, a corporate one and a promo code — Innflo works out which applies to each stay and quotes it, so nobody prices a room from memory.",
+            mockup: <RatePlansMockup />,
+            learnMoreTo: "/pms",
           },
           {
             label: "Housekeeping",

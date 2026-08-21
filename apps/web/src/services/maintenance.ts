@@ -36,6 +36,12 @@ export interface MaintenanceTicket {
   updatedAt: string;
   room: { id: string; number: string; floor: number | null } | null;
   assignedTo: { id: string; name: string } | null;
+  inventoryBlock: {
+    id: string;
+    startDate: string;
+    endDate: string;
+    cancelledAt: string | null;
+  } | null;
 }
 
 export interface MaintenanceSummary {
@@ -53,6 +59,9 @@ export interface CreateTicketDto {
   assignedToId?: string;
   scheduledFor?: string;
   scheduledEndDate?: string;
+  roomUnavailable?: boolean;
+  unavailableFrom?: string;
+  sellableFrom?: string;
   photoUrls?: string[];
 }
 
@@ -69,6 +78,9 @@ export interface UpdateTicketDto {
   description?: string | null;
   scheduledFor?: string | null;
   scheduledEndDate?: string | null;
+  roomUnavailable?: boolean;
+  unavailableFrom?: string;
+  sellableFrom?: string;
   estimatedCost?: number | null;
   actualCost?: number | null;
 }

@@ -37,7 +37,18 @@ export const createTicketSchema = z.object({
   assignedToId:    z.string().uuid().optional(),
   scheduledFor:    z.string().datetime().optional(),
   scheduledEndDate: z.string().date().optional(),
+  roomUnavailable: z.boolean().default(false),
+  unavailableFrom: z.string().date().optional(),
+  sellableFrom: z.string().date().optional(),
   photoUrls:       z.array(z.string().min(1)).optional(),
+}).superRefine((data, ctx) => {
+  if (!data.roomUnavailable) return;
+  if (!data.roomId) ctx.addIssue({ code: "custom", path: ["roomId"], message: "Choose a room before removing it from sale" });
+  if (!data.unavailableFrom) ctx.addIssue({ code: "custom", path: ["unavailableFrom"], message: "Unavailable-from date is required" });
+  if (!data.sellableFrom) ctx.addIssue({ code: "custom", path: ["sellableFrom"], message: "Sell-again date is required" });
+  if (data.unavailableFrom && data.sellableFrom && data.sellableFrom <= data.unavailableFrom) {
+    ctx.addIssue({ code: "custom", path: ["sellableFrom"], message: "Sell-again date must be after the unavailable-from date" });
+  }
 });
 export type CreateTicketDto = z.infer<typeof createTicketSchema>;
 
@@ -49,8 +60,19 @@ export const updateTicketSchema = z.object({
   description:     z.string().trim().nullable().optional(),
   scheduledFor:    z.string().datetime().nullable().optional(),
   scheduledEndDate: z.string().date().nullable().optional(),
+  roomUnavailable: z.boolean().optional(),
+  unavailableFrom: z.string().date().optional(),
+  sellableFrom: z.string().date().optional(),
   estimatedCost:   z.number().int().nonnegative().nullable().optional(),
   actualCost:      z.number().int().nonnegative().nullable().optional(),
+}).superRefine((data, ctx) => {
+  if (data.roomUnavailable === true) {
+    if (!data.unavailableFrom) ctx.addIssue({ code: "custom", path: ["unavailableFrom"], message: "Unavailable-from date is required" });
+    if (!data.sellableFrom) ctx.addIssue({ code: "custom", path: ["sellableFrom"], message: "Sell-again date is required" });
+  }
+  if (data.unavailableFrom && data.sellableFrom && data.sellableFrom <= data.unavailableFrom) {
+    ctx.addIssue({ code: "custom", path: ["sellableFrom"], message: "Sell-again date must be after the unavailable-from date" });
+  }
 });
 export type UpdateTicketDto = z.infer<typeof updateTicketSchema>;
 

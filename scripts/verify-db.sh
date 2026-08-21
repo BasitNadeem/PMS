@@ -34,8 +34,9 @@ check_rls() {
 echo ""
 echo "── Core tables (RLS expected) ──"
 CORE_TABLES="hotels users roles permissions role_permissions hotel_users \
-room_types rooms guests guest_blacklist guest_special_dates \
-reservations reservation_rooms group_bookings group_members \
+room_types rooms room_inventory_blocks guests guest_blacklist guest_special_dates \
+reservations reservation_rooms reservation_stay_changes reservation_lifecycle_reversals group_bookings group_members \
+folio_item_payer_changes \
 folios folio_items folio_splits payments invoices \
 pos_categories pos_items pos_orders pos_order_items \
 housekeeping_tasks maintenance_tickets \
@@ -45,7 +46,7 @@ rate_plans rate_plan_items rate_plan_codes channel_configs \
 staff shift_reports tax_configs \
 audit_logs notifications \
 custom_field_definitions custom_field_values \
-night_audit_records"
+night_audit_records early_bird_report_archives booking_pace_snapshots"
 
 for t in $CORE_TABLES; do
   EXISTS=$(check_table "$t")
@@ -155,6 +156,20 @@ for col in booking_contact_name; do
     echo "  ❌ MISSING  reservations.$col"
   fi
 done
+for col in previous_check_out new_check_out early_departure_treatment early_departure_credit_amount; do
+  if [ "$(check_col reservation_stay_changes $col)" = "1" ]; then
+    echo "  ✅ reservation_stay_changes.$col"
+  else
+    echo "  ❌ MISSING  reservation_stay_changes.$col"
+  fi
+done
+for col in maintenance_ticket_id start_date end_date cancelled_at; do
+  if [ "$(check_col room_inventory_blocks $col)" = "1" ]; then
+    echo "  ✅ room_inventory_blocks.$col"
+  else
+    echo "  ❌ MISSING  room_inventory_blocks.$col"
+  fi
+done
 for col in subdomain onboarding_completed onboarding_step subscription_plan_id limit_overrides feature_overrides description amenities; do
   if [ "$(check_col hotels $col)" = "1" ]; then
     echo "  ✅ hotels.$col"
@@ -181,6 +196,20 @@ for col in is_super_admin is_first_login; do
     echo "  ✅ users.$col"
   else
     echo "  ❌ MISSING  users.$col"
+  fi
+done
+for col in revision reversed_at reversed_by reversal_reason; do
+  if [ "$(check_col night_audit_records $col)" = "1" ]; then
+    echo "  ✅ night_audit_records.$col"
+  else
+    echo "  ❌ MISSING  night_audit_records.$col"
+  fi
+done
+for col in night_audit_id report_date forecast_days snapshot; do
+  if [ "$(check_col early_bird_report_archives $col)" = "1" ]; then
+    echo "  ✅ early_bird_report_archives.$col"
+  else
+    echo "  ❌ MISSING  early_bird_report_archives.$col"
   fi
 done
 

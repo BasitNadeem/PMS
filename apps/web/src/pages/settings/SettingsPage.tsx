@@ -3,11 +3,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Building2, Clock, Receipt, AlertTriangle, ChevronLeft, Check,
-  MessageSquare, Info, ShieldCheck, KeyRound, Eye, EyeOff, History, QrCode, Copy, Download, CreditCard, Lock, Loader2, ImagePlus, Gift,
+  MessageSquare, Info, ShieldCheck, KeyRound, Share2, Eye, EyeOff, History, QrCode, Copy, Download, CreditCard, Lock, Loader2, ImagePlus, Gift,
 } from "lucide-react";
 import QRCode from "qrcode";
 import { cn } from "@/lib/cn";
 import { settingsService, type PlanInfo, type UpdateSettingsDto, type RolePermissions, type ThemeKey } from "@/services/settings";
+import { ChannelManagerSection } from "@/components/settings/ChannelManagerSection";
 import { getPhoneErrorMessage, getEmailErrorMessage } from "@/lib/validation";
 import { exportAllDataToExcel } from "@/lib/exportExcel";
 import { getCurrentUserRole } from "@/lib/jwt";
@@ -70,7 +71,7 @@ function SaveButton({ saving, saved, onClick }: { saving: boolean; saved: boolea
 
 // ── Section types ─────────────────────────────────────────────────────────────
 
-type Section = "plan" | "profile" | "operations" | "permissions" | "tax" | "notifications" | "security" | "danger";
+type Section = "plan" | "profile" | "operations" | "permissions" | "tax" | "notifications" | "channels" | "security" | "danger";
 const ALL_SECTIONS: { key: Section; label: string; icon: React.ElementType; ownerOnly?: boolean }[] = [
   { key: "plan",          label: "Current Plan",         icon: CreditCard },
   { key: "profile",       label: "Hotel Profile",        icon: Building2 },
@@ -78,6 +79,7 @@ const ALL_SECTIONS: { key: Section; label: string; icon: React.ElementType; owne
   { key: "permissions",   label: "Permissions",          icon: ShieldCheck, ownerOnly: true },
   { key: "tax",           label: "Tax & Billing",        icon: Receipt },
   { key: "notifications", label: "Notifications",        icon: MessageSquare, ownerOnly: true },
+  { key: "channels",      label: "Channel Manager",      icon: Share2, ownerOnly: true },
   { key: "security",      label: "Security",             icon: KeyRound },
   { key: "danger",        label: "Danger Zone",          icon: AlertTriangle },
 ];
@@ -264,6 +266,8 @@ export default function SettingsPage() {
     name: "", propertyType: "HOTEL", starRating: "" as string,
     description: "", amenities: [] as string[], phone: "", email: "", website: "",
     address: "", city: "", country: "PK", timezone: "Asia/Karachi",
+    // Channex requires these before a property may connect to any OTA.
+    region: "", zipCode: "", latitude: "", longitude: "",
   });
   const [newAmenity, setNewAmenity] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
@@ -469,6 +473,12 @@ export default function SettingsPage() {
       city:         settings.city ?? "",
       country:      settings.country ?? "PK",
       timezone:     String(s.timezone ?? "Asia/Karachi"),
+      region:       settings.region ?? "",
+      zipCode:      settings.zipCode ?? "",
+      // Decimal(10,7) arrives as a string; keep it verbatim so a saved pin
+      // round-trips without float drift.
+      latitude:     settings.latitude ?? "",
+      longitude:    settings.longitude ?? "",
     });
     setOps({
       checkInTime:     String(s.checkInTime   ?? "14:00"),
@@ -532,6 +542,10 @@ export default function SettingsPage() {
         phone: profile.phone, email: profile.email, website: profile.website,
         address: profile.address, city: profile.city, country: profile.country,
         timezone: profile.timezone,
+        region: profile.region, zipCode: profile.zipCode,
+        // Blank clears the pin rather than sending NaN.
+        latitude:  profile.latitude.trim()  === "" ? null : Number(profile.latitude),
+        longitude: profile.longitude.trim() === "" ? null : Number(profile.longitude),
         starRating: profile.starRating ? parseInt(profile.starRating, 10) : null,
       };
       await updateMutation.mutateAsync(dto);
@@ -981,6 +995,46 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>State / Province</label>
+                    <input
+                      className={inputCls} value={profile.region}
+                      onChange={(e) => setProfile((p) => ({ ...p, region: e.target.value }))}
+                      placeholder="Gilgit-Baltistan"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Postal / ZIP code</label>
+                    <input
+                      className={inputCls} value={profile.zipCode}
+                      onChange={(e) => setProfile((p) => ({ ...p, zipCode: e.target.value }))}
+                      placeholder="15100"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Latitude</label>
+                    <input
+                      className={inputCls} value={profile.latitude} inputMode="decimal"
+                      onChange={(e) => setProfile((p) => ({ ...p, latitude: e.target.value }))}
+                      placeholder="36.3167"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Longitude</label>
+                    <input
+                      className={inputCls} value={profile.longitude} inputMode="decimal"
+                      onChange={(e) => setProfile((p) => ({ ...p, longitude: e.target.value }))}
+                      placeholder="74.6500"
+                    />
+                  </div>
+                </div>
+                <p className="text-[12.5px] text-ink/50 -mt-1">
+                  State, postal code and coordinates are required before this property
+                  can be connected to any OTA through the channel manager.
+                </p>
                 <div>
                   <label className={labelCls}>Timezone</label>
                   <select
@@ -1522,6 +1576,19 @@ export default function SettingsPage() {
           )}
 
           {/* ── Security ──────────────────────────────────────────────────── */}
+          {activeSection === "channels" && isOwner && (
+            <div className={sectionCardCls}>
+              <h2 className="serif text-[22px] text-ink mb-1">Channel Manager</h2>
+              <p className="text-[13px] text-ink-mute mb-5">
+                Publish rooms and rates to OTAs, and pull their bookings back in.
+              </p>
+              <ChannelManagerSection
+                labelCls={labelCls}
+                onToast={(message, tone) => addToast(message, tone)}
+              />
+            </div>
+          )}
+
           {activeSection === "security" && (
             <div className={sectionCardCls}>
               <h2 className="serif text-[22px] text-ink mb-1">Change Password</h2>

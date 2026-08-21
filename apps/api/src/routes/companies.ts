@@ -8,6 +8,8 @@ import {
   companyLedgerQuerySchema, recordCompanyPaymentSchema, adjustCompanyLedgerSchema,
   createCompanyInvoiceSchema, agingReportSchema,
   reverseCompanyPaymentSchema, refundCompanyCreditSchema, voidCompanyInvoiceSchema,
+  reverseFolioTransferSchema,
+  companyProductionQuerySchema,
 } from "../schemas/companies";
 
 const router: Router = Router();
@@ -84,6 +86,12 @@ router.get("/:id/reservations", requirePermission("COMPANY_READ"), async (req, r
   res.json({ data });
 });
 
+router.get("/:id/production", requirePermission("COMPANY_READ"), async (req, res) => {
+  const query = companyProductionQuerySchema.parse(req.query);
+  const data = await CompanyService.getProduction(req.withTenant, req.params.id as string, query);
+  res.json({ data });
+});
+
 router.post("/:id/payments", requirePermission("COMPANY_PAYMENT"), async (req, res) => {
   const dto = recordCompanyPaymentSchema.parse(req.body);
   const result = await CompanyService.recordPayment(req.withTenant, req.user!, req.params.id as string, dto);
@@ -93,6 +101,18 @@ router.post("/:id/payments", requirePermission("COMPANY_PAYMENT"), async (req, r
 router.post("/:id/payments/:paymentId/reverse", requirePermission("COMPANY_PAYMENT"), async (req, res) => {
   const dto = reverseCompanyPaymentSchema.parse(req.body);
   const result = await CompanyService.reversePayment(req.withTenant, req.user!, req.params.id as string, req.params.paymentId as string, dto);
+  res.json({ data: result });
+});
+
+router.post("/:id/folio-transfers/:entryId/reverse", requirePermission("COMPANY_LEDGER_POST"), async (req, res) => {
+  const dto = reverseFolioTransferSchema.parse(req.body);
+  const result = await CompanyService.reverseFolioTransfer(
+    req.withTenant,
+    req.user!,
+    req.params.id as string,
+    req.params.entryId as string,
+    dto,
+  );
   res.json({ data: result });
 });
 

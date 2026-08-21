@@ -115,16 +115,95 @@ export interface ReservationSummary {
 }
 
 export interface ReservationDetail extends Omit<ReservationSummary, "guest" | "rooms"> {
+  infants: number;
+  guestType: string;
   balanceDue: number;
+  discountAmount: number;
+  appliedRatePlanName: string | null;
+  promoCode: string | null;
+  advancePaid: number;
+  otaBookingRef: string | null;
+  otaSource: string | null;
+  billToCompany: boolean;
   bookingContactName: string | null;
   bookingContactEmail: string | null;
   cancelledAt: string | null;
+  cancellationReason: string | null;
+  cancellationFee: number;
+  termsAcceptedAt: string | null;
   actualCheckIn: string | null;
   actualCheckOut: string | null;
   internalNotes: string | null;
+  dietaryRequirements: string | null;
+  purposeOfVisit: string | null;
+  arrivalMode: string | null;
+  estimatedArrivalTime: string | null;
+  requiresPickup: boolean;
+  isWalkIn: boolean;
   guest: ReservationGuestDetail;
   rooms: ReservationRoom[];
   folio: FolioSummary | null;
+  company: { id: string; name: string; code: string | null; type: string } | null;
+  payments: Array<{
+    id: string;
+    method: PaymentMethod;
+    status: string;
+    amount: number;
+    transactionRef: string | null;
+    receiptNumber: string | null;
+    postedAt: string;
+    isRefund: boolean;
+  }>;
+  upsells: Array<{
+    id: string;
+    name: string;
+    category: string;
+    quantity: number;
+    unitAmount: number;
+    amount: number;
+    postedAt: string | null;
+  }>;
+  activity: Array<{
+    id: string;
+    action: string;
+    notes: string | null;
+    before: unknown;
+    after: unknown;
+    createdAt: string;
+    user: { id: string; name: string } | null;
+  }>;
+  stayChanges: Array<{
+    id: string;
+    changeType: "ROOM_MOVE" | "UPGRADE" | "DOWNGRADE" | "REBATE" | string;
+    effectiveDate: string;
+    fromRoomNumber: string;
+    toRoomNumber: string;
+    fromRoomTypeName: string;
+    toRoomTypeName: string;
+    previousRate: number;
+    newRate: number;
+    previousCheckOut: string | null;
+    newCheckOut: string | null;
+    earlyDepartureTreatment: "KEEP_ORIGINAL_CHARGES" | "CREDIT_UNUSED_NIGHTS" | "CUSTOM_CREDIT" | null;
+    earlyDepartureCreditAmount: number;
+    rateAdjustment: number;
+    rebateAmount: number;
+    internalReason: string;
+    customerDescription: string;
+    createdBy: string;
+    createdAt: string;
+  }>;
+}
+
+export interface ManageCheckedInStayDto {
+  newRoomId?: string;
+  checkOutDate?: string;
+  earlyDepartureTreatment: "KEEP_ORIGINAL_CHARGES" | "CREDIT_UNUSED_NIGHTS" | "CUSTOM_CREDIT";
+  earlyDepartureCreditAmount?: number;
+  pricingMode: "KEEP_RATE" | "USE_NEW_ROOM_RATE" | "CUSTOM_RATE";
+  customRatePerNight?: number;
+  rebateAmount: number;
+  reason: string;
 }
 
 export interface CreateReservationDto {
@@ -204,8 +283,9 @@ export const reservationsService = {
   updateReservationStatus: async (
     id: string,
     status: ReservationStatus,
+    reason?: string,
   ): Promise<ReservationSummary> => {
-    const res = await api.patch(`/api/reservations/${id}/status`, { status });
+    const res = await api.patch(`/api/reservations/${id}/status`, { status, reason });
     return res.data.data;
   },
 
@@ -222,6 +302,23 @@ export const reservationsService = {
     >,
   ): Promise<ReservationSummary> => {
     const res = await api.patch(`/api/reservations/${id}`, dto);
+    return res.data.data;
+  },
+
+  manageCheckedInStay: async (
+    id: string,
+    dto: ManageCheckedInStayDto,
+  ): Promise<ReservationDetail> => {
+    const res = await api.post(`/api/reservations/${id}/manage-stay`, dto);
+    return res.data.data;
+  },
+
+  reverseLifecycle: async (
+    id: string,
+    action: "CHECK_IN" | "CHECK_OUT",
+    reason: string,
+  ): Promise<ReservationDetail> => {
+    const res = await api.post(`/api/reservations/${id}/reverse-lifecycle`, { action, reason });
     return res.data.data;
   },
 

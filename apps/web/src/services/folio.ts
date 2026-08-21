@@ -39,6 +39,10 @@ export interface FolioLineItem {
   chargeDate: string;
   isVoided: boolean;
   notes: string | null;
+  payerType: "GUEST" | "COMPANY";
+  payerCompanyId: string | null;
+  payerCompany: { id: string; name: string } | null;
+  allocatedAt: string | null;
 }
 
 export interface FolioPayment {
@@ -62,6 +66,10 @@ export interface FolioDetail {
   taxTotal: number;
   paymentsTotal: number;
   balanceDue: number;
+  guestResponsibilityTotal: number;
+  companyResponsibilityTotal: number;
+  guestBalanceDue: number;
+  companyBalanceDue: number;
   isOpen: boolean;
   closedAt: string | null;
   items: FolioLineItem[];
@@ -145,6 +153,16 @@ export const folioService = {
 
   refundPayment: async (reservationId: string, paymentId: string, dto: { amount: number; reason: string }): Promise<FolioPayment> => {
     const res = await api.post(`/api/reservations/${reservationId}/folio/payments/${paymentId}/refund`, dto);
+    return res.data.data;
+  },
+
+  allocatePayer: async (reservationId: string, dto: {
+    itemIds: string[];
+    payerType: "GUEST" | "COMPANY";
+    companyId?: string | null;
+    reason: string;
+  }): Promise<{ updatedCount: number; payerType: "GUEST" | "COMPANY"; companyId: string | null; companyName: string | null }> => {
+    const res = await api.post(`/api/reservations/${reservationId}/folio/items/allocate-payer`, dto);
     return res.data.data;
   },
 

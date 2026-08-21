@@ -13,7 +13,6 @@ import {
 import { PosMenuService } from "../services/PosMenuService";
 import { PosService } from "../services/PosService";
 import { createLedgerEntryFromPosOrder } from "../services/CashBookService";
-import { deductInventoryForOrder } from "../services/InventoryService";
 import { checkFeatureAccess } from "../lib/subscription";
 
 const router: Router = Router();
@@ -111,23 +110,11 @@ router.post("/orders", requirePermission("POS_CREATE"), async (req, res) => {
   if (order.status === "PAID" && order.paymentMethod) {
     createLedgerEntryFromPosOrder(
       req.user!.hotelId,
-      { id: order.id, orderNumber: order.orderNumber, total: order.total, paymentMethod: order.paymentMethod },
+      { id: order.id, orderNumber: order.orderNumber, total: order.total, paymentMethod: order.paymentMethod, occurredAt: order.createdAt },
       req.user!.userId,
     ).catch(() => { /* already logged inside */ });
   }
 
-  // Deduct inventory only when the order is immediately PAID (DIRECT payment).
-  // FOLIO orders remain OPEN and are never marked PAID, so we must not deduct
-  // at creation time for them — they would double-count if the guest later cancels.
-  if (order.status === "PAID") {
-    deductInventoryForOrder(
-      req.withTenant,
-      req.user!.hotelId,
-      order.id,
-      order.items.map((i) => ({ posItemId: i.posItemId, quantity: i.quantity })),
-      req.user!.userId,
-    ).catch((err) => console.error("[Inventory] POS deduction error:", err));
-  }
 });
 
 // PATCH /api/pos/orders/:id/status

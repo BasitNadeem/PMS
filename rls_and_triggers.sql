@@ -110,6 +110,7 @@ SELECT enable_hotel_rls('rooms');
 SELECT enable_hotel_rls('room_inventory_blocks');
 SELECT enable_hotel_rls('guests');
 SELECT enable_hotel_rls('guest_special_dates');
+SELECT enable_hotel_rls('guest_documents');
 SELECT enable_hotel_rls('accounting_accounts');
 SELECT enable_hotel_rls('accounting_exports');
 SELECT enable_hotel_rls('companies');

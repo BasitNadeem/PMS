@@ -8,6 +8,7 @@ import {
 import { cn } from "@/lib/cn";
 import { guestsService, SPECIAL_DATE_LABEL, type ReservationSummary } from "@/services/guests";
 import { EditGuestModal } from "@/components/guests/EditGuestModal";
+import { GuestIdDocuments } from "@/components/guests/GuestIdDocuments";
 import { ToastContainer } from "@/components/ui/ToastContainer";
 import { useToast } from "@/hooks/useToast";
 import { Card } from "@/components/ui/Card";
@@ -273,6 +274,13 @@ export default function GuestDetailPage() {
                   <span className="text-[13.5px] text-ink-soft tnum">{guest.documentType} · {guest.documentNumber}</span>
                 </div>
               )}
+              {/* The scanned document itself. Sits with the number it belongs to,
+                  and follows the guest across stays so a returning guest is never
+                  asked to present the same card twice. */}
+              <div className="px-4 py-3">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-ink-faint">ID document</p>
+                <GuestIdDocuments guestId={guest.id} />
+              </div>
               {(guest.city || guest.country) && (
                 <div className="flex items-center gap-3 px-4 py-3">
                   <MapPin size={16} className="text-ink-faint shrink-0" />

@@ -10,6 +10,8 @@ import {
 } from "../schemas/guests";
 
 const router: Router = Router();
+import { GuestDocumentService } from "../services/GuestDocumentService";
+
 router.use(authenticate, tenantMiddleware);
 
 router.get("/", requirePermission("GUEST_READ"), async (req, res) => {
@@ -64,6 +66,30 @@ router.post("/:id/promo-codes/:codeId/retry-email", requirePermission("GUEST_UPD
     req.withTenant, req.user!, req.params.id as string, req.params.codeId as string,
   );
   res.json({ data: code });
+});
+
+// GET /api/guests/:id/documents — every ID document held for this guest.
+// Declared before "/:id" so Express does not match "documents" as a guest id.
+router.get("/:id/documents", requirePermission("GUEST_READ"), async (req, res) => {
+  const docs = await GuestDocumentService.listForGuest(req.withTenant, req.user!.hotelId, req.params.id as string);
+  res.json({ data: docs });
+});
+
+// GET /api/guests/:id/documents/:documentId/image — the image bytes.
+// Served through our own auth instead of a provider URL, so access follows the
+// user's permissions, stays revocable, and every read is attributable.
+router.get("/:id/documents/:documentId/image", requirePermission("GUEST_READ"), async (req, res) => {
+  const { bytes, mimeType } = await GuestDocumentService.readImage(
+    req.withTenant,
+    req.user!.hotelId,
+    req.params.id as string,
+    req.params.documentId as string,
+  );
+  res.setHeader("Content-Type", mimeType);
+  // A photograph of someone's CNIC must not persist in a shared browser cache
+  // or an intermediary proxy after the permission that allowed it is gone.
+  res.setHeader("Cache-Control", "no-store, private");
+  res.send(bytes);
 });
 
 router.get("/:id", requirePermission("GUEST_READ"), async (req, res) => {

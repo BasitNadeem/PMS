@@ -76,6 +76,7 @@ const ChannelManagerPage           = lazy(() => import("./pages/channel-manager/
 const RatePlansPage                = lazy(() => import("./pages/rates/RatePlansPage"));
 const BookingEngineHubPage         = lazy(() => import("./pages/booking-engine-hub/BookingEngineHubPage"));
 const MobileScanPage               = lazy(() => import("./pages/MobileScanPage"));
+const MobileIdCapturePage          = lazy(() => import("./pages/MobileIdCapturePage"));
 const NightAuditPage               = lazy(() => import("./pages/nightaudit/NightAuditPage"));
 const BookingLandingPage           = lazy(() => import("./pages/booking-engine/BookingLandingPage"));
 const BookingFormPage              = lazy(() => import("./pages/booking-engine/BookingFormPage"));
@@ -161,6 +162,8 @@ function PmsRoutes() {
         <Route path="/menu/:hotelSlug" element={<GuestMenuPage />} />
         {/* Mobile camera scan — token in URL is the credential, no login required */}
         <Route path="/scan/:token" element={<MobileScanPage />} />
+        {/* Guest ID capture — same trust model as /scan/:token above */}
+        <Route path="/capture-id/:token" element={<MobileIdCapturePage />} />
         {/* Kitchen dashboard — auth required, uses main AppLayout */}
         <Route
           path="/kitchen/dashboard"

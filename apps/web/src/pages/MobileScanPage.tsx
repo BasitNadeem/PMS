@@ -7,38 +7,9 @@ import { useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Camera, Loader2, CheckCircle2, AlertCircle, RotateCcw } from "lucide-react";
 import { cn } from "../lib/cn";
+import { compressImage } from "../lib/compressImage";
 
 type Step = "capture" | "uploading" | "done" | "error";
-
-async function compressImage(file: File, maxPx = 1280, quality = 0.82): Promise<{ base64: string; mimeType: string }> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
-      const canvas = document.createElement("canvas");
-      canvas.width  = Math.round(img.width  * scale);
-      canvas.height = Math.round(img.height * scale);
-      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) { reject(new Error("Failed to compress image")); return; }
-          const reader = new FileReader();
-          reader.onload = () => {
-            const b64 = (reader.result as string).split(",")[1];
-            resolve({ base64: b64, mimeType: "image/jpeg" });
-          };
-          reader.readAsDataURL(blob);
-        },
-        "image/jpeg",
-        quality,
-      );
-    };
-    img.onerror = reject;
-    img.src = url;
-  });
-}
 
 export default function MobileScanPage() {
   const { token } = useParams<{ token: string }>();

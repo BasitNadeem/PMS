@@ -10,9 +10,28 @@ import { redis } from "../lib/redis";
 
 const TTL_SECS = 600; // 10 minutes
 
+/**
+ * What the session is for. A token minted to photograph a guest's ID must not
+ * be usable against the inventory endpoint or vice versa — each route checks
+ * this before doing anything, so a leaked token is confined to one purpose.
+ * Defaults to INVENTORY so sessions created before this field existed, and any
+ * caller that has not been updated, keep their original behaviour.
+ */
+export type ScanPurpose = "INVENTORY" | "GUEST_ID";
+
+/** Extra context an ID-capture session needs to write its result somewhere. */
+export interface GuestIdContext {
+  reservationId: string;
+  guestId:       string;
+  /** Staff member who opened the session — recorded as the capturer. */
+  userId:        string;
+}
+
 export interface ScanSession {
   hotelId: string;
   status:  "waiting" | "done" | "error";
+  purpose: ScanPurpose;
+  context?: GuestIdContext;
   result?: unknown;
   error?:  string;
 }
@@ -23,16 +42,24 @@ const key = (token: string) => `pms:scan_session:${token}`;
 const sseClients = new Map<string, Response>();
 
 export const ScanSessionService = {
-  async create(hotelId: string): Promise<{ token: string }> {
+  async create(
+    hotelId: string,
+    purpose: ScanPurpose = "INVENTORY",
+    context?: GuestIdContext,
+  ): Promise<{ token: string }> {
     const token: string = crypto.randomUUID();
-    const session: ScanSession = { hotelId, status: "waiting" };
+    const session: ScanSession = { hotelId, status: "waiting", purpose, ...(context && { context }) };
     await redis.setex(key(token), TTL_SECS, JSON.stringify(session));
     return { token };
   },
 
   async get(token: string): Promise<ScanSession | null> {
     const raw = await redis.get(key(token));
-    return raw ? (JSON.parse(raw) as ScanSession) : null;
+    if (!raw) return null;
+    const session = JSON.parse(raw) as ScanSession;
+    // Sessions written before `purpose` existed decode without it; treat them
+    // as inventory rather than letting `undefined` slip past a purpose check.
+    return { ...session, purpose: session.purpose ?? "INVENTORY" };
   },
 
   registerSSE(token: string, res: Response): void {

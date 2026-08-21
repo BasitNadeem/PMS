@@ -13,6 +13,7 @@ const SETTINGS_JSON_KEYS = [
   "shiftReminderLeadMinutes",
   "lateCheckoutFee", "earlyCheckinFee",
   "defaultSource", "autoConfirm", "maxAdvanceDays",
+  "requireIdAtCheckIn",
   "gstEnabled", "gstRate", "pstEnabled", "pstRate",
   "taxInclusive", "fbrEnabled", "invoicePrefix",
   "ownerWhatsappNumber", "themeKey", "posTaxRate", "logoUrl",

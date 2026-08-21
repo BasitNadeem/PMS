@@ -242,6 +242,13 @@ enum DocumentType {
   OTHER
 }
 
+/// Which face of an identity document an image shows. A CNIC or passport is
+/// only valid evidence with both, so captures come in pairs.
+enum DocumentSide {
+  FRONT
+  BACK
+}
+
 enum SpecialDateKind {
   BIRTHDAY
   ANNIVERSARY
@@ -415,55 +422,56 @@ model Hotel {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  roles                 Role[]
-  users                 HotelUser[]
-  roomTypes             RoomType[]
-  rooms                 Room[]
-  roomInventoryBlocks   RoomInventoryBlock[]
-  guests                Guest[]
-  guestSpecialDates     GuestSpecialDate[]
-  companies             Company[]
-  companyLedgerEntries  CompanyLedgerEntry[]
-  companyInvoices       CompanyInvoice[]
-  accountingAccounts    AccountingAccount[]
-  accountingExports     AccountingExport[]
-  reservations          Reservation[]
-  reservationStayChanges ReservationStayChange[]
+  roles                         Role[]
+  users                         HotelUser[]
+  roomTypes                     RoomType[]
+  rooms                         Room[]
+  roomInventoryBlocks           RoomInventoryBlock[]
+  guests                        Guest[]
+  guestSpecialDates             GuestSpecialDate[]
+  guestDocuments                GuestDocument[]
+  companies                     Company[]
+  companyLedgerEntries          CompanyLedgerEntry[]
+  companyInvoices               CompanyInvoice[]
+  accountingAccounts            AccountingAccount[]
+  accountingExports             AccountingExport[]
+  reservations                  Reservation[]
+  reservationStayChanges        ReservationStayChange[]
   reservationLifecycleReversals ReservationLifecycleReversal[]
-  folios                Folio[]
-  folioItemPayerChanges FolioItemPayerChange[]
-  payments              Payment[]
-  housekeepingTasks     HousekeepingTask[]
-  maintenanceTickets    MaintenanceTicket[]
-  messages              Message[]
-  conversations         Conversation[]
-  posCategories         PosCategory[]
-  posItems              PosItem[]
-  posOrders             PosOrder[]
-  ratePlans             RatePlan[]
-  ratePlanCodes         RatePlanCode[]
-  upsellItems           UpsellItem[]
-  channels              ChannelConfig[]
-  channelWebhookEvents  ChannelWebhookEvent[]
-  inventoryItems        InventoryItem[]
-  inventoryTransactions InventoryTransaction[]
-  staff                 Staff[]
-  shiftReports          ShiftReport[]
-  invoices              Invoice[]
-  taxConfigs            TaxConfig[]
-  auditLogs             AuditLog[]
-  notifications         Notification[]
-  customFields          CustomFieldDefinition[]
-  frontDeskNotes        FrontDeskNote[]
-  pushSubscriptions     PushSubscription[]
-  currentBusinessDate   DateTime?               @map("current_business_date") @db.Date
-  nightAuditRecords     NightAuditRecord[]
-  earlyBirdReports      EarlyBirdReportArchive[]
-  bookingPaceSnapshots BookingPaceSnapshot[]
-  subscriptionPlanId    String?                 @map("subscription_plan_id") @db.Uuid
-  subscriptionPlan      SubscriptionPlan?       @relation(fields: [subscriptionPlanId], references: [id])
-  limitOverrides        Json?                   @map("limit_overrides")
-  featureOverrides      Json?                   @map("feature_overrides")
+  folios                        Folio[]
+  folioItemPayerChanges         FolioItemPayerChange[]
+  payments                      Payment[]
+  housekeepingTasks             HousekeepingTask[]
+  maintenanceTickets            MaintenanceTicket[]
+  messages                      Message[]
+  conversations                 Conversation[]
+  posCategories                 PosCategory[]
+  posItems                      PosItem[]
+  posOrders                     PosOrder[]
+  ratePlans                     RatePlan[]
+  ratePlanCodes                 RatePlanCode[]
+  upsellItems                   UpsellItem[]
+  channels                      ChannelConfig[]
+  channelWebhookEvents          ChannelWebhookEvent[]
+  inventoryItems                InventoryItem[]
+  inventoryTransactions         InventoryTransaction[]
+  staff                         Staff[]
+  shiftReports                  ShiftReport[]
+  invoices                      Invoice[]
+  taxConfigs                    TaxConfig[]
+  auditLogs                     AuditLog[]
+  notifications                 Notification[]
+  customFields                  CustomFieldDefinition[]
+  frontDeskNotes                FrontDeskNote[]
+  pushSubscriptions             PushSubscription[]
+  currentBusinessDate           DateTime?                      @map("current_business_date") @db.Date
+  nightAuditRecords             NightAuditRecord[]
+  earlyBirdReports              EarlyBirdReportArchive[]
+  bookingPaceSnapshots          BookingPaceSnapshot[]
+  subscriptionPlanId            String?                        @map("subscription_plan_id") @db.Uuid
+  subscriptionPlan              SubscriptionPlan?              @relation(fields: [subscriptionPlanId], references: [id])
+  limitOverrides                Json?                          @map("limit_overrides")
+  featureOverrides              Json?                          @map("feature_overrides")
 
   @@index([slug])
   @@index([isActive])
@@ -472,24 +480,24 @@ model Hotel {
 }
 
 model NightAuditRecord {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId          String   @db.Uuid
-  businessDate     DateTime @db.Date
-  runAt            DateTime @default(now())
-  runBy            String   @db.Uuid
+  id               String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId          String                  @db.Uuid
+  businessDate     DateTime                @db.Date
+  runAt            DateTime                @default(now())
+  runBy            String                  @db.Uuid
   occupancyRate    Decimal
   roomRevenue      Int
   posRevenue       Int
   totalCollected   Int
   totalOutstanding Int
-  noShowsFlagged   Int      @default(0)
-  openBalanceCount Int      @default(0)
+  noShowsFlagged   Int                     @default(0)
+  openBalanceCount Int                     @default(0)
   snapshot         Json
-  revision         Int       @default(1)
-  reversedAt       DateTime? @map("reversed_at")
-  reversedBy       String?   @map("reversed_by") @db.Uuid
-  reversalReason   String?   @map("reversal_reason") @db.Text
-  hotel            Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  revision         Int                     @default(1)
+  reversedAt       DateTime?               @map("reversed_at")
+  reversedBy       String?                 @map("reversed_by") @db.Uuid
+  reversalReason   String?                 @map("reversal_reason") @db.Text
+  hotel            Hotel                   @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   earlyBirdReport  EarlyBirdReportArchive?
 
   @@unique([hotelId, businessDate, revision])
@@ -501,14 +509,14 @@ model NightAuditRecord {
 /// Immutable manager-facing morning report. It is created only from an active,
 /// frozen Night Audit and remains attached to that exact audit revision.
 model EarlyBirdReportArchive {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId        String   @map("hotel_id") @db.Uuid
-  nightAuditId   String   @unique @map("night_audit_id") @db.Uuid
-  reportDate     DateTime @map("report_date") @db.Date
-  forecastDays   Int      @default(10) @map("forecast_days")
-  snapshot       Json
-  generatedAt    DateTime @default(now()) @map("generated_at")
-  generatedBy    String   @map("generated_by") @db.Uuid
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId      String   @map("hotel_id") @db.Uuid
+  nightAuditId String   @unique @map("night_audit_id") @db.Uuid
+  reportDate   DateTime @map("report_date") @db.Date
+  forecastDays Int      @default(10) @map("forecast_days")
+  snapshot     Json
+  generatedAt  DateTime @default(now()) @map("generated_at")
+  generatedBy  String   @map("generated_by") @db.Uuid
 
   hotel      Hotel            @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   nightAudit NightAuditRecord @relation(fields: [nightAuditId], references: [id], onDelete: Restrict)
@@ -522,14 +530,14 @@ model EarlyBirdReportArchive {
 /// Each hotel/date is updated during that date, then becomes an immutable
 /// historical baseline once the observation date has passed.
 model BookingPaceSnapshot {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId         String   @map("hotel_id") @db.Uuid
-  observationAt   DateTime @map("observation_at") @db.Timestamptz(0)
-  horizonDays     Int      @default(90) @map("horizon_days")
-  snapshot        Json
-  capturedAt      DateTime @default(now()) @map("captured_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-  hotel           Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId       String   @map("hotel_id") @db.Uuid
+  observationAt DateTime @map("observation_at") @db.Timestamptz(0)
+  horizonDays   Int      @default(90) @map("horizon_days")
+  snapshot      Json
+  capturedAt    DateTime @default(now()) @map("captured_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  hotel         Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 
   @@unique([hotelId, observationAt])
   @@index([hotelId, capturedAt])
@@ -672,8 +680,8 @@ model Room {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  hotel              Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  roomType           RoomType            @relation(fields: [roomTypeId], references: [id])
+  hotel              Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  roomType           RoomType             @relation(fields: [roomTypeId], references: [id])
   reservationRooms   ReservationRoom[]
   housekeepingTasks  HousekeepingTask[]
   maintenanceTickets MaintenanceTicket[]
@@ -690,24 +698,24 @@ model Room {
 /// A dated removal from sellable room inventory. `startDate` is inclusive and
 /// `endDate` is exclusive, matching reservation-room night semantics.
 model RoomInventoryBlock {
-  id        String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId   String                 @map("hotel_id") @db.Uuid
-  roomId    String                 @map("room_id") @db.Uuid
-  maintenanceTicketId String?      @unique @map("maintenance_ticket_id") @db.Uuid
-  type      RoomInventoryBlockType
-  startDate DateTime               @map("start_date") @db.Date
-  endDate   DateTime               @map("end_date") @db.Date
-  reason    String
-  notes     String?
-  createdBy String                 @map("created_by") @db.Uuid
-  cancelledAt DateTime?            @map("cancelled_at")
-  cancelledBy String?              @map("cancelled_by") @db.Uuid
-  cancelReason String?              @map("cancel_reason")
-  createdAt DateTime               @default(now()) @map("created_at")
-  updatedAt DateTime               @updatedAt @map("updated_at")
+  id                  String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId             String                 @map("hotel_id") @db.Uuid
+  roomId              String                 @map("room_id") @db.Uuid
+  maintenanceTicketId String?                @unique @map("maintenance_ticket_id") @db.Uuid
+  type                RoomInventoryBlockType
+  startDate           DateTime               @map("start_date") @db.Date
+  endDate             DateTime               @map("end_date") @db.Date
+  reason              String
+  notes               String?
+  createdBy           String                 @map("created_by") @db.Uuid
+  cancelledAt         DateTime?              @map("cancelled_at")
+  cancelledBy         String?                @map("cancelled_by") @db.Uuid
+  cancelReason        String?                @map("cancel_reason")
+  createdAt           DateTime               @default(now()) @map("created_at")
+  updatedAt           DateTime               @updatedAt @map("updated_at")
 
-  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  room  Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  hotel             Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room              Room               @relation(fields: [roomId], references: [id], onDelete: Cascade)
   maintenanceTicket MaintenanceTicket? @relation(fields: [maintenanceTicketId], references: [id], onDelete: SetNull)
 
   @@index([hotelId, startDate, endDate])
@@ -774,6 +782,7 @@ model Guest {
   blacklistEntries GuestBlacklist[]
   specialDates     GuestSpecialDate[]
   promoCodes       RatePlanCode[]
+  documents        GuestDocument[]
 
   searchVector Unsupported("tsvector")? @map("search_vector")
 
@@ -820,6 +829,52 @@ model GuestBlacklist {
 /// Deliberately separate from `Guest.dateOfBirth`: that field is compliance data
 /// captured off an identity document, whereas this is opt-in relationship data.
 /// Scanning a CNIC must not silently enrol someone into birthday emails.
+/// A captured image of one side of a guest identity document. A CNIC occupies
+/// two rows, FRONT and BACK.
+///
+/// Only the provider-side key is stored, never a URL. A URL in a row is a
+/// permanent bearer token for a photograph of someone's national ID — it leaks
+/// through any API response that returns the row and cannot be revoked. Reads
+/// mint a short-lived signed URL instead, which also makes each view auditable.
+model GuestDocument {
+  id            String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId       String  @map("hotel_id") @db.Uuid
+  guestId       String  @map("guest_id") @db.Uuid
+  /// The stay this capture was taken for. Null when captured outside a
+  /// reservation, e.g. while creating or editing a guest profile.
+  reservationId String? @map("reservation_id") @db.Uuid
+
+  type DocumentType @default(CNIC)
+  side DocumentSide
+
+  /// Cloudinary public_id (or the equivalent key for a future provider).
+  storageKey String @map("storage_key")
+  provider   String @default("cloudinary")
+  mimeType   String @map("mime_type")
+  byteSize   Int    @map("byte_size")
+
+  capturedAt DateTime @default(now()) @map("captured_at")
+  /// The staff member who opened the capture session — not necessarily whoever
+  /// held the phone.
+  capturedBy String?  @map("captured_by") @db.Uuid
+
+  /// Soft delete so a retention sweep leaves an auditable trace of what was
+  /// removed and when. The provider-side image is destroyed at the same time.
+  deletedAt DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  hotel       Hotel        @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  guest       Guest        @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  reservation Reservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+
+  @@index([hotelId, guestId])
+  @@index([hotelId, reservationId])
+  @@index([hotelId, deletedAt])
+  @@map("guest_documents")
+}
+
 model GuestSpecialDate {
   id      String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   hotelId String @map("hotel_id") @db.Uuid
@@ -934,19 +989,19 @@ model Reservation {
   billToCompany Boolean @default(false) @map("bill_to_company")
 
   /// Human-facing reservation identity (for example RES-000123).
-  confirmationNumber String            @unique @map("confirmation_number")
+  confirmationNumber       String            @unique @map("confirmation_number")
   /// Previous confirmation reference retained only so historic emails and
   /// staff searches continue to resolve after the RES-number migration.
-  legacyConfirmationNumber String?     @unique @map("legacy_confirmation_number")
-  source             BookingSource     @default(WALK_IN)
+  legacyConfirmationNumber String?           @unique @map("legacy_confirmation_number")
+  source                   BookingSource     @default(WALK_IN)
   /// Channex booking id for reservations ingested from a channel manager.
-  otaBookingRef      String?           @map("ota_booking_ref")
+  otaBookingRef            String?           @map("ota_booking_ref")
   /// Originating sales channel exactly as the channel manager reports it
   /// (e.g. "BookingCom", "Airbnb"). Kept alongside `source` because the
   /// BookingSource enum cannot name every OTA Channex supports.
-  otaSource          String?           @map("ota_source")
-  status             ReservationStatus @default(CONFIRMED)
-  guestType          GuestType         @default(INDIVIDUAL) @map("guest_type")
+  otaSource                String?           @map("ota_source")
+  status                   ReservationStatus @default(CONFIRMED)
+  guestType                GuestType         @default(INDIVIDUAL) @map("guest_type")
 
   checkInDate    DateTime  @map("check_in_date") @db.Date
   checkOutDate   DateTime  @map("check_out_date") @db.Date
@@ -991,21 +1046,32 @@ model Reservation {
   requiresPickup Boolean @default(false) @map("requires_pickup")
   isVip          Boolean @default(false) @map("is_vip")
 
+  /// Set when a staff member confirmed this stay's guest ID at check-in. Held
+  /// per reservation rather than per guest because the compliance question is
+  /// "was ID checked for THIS stay", which a guest-level flag cannot answer for
+  /// a returning guest.
+  idVerifiedAt     DateTime? @map("id_verified_at")
+  idVerifiedBy     String?   @map("id_verified_by") @db.Uuid
+  /// Reason recorded when check-in proceeded without ID under a manager
+  /// override. Null on the normal path.
+  idOverrideReason String?   @map("id_override_reason")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   createdBy String?  @map("created_by") @db.Uuid
 
-  hotel    Hotel             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  guest    Guest             @relation(fields: [guestId], references: [id])
-  group    GroupBooking?     @relation(fields: [groupId], references: [id])
-  company  Company?          @relation(fields: [companyId], references: [id])
-  rooms    ReservationRoom[]
-  folio    Folio?
-  payments Payment[]
-  messages Message[]
-  upsells  ReservationUpsell[]
-  stayChanges ReservationStayChange[]
+  hotel              Hotel                          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  guest              Guest                          @relation(fields: [guestId], references: [id])
+  group              GroupBooking?                  @relation(fields: [groupId], references: [id])
+  company            Company?                       @relation(fields: [companyId], references: [id])
+  rooms              ReservationRoom[]
+  folio              Folio?
+  payments           Payment[]
+  messages           Message[]
+  upsells            ReservationUpsell[]
+  stayChanges        ReservationStayChange[]
   lifecycleReversals ReservationLifecycleReversal[]
+  guestDocuments     GuestDocument[]
 
   @@index([hotelId, companyId])
   @@index([hotelId, status])
@@ -1051,27 +1117,27 @@ model ReservationRoom {
 /// room-board and reporting code; this table preserves what changed, why, and
 /// which customer-facing folio entries resulted from it.
 model ReservationStayChange {
-  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId           String   @map("hotel_id") @db.Uuid
-  reservationId     String   @map("reservation_id") @db.Uuid
-  reservationRoomId String   @map("reservation_room_id") @db.Uuid
+  id                String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId           String @map("hotel_id") @db.Uuid
+  reservationId     String @map("reservation_id") @db.Uuid
+  reservationRoomId String @map("reservation_room_id") @db.Uuid
 
-  changeType       String   @map("change_type")
-  effectiveDate    DateTime @map("effective_date") @db.Date
-  fromRoomId       String   @map("from_room_id") @db.Uuid
-  toRoomId         String   @map("to_room_id") @db.Uuid
-  fromRoomNumber   String   @map("from_room_number")
-  toRoomNumber     String   @map("to_room_number")
-  fromRoomTypeName String   @map("from_room_type_name")
-  toRoomTypeName   String   @map("to_room_type_name")
-  previousRate     Int      @map("previous_rate")
-  newRate          Int      @map("new_rate")
-  previousCheckOut DateTime? @map("previous_check_out") @db.Date
-  newCheckOut      DateTime? @map("new_check_out") @db.Date
-  earlyDepartureTreatment String? @map("early_departure_treatment")
-  earlyDepartureCreditAmount Int @default(0) @map("early_departure_credit_amount")
-  rateAdjustment   Int      @default(0) @map("rate_adjustment")
-  rebateAmount     Int      @default(0) @map("rebate_amount")
+  changeType                 String    @map("change_type")
+  effectiveDate              DateTime  @map("effective_date") @db.Date
+  fromRoomId                 String    @map("from_room_id") @db.Uuid
+  toRoomId                   String    @map("to_room_id") @db.Uuid
+  fromRoomNumber             String    @map("from_room_number")
+  toRoomNumber               String    @map("to_room_number")
+  fromRoomTypeName           String    @map("from_room_type_name")
+  toRoomTypeName             String    @map("to_room_type_name")
+  previousRate               Int       @map("previous_rate")
+  newRate                    Int       @map("new_rate")
+  previousCheckOut           DateTime? @map("previous_check_out") @db.Date
+  newCheckOut                DateTime? @map("new_check_out") @db.Date
+  earlyDepartureTreatment    String?   @map("early_departure_treatment")
+  earlyDepartureCreditAmount Int       @default(0) @map("early_departure_credit_amount")
+  rateAdjustment             Int       @default(0) @map("rate_adjustment")
+  rebateAmount               Int       @default(0) @map("rebate_amount")
 
   internalReason      String   @map("internal_reason") @db.Text
   customerDescription String   @map("customer_description")
@@ -1092,18 +1158,18 @@ model ReservationStayChange {
 /// The original audit event is never removed; this records who restored which
 /// state, why, and which operational records were compensated.
 model ReservationLifecycleReversal {
-  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId             String   @map("hotel_id") @db.Uuid
-  reservationId       String   @map("reservation_id") @db.Uuid
-  actionReversed      String   @map("action_reversed")
-  previousStatus      String   @map("previous_status")
-  restoredStatus      String   @map("restored_status")
-  originalActionAt    DateTime @map("original_action_at")
-  reason              String   @db.Text
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId              String   @map("hotel_id") @db.Uuid
+  reservationId        String   @map("reservation_id") @db.Uuid
+  actionReversed       String   @map("action_reversed")
+  previousStatus       String   @map("previous_status")
+  restoredStatus       String   @map("restored_status")
+  originalActionAt     DateTime @map("original_action_at")
+  reason               String   @db.Text
   affectedFolioItemIds String[] @default([]) @map("affected_folio_item_ids") @db.Uuid
-  affectedTaskIds     String[] @default([]) @map("affected_task_ids") @db.Uuid
-  createdBy           String   @map("created_by") @db.Uuid
-  createdAt           DateTime @default(now()) @map("created_at")
+  affectedTaskIds      String[] @default([]) @map("affected_task_ids") @db.Uuid
+  createdBy            String   @map("created_by") @db.Uuid
+  createdAt            DateTime @default(now()) @map("created_at")
 
   hotel       Hotel       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
@@ -1209,18 +1275,18 @@ model Company {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  hotel               Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  ratePlan            RatePlan?            @relation("CompanyDefaultRatePlan", fields: [ratePlanId], references: [id])
+  hotel                         Hotel                  @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  ratePlan                      RatePlan?              @relation("CompanyDefaultRatePlan", fields: [ratePlanId], references: [id])
   /// Seasonal/fixed contracts owned by this company. These are ordinary rate
   /// plans underneath, so the hotel has one pricing engine and one audit trail.
-  contractedRatePlans RatePlan[]           @relation("CompanyContractRatePlans")
-  ledgerEntries       CompanyLedgerEntry[]
-  invoices            CompanyInvoice[]
-  reservations        Reservation[]
-  groupBookings       GroupBooking[]
-  folioItems                       FolioItem[]
-  previousFolioItemPayerChanges    FolioItemPayerChange[] @relation("PreviousFolioItemPayerCompany")
-  newFolioItemPayerChanges         FolioItemPayerChange[] @relation("NewFolioItemPayerCompany")
+  contractedRatePlans           RatePlan[]             @relation("CompanyContractRatePlans")
+  ledgerEntries                 CompanyLedgerEntry[]
+  invoices                      CompanyInvoice[]
+  reservations                  Reservation[]
+  groupBookings                 GroupBooking[]
+  folioItems                    FolioItem[]
+  previousFolioItemPayerChanges FolioItemPayerChange[] @relation("PreviousFolioItemPayerCompany")
+  newFolioItemPayerChanges      FolioItemPayerChange[] @relation("NewFolioItemPayerCompany")
 
   @@unique([hotelId, name])
   @@index([hotelId])
@@ -1284,12 +1350,12 @@ model CompanyLedgerEntry {
   folio   Folio?          @relation(fields: [folioId], references: [id])
   invoice CompanyInvoice? @relation(fields: [invoiceId], references: [id])
 
+  @@unique([hotelId, sourceKey])
   @@index([hotelId])
   @@index([companyId, entryDate])
   @@index([companyId, type, settledAmount])
   @@index([hotelId, dueDate])
   @@index([invoiceId])
-  @@unique([hotelId, sourceKey])
   @@map("company_ledger_entries")
 }
 
@@ -1322,10 +1388,10 @@ model CompanyInvoice {
   company Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
   lines   CompanyLedgerEntry[]
 
+  @@unique([hotelId, invoiceNumber])
   @@index([hotelId])
   @@index([companyId, periodEnd])
   @@index([hotelId, status])
-  @@unique([hotelId, invoiceNumber])
   @@map("company_invoices")
 }
 
@@ -1463,9 +1529,9 @@ model FolioItem {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  folio        Folio         @relation(fields: [folioId], references: [id], onDelete: Cascade)
-  posOrderItem PosOrderItem? @relation(fields: [posOrderItemId], references: [id])
-  payerCompany Company?      @relation(fields: [payerCompanyId], references: [id], onDelete: Restrict)
+  folio        Folio                  @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  posOrderItem PosOrderItem?          @relation(fields: [posOrderItemId], references: [id])
+  payerCompany Company?               @relation(fields: [payerCompanyId], references: [id], onDelete: Restrict)
   payerChanges FolioItemPayerChange[]
 
   @@index([folioId])
@@ -1480,9 +1546,9 @@ model FolioItem {
 /// Append-only responsibility history. A payer change is a financial control,
 /// so the previous assignment is retained even when a charge later moves back.
 model FolioItemPayerChange {
-  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hotelId     String         @map("hotel_id") @db.Uuid
-  folioItemId String         @map("folio_item_id") @db.Uuid
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId     String @map("hotel_id") @db.Uuid
+  folioItemId String @map("folio_item_id") @db.Uuid
 
   previousPayerType      FolioPayerType @map("previous_payer_type")
   previousPayerCompanyId String?        @map("previous_payer_company_id") @db.Uuid
@@ -1493,10 +1559,10 @@ model FolioItemPayerChange {
   changedBy String   @map("changed_by") @db.Uuid
   changedAt DateTime @default(now()) @map("changed_at")
 
-  hotel                  Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  folioItem              FolioItem @relation(fields: [folioItemId], references: [id], onDelete: Restrict)
-  previousPayerCompany   Company?  @relation("PreviousFolioItemPayerCompany", fields: [previousPayerCompanyId], references: [id], onDelete: Restrict)
-  newPayerCompany        Company?  @relation("NewFolioItemPayerCompany", fields: [newPayerCompanyId], references: [id], onDelete: Restrict)
+  hotel                Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  folioItem            FolioItem @relation(fields: [folioItemId], references: [id], onDelete: Restrict)
+  previousPayerCompany Company?  @relation("PreviousFolioItemPayerCompany", fields: [previousPayerCompanyId], references: [id], onDelete: Restrict)
+  newPayerCompany      Company?  @relation("NewFolioItemPayerCompany", fields: [newPayerCompanyId], references: [id], onDelete: Restrict)
 
   @@index([hotelId, changedAt])
   @@index([folioItemId, changedAt])
@@ -1757,9 +1823,9 @@ model MaintenanceTicket {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  hotel      Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  room       Room? @relation(fields: [roomId], references: [id])
-  assignedTo User? @relation("assignedMaintenance", fields: [assignedToId], references: [id])
+  hotel          Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room           Room?               @relation(fields: [roomId], references: [id])
+  assignedTo     User?               @relation("assignedMaintenance", fields: [assignedToId], references: [id])
   inventoryBlock RoomInventoryBlock?
 
   @@index([hotelId, status])
@@ -1986,15 +2052,15 @@ model UpsellItem {
 // don't have a Folio until check-in, so this holds the pending charge until
 // ReservationService.updateStatus() posts it as a FolioItem.
 model ReservationUpsell {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  reservationId String    @map("reservation_id") @db.Uuid
-  upsellItemId  String    @map("upsell_item_id") @db.Uuid
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reservationId String        @map("reservation_id") @db.Uuid
+  upsellItemId  String        @map("upsell_item_id") @db.Uuid
   name          String
   category      FolioItemType
-  quantity      Int       @default(1)
-  unitAmount    Int       @map("unit_amount")
+  quantity      Int           @default(1)
+  unitAmount    Int           @map("unit_amount")
   amount        Int
-  postedAt      DateTime? @map("posted_at")
+  postedAt      DateTime?     @map("posted_at")
 
   createdAt DateTime @default(now()) @map("created_at")
 

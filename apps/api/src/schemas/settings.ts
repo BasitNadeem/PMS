@@ -45,6 +45,11 @@ export const updateSettingsSchema = z.object({
   defaultSource:     z.enum(["WALK_IN", "PHONE", "WHATSAPP", "BOOKING_COM", "AGODA", "EXPEDIA"]).optional(),
   autoConfirm:       z.boolean().optional(),
   maxAdvanceDays:    z.number().int().min(1).optional(),
+  // Blocks check-in until a guest ID has been captured for the stay. Enforced
+  // in ReservationService.updateStatus, so it covers every route to CHECKED_IN
+  // including group check-in and reservations that came from the booking
+  // engine. A manager holding RESERVATION_CANCEL can override with a reason.
+  requireIdAtCheckIn: z.boolean().optional(),
   gstEnabled:        z.boolean().optional(),
   gstRate:           z.number().min(0).max(100).optional(),
   pstEnabled:        z.boolean().optional(),

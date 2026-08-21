@@ -497,6 +497,52 @@ export const ReservationService = {
         }
       }
 
+      // ── ID verification gate ────────────────────────────────────────────
+      // One chokepoint instead of four. Creation flows disagree about identity
+      // documents by design — the booking engine cannot demand a CNIC from
+      // someone booking online at midnight — so requiring one at creation would
+      // either break public booking or leave a hole. Every stay passes through
+      // this transition exactly once, whatever created it.
+      let idOverrideReason: string | null = null;
+      if (newStatus === "CHECKED_IN") {
+        const hotel = await db.hotel.findUniqueOrThrow({
+          where:  { id: actor.hotelId },
+          select: { settings: true },
+        });
+        const settings = (hotel.settings ?? {}) as Record<string, unknown>;
+
+        if (settings.requireIdAtCheckIn === true && !existing.idVerifiedAt) {
+          const captured = await db.guestDocument.count({
+            where: { reservationId: id, deletedAt: null },
+          });
+
+          if (captured === 0) {
+            if (!reason?.trim()) {
+              throw new AppError(
+                409,
+                "This guest has no ID on file. Capture the ID, or ask a manager to check in with a recorded reason.",
+              );
+            }
+            // Gated separately from RESERVATION_CHECKIN on purpose: waiving the
+            // requirement is a different decision from performing a check-in.
+            //
+            // The colon-style key specifically, NOT "RESERVATION_CANCEL". Both
+            // exist, and they are granted differently: FRONT_DESK holds
+            // RESERVATION_CANCEL but not reservations:cancel, so gating on the
+            // screaming-snake key would hand the override to the very people it
+            // is meant to escalate past. Verified against role_permissions —
+            // reservations:cancel is OWNER and MANAGER only.
+            if (!actor.permissions.includes("reservations:cancel")) {
+              throw new AppError(
+                403,
+                "You do not have permission to check in without ID. Ask a manager to approve it.",
+              );
+            }
+            idOverrideReason = reason.trim();
+          }
+        }
+      }
+
       // Checkout follows the actual charge responsibility, not the old
       // reservation-wide BTC flag. Guest-assigned debt must be paid first;
       // only the outstanding COMPANY-assigned portion moves to city ledger.
@@ -612,6 +658,7 @@ export const ReservationService = {
         data: {
           status: newStatus,
           ...(newStatus === "CHECKED_IN"  && { actualCheckIn:  now }),
+          ...(idOverrideReason !== null   && { idOverrideReason }),
           ...(newStatus === "CHECKED_OUT" && { actualCheckOut: now }),
           ...(newStatus === "CANCELLED"   && { cancelledAt: now, cancelledBy: actor.userId }),
         },

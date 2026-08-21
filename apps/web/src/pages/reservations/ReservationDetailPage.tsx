@@ -9,6 +9,7 @@ import {
   UserX, X,
   ArrowRightLeft,
   RotateCcw,
+  IdCard,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { currentPKTDate } from "@/lib/pktDate";
@@ -20,6 +21,9 @@ import {
 import { CheckOutModal } from "@/components/reservations/CheckOutModal";
 import { EditReservationModal } from "@/components/reservations/EditReservationModal";
 import { ManageStayModal } from "@/components/reservations/ManageStayModal";
+import { CaptureIdModal } from "@/components/reservations/CaptureIdModal";
+import { GuestIdDocuments } from "@/components/guests/GuestIdDocuments";
+import { guestDocumentsService } from "@/services/guestDocuments";
 import { ToastContainer } from "@/components/ui/ToastContainer";
 import { useToast } from "@/hooks/useToast";
 import { Card } from "@/components/ui/Card";
@@ -166,9 +170,16 @@ export default function ReservationDetailPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [showNoShow, setShowNoShow] = useState(false);
   const [showManageStay, setShowManageStay] = useState(false);
+  const [showCaptureId, setShowCaptureId] = useState(false);
   const [noShowReason, setNoShowReason] = useState("");
   const [reversalAction, setReversalAction] = useState<"CHECK_IN" | "CHECK_OUT" | null>(null);
   const [reversalReason, setReversalReason] = useState("");
+
+  const { data: idDocuments = [] } = useQuery({
+    queryKey: ["reservation-documents", id],
+    queryFn:  () => guestDocumentsService.list(id!),
+    enabled:  Boolean(id),
+  });
 
   const { data: reservation, isLoading } = useQuery({
     queryKey: ["reservation", id],
@@ -264,6 +275,7 @@ export default function ReservationDetailPage() {
     && !["CHECKED_OUT", "CANCELLED", "NO_SHOW"].includes(reservation.status);
   const arrivalDate = reservation.checkInDate.slice(0, 10);
   const canMarkNoShow = canUpdate && reservation.status === "CONFIRMED" && arrivalDate <= currentPKTDate();
+  const hasIdOnFile = idDocuments.length > 0;
 
   return (
     <div>
@@ -594,6 +606,25 @@ export default function ReservationDetailPage() {
           <Card className="space-y-3">
             <div className="text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-1">Actions</div>
 
+            {canUpdate && !["CHECKED_OUT", "CANCELLED", "NO_SHOW"].includes(reservation.status) && (
+              <button
+                onClick={() => setShowCaptureId(true)}
+                className={cn(
+                  "w-full h-11 rounded-full font-semibold text-sm transition-all flex items-center justify-center gap-2 border",
+                  hasIdOnFile
+                    ? "border-line text-ink-mute hover:bg-mist"
+                    : "border-pine/40 bg-pine/5 text-pine-deep hover:bg-pine/10",
+                )}
+              >
+                <IdCard size={17} />
+                {hasIdOnFile ? "Recapture guest ID" : "Capture guest ID"}
+              </button>
+            )}
+
+            {hasIdOnFile && (
+              <GuestIdDocuments guestId={reservation.guest.id} reservationId={reservation.id} />
+            )}
+
             {canUpdate && nextStatus && nextLabel && (
               <button
                 onClick={() => reservation.status === "CHECKED_IN" ? setShowCheckOut(true) : statusMutation.mutate({ status: nextStatus })}
@@ -731,6 +762,17 @@ export default function ReservationDetailPage() {
           reservation={reservation}
           onClose={() => setShowEdit(false)}
           onSuccess={addToast}
+        />
+      )}
+      {showCaptureId && reservation && (
+        <CaptureIdModal
+          reservationId={reservation.id}
+          guestName={reservation.guest.fullName}
+          onClose={() => setShowCaptureId(false)}
+          onCaptured={() => {
+            qc.invalidateQueries({ queryKey: ["reservation-documents", id] });
+            qc.invalidateQueries({ queryKey: ["reservation", id] });
+          }}
         />
       )}
       {showManageStay && reservation && (

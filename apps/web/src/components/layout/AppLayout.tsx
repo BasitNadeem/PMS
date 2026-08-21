@@ -497,7 +497,7 @@ function SidebarContent({
                           onClick={() => { window.open(item.to, "_blank"); onNavigate?.(); }}
                           title={collapsed ? item.label : undefined}
                           className={cn(
-                            "sidebar-nav-item group relative flex w-full items-center gap-3 rounded-xl py-2 text-[13px] font-semibold transition-all duration-200 text-ink-soft",
+                            "sidebar-nav-item group relative flex w-full items-center gap-3 rounded-[10px] py-2 text-[13px] font-semibold transition-all duration-200 text-ink-soft",
                             collapsed ? "justify-center px-0" : "px-3",
                           )}
                         >
@@ -517,7 +517,7 @@ function SidebarContent({
                         title={collapsed ? item.label : undefined}
                         className={({ isActive }) =>
                           cn(
-                            "sidebar-nav-item group relative flex items-center gap-3 rounded-xl py-2 text-[13px] font-semibold transition-all duration-200",
+                            "sidebar-nav-item group relative flex items-center gap-3 rounded-[10px] py-2 text-[13px] font-semibold transition-all duration-200",
                             "outline-none focus-visible:ring-2 focus-visible:ring-coral/40 focus-visible:ring-offset-0",
                             collapsed ? "justify-center px-0" : "px-3",
                             (isActive || parentActive)

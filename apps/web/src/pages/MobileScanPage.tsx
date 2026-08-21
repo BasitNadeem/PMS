@@ -1,12 +1,14 @@
 // Bare mobile page — opened by scanning the QR code on the inventory screen.
 // No login required: the :token in the URL is the credential (short-lived, Redis-backed).
-// Uses relative fetch("/api/m/scan/:token") which goes through Vite proxy in dev
-// and through the same domain in production.
+// Posts to BASE_URL, not a relative /api path: app.innflo.co does not proxy
+// /api, so a relative POST is answered by nginx with 405 text/html. BASE_URL is
+// "" in dev, where Vite's proxy does forward /api.
 
 import { useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Camera, Loader2, CheckCircle2, AlertCircle, RotateCcw } from "lucide-react";
 import { cn } from "../lib/cn";
+import { BASE_URL } from "../lib/api";
 import { compressImage } from "../lib/compressImage";
 
 type Step = "capture" | "uploading" | "done" | "error";
@@ -39,7 +41,7 @@ export default function MobileScanPage() {
     if (!pendingRef.current || !token) return;
     setStep("uploading");
     try {
-      const res = await fetch(`/api/m/scan/${token}`, {
+      const res = await fetch(`${BASE_URL}/api/m/scan/${token}`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify(pendingRef.current),

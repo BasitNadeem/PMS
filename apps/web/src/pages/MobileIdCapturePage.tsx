@@ -2,6 +2,12 @@
 // No login required: the :token in the URL is the credential (short-lived,
 // Redis-backed, single-use, and bound to one reservation server-side).
 //
+// The upload goes to BASE_URL, NOT a relative /api path. The phone loads this
+// page from app.innflo.co, which does not proxy /api — nginx answers a POST
+// there with 405 text/html, which surfaces as "upload failed" after the guest
+// has already photographed both sides. BASE_URL is "" in dev, where Vite's
+// proxy does forward /api, so the same code works in both.
+//
 // Front and back are captured separately and uploaded together, because a
 // half-captured ID is not evidence of anything and would otherwise leave a
 // FRONT row with no matching BACK.
@@ -10,6 +16,7 @@ import { useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Camera, Loader2, CheckCircle2, AlertCircle, RotateCcw, ArrowRight } from "lucide-react";
 import { cn } from "../lib/cn";
+import { BASE_URL } from "../lib/api";
 import { compressImage } from "../lib/compressImage";
 
 type Shot = { base64: string; mimeType: string; preview: string };
@@ -53,7 +60,7 @@ export default function MobileIdCapturePage() {
   async function upload(frontShot: Shot, backShot: Shot) {
     setStep("uploading");
     try {
-      const response = await fetch(`/api/m/id/${token}`, {
+      const response = await fetch(`${BASE_URL}/api/m/id/${token}`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({

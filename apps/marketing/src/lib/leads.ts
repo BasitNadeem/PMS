@@ -8,10 +8,21 @@
  */
 
 // Vite inlines this at build time. Everything here ships in a public bundle,
-// so this must never hold anything secret. Falling back to the local API in
-// dev means the form works from a fresh clone with no .env file.
-const RAW_BASE = import.meta.env.VITE_API_URL;
-const API_BASE = (RAW_BASE ?? (import.meta.env.DEV ? "http://localhost:4000" : "")).replace(/\/+$/, "");
+// so this must never hold anything secret.
+//
+// The production default is a real URL, not "". Elsewhere in this repo an empty
+// VITE_API_URL means "same origin" (see apps/web/src/lib/api.ts), but that is
+// wrong here: the marketing site is served from innflo.co, where /api/* falls
+// through to the SPA and returns HTML. A build that forgets the variable must
+// still reach the API rather than silently refuse to submit.
+const RAW_BASE = import.meta.env.VITE_API_URL?.trim();
+const API_BASE = (
+  RAW_BASE
+    ? RAW_BASE
+    : import.meta.env.DEV
+      ? "http://localhost:4000"
+      : "https://api.innflo.co"
+).replace(/\/+$/, "");
 
 const TIMEOUT_MS = 12_000;
 
@@ -32,13 +43,6 @@ export type LeadResult =
   | { ok: false; message: string };
 
 export async function submitWalkthroughRequest(lead: WalkthroughLead): Promise<LeadResult> {
-  // Unset in a production build: treat as a failed send so the visitor is shown
-  // the direct-contact fallback, rather than a success screen for a lead that
-  // was never actually recorded anywhere.
-  if (API_BASE === "") {
-    return { ok: false, message: "We could not reach our servers just now." };
-  }
-
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -50,7 +54,16 @@ export async function submitWalkthroughRequest(lead: WalkthroughLead): Promise<L
       signal:  controller.signal,
     });
 
-    if (response.ok) return { ok: true };
+    // A 200 carrying HTML means the request landed on a static host's SPA
+    // fallback rather than the API. Treating that as success would show the
+    // visitor a confirmation for a lead nobody received.
+    if (response.ok) {
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        return { ok: false, message: "We could not reach our servers just now." };
+      }
+      return { ok: true };
+    }
 
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
     if (response.status === 429) {

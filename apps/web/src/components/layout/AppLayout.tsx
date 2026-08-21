@@ -211,7 +211,7 @@ function OccupancyMini() {
   const barColor = pct < 30 ? "#BB4A33" : pct < 70 ? "#B7791A" : "#2F7256";
 
   return (
-    <div className="rounded-xl bg-ink px-3 py-2 text-white">
+    <div className="sidebar-occupancy rounded-2xl bg-ink px-3.5 py-3 text-white">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
           <TrendingUp size={13} className="text-coral shrink-0" />
@@ -222,7 +222,7 @@ function OccupancyMini() {
           <span className="text-[11px] text-white/40">{rooms}/{total}</span>
         </div>
       </div>
-      <div className="mt-2 h-1 rounded-full bg-white/10 overflow-hidden">
+      <div className="mt-2.5 h-1 rounded-full bg-white/10 overflow-hidden">
         <div className="h-full rounded-full transition-all duration-700" style={{ width: pct + "%", background: barColor }} />
       </div>
     </div>
@@ -398,12 +398,12 @@ function SidebarContent({
           </div>
         </>
       ) : (
-        <div className="px-3 pt-3 pb-2 flex items-center gap-1.5">
+        <div className="sidebar-brand-wrap px-3 pt-3 pb-2 flex items-center gap-1.5">
           <div className="flex-1 min-w-0">
             {(userRole === "OWNER" || userRole === "ADMIN") ? (
               <button
                 onClick={() => navigate("/settings")}
-                className="group flex w-full items-center gap-3 rounded-xl border border-transparent p-2 text-left cursor-pointer hover:border-ink hover:bg-gray-50 active:bg-gray-100 transition-all duration-150"
+                className="sidebar-property group flex w-full items-center gap-3 rounded-2xl p-2.5 text-left cursor-pointer transition-all duration-200"
               >
                 <PropertyLogo hotel={hotel} />
                 <div className="min-w-0 flex-1 leading-tight">
@@ -415,7 +415,7 @@ function SidebarContent({
                 <ChevronsUpDown size={14} className="text-ink-faint group-hover:text-ink-mute shrink-0" />
               </button>
             ) : (
-              <div className="flex items-center gap-3 px-1">
+              <div className="sidebar-property flex items-center gap-3 rounded-2xl px-2.5 py-2">
                 <PropertyLogo hotel={hotel} />
                 <div className="min-w-0 flex-1 leading-tight">
                   <div className="serif text-[18px] text-ink truncate">{hotel?.name ?? "Loading…"}</div>
@@ -430,7 +430,7 @@ function SidebarContent({
             <SidebarTooltip label="Collapse sidebar">
               <button
                 onClick={onTogglePin}
-                className="grid place-items-center h-8 w-8 rounded-lg text-ink-mute hover:bg-line-soft hover:text-ink transition-colors"
+                className="sidebar-collapse grid place-items-center h-8 w-8 rounded-xl text-ink-mute hover:text-ink transition-colors"
               >
                 <PanelLeftClose size={19} />
               </button>
@@ -440,7 +440,7 @@ function SidebarContent({
       )}
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto scroll-area px-3 pt-1 pb-2">
+      <nav className="sidebar-nav flex-1 overflow-y-auto px-3 pt-1 pb-2">
         {NAV_SECTIONS.map((section) => {
           const items = navItems.filter((i) => (i.section ?? "main") === section.id);
           if (items.length === 0) return null;
@@ -454,13 +454,13 @@ function SidebarContent({
           const open = collapsed || !section.label || !closedSections[section.id];
 
           return (
-            <div key={section.id} className={section.label && !collapsed ? "mt-2 first:mt-0" : ""}>
+            <div key={section.id} className={cn("sidebar-section", section.label && !collapsed ? "mt-2.5 first:mt-0" : "")}>
               {section.label && !collapsed && (
                 <button
                   type="button"
                   onClick={() => toggleSection(section.id)}
                   aria-expanded={open}
-                  className="group flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-faint transition-colors hover:text-ink-mute"
+                  className="sidebar-section-label group flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-ink-faint transition-colors hover:text-ink"
                 >
                   <span className="flex-1 text-left">{section.label}</span>
                   {!open && holdsActive && (
@@ -495,7 +495,7 @@ function SidebarContent({
                           onClick={() => { window.open(item.to, "_blank"); onNavigate?.(); }}
                           title={collapsed ? item.label : undefined}
                           className={cn(
-                            "group relative flex w-full items-center gap-3 rounded-xl py-2 text-[13px] font-semibold transition-all duration-200 text-ink-soft hover:bg-line-soft",
+                            "sidebar-nav-item group relative flex w-full items-center gap-3 rounded-xl py-2 text-[13px] font-semibold transition-all duration-200 text-ink-soft",
                             collapsed ? "justify-center px-0" : "px-3",
                           )}
                         >
@@ -515,12 +515,12 @@ function SidebarContent({
                         title={collapsed ? item.label : undefined}
                         className={({ isActive }) =>
                           cn(
-                            "group relative flex items-center gap-3 rounded-xl py-2 text-[13px] font-semibold transition-all duration-200",
+                            "sidebar-nav-item group relative flex items-center gap-3 rounded-xl py-2 text-[13px] font-semibold transition-all duration-200",
                             "outline-none focus-visible:ring-2 focus-visible:ring-coral/40 focus-visible:ring-offset-0",
                             collapsed ? "justify-center px-0" : "px-3",
                             (isActive || parentActive)
-                              ? "bg-ink text-white shadow-pop"
-                              : "text-ink-soft hover:bg-line-soft",
+                              ? "sidebar-nav-item-active text-ink"
+                              : "text-ink-soft",
                           )
                         }
                       >
@@ -529,12 +529,12 @@ function SidebarContent({
                           return (
                             <>
                               {on && !collapsed && (
-                                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-coral -ml-3" />
+                                <span className="sidebar-active-marker absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-coral" />
                               )}
                               <item.icon
                                 size={18}
                                 strokeWidth={on ? 2.1 : 1.9}
-                                className={cn("shrink-0", on ? "text-coral" : "text-ink-mute group-hover:text-ink-soft")}
+                                className={cn("sidebar-nav-icon shrink-0", on ? "text-coral" : "text-ink-mute group-hover:text-ink-soft")}
                               />
                               {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
                             </>
@@ -636,7 +636,7 @@ function SidebarContent({
 
 
       {/* User footer */}
-      <div className="border-t border-line p-3">
+      <div className="sidebar-footer border-t border-line/60 p-3">
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
             <button
@@ -792,10 +792,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, [hotel?.settings?.themeKey]);
 
   return (
-    <div className="flex min-h-screen bg-paper">
+    <div className="flex h-screen overflow-hidden bg-paper">
       {/* Desktop sidebar */}
       <aside
-        className="hidden lg:flex flex-col bg-mist border-r border-line shrink-0 h-screen sticky top-0 overflow-hidden transition-[width] duration-200 ease-out"
+        className="sidebar-surface hidden lg:flex flex-col border-r border-line shrink-0 h-full overflow-hidden transition-[width] duration-200 ease-out"
         style={{ width: collapsed ? SIDEBAR_RAIL : SIDEBAR_FULL }}
       >
         <SidebarContent
@@ -813,7 +813,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         >
           <div className="absolute inset-0 bg-ink/30 backdrop-blur-sm anim-fade-in" />
           <div
-            className="absolute left-0 top-0 h-full w-[270px] bg-mist anim-slide-in"
+            className="sidebar-surface absolute left-0 top-0 h-full w-[270px] anim-slide-in"
             onClick={(e) => e.stopPropagation()}
           >
             <SidebarContent onNavigate={() => setMobileNavOpen(false)} />
@@ -822,7 +822,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       )}
 
       {/* Main area */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col">
         {/* Mobile topbar */}
         <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between gap-3 bg-mist/90 backdrop-blur border-b border-line px-4 h-14">
           <div className="flex items-center gap-2.5">
@@ -846,7 +846,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto scroll-area">
+        <main className="flex-1 min-h-0 overflow-y-auto scroll-area">
           <OfflineBanner />
           <TempPasswordBanner />
           <div className="px-5 sm:px-7 lg:px-8 py-5 lg:py-6">

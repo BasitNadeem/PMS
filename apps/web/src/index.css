@@ -96,6 +96,145 @@
   --color-scrollbar-track-color: #C7C9E4;
 }
 
+/* ── Sidebar surface ──────────────────────────────────────────────────────────
+   A coloured architectural rail rather than a flat pastel slab: the active
+   theme supplies the material, a deep edge gives it a spine, and translucent
+   navigation surfaces sit above it. */
+.sidebar-surface {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(110% 32% at 8% -4%, rgb(255 255 255 / .38), transparent 68%),
+    radial-gradient(82% 26% at 108% 104%, rgb(var(--color-accent-dark) / .13), transparent 72%),
+    linear-gradient(155deg,
+      color-mix(in srgb, rgb(var(--color-accent)) 31%, rgb(var(--color-card))) 0%,
+      color-mix(in srgb, rgb(var(--color-accent)) 21%, rgb(var(--color-mist))) 43%,
+      color-mix(in srgb, rgb(var(--color-accent)) 27%, rgb(var(--color-card))) 100%);
+  border-right-color: color-mix(in srgb, rgb(var(--color-accent-dark)) 34%, rgb(var(--color-line)));
+  box-shadow:
+    inset -1px 0 0 rgb(255 255 255 / .48),
+    14px 0 38px rgb(var(--color-ink) / .035);
+}
+
+.sidebar-surface::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -78px;
+  right: -96px;
+  width: 230px;
+  height: 230px;
+  border: 1px solid rgb(255 255 255 / .34);
+  border-radius: 999px;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 28px rgb(255 255 255 / .055),
+    0 0 0 62px rgb(var(--color-accent) / .035);
+}
+
+.sidebar-surface::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  inset: 0 auto 0 0;
+  width: 4px;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    rgb(var(--color-accent-deep) / .78),
+    rgb(var(--color-accent) / .34) 44%,
+    rgb(var(--color-accent-deep) / .62));
+  box-shadow: 1px 0 0 rgb(255 255 255 / .24);
+}
+
+.sidebar-property {
+  border: 1px solid rgb(255 255 255 / .58);
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / .63), rgb(255 255 255 / .34));
+  box-shadow:
+    0 12px 28px rgb(var(--color-accent-deep) / .09),
+    inset 0 1px 0 rgb(255 255 255 / .74);
+  backdrop-filter: blur(12px);
+}
+
+button.sidebar-property:hover {
+  border-color: color-mix(in srgb, rgb(var(--color-accent)) 24%, rgb(var(--color-line)));
+  background: rgb(var(--color-card) / .76);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgb(var(--color-ink) / .075), inset 0 1px 0 rgb(255 255 255 / .8);
+}
+
+.sidebar-collapse {
+  background: rgb(var(--color-card) / .42);
+  border: 1px solid rgb(255 255 255 / .52);
+}
+
+.sidebar-collapse:hover { background: rgb(var(--color-card) / .76); }
+
+.sidebar-section-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  margin-left: .35rem;
+  background: linear-gradient(90deg, rgb(var(--color-accent-deep) / .18), transparent);
+}
+
+.sidebar-section-label > span:first-child { flex: none; }
+
+.sidebar-nav-item {
+  border: 1px solid transparent;
+}
+
+.sidebar-nav-item:not(.sidebar-nav-item-active):hover {
+  border-color: rgb(255 255 255 / .5);
+  background: rgb(var(--color-card) / .36);
+  transform: translateX(2px);
+}
+
+.sidebar-nav-item-active {
+  border-color: rgb(255 255 255 / .66);
+  background:
+    linear-gradient(100deg, rgb(255 255 255 / .88), rgb(255 255 255 / .58));
+  box-shadow:
+    0 8px 20px rgb(var(--color-accent-deep) / .105),
+    inset 0 1px 0 rgb(255 255 255 / .85);
+}
+
+.sidebar-active-marker {
+  left: 4px;
+  box-shadow: 0 0 0 3px rgb(var(--color-accent) / .1);
+}
+
+.sidebar-nav-item-active .sidebar-nav-icon {
+  filter: drop-shadow(0 2px 5px rgb(var(--color-accent) / .2));
+}
+
+.sidebar-nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--color-accent) / .24) transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar { width: 5px; }
+.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar-nav::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgb(var(--color-accent) / .22);
+}
+.sidebar-nav::-webkit-scrollbar-thumb:hover { background: rgb(var(--color-accent) / .38); }
+
+.sidebar-occupancy {
+  background:
+    radial-gradient(circle at 92% -20%, rgb(var(--color-accent) / .36), transparent 48%),
+    rgb(var(--color-ink));
+  box-shadow: 0 10px 24px rgb(var(--color-ink) / .13);
+}
+
+.sidebar-footer {
+  background:
+    linear-gradient(180deg, rgb(var(--color-card) / .09), rgb(var(--color-card) / .28)),
+    rgb(var(--color-accent-deep) / .035);
+  backdrop-filter: blur(10px);
+}
+
 /* ── QR guest menu — "Linen & Terra" theme ────────────────────────────────────
    Deliberately independent of the admin app's data-theme system above: this
    is the customer-facing ordering surface, reached straight from a table/

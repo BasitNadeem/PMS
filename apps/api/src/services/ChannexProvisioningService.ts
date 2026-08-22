@@ -1,5 +1,5 @@
 /**
- * ChannexProvisioningService — maps InnFlo structure onto Channex structure.
+ * ChannexProvisioningService — maps Innflo structure onto Channex structure.
  *
  * Designed so onboarding hotel #50 is a button click, not a code change:
  *   - Idempotent. Re-running never duplicates; an entity that already has a

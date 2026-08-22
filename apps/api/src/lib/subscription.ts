@@ -92,7 +92,7 @@ export async function checkSubscriptionLimit(
     const reason = trialExpired
       ? "Your trial has expired. Choose a subscription plan to continue."
       : `Your current subscription plan allows up to ${limit} ${labels[limitKey]}. ` +
-        "Deactivate an existing item or contact InnFlo to upgrade.";
+        "Deactivate an existing item or contact Innflo to upgrade.";
     throw new AppError(403, reason);
   }
 }

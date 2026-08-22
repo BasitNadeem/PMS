@@ -1,4 +1,4 @@
-# InnFlo Product Backlog
+# Innflo Product Backlog
 
 This file records agreed product work that is intentionally deferred. Items
 here are not promises that the feature already exists.
@@ -63,7 +63,7 @@ if it does, option 1 is a live mispricing bug rather than dead schema.
 
 Note: this does **not** affect Channex distribution. The ARI sync resolves rates
 through the same `rate_plan_items.rate` path the PMS itself uses, so OTA prices
-match what InnFlo quotes directly. Fixing modifiers would correct both at once.
+match what Innflo quotes directly. Fixing modifiers would correct both at once.
 
 ## Minimum-stay rate plans cannot be sold on OTAs
 

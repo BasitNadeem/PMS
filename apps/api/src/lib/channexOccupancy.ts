@@ -1,7 +1,7 @@
 /**
  * Per-date sellable inventory, derived from rooms and reservation_rooms.
  *
- * InnFlo stores no availability calendar — it is computed on demand. This is
+ * Innflo stores no availability calendar — it is computed on demand. This is
  * the per-date form of the same rule RoomService.checkAvailability applies to a
  * single stay window, extracted so the two cannot drift.
  *

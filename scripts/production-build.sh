@@ -11,7 +11,7 @@ success() { echo -e "${GREEN}✓${NC}  $1"; }
 error()   { echo -e "${RED}✗${NC}  $1"; exit 1; }
 
 echo ""
-echo "🏗️   InnFlo — Production Build"
+echo "🏗️   Innflo — Production Build"
 echo "════════════════════════════════════════"
 echo ""
 

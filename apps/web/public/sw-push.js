@@ -3,7 +3,7 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data?.json() ?? {};
   } catch {
-    data = { title: "InnFlo", body: event.data?.text() ?? "You have a new update." };
+    data = { title: "Innflo", body: event.data?.text() ?? "You have a new update." };
   }
   const title = data.title ?? "Hotel PMS";
   const options = {

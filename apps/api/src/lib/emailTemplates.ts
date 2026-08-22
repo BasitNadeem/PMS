@@ -345,7 +345,7 @@ function cancellationEmail(data: ReservationEmailData): string {
                 ${website ? contactLink("Visit website", website) : ""}
               </div>
               <div style="height:1px; background:#31524f; margin:24px auto 18px; max-width:450px;"></div>
-              <p style="margin:0; color:#8fb4ae; font-size:11px;">© ${year} ${escapeHtml(data.hotelName)} &nbsp;·&nbsp; <a href="https://innflo.co" style="color:#b8cbc7; text-decoration:none;">Powered by InnFlo</a></p>
+              <p style="margin:0; color:#8fb4ae; font-size:11px;">© ${year} ${escapeHtml(data.hotelName)} &nbsp;·&nbsp; <a href="https://innflo.co" style="color:#b8cbc7; text-decoration:none;">Powered by Innflo</a></p>
             </td>
           </tr>
         </table>
@@ -484,7 +484,7 @@ export function reservationLifecycleEmail(data: ReservationEmailData): string {
                 ${website ? contactLink("Visit website", website) : ""}
               </div>
               <div style="height:1px; background:#31524f; margin:24px auto 18px; max-width:450px;"></div>
-              <p style="margin:0; color:#8fb4ae; font-size:11px;">© ${year} ${escapeHtml(data.hotelName)} &nbsp;·&nbsp; <a href="https://innflo.co" style="color:#b8cbc7; text-decoration:none;">Powered by InnFlo</a></p>
+              <p style="margin:0; color:#8fb4ae; font-size:11px;">© ${year} ${escapeHtml(data.hotelName)} &nbsp;·&nbsp; <a href="https://innflo.co" style="color:#b8cbc7; text-decoration:none;">Powered by Innflo</a></p>
             </td>
           </tr>
         </table>
@@ -696,7 +696,7 @@ export function promoCodeEmail(data: PromoEmailData): string {
                 ${website ? contactLink("Visit website", website) : ""}
               </div>
               <div style="height:1px; background:#3a3631; margin:24px auto 18px; max-width:440px;"></div>
-              <p style="margin:0; color:#8b847a; font-size:11px;">© ${year} ${escapeHtml(data.hotelName)} &nbsp;·&nbsp; <a href="https://innflo.co" style="color:#a49d93; text-decoration:none;">Powered by InnFlo</a></p>
+              <p style="margin:0; color:#8b847a; font-size:11px;">© ${year} ${escapeHtml(data.hotelName)} &nbsp;·&nbsp; <a href="https://innflo.co" style="color:#a49d93; text-decoration:none;">Powered by Innflo</a></p>
               <p style="margin:10px 0 0; color:#8b847a; font-size:11px;">You are receiving this because you asked us to keep in touch. Reply to this email to opt out.</p>
             </td>
           </tr>

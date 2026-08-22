@@ -1,5 +1,5 @@
 /**
- * Parses Channex booking payloads into a shape InnFlo can write.
+ * Parses Channex booking payloads into a shape Innflo can write.
  *
  * Pure and defensive by design. Channex wraps entities as
  * `{ data: { id, type, attributes } }` in some responses and returns the

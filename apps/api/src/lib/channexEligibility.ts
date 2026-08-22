@@ -161,7 +161,7 @@ export function validateHotelForChannex(hotel: HotelForValidation): HotelValidat
 // ── Currency / timezone defaults ─────────────────────────────────────────────
 
 /**
- * InnFlo has no per-hotel currency column — PKR is implicit everywhere
+ * Innflo has no per-hotel currency column — PKR is implicit everywhere
  * (Payment.currencyCode defaults to it, hotels.country defaults to "PK").
  * Honours an explicit settings override should one ever be added.
  */

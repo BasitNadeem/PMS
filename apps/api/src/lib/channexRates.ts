@@ -17,7 +17,7 @@
  *
  * Note: rate_plans.modifier_type / modifier_value are NOT applied, because no
  * code in the PMS applies them — suggestRateCore returns rate_plan_items.rate
- * verbatim. OTA prices therefore match what InnFlo quotes directly. See
+ * verbatim. OTA prices therefore match what Innflo quotes directly. See
  * PRODUCT_BACKLOG.md "Rate plan modifiers are configured but never applied".
  *
  * Pure — the caller does the queries and passes plans in.

@@ -2125,7 +2125,7 @@ model RatePlanItem {
 
   /// Channex rate plan id. Lives here rather than on RatePlan because Channex
   /// models a rate plan as (property x room type), which is exactly this row's
-  /// grain — an InnFlo rate plan covering N room types maps to N Channex rate
+  /// grain — an Innflo rate plan covering N room types maps to N Channex rate
   /// plans. NULL means this pair has not been pushed to Channex yet;
   /// provisioning is opt-in and incremental, so it resumes from whatever is
   /// still NULL. Only rows where this is NOT NULL are ever included in an

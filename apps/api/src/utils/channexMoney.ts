@@ -1,7 +1,7 @@
 /**
  * Money conversion across the Channex boundary.
  *
- * InnFlo stores every amount as an INTEGER in minor units (paisas).
+ * Innflo stores every amount as an INTEGER in minor units (paisas).
  * Channex expects a DECIMAL STRING in major units: "5000.00".
  *
  * The trap this exists to prevent: passing the bare integer 5000 to Channex is
@@ -15,7 +15,7 @@
  *
  * Currency assumption: 2 decimal places (PKR, USD, EUR, GBP…). Zero-decimal
  * currencies (JPY, KRW) and 3-decimal ones (KWD, BHD) would need a
- * currency-aware exponent — out of scope while InnFlo is PKR-first, and it
+ * currency-aware exponent — out of scope while Innflo is PKR-first, and it
  * would be a change here rather than at any call site.
  */
 

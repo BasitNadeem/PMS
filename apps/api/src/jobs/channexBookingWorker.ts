@@ -2,7 +2,7 @@
  * Inbound booking ingestion.
  *
  * The webhook and the poller both stop at "an event exists"; everything that
- * writes to InnFlo happens here, once, for a claimed event.
+ * writes to Innflo happens here, once, for a claimed event.
  *
  * Order matters and is deliberate:
  *   1. PULL the authoritative revision from Channex. The webhook payload is a

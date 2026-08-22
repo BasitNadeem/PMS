@@ -1,5 +1,5 @@
 /**
- * InnFlo — animated "product cockpit" hero visual (v2).
+ * Innflo — animated "product cockpit" hero visual (v2).
  * Calmer than v1: no camera zoom, one focal card per scene, larger type.
  * Single file, no required props, no network requests, no external assets.
  * React 18 + TypeScript + Tailwind + framer-motion.

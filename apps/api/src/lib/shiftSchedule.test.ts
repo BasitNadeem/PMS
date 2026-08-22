@@ -11,7 +11,7 @@ import {
   readShiftSchedule,
 } from "./shiftSchedule";
 
-test("uses InnFlo defaults when a hotel has no shift settings", () => {
+test("uses Innflo defaults when a hotel has no shift settings", () => {
   assert.deepEqual(readShiftSchedule({}), DEFAULT_SHIFT_SCHEDULE);
 });
 

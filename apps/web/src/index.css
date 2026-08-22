@@ -105,9 +105,9 @@
   isolation: isolate;
   background:
     linear-gradient(180deg,
-      color-mix(in srgb, rgb(var(--color-accent)) 17%, rgb(var(--color-card))) 0%,
-      color-mix(in srgb, rgb(var(--color-accent)) 11%, rgb(var(--color-mist))) 46%,
-      color-mix(in srgb, rgb(var(--color-accent)) 14%, rgb(var(--color-card))) 100%);
+      color-mix(in srgb, rgb(var(--color-accent)) 26%, rgb(var(--color-card))) 0%,
+      color-mix(in srgb, rgb(var(--color-accent)) 19%, rgb(var(--color-mist))) 46%,
+      color-mix(in srgb, rgb(var(--color-accent)) 23%, rgb(var(--color-card))) 100%);
   border-right-color: color-mix(in srgb, rgb(var(--color-accent-dark)) 18%, rgb(var(--color-line)));
   box-shadow:
     inset -1px 0 0 rgb(255 255 255 / .64),
@@ -208,13 +208,6 @@ button.sidebar-property:hover {
   background: rgb(var(--color-accent) / .22);
 }
 .sidebar-nav::-webkit-scrollbar-thumb:hover { background: rgb(var(--color-accent) / .38); }
-
-.sidebar-occupancy {
-  background:
-    radial-gradient(circle at 92% -20%, rgb(var(--color-accent) / .36), transparent 48%),
-    rgb(var(--color-ink));
-  box-shadow: 0 10px 24px rgb(var(--color-ink) / .13);
-}
 
 .sidebar-footer {
   background: rgb(var(--color-card) / .24);

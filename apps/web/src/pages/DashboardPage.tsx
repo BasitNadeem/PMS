@@ -638,12 +638,13 @@ function timeToPct(hhmm: string, startHour: number, endHour: number): number {
 }
 
 function LiveScheduleHero({
-  events, arrivalsToday, departuresToday, inHouse,
+  events, arrivalsToday, departuresToday, occupiedRooms, totalRooms,
 }: {
   events: DashboardScheduleEvent[];
   arrivalsToday: number;
   departuresToday: number;
-  inHouse: number;
+  occupiedRooms: number;
+  totalRooms: number;
 }) {
   const now = new Date();
   const nowHour = now.getHours() + now.getMinutes() / 60;
@@ -662,6 +663,7 @@ function LiveScheduleHero({
   // Summary counts derived from events
   const doneCount    = events.filter((e) => e.isDone).length;
   const pendingCount = events.length - doneCount;
+  const occupancyPct = Math.round((occupiedRooms / Math.max(totalRooms, 1)) * 100);
 
   return (
     <div
@@ -677,12 +679,18 @@ function LiveScheduleHero({
           <h3 className="serif text-[26px] leading-none mt-1">Today&apos;s timeline</h3>
         </div>
         <div className="flex items-center gap-5">
-          {([[arrivalsToday, "arrivals"], [departuresToday, "departures"], [inHouse, "in-house"]] as [number, string][]).map(([n, l]) => (
+          {([[arrivalsToday, "arrivals"], [departuresToday, "departures"]] as [number, string][]).map(([n, l]) => (
             <div key={l} className="text-center">
               <div className="serif text-[26px] leading-none tnum">{n}</div>
               <div className="text-[11px] text-white/65 font-semibold uppercase tracking-wide">{l}</div>
             </div>
           ))}
+          <div className="border-l border-white/20 pl-5 text-center">
+            <div className="serif text-[26px] leading-none tnum">{occupancyPct}%</div>
+            <div className="text-[11px] text-white/65 font-semibold uppercase tracking-wide">
+              occupancy · {occupiedRooms}/{totalRooms}
+            </div>
+          </div>
           {events.length > 0 && (
             <div className="text-center border-l border-white/20 pl-5">
               <div className="flex items-center gap-2">
@@ -1174,7 +1182,8 @@ export default function DashboardPage() {
           events={dash?.schedule ?? []}
           arrivalsToday={today?.arrivalsToday ?? 0}
           departuresToday={today?.departuresToday ?? 0}
-          inHouse={dash?.reservations?.checkedInCount ?? 0}
+          occupiedRooms={occ?.occupiedRooms ?? 0}
+          totalRooms={occ?.totalRooms ?? 0}
         />
       </div>
 

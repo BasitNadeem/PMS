@@ -4,7 +4,7 @@ import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, BedDouble, Users, Users2, Building2, CalendarCheck, CalendarDays,
   Sparkles, ShoppingCart, FileBarChart, LogOut,
-  ChevronsUpDown, ChevronDown, PanelLeftClose, PanelLeftOpen, TrendingUp, Menu, X, Settings,
+  ChevronsUpDown, ChevronDown, PanelLeftClose, PanelLeftOpen, Menu, X, Settings,
   Receipt, TrendingDown, BookOpen, Wrench, ClipboardList, ChefHat, Monitor, Package, Network, Moon, Tag, Globe, CalendarRange, Sunrise,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -12,7 +12,6 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { GlobalSearchBar } from "@/components/layout/GlobalSearchBar";
-import { dashboardService } from "@/services/dashboard";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { getCurrentUserName, getCurrentUserRole, formatRoleLabel, getInitials } from "@/lib/jwt";
@@ -194,40 +193,6 @@ function Logo({ size = 38 }: { size?: number }) {
       className="shrink-0"
       style={{ width: size, height: size }}
     />
-  );
-}
-
-function OccupancyMini() {
-  const { data: dash } = useQuery({
-    queryKey:       ["dashboard"],
-    queryFn:        dashboardService.getDashboard,
-    refetchInterval: 15_000,
-    staleTime:       30_000,
-  });
-
-  const occ   = dash?.occupancy;
-  const pct   = occ ? Math.round((occ.occupiedRooms / Math.max(occ.totalRooms, 1)) * 100) : 0;
-  const rooms = occ?.occupiedRooms ?? 0;
-  const total = occ?.totalRooms   ?? 0;
-
-  const barColor = pct < 30 ? "#BB4A33" : pct < 70 ? "#B7791A" : "#2F7256";
-
-  return (
-    <div className="sidebar-occupancy rounded-2xl bg-ink px-3.5 py-3 text-white">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <TrendingUp size={13} className="text-coral shrink-0" />
-          <span className="text-[11px] font-semibold uppercase tracking-widest text-white/45 shrink-0">Occupancy</span>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[15px] font-bold leading-none tnum">{pct}%</span>
-          <span className="text-[11px] text-white/40">{rooms}/{total}</span>
-        </div>
-      </div>
-      <div className="mt-2.5 h-1 rounded-full bg-white/10 overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-700" style={{ width: pct + "%", background: barColor }} />
-      </div>
-    </div>
   );
 }
 
@@ -628,14 +593,6 @@ function SidebarContent({
           document.body,
         );
       })()}
-
-      {/* Occupancy mini widget */}
-      {!collapsed && (
-        <div className="px-3 pb-2">
-          <OccupancyMini />
-        </div>
-      )}
-
 
       {/* User footer */}
       <div className="sidebar-footer border-t border-line/60 p-3">

@@ -112,7 +112,17 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use(compression({
   filter: (req, res) => req.path === "/api/realtime/events" ? false : compression.filter(req, res),
 }));
-app.use(express.json());
+// The phone-capture routes under /api/m bring their own express.json() with a
+// much larger limit, because a two-sided ID photo is ~500KB of base64. This
+// global parser runs first, so with body-parser's default 100KB limit it
+// rejected those uploads before the route's own parser ever ran — the phone got
+// an opaque 500 after the guest had already taken both photos. Let those paths
+// through unparsed and let the route decide; everything else keeps the
+// conservative default, which is the right ceiling for a JSON API.
+const parseJson = express.json();
+app.use((req, res, next) =>
+  req.path.startsWith("/api/m/") ? next() : parseJson(req, res, next)
+);
 app.use(morgan(env.NODE_ENV === "development" ? "dev" : "combined"));
 
 app.use(

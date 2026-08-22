@@ -17,6 +17,15 @@ export function errorHandler(
     return;
   }
 
+  // body-parser throws this when a request exceeds a route's configured limit.
+  // Without it the failure surfaces as an opaque 500, which reads as a server
+  // bug rather than "your photo was too big" — the one thing the person holding
+  // the phone can actually act on.
+  if (err instanceof Error && (err as { type?: string }).type === "entity.too.large") {
+    res.status(413).json({ error: "That upload is too large. Try again with a smaller photo." });
+    return;
+  }
+
   if (err instanceof ZodError) {
     res.status(400).json({ error: "Validation error", details: err.errors });
     return;

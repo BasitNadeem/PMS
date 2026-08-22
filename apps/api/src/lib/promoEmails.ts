@@ -49,7 +49,7 @@ export async function enqueuePromoCodeEmail(args: EnqueuePromoEmailArgs): Promis
 
   const hotel = await adminPrisma.hotel.findUnique({
     where:  { id: args.hotelId },
-    select: { name: true, phone: true, email: true, website: true, settings: true },
+    select: { name: true, phone: true, email: true, website: true, address: true, city: true, country: true, settings: true },
   });
   if (!hotel) return false;
 
@@ -65,6 +65,9 @@ export async function enqueuePromoCodeEmail(args: EnqueuePromoEmailArgs): Promis
       guestName:     guest.fullName,
       hotelName:     hotel.name,
       hotelLogoUrl:  typeof settings.logoUrl === "string" ? settings.logoUrl : null,
+      hotelAddress:  hotel.address,
+      hotelCity:     hotel.city,
+      hotelCountry:  hotel.country,
       hotelPhone:    hotel.phone,
       hotelEmail:    hotel.email,
       hotelWebsite:  hotel.website,

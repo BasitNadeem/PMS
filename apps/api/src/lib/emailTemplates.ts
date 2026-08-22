@@ -536,14 +536,20 @@ export function promoCodeEmail(data: PromoEmailData): string {
   const copy      = PROMO_COPY[data.reason];
   const year      = new Date().getFullYear();
   const logoUrl   = safeImageUrl(data.hotelLogoUrl);
+  // The sender is noreply@innflo.co, so nothing outside this body tells the
+  // guest which hotel wrote to them. Logos are blocked by default in most mail
+  // clients, so the name is rendered as text rather than left to an alt
+  // attribute nobody sees.
+  const location  = [data.hotelAddress, data.hotelCity, data.hotelCountry]
+    .filter((part): part is string => Boolean(part && part.trim()))
+    .filter((part, i, all) => all.indexOf(part) === i)
+    .join(", ") || null;
   const website   = safeLink(data.hotelWebsite);
   const phoneHref = data.hotelPhone ? `tel:${escapeHtml(data.hotelPhone.replace(/[^\d+]/g, ""))}` : null;
   const validTo   = new Intl.DateTimeFormat("en-PK", {
     day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Karachi",
   }).format(new Date(data.validTo));
-  const heading   = data.occasionLabel
-    ? `${copy.heading}`
-    : copy.heading;
+  const heading   = copy.heading;
 
   return `<!doctype html>
 <html>
@@ -567,8 +573,10 @@ export function promoCodeEmail(data: PromoEmailData): string {
           <tr>
             <td class="pad" style="padding:28px 38px 22px; border-bottom:1px solid #e6e3dd; text-align:center;">
               ${logoUrl
-                ? `<img src="${logoUrl}" alt="${escapeHtml(data.hotelName)}" style="display:inline-block; max-height:58px; max-width:190px; width:auto;">`
-                : `<div style="font-family:Georgia, 'Times New Roman', serif; color:#17211e; font-size:25px; font-weight:bold;">${escapeHtml(data.hotelName)}</div>`}
+                ? `<img src="${logoUrl}" alt="${escapeHtml(data.hotelName)}" style="display:inline-block; max-height:52px; max-width:190px; width:auto; margin-bottom:12px;">`
+                : ""}
+              <div style="font-family:Georgia, 'Times New Roman', serif; color:#17211e; font-size:${logoUrl ? "20px" : "25px"}; font-weight:bold; letter-spacing:0.2px;">${escapeHtml(data.hotelName)}</div>
+              ${location ? `<div style="margin-top:5px; color:#8b918f; font-size:12px; letter-spacing:0.4px;">${escapeHtml(location)}</div>` : ""}
             </td>
           </tr>
 
@@ -578,6 +586,7 @@ export function promoCodeEmail(data: PromoEmailData): string {
               <h1 style="margin:0; max-width:500px; color:#183b38; font-family:Georgia, 'Times New Roman', serif; font-size:42px; line-height:50px; font-weight:normal;">${escapeHtml(heading)}</h1>
               <p style="margin:28px 0 0; color:#293330; font-size:16px; line-height:26px;">Hello ${escapeHtml(data.guestName)},</p>
               <p style="margin:12px 0 0; color:#59615e; font-size:15px; line-height:24px;">${escapeHtml(copy.intro)}</p>
+              <p style="margin:12px 0 0; color:#59615e; font-size:15px; line-height:24px;">— everyone at <strong style="color:#293330;">${escapeHtml(data.hotelName)}</strong>${location ? `, ${escapeHtml(location)}` : ""}</p>
             </td>
           </tr>
 
@@ -612,6 +621,8 @@ export function promoCodeEmail(data: PromoEmailData): string {
           <tr>
             <td style="background:#183b38; padding:34px 28px; text-align:center;">
               <p style="margin:0; color:#ffffff; font-family:Georgia, 'Times New Roman', serif; font-size:22px; font-style:italic;">${escapeHtml(copy.footer)}</p>
+              <p style="margin:18px 0 0; color:#ffffff; font-size:15px; font-weight:bold; letter-spacing:0.3px;">${escapeHtml(data.hotelName)}</p>
+              ${location ? `<p style="margin:5px 0 0; color:#8fb4ae; font-size:12.5px; line-height:19px;">${escapeHtml(location)}</p>` : ""}
               <div style="margin-top:16px;">
                 ${phoneHref ? contactLink(data.hotelPhone ?? "Call hotel", phoneHref) : ""}
                 ${data.hotelEmail ? contactLink(data.hotelEmail, `mailto:${escapeHtml(data.hotelEmail)}`) : ""}

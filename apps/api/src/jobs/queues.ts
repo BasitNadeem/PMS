@@ -95,6 +95,9 @@ export interface PromoEmailJobData {
   guestName:    string;
   hotelName:    string;
   hotelLogoUrl: string | null;
+  hotelAddress: string | null;
+  hotelCity:    string | null;
+  hotelCountry: string | null;
   hotelPhone:   string | null;
   hotelEmail:   string | null;
   hotelWebsite: string | null;

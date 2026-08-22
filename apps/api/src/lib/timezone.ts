@@ -33,3 +33,17 @@ export function getPKTMonthRange(year: number, month: number): { start: Date; en
     end:   getPKTDayRange(lastDayStr).end,
   };
 }
+
+/**
+ * The instant a Postgres DATE column holds for a given calendar date.
+ *
+ * Prisma reads `@db.Date` columns back as UTC midnight, so date-only columns
+ * (checkInDate, checkOutDate, scheduledDate) must be compared against UTC
+ * midnight — NOT against getPKTDayRange, which returns PKT boundaries meant
+ * for real timestamps. Mixing the two is what makes a stay look like it starts
+ * a day early.
+ */
+export function dateOnlyUTC(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y!, m! - 1, d!));
+}

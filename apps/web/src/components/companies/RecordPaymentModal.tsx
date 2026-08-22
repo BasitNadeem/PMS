@@ -9,6 +9,7 @@ import { bannerMessageFor } from "@/lib/formErrors";
 import { Button } from "@/components/ui/Button";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { RequiredMark } from "@/components/ui/RequiredMark";
+import { todayInHotelTime } from "../../lib/hotelTime";
 
 const inputCls = "h-10 w-full rounded-xl bg-mist border border-line px-3 text-[13.5px] text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all";
 const labelCls = "block text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-1.5";
@@ -44,7 +45,7 @@ export function RecordPaymentModal({
   const [amount, setAmount]       = useState(outstanding > 0 ? String(outstanding / 100) : "");
   const [method, setMethod]       = useState("BANK_TRANSFER");
   const [reference, setReference] = useState("");
-  const [paidAt, setPaidAt]       = useState(new Date().toISOString().slice(0, 10));
+  const [paidAt, setPaidAt]       = useState(todayInHotelTime());
   const [notes, setNotes]         = useState("");
   const [idempotencyKey]          = useState(() => crypto.randomUUID());
 
@@ -126,7 +127,7 @@ export function RecordPaymentModal({
             </div>
             <div>
               <label className={labelCls}>Date received</label>
-              <DatePicker value={paidAt} onChange={setPaidAt} max={new Date().toISOString().slice(0, 10)} />
+              <DatePicker value={paidAt} onChange={setPaidAt} max={todayInHotelTime()} />
             </div>
           </div>
 

@@ -15,6 +15,7 @@ import { Trend } from "@/components/ui/Trend";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import {
   dashboardService,
+  type DashboardBusinessDay,
   type DashboardRecentReservation,
   type DashboardDeparturesToCollect,
   type DashboardScheduleEvent,
@@ -26,6 +27,7 @@ import { shiftsService } from "@/services/shifts";
 import { roomsService, type Room } from "@/services/rooms";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import { minutesIntoHotelDay, todayInHotelTime } from "@/lib/hotelTime";
 import { getCurrentUserName } from "@/lib/jwt";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ReservationIdLink } from "@/components/reservations/ReservationIdLink";
@@ -39,7 +41,7 @@ function formatPKR(paisas: number): string {
 }
 
 function greeting(): string {
-  const h = new Date().getHours();
+  const h = Math.floor(minutesIntoHotelDay() / 60);
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
@@ -48,6 +50,7 @@ function greeting(): string {
 function todayLabel(): string {
   return new Date().toLocaleDateString("en-PK", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
+    timeZone: "Asia/Karachi",
   });
 }
 
@@ -629,36 +632,34 @@ function scheduleIcon(e: DashboardScheduleEvent): React.ElementType {
   return Sparkles;
 }
 
-function timeToPct(hhmm: string, startHour: number, endHour: number): number {
-  const [h, m] = hhmm.split(":").map(Number);
-  const minutes = h * 60 + m;
-  const startMin = startHour * 60;
-  const endMin = endHour * 60;
-  return Math.min(100, Math.max(0, ((minutes - startMin) / (endMin - startMin)) * 100));
-}
-
 function LiveScheduleHero({
-  events, arrivalsToday, departuresToday, occupiedRooms, totalRooms,
+  events, businessDay, arrivalsToday, departuresToday, occupiedRooms, totalRooms,
 }: {
   events: DashboardScheduleEvent[];
+  businessDay?: DashboardBusinessDay;
   arrivalsToday: number;
   departuresToday: number;
   occupiedRooms: number;
   totalRooms: number;
 }) {
-  const now = new Date();
-  const nowHour = now.getHours() + now.getMinutes() / 60;
+  // Everything here is measured in minutes since the hotel's business day opened.
+  // The server sends that instant and each event's offset from it, so the axis is
+  // identical on a laptop in Karachi and one in London — reading the browser's own
+  // clock used to slide the NOW marker away from the events it sits among.
+  const dayStartMs = businessDay ? new Date(businessDay.startsAt).getTime() : NaN;
+  const nowOffsetMin = Number.isNaN(dayStartMs)
+    ? minutesIntoHotelDay()
+    : Math.min(1440, Math.max(0, (Date.now() - dayStartMs) / 60_000));
 
-  // Compute window from actual event times + NOW so nothing is ever clipped.
-  const eventHours = events.map((e) => {
-    const [h, m] = e.time.split(":").map(Number);
-    return h + m / 60;
-  });
-  const allHours = [...eventHours, nowHour];
-  const START_HOUR = Math.max(0,  Math.floor(Math.min(...allHours)) - 1);
-  const END_HOUR   = Math.min(24, Math.ceil(Math.max(...allHours))  + 1);
+  // Window derived from the real events plus NOW, so nothing is ever clipped.
+  const allOffsets = [...events.map((e) => e.offsetMin), nowOffsetMin];
+  const START_MIN = Math.max(0,    Math.floor(Math.min(...allOffsets) / 60) * 60 - 60);
+  const END_MIN   = Math.min(1440, Math.ceil( Math.max(...allOffsets) / 60) * 60 + 60);
 
-  const nowPct = timeToPct(`${now.getHours()}:${now.getMinutes()}`, START_HOUR, END_HOUR);
+  const toPct = (min: number) =>
+    Math.min(100, Math.max(0, ((min - START_MIN) / Math.max(END_MIN - START_MIN, 1)) * 100));
+
+  const nowPct = toPct(nowOffsetMin);
 
   // Summary counts derived from events
   const doneCount    = events.filter((e) => e.isDone).length;
@@ -724,7 +725,7 @@ function LiveScheduleHero({
 
           {events.map((e) => {
             const Icon = scheduleIcon(e);
-            const pos  = timeToPct(e.time, START_HOUR, END_HOUR);
+            const pos  = toPct(e.offsetMin);
             const done = e.isDone;
             const tooltipParts = [e.label, e.sublabel, e.time, e.isVip ? "VIP" : "", e.balanceDue ? `Balance: PKR ${(e.balanceDue / 100).toLocaleString()}` : ""].filter(Boolean);
 
@@ -789,13 +790,15 @@ function formatUpcomingDate(checkInDate: string): string {
   }).format(new Date(checkInDate));
 }
 
-function ArrivalsPanel({ reservations, upcoming }: { reservations: DashboardRecentReservation[]; upcoming: DashboardRecentReservation[] }) {
+function ArrivalsPanel({ reservations, upcoming, businessDate }: { reservations: DashboardRecentReservation[]; upcoming: DashboardRecentReservation[]; businessDate?: string }) {
   const navigate = useNavigate();
   const { has } = usePermissions();
   const canReadGuests = has("guests:read");
   const [tab, setTab] = React.useState<"arrivals" | "inhouse" | "upcoming">("arrivals");
 
-  const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
+  // Must be the same day the header's ARRIVALS count was computed for, otherwise
+  // the number and the list below it can describe two different days.
+  const today = businessDate ?? todayInHotelTime();
   const arrivals = reservations.filter(
     (r) => r.checkInDate?.slice(0, 10) === today && r.status !== "CANCELLED",
   );
@@ -1180,6 +1183,7 @@ export default function DashboardPage() {
       <div className="mb-5">
         <LiveScheduleHero
           events={dash?.schedule ?? []}
+          businessDay={dash?.businessDay}
           arrivalsToday={today?.arrivalsToday ?? 0}
           departuresToday={today?.departuresToday ?? 0}
           occupiedRooms={occ?.occupiedRooms ?? 0}
@@ -1257,7 +1261,7 @@ export default function DashboardPage() {
       {/* Front desk arrivals + housekeeping */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mt-5">
         <Card className="xl:col-span-2 anim-fade-up" style={{ animationDelay: "240ms" }} pad={false}>
-          <ArrivalsPanel reservations={recent} upcoming={upcoming} />
+          <ArrivalsPanel reservations={recent} upcoming={upcoming} businessDate={dash?.businessDay?.date} />
         </Card>
 
         <div className="flex flex-col gap-5">

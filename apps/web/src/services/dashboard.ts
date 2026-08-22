@@ -77,11 +77,19 @@ export interface DashboardDeparturesToCollect {
   items: DashboardCollectItem[];
 }
 
+/** The hotel's current operating day, bounded by its own configured shift times. */
+export interface DashboardBusinessDay {
+  date:     string; // "YYYY-MM-DD"
+  startsAt: string; // ISO instant the Morning shift opened it
+  endsAt:   string; // ISO instant the next Morning shift closes it
+}
+
 export type DashboardScheduleEventType = "checkin" | "checkout" | "housekeeping";
 
 export interface DashboardScheduleEvent {
   id:          string;
-  time:        string; // "HH:MM", 24-hour
+  time:        string; // "HH:MM", 24-hour, in the hotel's timezone
+  offsetMin:   number; // minutes since the business day opened — timezone-free position
   type:        DashboardScheduleEventType;
   label:       string;
   sublabel:    string;
@@ -124,6 +132,7 @@ export interface DashboardData {
   upcomingReservations: DashboardRecentReservation[];
   departuresToCollect: DashboardDeparturesToCollect;
   schedule:            DashboardScheduleEvent[];
+  businessDay:         DashboardBusinessDay;
   operationalReminders: DashboardOperationalReminder[];
 }
 

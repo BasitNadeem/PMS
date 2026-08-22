@@ -8,13 +8,21 @@ import {
   listExpensesSchema,
 } from "../schemas/expenses";
 import { ExpenseService } from "../services/ExpenseService";
+import { getOperationalBusinessDate } from "../lib/shiftSchedule";
 
 const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
 
 // GET /api/expenses/summary — BEFORE /:id
 router.get("/summary", requirePermission("expenses:read"), async (req, res) => {
-  const today     = new Date().toISOString().slice(0, 10);
+  // The hotel's operating day, not the UTC date. Deriving this from the raw
+  // instant sent the default range a day back every night before the Morning
+  // boundary, and on the 1st of a month it rolled the whole range into the
+  // previous month.
+  const hotel = await req.withTenant((db) =>
+    db.hotel.findUniqueOrThrow({ where: { id: req.user!.hotelId }, select: { settings: true } })
+  );
+  const today     = getOperationalBusinessDate((hotel.settings as Record<string, unknown> | null) ?? {});
   const firstDay  = today.slice(0, 8) + "01";
   const startDate = (req.query.startDate as string) || firstDay;
   const endDate   = (req.query.endDate   as string) || today;

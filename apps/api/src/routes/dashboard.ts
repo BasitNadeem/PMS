@@ -4,6 +4,8 @@ import { authenticate } from "../middleware/auth";
 import { tenantMiddleware } from "../middleware/tenant";
 import { computeMaintenanceSummary } from "../services/MaintenanceService";
 import { OperationalReminderService } from "../services/OperationalReminderService";
+import { addDays, getBusinessDayWindow, getOperationalBusinessDate, readShiftSchedule, timeToMinutes } from "../lib/shiftSchedule";
+import { dateOnlyUTC, PKT_OFFSET_HOURS } from "../lib/timezone";
 
 const router: Router = Router();
 router.use(authenticate, tenantMiddleware);
@@ -14,22 +16,30 @@ router.get("/", async (req, res) => {
     req.user!.hotelId,
     req.user!.permissions,
   );
-  const todayStart = new Date();
-  todayStart.setUTCHours(0, 0, 0, 0);
-  const todayEnd = new Date();
-  todayEnd.setUTCHours(23, 59, 59, 999);
+  // "Today" on this dashboard is the hotel's operating day, not the calendar day
+  // and not the UTC day. It opens and closes at the shift boundaries the property
+  // configured, so a check-in at 02:00 still belongs to the shift that is on duty
+  // rather than jumping to a new date the front desk has not started yet.
+  const hotelRow = await req.withTenant((db) =>
+    db.hotel.findUniqueOrThrow({ where: { id: req.user!.hotelId }, select: { settings: true } })
+  );
+  const hotelSettings = (hotelRow.settings as Record<string, unknown> | null) ?? {};
+  const businessDate  = getOperationalBusinessDate(hotelSettings);
+  const previousDate  = addDays(businessDate, -1);
 
-  const yesterdayStart = new Date(todayStart);
-  yesterdayStart.setUTCDate(yesterdayStart.getUTCDate() - 1);
-  const yesterdayEnd = new Date(todayEnd);
-  yesterdayEnd.setUTCDate(yesterdayEnd.getUTCDate() - 1);
+  // Timestamp columns (createdAt, charge_date) need the real instant window.
+  const { start: todayStart,     end: todayEnd }     = getBusinessDayWindow(businessDate, hotelSettings);
+  const { start: yesterdayStart, end: yesterdayEnd } = getBusinessDayWindow(previousDate, hotelSettings);
+
+  // Calendar-date columns (@db.Date) are stored at UTC midnight and must be
+  // matched against the date itself, never against the instant window above.
+  const dayDate     = dateOnlyUTC(businessDate);
+  const prevDayDate = dateOnlyUTC(previousDate);
 
   // "Upcoming" window for the front-desk card's third tab — the 7 days AFTER today,
   // starting tomorrow so it never overlaps with the "Arrivals" (today) tab.
-  const upcomingStart = new Date(todayStart);
-  upcomingStart.setUTCDate(upcomingStart.getUTCDate() + 1);
-  const upcomingEnd = new Date(todayEnd);
-  upcomingEnd.setUTCDate(upcomingEnd.getUTCDate() + 7);
+  const upcomingFrom = dateOnlyUTC(addDays(businessDate, 1));
+  const upcomingTo   = dateOnlyUTC(addDays(businessDate, 7));
 
   const dataPromise = req.withTenant(async (db) => {
     const [
@@ -58,7 +68,6 @@ router.get("/", async (req, res) => {
       checkedInYesterday,
       revenueYesterdayAgg,
       departuresToCollectRaw,
-      hotelSettingsRow,
       scheduleArrivalsRaw,
       scheduleDeparturesRaw,
       scheduleHousekeepingRaw,
@@ -68,13 +77,13 @@ router.get("/", async (req, res) => {
       db.room.count({ where: { status: "VACANT_CLEAN" } }),
       db.reservation.count({
         where: {
-          checkInDate: { gte: todayStart, lte: todayEnd },
+          checkInDate: dayDate,
           status: { in: ["CHECKED_IN", "CONFIRMED"] },
         },
       }),
       db.reservation.count({
         where: {
-          checkOutDate: { gte: todayStart, lte: todayEnd },
+          checkOutDate: dayDate,
           status: "CHECKED_IN",
         },
       }),
@@ -136,7 +145,7 @@ router.get("/", async (req, res) => {
       // Front-desk card's "Upcoming" tab — next 7 days of arrivals, earliest first.
       db.reservation.findMany({
         where: {
-          checkInDate: { gte: upcomingStart, lte: upcomingEnd },
+          checkInDate: { gte: upcomingFrom, lte: upcomingTo },
           status: { notIn: ["CANCELLED", "NO_SHOW"] },
         },
         take: 20,
@@ -158,21 +167,21 @@ router.get("/", async (req, res) => {
       // Day-over-day comparisons — power the KPI trend badges with real deltas.
       db.reservation.count({
         where: {
-          checkInDate: { gte: yesterdayStart, lte: yesterdayEnd },
+          checkInDate: prevDayDate,
           status: { notIn: ["CANCELLED", "NO_SHOW"] },
         },
       }),
       db.reservation.count({
         where: {
-          checkOutDate: { gte: yesterdayStart, lte: yesterdayEnd },
+          checkOutDate: prevDayDate,
           status: "CHECKED_OUT",
         },
       }),
       // Reservations that were occupying a room at any point yesterday — approximates yesterday's in-house count.
       db.reservation.count({
         where: {
-          checkInDate:  { lte: yesterdayEnd },
-          checkOutDate: { gt: yesterdayEnd },
+          checkInDate:  { lte: prevDayDate },
+          checkOutDate: { gt: prevDayDate },
           status: { notIn: ["CANCELLED", "NO_SHOW"] },
         },
       }),
@@ -194,7 +203,7 @@ router.get("/", async (req, res) => {
       // Money to collect — today's departing guests with an outstanding folio balance.
       db.reservation.findMany({
         where: {
-          checkOutDate: { gte: todayStart, lte: todayEnd },
+          checkOutDate: dayDate,
           status: "CHECKED_IN",
           folio: { balanceDue: { gt: 0 } },
         },
@@ -206,15 +215,12 @@ router.get("/", async (req, res) => {
           folio: { select: { balanceDue: true } },
         },
       }),
-      // Hotel's configured standard check-in/out times — used for the live schedule's
-      // "expected" events that haven't actually happened yet (no real timestamp exists).
-      db.hotel.findUnique({ where: { id: req.user!.hotelId }, select: { settings: true } }),
       // Live schedule — today's arrivals. actualCheckIn (real) if already checked in,
       // otherwise the event has no real timestamp yet and falls back to checkInTime.
       // CHECKED_OUT is included so guests who arrived and departed today still appear.
       db.reservation.findMany({
         where: {
-          checkInDate: { gte: todayStart, lte: todayEnd },
+          checkInDate: dayDate,
           status: { in: ["CHECKED_IN", "CONFIRMED", "CHECKED_OUT"] },
         },
         take: 15,
@@ -227,7 +233,7 @@ router.get("/", async (req, res) => {
       // Live schedule — today's departures, checked-out or still pending.
       db.reservation.findMany({
         where: {
-          checkOutDate: { gte: todayStart, lte: todayEnd },
+          checkOutDate: dayDate,
           status: { in: ["CHECKED_IN", "CHECKED_OUT"] },
         },
         take: 15,
@@ -242,7 +248,7 @@ router.get("/", async (req, res) => {
       // Pending tasks have no real time basis and are deliberately excluded.
       db.housekeepingTask.findMany({
         where: {
-          scheduledDate: { gte: todayStart, lt: todayEnd },
+          scheduledDate: dayDate,
           status: { in: [HousekeepingTaskStatus.IN_PROGRESS, HousekeepingTaskStatus.COMPLETED] },
         },
         take: 15,
@@ -257,7 +263,6 @@ router.get("/", async (req, res) => {
     // actualCheckOut, housekeeping startedAt/completedAt) or, for events that
     // haven't happened yet, the hotel's own configured check-in/out time.
     // Nothing here is a per-guest guess.
-    const hotelSettings = (hotelSettingsRow?.settings as Record<string, unknown>) ?? {};
     const defaultCheckInTime  = typeof hotelSettings.checkInTime  === "string" ? hotelSettings.checkInTime  : "14:00";
     const defaultCheckOutTime = typeof hotelSettings.checkOutTime === "string" ? hotelSettings.checkOutTime : "12:00";
 
@@ -269,7 +274,7 @@ router.get("/", async (req, res) => {
     }
 
     const scheduleEvents: {
-      id: string; time: string; type: string; label: string; sublabel: string;
+      id: string; time: string; offsetMin: number; type: string; label: string; sublabel: string;
       isDone: boolean; isVip?: boolean; taskType?: string; hasIssue?: boolean; balanceDue?: number;
     }[] = [];
 
@@ -278,6 +283,7 @@ router.get("/", async (req, res) => {
       scheduleEvents.push({
         id:       `arr-${r.id}`,
         time:     r.actualCheckIn ? hhmm(r.actualCheckIn) : defaultCheckInTime,
+        offsetMin: 0,
         type:     "checkin",
         label:    r.guest.fullName,
         sublabel: `Room ${roomNum}`,
@@ -290,6 +296,7 @@ router.get("/", async (req, res) => {
       scheduleEvents.push({
         id:         `dep-${r.id}`,
         time:       r.actualCheckOut ? hhmm(r.actualCheckOut) : defaultCheckOutTime,
+        offsetMin:  0,
         type:       "checkout",
         label:      r.guest.fullName,
         sublabel:   `Room ${roomNum}`,
@@ -303,6 +310,7 @@ router.get("/", async (req, res) => {
       scheduleEvents.push({
         id:       `hk-${t.id}`,
         time:     hhmm(at),
+        offsetMin: 0,
         type:     "housekeeping",
         label:    `Room ${t.room.number}`,
         sublabel: t.taskType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
@@ -311,7 +319,14 @@ router.get("/", async (req, res) => {
         hasIssue: t.hasIssue,
       });
     }
-    scheduleEvents.sort((a, b) => a.time.localeCompare(b.time));
+    // Position every event as minutes since the business day opened, so a 01:00
+    // event lands at the END of the day it belongs to instead of the far left.
+    // The client never has to know the hotel's timezone to place these.
+    const dayStartMin = timeToMinutes(readShiftSchedule(hotelSettings).morningStart);
+    for (const e of scheduleEvents) {
+      e.offsetMin = (timeToMinutes(e.time) - dayStartMin + 1440) % 1440;
+    }
+    scheduleEvents.sort((a, b) => a.offsetMin - b.offsetMin);
 
     return {
       occupancy: { totalRooms, occupiedRooms, availableRooms, occupancyRate },
@@ -363,6 +378,11 @@ router.get("/", async (req, res) => {
         })),
       },
       schedule: scheduleEvents,
+      businessDay: {
+        date:     businessDate,
+        startsAt: todayStart.toISOString(),
+        endsAt:   todayEnd.toISOString(),
+      },
     };
   });
 
@@ -388,17 +408,32 @@ router.get("/revenue-trend", async (req, res) => {
   const days = REVENUE_TREND_RANGES[range];
   const bucketWeekly = range === "6m";
 
-  const todayStart = new Date();
-  todayStart.setUTCHours(0, 0, 0, 0);
-  const todayEnd = new Date();
-  todayEnd.setUTCHours(23, 59, 59, 999);
-  const rangeStart = new Date(todayStart);
-  rangeStart.setUTCDate(rangeStart.getUTCDate() - (days - 1));
+  // Same operating-day basis as the dashboard itself, so the last bar on the
+  // chart is the day the front desk is actually working, not the UTC date.
+  const hotelRow = await req.withTenant((db) =>
+    db.hotel.findUniqueOrThrow({ where: { id: req.user!.hotelId }, select: { settings: true } })
+  );
+  const hotelSettings = (hotelRow.settings as Record<string, unknown> | null) ?? {};
+  const businessDate  = getOperationalBusinessDate(hotelSettings);
+  const firstDate     = addDays(businessDate, -(days - 1));
+
+  const { end: todayEnd }      = getBusinessDayWindow(businessDate, hotelSettings);
+  const { start: rangeStart }  = getBusinessDayWindow(firstDate, hotelSettings);
+
+  // Postgres holds these as `timestamp without time zone` in UTC. Shifting each
+  // row by (PKT offset - the hotel's Morning boundary) moves it into a space
+  // where plain date_trunc lands it on the business day it belongs to, so a
+  // 02:00 charge groups with the shift that took it rather than the next day.
+  const bucketShiftMinutes =
+    PKT_OFFSET_HOURS * 60 - timeToMinutes(readShiftSchedule(hotelSettings).morningStart);
 
   const data = await req.withTenant(async (db) => {
+    // make_interval() is unusable here: Prisma binds JS numbers as bigint and no
+    // make_interval overload accepts one. Multiplying a unit interval does.
+    const shifted = Prisma.sql`(bucket_date + (${bucketShiftMinutes} * interval '1 minute'))`;
     const bucketColSql = bucketWeekly
-      ? Prisma.sql`date_trunc('week', bucket_date)`
-      : Prisma.sql`date_trunc('day', bucket_date)`;
+      ? Prisma.sql`date_trunc('week', ${shifted})`
+      : Prisma.sql`date_trunc('day', ${shifted})`;
     const rows = await db.$queryRaw<{ bucket: Date; total: bigint }[]>(
       Prisma.sql`
         SELECT ${bucketColSql} AS bucket, COALESCE(SUM(amount), 0)::bigint AS total
@@ -424,8 +459,7 @@ router.get("/revenue-trend", async (req, res) => {
     const trend: { date: string; amount: number }[] = [];
     const step = bucketWeekly ? 7 : 1;
     for (let i = days - 1; i >= 0; i -= step) {
-      const d = new Date(todayStart);
-      d.setUTCDate(d.getUTCDate() - i);
+      const d = dateOnlyUTC(addDays(businessDate, -i));
       // Align to the same week-start the SQL date_trunc('week', ...) would produce (Monday).
       if (bucketWeekly) {
         const dow = (d.getUTCDay() + 6) % 7; // 0=Mon

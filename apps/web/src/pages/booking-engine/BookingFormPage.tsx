@@ -20,6 +20,7 @@ import { cn } from "@/lib/cn";
 import { getPhoneErrorMessage, getEmailErrorMessage } from "@/lib/validation";
 import { calculateAccommodationCharges } from "@/lib/accommodationCharges";
 import type { PublicHotel } from "@/services/bookingEngine";
+import { todayInHotelTime } from "../../lib/hotelTime";
 
 const CART_KEY = (slug: string) => `be_cart_${slug}`;
 const UPSELL_KEY = (slug: string) => `be_upsells_${slug}`;
@@ -787,7 +788,7 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
                       <DateField
                         icon={<Cake size={15} />}
                         placeholder="Select your birthday"
-                        max={new Date().toISOString().slice(0, 10)}
+                        max={todayInHotelTime()}
                         value={form.dateOfBirth}
                         onChange={(v) => setForm((f) => ({ ...f, dateOfBirth: v }))}
                       />
@@ -796,7 +797,7 @@ export default function BookingFormPage({ hotelSlug }: BookingFormPageProps) {
                       <DateField
                         icon={<Heart size={15} />}
                         placeholder="Select your anniversary"
-                        max={new Date().toISOString().slice(0, 10)}
+                        max={todayInHotelTime()}
                         value={form.anniversaryDate}
                         onChange={(v) => setForm((f) => ({ ...f, anniversaryDate: v }))}
                       />

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { RequiredMark } from "@/components/ui/RequiredMark";
 import { Segmented } from "@/components/ui/Segmented";
+import { todayInHotelTime } from "../../lib/hotelTime";
 
 const inputCls = "h-10 w-full rounded-xl bg-mist border border-line px-3 text-[13.5px] text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 transition-all";
 const labelCls = "block text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-1.5";
@@ -34,7 +35,7 @@ export function AdjustLedgerModal({
   const [type, setType]         = useState<"ADJUSTMENT" | "WRITE_OFF">("ADJUSTMENT");
   const [amount, setAmount]     = useState("");
   const [description, setDesc]  = useState("");
-  const [entryDate, setDate]    = useState(new Date().toISOString().slice(0, 10));
+  const [entryDate, setDate]    = useState(todayInHotelTime());
 
   const numericAmount = Number(amount) || 0;
   const writeOffTooBig = type === "WRITE_OFF" && numericAmount * 100 > outstanding;
@@ -117,7 +118,7 @@ export function AdjustLedgerModal({
             </div>
             <div>
               <label className={labelCls}>Date</label>
-              <DatePicker value={entryDate} onChange={setDate} max={new Date().toISOString().slice(0, 10)} />
+              <DatePicker value={entryDate} onChange={setDate} max={todayInHotelTime()} />
             </div>
           </div>
 

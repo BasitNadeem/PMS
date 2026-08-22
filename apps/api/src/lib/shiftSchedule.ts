@@ -48,7 +48,7 @@ export function readShiftSchedule(settings: unknown): ShiftSchedule {
   return isValidShiftSchedule(candidate) ? candidate : DEFAULT_SHIFT_SCHEDULE;
 }
 
-function addDays(date: string, days: number): string {
+export function addDays(date: string, days: number): string {
   const [year, month, day] = date.split("-").map(Number);
   const value = new Date(Date.UTC(year, month - 1, day + days));
   return [
@@ -144,4 +144,27 @@ export function hasBusinessDayEnded(
   now = new Date(),
 ): boolean {
   return now >= getBusinessDayEnd(businessDate, settings);
+}
+
+/**
+ * The instant window covering one whole hotel business day.
+ *
+ * A hotel day is not a calendar day: it opens when the Morning shift starts
+ * and closes when the next Morning shift starts, so it spans midnight. Both
+ * boundaries come from the hotel's own saved schedule, which every property
+ * configures differently — a resort opening at 08:00 and a city hotel opening
+ * at 06:00 must not share a hardcoded boundary.
+ *
+ * Use this for TIMESTAMP columns (createdAt, charge_date, actual check-in).
+ * Calendar-date columns (@db.Date) should be matched with dateOnlyUTC instead.
+ */
+export function getBusinessDayWindow(
+  businessDate: string,
+  settings: unknown,
+): { start: Date; end: Date } {
+  const schedule = readShiftSchedule(settings);
+  return {
+    start: getShiftWindow(businessDate, "MORNING", schedule).start,
+    end:   getShiftWindow(businessDate, "NIGHT",   schedule).end,
+  };
 }

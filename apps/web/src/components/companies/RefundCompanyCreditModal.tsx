@@ -6,6 +6,7 @@ import { companiesService, pkr } from "@/services/companies";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { Button } from "@/components/ui/Button";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { todayInHotelTime } from "../../lib/hotelTime";
 
 const field = "h-10 w-full rounded-xl border border-line bg-mist px-3 text-[13.5px] text-ink outline-none focus:border-coral focus:ring-2 focus:ring-coral/15";
 const label = "mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-ink-faint";
@@ -20,7 +21,7 @@ export function RefundCompanyCreditModal({ companyId, companyName, available, on
   const [method, setMethod] = useState("BANK_TRANSFER");
   const [reference, setReference] = useState("");
   const [reason, setReason] = useState("");
-  const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
+  const [paidAt, setPaidAt] = useState(todayInHotelTime());
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const numeric = Number(amount) || 0;
   const mutation = useMutation({
@@ -53,7 +54,7 @@ export function RefundCompanyCreditModal({ companyId, companyName, available, on
           <div><label className={label}>Amount (Rs)</label><input autoFocus type="number" min="0.01" max={available / 100} step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} className={field} /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className={label}>Method</label><select value={method} onChange={(event) => setMethod(event.target.value)} className={field}><option value="BANK_TRANSFER">Bank transfer</option><option value="CHEQUE">Cheque</option><option value="CASH">Cash</option><option value="JAZZCASH">JazzCash</option><option value="EASYPAISA">Easypaisa</option></select></div>
-            <div><label className={label}>Refund date</label><DatePicker value={paidAt} onChange={setPaidAt} max={new Date().toISOString().slice(0, 10)} /></div>
+            <div><label className={label}>Refund date</label><DatePicker value={paidAt} onChange={setPaidAt} max={todayInHotelTime()} /></div>
           </div>
           <div><label className={label}>Reference</label><input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="Transaction / cheque number" className={field} /></div>
           <div><label className={label}>Reason *</label><input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why this credit is being returned" className={field} /></div>

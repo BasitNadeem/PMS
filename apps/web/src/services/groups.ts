@@ -70,6 +70,7 @@ export interface GroupReservation {
   taxInclusive: boolean;
   taxBreakdown: Array<{ key: "GST" | "PST"; label: string; rate: number; amount: number }> | null;
   totalAmount: number;
+  appliedRatePlanName: string | null;
   guest: GroupReservationGuest;
   room: GroupReservationRoom | null;
   folio: GroupReservationFolio | null;

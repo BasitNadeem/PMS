@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/cn";
-import { api, getErrorDetails } from "@/lib/api";
+import { getErrorDetails } from "@/lib/api";
 import { todayInHotelTime } from "@/lib/hotelTime";
 import { CaptureIdModal } from "@/components/reservations/CaptureIdModal";
 import {
@@ -92,17 +92,6 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
   });
 
   const room0 = reservation?.rooms[0];
-  const { data: suggestData } = useQuery({
-    queryKey: ["rate-suggest", room0?.roomTypeId, reservation?.checkInDate?.slice(0, 10), reservation?.checkOutDate?.slice(0, 10)],
-    queryFn: async () => {
-      const res = await api.get("/api/rate-plans/suggest", {
-        params: { roomTypeId: room0!.roomTypeId, checkIn: reservation!.checkInDate.slice(0, 10), checkOut: reservation!.checkOutDate.slice(0, 10) },
-      });
-      return res.data.data as { suggestedRate: number; matchedPlan: { id: string; name: string } | null };
-    },
-    enabled: !!room0 && !!reservation?.checkInDate && !!reservation?.checkOutDate,
-    staleTime: 60_000,
-  });
 
   // A blocked check-in used to fail silently here — the drawer's only error
   // surface lives inside the no-show panel. The clerk pressed Check in, nothing
@@ -320,10 +309,14 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">Rate summary</span>
-                    {suggestData?.matchedPlan && (
+                    {/* The plan this stay was booked on, not whichever plan
+                        happens to match these dates today — those diverge as
+                        soon as rates change, and the drawer used to show the
+                        latter beside a rate calculated from the former. */}
+                    {reservation.appliedRatePlanName && (
                       <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-pine bg-pine/20 border border-pine/40 px-2.5 py-1 rounded-lg">
                         <Tag size={11} strokeWidth={2.5} />
-                        {suggestData.matchedPlan.name}
+                        {reservation.appliedRatePlanName}
                       </span>
                     )}
                   </div>

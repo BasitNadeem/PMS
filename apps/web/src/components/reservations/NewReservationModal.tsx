@@ -457,6 +457,10 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
       ratePerNight: form.ratePerNight, adults: form.adults, children: form.children,
       source: form.source, specialRequests: form.specialRequests.trim() || undefined,
       isVip: form.isVip,
+      // The matched plan was shown to the clerk while they booked, then thrown
+      // away — so the reservation page had nothing to display afterwards.
+      // Recorded as a label; the charge is ratePerNight, decided here.
+      appliedRatePlanName: suggestData?.matchedPlan?.name || undefined,
       ...(advancePaymentPaise > 0 && {
         advancePayment: advancePaymentPaise,
         advancePaymentMethod: form.advancePaymentMethod,

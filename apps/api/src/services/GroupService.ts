@@ -242,6 +242,7 @@ export const GroupService = {
       taxInclusive:       r.taxInclusive,
       taxBreakdown:       r.taxBreakdown,
       totalAmount:        r.totalAmount,
+      appliedRatePlanName: r.appliedRatePlanName,
       guest:              r.guest,
       room: r.rooms[0]
         ? {

@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Building2, Landmark, HeartHandshake, Briefcase, Users,
-  CheckCircle2, X, Search, Plus, MapPin, ExternalLink, Receipt, Pencil,
+  CheckCircle2, X, Search, Plus, MapPin, ExternalLink, Receipt, Pencil, Tag,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getErrorMessage } from "@/lib/api";
@@ -440,7 +440,19 @@ export default function GroupDetailPage() {
                           <span className="text-amber">TBD</span>
                         )
                       ) : (
-                        <span className="block truncate">{r.room.number} <span className="text-ink-mute font-medium">· {r.room.roomType.name}</span></span>
+                        <span className="block truncate">
+                          {r.room.number} <span className="text-ink-mute font-medium">· {r.room.roomType.name}</span>
+                          {/* Rooms in one group are often booked on different
+                              plans — a contracted rate for the organiser, the
+                              public rate for late additions. The name is a
+                              label for what was quoted, never a recalculation. */}
+                          {r.appliedRatePlanName && (
+                            <span className="mt-0.5 flex items-center gap-1 text-[11.5px] font-semibold text-pine">
+                              <Tag size={10} strokeWidth={2.6} className="shrink-0" />
+                              <span className="truncate">{r.appliedRatePlanName}</span>
+                            </span>
+                          )}
+                        </span>
                       )
                     ) : "—"}
                   </div>

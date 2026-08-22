@@ -319,6 +319,7 @@ export const ReservationService = {
           source:             dto.source,
           specialRequests:    dto.specialRequests,
           quotedRate:         dto.ratePerNight,
+          appliedRatePlanName: dto.appliedRatePlanName ?? null,
           subtotalAmount:     charges.subtotalAmount,
           taxAmount:          charges.taxAmount,
           taxInclusive:       charges.taxInclusive,

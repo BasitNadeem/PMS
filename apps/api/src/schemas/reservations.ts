@@ -33,6 +33,10 @@ export const createReservationSchema = z
     advancePayment:       z.number().int().min(0).optional(),
     advancePaymentMethod: z.nativeEnum(PaymentMethod).optional(),
     isVip:           z.boolean().optional(),
+    // Which published rate the desk was quoting when it booked. Recorded for
+    // the record only — the amount charged is ratePerNight above, never
+    // recomputed from the plan.
+    appliedRatePlanName: z.string().trim().max(160).optional(),
     // Corporate billing. billToCompany only means anything with a companyId —
     // the refine below enforces that rather than silently ignoring it.
     companyId:       z.string().uuid().nullish(),

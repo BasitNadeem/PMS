@@ -293,6 +293,12 @@ export default function ReservationDetailPage() {
   const arrivalDate = reservation.checkInDate.slice(0, 10);
   const canMarkNoShow = canUpdate && reservation.status === "CONFIRMED" && arrivalDate <= todayInHotelTime();
   const hasIdOnFile = idDocuments.length > 0;
+  // Shown standing, not only after a refused check-in. The ID gate is optional
+  // per hotel, so a guest can be — and routinely is — checked in without a
+  // document; the gap then has no surface at all and quietly never gets closed.
+  // Terminal stays are left alone: there is nobody left to photograph.
+  const idMissing = !hasIdOnFile
+    && (reservation.status === "CONFIRMED" || reservation.status === "CHECKED_IN");
 
   return (
     <div>
@@ -343,6 +349,30 @@ export default function ReservationDetailPage() {
           </div>
         </div>
       </div>
+
+      {idMissing && (
+        <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-amber/40 bg-amber-soft/60 px-4 py-3">
+          <ShieldAlert size={17} className="text-amber shrink-0" />
+          <div className="min-w-0 flex-1">
+            <span className="text-[13px] font-bold text-ink">
+              {reservation.status === "CHECKED_IN" ? "In-house without an ID" : "No ID captured yet"}
+            </span>
+            <span className="ml-2 text-[12.5px] text-ink-soft">
+              {reservation.status === "CHECKED_IN"
+                ? `Nothing is on file for ${reservation.guest.fullName}. Capture it while they are still on the property.`
+                : `Nothing is on file for ${reservation.guest.fullName}. Capture it on arrival, or send the QR link ahead of the stay.`}
+            </span>
+          </div>
+          {canUpdate && (
+            <button
+              onClick={() => setShowCaptureId(true)}
+              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full bg-pine px-4 text-[13px] font-semibold text-white transition-colors hover:bg-pine-deep"
+            >
+              <IdCard size={15} /> Capture ID
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

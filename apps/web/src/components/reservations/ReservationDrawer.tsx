@@ -98,6 +98,12 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
   // moved, and no reason was given.
   const [idBlocked,   setIdBlocked]   = useState(false);
   const [showCapture, setShowCapture] = useState(false);
+  // Standing notice, independent of a refused check-in: hotels that leave the
+  // gate off can check a guest in with nothing on file, and the gap then has
+  // no surface anywhere until someone thinks to look.
+  const idMissing = reservation !== undefined
+    && !reservation.hasIdDocument
+    && (reservation.status === "CONFIRMED" || reservation.status === "CHECKED_IN");
 
   const statusMutation = useMutation({
     // NO_SHOW is rejected by the API without a reason, so the reason travels
@@ -453,15 +459,22 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
                       {statusMutation.isPending ? "Checking in…" : "Check in"}
                     </button>
                   )}
-                  {idBlocked && (
+                  {(idBlocked || idMissing) && (
                     <div className="w-full rounded-2xl border border-amber/40 bg-amber-soft/60 p-3.5">
                       <div className="flex items-start gap-2.5">
                         <ShieldAlert size={16} className="text-amber shrink-0 mt-0.5" />
                         <div className="min-w-0 flex-1">
-                          <div className="text-[13px] font-bold text-ink">ID required before check-in</div>
+                          <div className="text-[13px] font-bold text-ink">
+                            {idBlocked
+                              ? "ID required before check-in"
+                              : reservation.status === "CHECKED_IN"
+                                ? "In-house without an ID"
+                                : "No ID captured yet"}
+                          </div>
                           <p className="mt-1 text-[12.5px] leading-relaxed text-ink-soft">
-                            No ID on file for {reservation.guest.fullName}. Capture it now — a manager
-                            override is available on the reservation page.
+                            {idBlocked
+                              ? `No ID on file for ${reservation.guest.fullName}. Capture it now — a manager override is available on the reservation page.`
+                              : `Nothing is on file for ${reservation.guest.fullName}. Capture it now, or send the guest the QR link.`}
                           </p>
                           <button
                             onClick={() => setShowCapture(true)}

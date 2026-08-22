@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, CalendarX, ChevronLeft, ChevronRight, ChevronDown, List, CalendarDays, GanttChartSquare, ChevronRight as ArrowRight, ExternalLink, Star } from "lucide-react";
+import { Plus, CalendarX, ChevronLeft, ChevronRight, ChevronDown, List, CalendarDays, GanttChartSquare, ChevronRight as ArrowRight, ExternalLink, Star, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { todayInHotelTime } from "@/lib/hotelTime";
 import {
   reservationsService,
   type ReservationSummary,
@@ -114,6 +115,17 @@ function ReservationRow({ r, groupRoomCount, onOpen, canReadGuests }: {
   // checking out one room of a SPLIT group drops the count to 1 and the remaining
   // room incorrectly loses its GROUP badge and group name.
   const isGroup         = !!r.groupId;
+  // Flagged on the list, not just inside the stay: the point is to spot the
+  // gap while scanning today's arrivals, before the guest is standing there.
+  //
+  // Limited to stays that are actionable now — in-house, or due to arrive by
+  // today. A property with three months of forward bookings has almost no ID
+  // on file for any of them, and chipping every row would turn the warning
+  // into wallpaper. The reservation itself still says so whenever it is open.
+  const idMissing = !r.hasIdDocument && (
+    r.status === "CHECKED_IN" ||
+    (r.status === "CONFIRMED" && r.checkInDate.slice(0, 10) <= todayInHotelTime())
+  );
   const hasMultipleRooms = isGroup && (groupRoomCount ?? 1) > 1;
 
   const roomStr = hasMultipleRooms
@@ -181,6 +193,14 @@ function ReservationRow({ r, groupRoomCount, onOpen, canReadGuests }: {
               </Link>
             )}
             {r.isVip && <Star size={12} className="text-amber fill-amber shrink-0" />}
+            {idMissing && (
+              <span
+                title="No identity document captured for this stay"
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-soft px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber"
+              >
+                <ShieldAlert size={10} /> No ID
+              </span>
+            )}
           </div>
           {r.bookingContactName && (
             <div className="text-[11px] text-ink-faint truncate">

@@ -110,6 +110,8 @@ export interface ReservationSummary {
   group: { groupRef: string; payerType: string; name: string } | null;
   createdAt: string;
   isVip: boolean;
+  /** An identity document has been captured against this stay. */
+  hasIdDocument: boolean;
   guest: ReservationGuest;
   rooms: ReservationRoomSummary[];
 }

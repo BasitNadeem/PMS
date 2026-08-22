@@ -140,6 +140,9 @@ export const ReservationService = {
               },
             },
             group: { select: { groupRef: true, payerType: true, name: true } },
+            // Counted rather than loaded: the desk only needs to know whether
+            // an ID exists, and the documents themselves are never listed here.
+            _count: { select: { guestDocuments: { where: { deletedAt: null } } } },
           },
           orderBy: buildReservationOrderBy(query.sortBy, query.sortDir),
           skip,
@@ -149,7 +152,12 @@ export const ReservationService = {
       ])
     );
 
-    return { data: items, meta: paginationMeta(total, query.page, query.limit) };
+    const data = items.map(({ _count, ...item }) => ({
+      ...item,
+      hasIdDocument: _count.guestDocuments > 0,
+    }));
+
+    return { data, meta: paginationMeta(total, query.page, query.limit) };
   },
 
   async counts(withTenant: WithTenantFn) {
@@ -219,6 +227,7 @@ export const ReservationService = {
           stayChanges: {
             orderBy: { createdAt: "desc" },
           },
+          _count: { select: { guestDocuments: { where: { deletedAt: null } } } },
         },
       })
     );
@@ -239,7 +248,8 @@ export const ReservationService = {
       ...entry,
       user: userId ? { id: userId, name: actorNames.get(userId) ?? "Unknown" } : null,
     }));
-    return { ...reservation, activity };
+    const { _count, ...rest } = reservation;
+    return { ...rest, hasIdDocument: _count.guestDocuments > 0, activity };
   },
 
   async create(withTenant: WithTenantFn, actor: JwtPayload, dto: CreateReservationDto) {

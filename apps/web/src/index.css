@@ -119,16 +119,6 @@
     8px 0 30px rgb(var(--color-ink) / .05);
 }
 
-.sidebar-surface::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: 0 0 auto;
-  height: 190px;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgb(255 255 255 / .18), transparent);
-}
-
 /* The one piece of brand on the rail itself, and the only one that cannot be
    mistaken for a selection: a hairline crown along the top edge. */
 .sidebar-surface::after {
@@ -144,17 +134,27 @@
     rgb(var(--color-accent) / .12));
 }
 
-/* The property block is the rail's masthead. Left transparent it floated with
-   nothing under it, so the whole column started on an unanchored line. */
+/* The property block is the rail's masthead, and it is set on the rail rather
+   than in a card. A translucent white tile here read as frosted glass, and a
+   solid one read as a stray card in a column that has no other cards. What it
+   was buying was an anchor — left plain, the column began on a floating line —
+   so the rule below the whole masthead row buys that instead, and the name
+   simply sits on the surface like a masthead should.
+   The switcher still needs to feel pressable, so the card appears on hover. */
 .sidebar-property {
-  border: 1px solid rgb(255 255 255 / .72);
-  background: rgb(var(--color-card) / .66);
-  box-shadow: 0 1px 2px rgb(var(--color-ink) / .05);
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 button.sidebar-property:hover {
-  border-color: rgb(255 255 255 / .92);
-  background: rgb(var(--color-card) / .86);
+  border-color: rgb(255 255 255 / .6);
+  background: rgb(var(--color-card) / .5);
+}
+
+.sidebar-brand-wrap {
+  margin-bottom: 6px;
+  border-bottom: 1px solid color-mix(in srgb, rgb(var(--color-accent-deep)) 18%, transparent);
 }
 
 .sidebar-collapse {

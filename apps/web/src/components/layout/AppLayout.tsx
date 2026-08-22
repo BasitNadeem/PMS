@@ -146,7 +146,7 @@ const NAV_SECTIONS: { id: NavSectionId; label: string | null }[] = [
 const NAV_ITEMS: NavItem[] = [
   { to: "/kitchen/dashboard", label: "Kitchen Dashboard", icon: ChefHat, permission: "pos:read", roleOnly: "KITCHEN", featureGate: "posModule", section: "main" },
   { to: "/kitchen/display", label: "Display Mode", icon: Monitor, permission: "pos:read", roleOnly: "KITCHEN", newTab: true, featureGate: "kitchenDisplay", section: "main" },
-  { to: "/",             label: "Dashboard",    icon: LayoutDashboard, end: true, permission: "dashboard:read", section: "main" },
+  { to: "/dashboard",    label: "Dashboard",    icon: LayoutDashboard, end: true, permission: "dashboard:read", section: "main" },
   { to: "/reservations", label: "Reservations", icon: CalendarCheck, permission: "reservations:read", section: "frontDesk" },
   { to: "/rooms",        label: "Rooms",        icon: BedDouble, permission: "rooms:read", section: "frontDesk" },
   { to: "/guests",       label: "Guests",       icon: Users, permission: "guests:read", section: "frontDesk" },
@@ -239,7 +239,10 @@ function SidebarTooltip({ label, children }: { label: string; children: React.Re
  *    generic prefix rule correct as more routes are added under /financials.
  */
 function itemMatchesPath(item: NavItem, pathname: string): boolean {
-  if (item.to === "/") return pathname === "/";
+  // "/" only ever exists for the instant before it redirects to /dashboard, so
+  // the nav entry points at the real route. Both are matched anyway: without
+  // the redirect target the landing page had no active row at all.
+  if (item.to === "/dashboard") return pathname === "/" || pathname === "/dashboard";
   if (item.to === "/financials") {
     return pathname === "/financials" || pathname.startsWith("/financials/folio");
   }

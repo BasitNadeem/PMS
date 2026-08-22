@@ -97,45 +97,73 @@
 }
 
 /* ── Sidebar surface ──────────────────────────────────────────────────────────
-   A quiet, themed navigation canvas. Colour belongs to the rail, while the
-   dark selection band supplies the hierarchy. Avoid glass cards and ornamental
-   lines here: this surface frames the product rather than competing with it. */
+   A deep, theme-tinted navigation rail.
+
+   The previous surface washed the accent INTO white at ~20%, which produced a
+   pale tint under WARM_CLAY and all but vanished under AZURE_SLATE, whose
+   accent is already a muted slate — rail and page canvas ended up the same
+   value. Building the rail DOWN from accent-deep instead of UP from white
+   separates it from the canvas by value rather than hue, so every theme reads
+   the same way, and a dark rail is easier on the eyes across a night shift.
+
+   The Tailwind palette is redefined for this subtree instead of rewriting every
+   class in AppLayout: each colour resolves through a CSS variable, so
+   overriding the variables here flips text-ink, text-ink-mute and friends to
+   their light-on-dark equivalents in one place. Anything that lands on the pale
+   active pill is restyled explicitly below, since there the polarity flips
+   back. */
 .sidebar-surface {
+  /* Rail base, mixed down from each theme's deepest accent. */
+  --sb-top:  color-mix(in srgb, rgb(var(--color-accent-deep)) 46%, #15120f);
+  --sb-mid:  color-mix(in srgb, rgb(var(--color-accent-deep)) 33%, #100e0c);
+  --sb-foot: color-mix(in srgb, rgb(var(--color-accent-deep)) 24%, #0b0a09);
+
+  /* Light-on-dark palette, scoped to the rail. */
+  --color-ink: 252 249 245;
+  --color-ink-soft: 224 217 208;
+  --color-ink-mute: 174 165 154;
+  --color-ink-faint: 134 126 116;
+  --color-line: 168 158 147;
+
   position: relative;
   isolation: isolate;
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, rgb(var(--color-accent)) 26%, rgb(var(--color-card))) 0%,
-      color-mix(in srgb, rgb(var(--color-accent)) 19%, rgb(var(--color-mist))) 46%,
-      color-mix(in srgb, rgb(var(--color-accent)) 23%, rgb(var(--color-card))) 100%);
-  border-right-color: color-mix(in srgb, rgb(var(--color-accent-dark)) 18%, rgb(var(--color-line)));
+  background: linear-gradient(180deg, var(--sb-top) 0%, var(--sb-mid) 54%, var(--sb-foot) 100%);
+  border-right-color: rgb(0 0 0 / .34);
   box-shadow:
-    inset -1px 0 0 rgb(255 255 255 / .64),
-    10px 0 34px rgb(var(--color-ink) / .028);
+    inset -1px 0 0 rgb(255 255 255 / .05),
+    14px 0 42px rgb(var(--color-accent-deep) / .12);
 }
 
+/* A single soft bloom of the accent behind the brand, so the rail has a light
+   source instead of being a flat slab. */
 .sidebar-surface::before {
   content: "";
   position: absolute;
   z-index: -1;
   inset: 0 0 auto;
-  height: 180px;
+  height: 260px;
   pointer-events: none;
-  background: linear-gradient(180deg, rgb(255 255 255 / .32), transparent);
+  background: radial-gradient(120% 100% at 12% 0%,
+    rgb(var(--color-accent) / .26), transparent 68%);
 }
 
+/* Hairline of pure accent along the top edge — the one saturated note. */
 .sidebar-surface::after {
   content: "";
   position: absolute;
   z-index: 2;
   inset: 0 0 auto;
-  height: 3px;
+  height: 2px;
   pointer-events: none;
   background: linear-gradient(90deg,
-    rgb(var(--color-accent-deep) / .9),
-    rgb(var(--color-accent) / .7) 52%,
-    rgb(var(--color-accent) / .12));
+    rgb(var(--color-accent) / .95),
+    rgb(var(--color-accent) / .45) 58%,
+    transparent);
 }
+
+/* Utility classes written for a light rail, corrected for this one. */
+.sidebar-surface .bg-line-soft,
+.sidebar-surface .hover\:bg-line-soft:hover { background-color: rgb(255 255 255 / .1); }
 
 .sidebar-property {
   border: 1px solid transparent;
@@ -144,19 +172,18 @@
 }
 
 button.sidebar-property:hover {
-  border-color: rgb(255 255 255 / .44);
-  background: rgb(var(--color-card) / .3);
+  border-color: rgb(255 255 255 / .12);
+  background: rgb(255 255 255 / .06);
 }
 
 .sidebar-collapse {
   background: transparent;
-  border: 1px solid rgb(var(--color-ink) / .12);
+  border: 1px solid rgb(255 255 255 / .13);
 }
 
-.sidebar-collapse:hover { background: rgb(var(--color-card) / .48); }
+.sidebar-collapse:hover { background: rgb(255 255 255 / .09); }
 
 .sidebar-section-label::after { display: none; }
-
 .sidebar-section-label > span:first-child { flex: none; }
 
 .sidebar-nav-item {
@@ -165,53 +192,67 @@ button.sidebar-property:hover {
 
 .sidebar-nav-item:not(.sidebar-nav-item-active):hover {
   border-color: transparent;
-  background: rgb(var(--color-card) / .3);
+  background: rgb(255 255 255 / .07);
 }
 
+/* The active row is a pale plate lifted off the rail — the polarity inversion
+   is what makes "where am I" readable at a glance from across a front desk,
+   and it does not depend on the accent being light enough to show up, which
+   AZURE_SLATE's is not. */
 .sidebar-nav-item-active {
-  border-color: rgb(var(--color-ink) / .04);
-  background:
-    radial-gradient(circle at 100% 0, rgb(var(--color-accent) / .22), transparent 46%),
-    rgb(var(--color-ink));
+  border-color: transparent;
+  background: linear-gradient(180deg,
+    rgb(var(--color-card)),
+    color-mix(in srgb, rgb(var(--color-card)) 88%, rgb(var(--color-accent-soft))));
   box-shadow:
-    0 8px 18px rgb(var(--color-ink) / .12),
-    inset 0 1px 0 rgb(255 255 255 / .09);
-  color: rgb(var(--color-card));
+    0 6px 18px rgb(0 0 0 / .3),
+    0 1px 0 rgb(255 255 255 / .14);
+}
+
+.sidebar-nav-item-active .sidebar-nav-icon,
+.sidebar-nav-item-active > span:not(.sidebar-active-marker) {
+  color: rgb(var(--color-accent-deep));
 }
 
 .sidebar-active-marker {
-  left: 7px;
-  height: 16px;
-  width: 2px;
-  background: rgb(var(--color-accent-soft));
+  left: 0;
+  height: 22px;
+  width: 3px;
+  border-radius: 0 999px 999px 0;
+  background: rgb(var(--color-accent));
   box-shadow: none;
 }
 
-.sidebar-nav-item-active .sidebar-nav-icon {
-  color: rgb(var(--color-accent-soft));
-  filter: none;
+/* Sub-items stay on the dark rail, so their accent has to be the pale tint —
+   the full accent is too dark to read here in half the themes. */
+.sidebar-subnav {
+  border-left-color: rgb(255 255 255 / .12);
 }
 
-.sidebar-nav-item-active > span:not(.sidebar-active-marker) {
-  color: rgb(var(--color-card));
+.sidebar-subitem-active {
+  background: rgb(255 255 255 / .08);
+  color: rgb(var(--color-accent-soft));
 }
+
+.sidebar-subitem-icon { color: rgb(var(--color-accent-soft)); }
 
 .sidebar-nav {
   scrollbar-width: thin;
-  scrollbar-color: rgb(var(--color-accent) / .24) transparent;
+  scrollbar-color: rgb(255 255 255 / .18) transparent;
 }
 
 .sidebar-nav::-webkit-scrollbar { width: 5px; }
 .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
 .sidebar-nav::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: rgb(var(--color-accent) / .22);
+  background: rgb(255 255 255 / .16);
 }
-.sidebar-nav::-webkit-scrollbar-thumb:hover { background: rgb(var(--color-accent) / .38); }
+.sidebar-nav::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / .3); }
 
 .sidebar-footer {
-  background: rgb(var(--color-card) / .24);
-  backdrop-filter: blur(8px);
+  border-top-color: rgb(255 255 255 / .09);
+  background: rgb(0 0 0 / .18);
+  backdrop-filter: none;
 }
 
 /* ── QR guest menu — "Linen & Terra" theme ────────────────────────────────────

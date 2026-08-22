@@ -512,7 +512,7 @@ function SidebarContent({
 
                       {/* Sub-items — visible when parent route is active and sidebar is not collapsed */}
                       {hasChildren && parentActive && !collapsed && (
-                        <div className="mt-0.5 mb-1 ml-3 pl-3 border-l border-line-soft flex flex-col gap-0.5">
+                        <div className="sidebar-subnav mt-0.5 mb-1 ml-3 pl-3 border-l flex flex-col gap-0.5">
                           {item.children!.map((sub) => {
                             // Billing is active on /financials and /financials/folio/*
                             // Expenses is active on /financials/expenses
@@ -524,16 +524,14 @@ function SidebarContent({
                                 key={sub.to}
                                 onClick={() => { navigate(sub.to); onNavigate?.(); }}
                                 className={cn(
-                                  "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-all w-full text-left",
-                                  subActive
-                                    ? "text-coral bg-coral/8"
-                                    : "text-ink-mute hover:text-ink-soft hover:bg-line-soft",
+                                  "sidebar-subitem flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-all w-full text-left",
+                                  subActive ? "sidebar-subitem-active" : "text-ink-mute hover:text-ink-soft",
                                 )}
                               >
                                 <sub.icon
                                   size={15}
                                   strokeWidth={subActive ? 2.2 : 1.8}
-                                  className={subActive ? "text-coral" : "text-ink-faint"}
+                                  className={subActive ? "sidebar-subitem-icon" : "text-ink-faint"}
                                 />
                                 {sub.label}
                               </button>

@@ -273,8 +273,11 @@ router.get("/", async (req, res) => {
       }).format(d);
     }
 
+    // `at` is the real instant when the event actually happened, and null when it
+    // has not happened yet and `time` is only the hotel's configured hour. The
+    // two are positioned on the axis by different rules — see below.
     const scheduleEvents: {
-      id: string; time: string; offsetMin: number; type: string; label: string; sublabel: string;
+      id: string; time: string; at: Date | null; type: string; label: string; sublabel: string;
       isDone: boolean; isVip?: boolean; taskType?: string; hasIssue?: boolean; balanceDue?: number;
     }[] = [];
 
@@ -283,7 +286,7 @@ router.get("/", async (req, res) => {
       scheduleEvents.push({
         id:       `arr-${r.id}`,
         time:     r.actualCheckIn ? hhmm(r.actualCheckIn) : defaultCheckInTime,
-        offsetMin: 0,
+        at:       r.actualCheckIn,
         type:     "checkin",
         label:    r.guest.fullName,
         sublabel: `Room ${roomNum}`,
@@ -296,7 +299,7 @@ router.get("/", async (req, res) => {
       scheduleEvents.push({
         id:         `dep-${r.id}`,
         time:       r.actualCheckOut ? hhmm(r.actualCheckOut) : defaultCheckOutTime,
-        offsetMin:  0,
+        at:         r.actualCheckOut,
         type:       "checkout",
         label:      r.guest.fullName,
         sublabel:   `Room ${roomNum}`,
@@ -310,7 +313,7 @@ router.get("/", async (req, res) => {
       scheduleEvents.push({
         id:       `hk-${t.id}`,
         time:     hhmm(at),
-        offsetMin: 0,
+        at,
         type:     "housekeeping",
         label:    `Room ${t.room.number}`,
         sublabel: t.taskType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
@@ -319,14 +322,32 @@ router.get("/", async (req, res) => {
         hasIssue: t.hasIssue,
       });
     }
-    // Position every event as minutes since the business day opened, so a 01:00
-    // event lands at the END of the day it belongs to instead of the far left.
-    // The client never has to know the hotel's timezone to place these.
+    // Position every event as minutes since the business day opened. The client
+    // never has to know the hotel's timezone to place these.
+    //
+    // Anything that has already happened is placed from its real instant. Its
+    // wall-clock string cannot do that job: arrivals are selected by checkInDate,
+    // a calendar column, so a guest whose stay starts today may have walked in at
+    // 01:46 — before this business day opened at 06:00. Reading "01:46" off the
+    // clock and wrapping it with (time - dayStart + 1440) % 1440 put that guest
+    // at 01:46 *tomorrow*: a completed check-in drawn hours into the future, with
+    // the axis stretched to reach it, so at 18:20 the NOW marker sat 13% along a
+    // bar that ran to 03:00. Clamping the true offset puts them at the day's
+    // opening, which is the earliest point the timeline has.
+    //
+    // Events that have not happened yet have no instant — only the hotel's
+    // configured check-in/out hour — and there the wrap is right: a property that
+    // checks out at 01:00 means 01:00 at the END of its business day.
     const dayStartMin = timeToMinutes(readShiftSchedule(hotelSettings).morningStart);
-    for (const e of scheduleEvents) {
-      e.offsetMin = (timeToMinutes(e.time) - dayStartMin + 1440) % 1440;
-    }
-    scheduleEvents.sort((a, b) => a.offsetMin - b.offsetMin);
+    const dayStartMs  = todayStart.getTime();
+    const schedule = scheduleEvents
+      .map(({ at, ...e }) => ({
+        ...e,
+        offsetMin: at
+          ? Math.min(1440, Math.max(0, Math.round((at.getTime() - dayStartMs) / 60_000)))
+          : (timeToMinutes(e.time) - dayStartMin + 1440) % 1440,
+      }))
+      .sort((a, b) => a.offsetMin - b.offsetMin);
 
     return {
       occupancy: { totalRooms, occupiedRooms, availableRooms, occupancyRate },
@@ -377,7 +398,7 @@ router.get("/", async (req, res) => {
           balanceDue: r.folio?.balanceDue ?? 0,
         })),
       },
-      schedule: scheduleEvents,
+      schedule,
       businessDay: {
         date:     businessDate,
         startsAt: todayStart.toISOString(),

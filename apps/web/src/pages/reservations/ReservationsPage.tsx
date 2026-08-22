@@ -195,7 +195,7 @@ function ReservationRow({ r, groupRoomCount, onOpen, canReadGuests }: {
             {r.isVip && <Star size={12} className="text-amber fill-amber shrink-0" />}
             {idMissing && (
               <span
-                title="No identity document captured for this stay"
+                title="No photo of the guest's ID captured for this stay"
                 className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-soft px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber"
               >
                 <ShieldAlert size={10} /> No ID

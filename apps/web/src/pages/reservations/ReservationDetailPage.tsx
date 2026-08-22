@@ -355,12 +355,12 @@ export default function ReservationDetailPage() {
           <ShieldAlert size={17} className="text-amber shrink-0" />
           <div className="min-w-0 flex-1">
             <span className="text-[13px] font-bold text-ink">
-              {reservation.status === "CHECKED_IN" ? "In-house without an ID" : "No ID captured yet"}
+              {reservation.status === "CHECKED_IN" ? "In-house, no ID photographed" : "ID not photographed yet"}
             </span>
             <span className="ml-2 text-[12.5px] text-ink-soft">
               {reservation.status === "CHECKED_IN"
-                ? `Nothing is on file for ${reservation.guest.fullName}. Capture it while they are still on the property.`
-                : `Nothing is on file for ${reservation.guest.fullName}. Capture it on arrival, or send the QR link ahead of the stay.`}
+                ? `No copy of ${reservation.guest.fullName}'s document is on file. Capture it while they are still on the property.`
+                : `A typed document number is not a copy of the ID. Capture it on arrival, or send the QR link ahead of the stay.`}
             </span>
           </div>
           {canUpdate && (

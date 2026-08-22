@@ -248,6 +248,36 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
                 </span>
               </div>
 
+              {/* Belongs in the body, not the footer: the footer is a single
+                  flex row of action buttons, and a full-width block dropped
+                  into it wedges between them and squashes Edit / Add charge /
+                  Check out into narrow stacked columns. */}
+              {(idBlocked || idMissing) && (
+                <div className="rounded-xl border border-amber/40 bg-amber-soft/60 px-4 py-3 flex items-start gap-2.5">
+                  <ShieldAlert size={15} className="text-amber shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-bold text-ink">
+                      {idBlocked
+                        ? "ID required before check-in"
+                        : reservation.status === "CHECKED_IN"
+                          ? "In-house, no ID photographed"
+                          : "ID not photographed yet"}
+                    </div>
+                    <p className="mt-0.5 text-[12.5px] leading-snug text-ink-soft">
+                      {idBlocked
+                        ? `No document has been photographed for ${reservation.guest.fullName}. Capture it now — a manager override is available on the reservation page.`
+                        : `A typed document number is not a copy of the ID. Capture it now, or send ${reservation.guest.fullName} the QR link.`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowCapture(true)}
+                    className="inline-flex shrink-0 items-center gap-1.5 h-8 px-3 rounded-full bg-pine text-white text-[12.5px] font-semibold hover:bg-pine-deep transition-colors"
+                  >
+                    <IdCard size={14} /> Capture
+                  </button>
+                </div>
+              )}
+
               {/* Stay summary */}
               <div className="rounded-xl2 border border-line bg-card p-4">
                 <div className="grid grid-cols-3 gap-2 text-center">
@@ -458,33 +488,6 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
                       <LogIn size={16} />
                       {statusMutation.isPending ? "Checking in…" : "Check in"}
                     </button>
-                  )}
-                  {(idBlocked || idMissing) && (
-                    <div className="w-full rounded-2xl border border-amber/40 bg-amber-soft/60 p-3.5">
-                      <div className="flex items-start gap-2.5">
-                        <ShieldAlert size={16} className="text-amber shrink-0 mt-0.5" />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[13px] font-bold text-ink">
-                            {idBlocked
-                              ? "ID required before check-in"
-                              : reservation.status === "CHECKED_IN"
-                                ? "In-house without an ID"
-                                : "No ID captured yet"}
-                          </div>
-                          <p className="mt-1 text-[12.5px] leading-relaxed text-ink-soft">
-                            {idBlocked
-                              ? `No ID on file for ${reservation.guest.fullName}. Capture it now — a manager override is available on the reservation page.`
-                              : `Nothing is on file for ${reservation.guest.fullName}. Capture it now, or send the guest the QR link.`}
-                          </p>
-                          <button
-                            onClick={() => setShowCapture(true)}
-                            className="mt-2.5 inline-flex items-center gap-2 h-9 px-4 rounded-full bg-pine text-white text-[13px] font-semibold hover:bg-pine-deep transition-colors"
-                          >
-                            <IdCard size={15} /> Capture guest ID
-                          </button>
-                        </div>
-                      </div>
-                    </div>
                   )}
                   {reservation.status === "CHECKED_IN" && reservation.folio && (
                     <>

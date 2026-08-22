@@ -107,7 +107,6 @@ export interface PromoEmailJobData {
   hotelWebsite: string | null;
   accentColor:  string;
   /** Darker partner to accentColor, for bands that carry white text. */
-  accentDeepColor: string;
   reason:       PromoEmailReason;
   /** "birthday" / "5th anniversary" — already humanised for the subject line. */
   occasionLabel: string | null;

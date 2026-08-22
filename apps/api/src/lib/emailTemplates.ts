@@ -582,7 +582,6 @@ export function promoCodeEmail(data: PromoEmailData): string {
   const days      = daysUntil(data.validTo);
   const loyalty   = loyaltyLine(data.reason, data.stayCount);
   const accent    = data.accentColor;
-  const accentDeep = data.accentDeepColor ?? data.accentColor;
 
   return `<!doctype html>
 <html>
@@ -617,9 +616,11 @@ export function promoCodeEmail(data: PromoEmailData): string {
             </td>
           </tr>
 
-          <!-- Occasion band: the one loud moment in the whole email -->
+          <!-- Occasion band: the one loud moment in the whole email. Deliberately
+               the house green rather than the hotel's accent — the accent is a
+               highlight colour, and at this size some of them read as alarming. -->
           <tr>
-            <td class="pad" style="padding:34px 38px 32px; background:${accentDeep};">
+            <td class="pad" style="padding:34px 38px 32px; background:#183b38;">
               <p style="margin:0 0 12px; color:#ffffff; opacity:.72; font-size:11px; font-weight:bold; letter-spacing:2.2px; text-transform:uppercase;">${escapeHtml(copy.eyebrow)}</p>
               <h1 class="hero" style="margin:0; max-width:470px; color:#ffffff; font-family:Georgia, 'Times New Roman', serif; font-size:37px; line-height:45px; font-weight:normal;">${escapeHtml(copy.heading)}</h1>
             </td>
@@ -630,7 +631,7 @@ export function promoCodeEmail(data: PromoEmailData): string {
             <td class="pad" style="padding:34px 38px 4px;">
               <p style="margin:0; color:#1d2724; font-size:17px; font-weight:bold;">Hello ${escapeHtml(data.guestFirstName)},</p>
               <p style="margin:13px 0 0; color:#59615e; font-size:15px; line-height:25px;">${escapeHtml(copy.intro)}</p>
-              ${loyalty ? `<p style="margin:13px 0 0; color:${accentDeep}; font-size:15px; line-height:25px; font-weight:bold;">${escapeHtml(loyalty)}</p>` : ""}
+              ${loyalty ? `<p style="margin:13px 0 0; color:#183b38; font-size:15px; line-height:25px; font-weight:bold;">${escapeHtml(loyalty)}</p>` : ""}
             </td>
           </tr>
 
@@ -672,32 +673,31 @@ export function promoCodeEmail(data: PromoEmailData): string {
 
           <!-- One thing to do next -->
           <tr>
-            <td class="pad" style="padding:26px 38px 42px; text-align:center;">
+            <td class="pad" style="padding:30px 38px 46px; text-align:center;">
               ${website ? `
-                <a href="${website}" style="display:inline-block; background:${accent}; border-radius:999px; padding:15px 34px; color:#ffffff; text-decoration:none; font-size:15px; font-weight:bold;">
+                <a href="${website}" style="display:inline-block; background:${accent}; border-radius:999px; padding:14px 30px; color:#ffffff; text-decoration:none; font-size:15px; font-weight:bold;">
                   Book your stay
                 </a>` : phoneHref ? `
-                <a href="${phoneHref}" style="display:inline-block; background:${accent}; border-radius:999px; padding:15px 34px; color:#ffffff; text-decoration:none; font-size:15px; font-weight:bold;">
-                  Call to book · ${escapeHtml(data.hotelPhone ?? "")}
+                <a href="${phoneHref}" style="display:inline-block; border:1px solid #183b38; border-radius:999px; padding:12px 22px; color:#183b38; text-decoration:none; font-size:15px; font-weight:bold;">
+                  &#9742;&nbsp;&nbsp;${escapeHtml(data.hotelPhone ?? "Call hotel")}
                 </a>` : ""}
             </td>
           </tr>
 
-          <!-- Sign-off. Deliberately a neutral deep ink rather than a colour of
-               its own: it has to sit under four different hotel accents. -->
+          <!-- Sign-off, matching the footer on every other guest email. -->
           <tr>
-            <td style="background:#1f1d1a; padding:32px 28px; text-align:center;">
+            <td style="background:#183b38; padding:32px 28px; text-align:center;">
               <p style="margin:0; color:#ffffff; font-family:Georgia, 'Times New Roman', serif; font-size:21px; font-style:italic;">${escapeHtml(copy.footer)}</p>
               <p style="margin:18px 0 0; color:#ffffff; font-size:15px; font-weight:bold; letter-spacing:0.3px;">${escapeHtml(data.hotelName)}</p>
-              ${location ? `<p style="margin:5px 0 0; color:#a49d93; font-size:12.5px; line-height:19px;">${escapeHtml(location)}</p>` : ""}
+              ${location ? `<p style="margin:5px 0 0; color:#8fb4ae; font-size:12.5px; line-height:19px;">${escapeHtml(location)}</p>` : ""}
               <div style="margin-top:16px;">
                 ${phoneHref ? contactLink(data.hotelPhone ?? "Call hotel", phoneHref) : ""}
                 ${data.hotelEmail ? contactLink(data.hotelEmail, `mailto:${escapeHtml(data.hotelEmail)}`) : ""}
                 ${website ? contactLink("Visit website", website) : ""}
               </div>
-              <div style="height:1px; background:#3a3631; margin:24px auto 18px; max-width:440px;"></div>
-              <p style="margin:0; color:#8b847a; font-size:11px;">© ${year} ${escapeHtml(data.hotelName)} &nbsp;·&nbsp; <a href="https://innflo.co" style="color:#a49d93; text-decoration:none;">Powered by Innflo</a></p>
-              <p style="margin:10px 0 0; color:#8b847a; font-size:11px;">You are receiving this because you asked us to keep in touch. Reply to this email to opt out.</p>
+              <div style="height:1px; background:#31524f; margin:24px auto 18px; max-width:440px;"></div>
+              <p style="margin:0; color:#8fb4ae; font-size:11px;">© ${year} ${escapeHtml(data.hotelName)} &nbsp;·&nbsp; <a href="https://innflo.co" style="color:#b8cbc7; text-decoration:none;">Powered by Innflo</a></p>
+              <p style="margin:10px 0 0; color:#8fb4ae; font-size:11px;">You are receiving this because you asked us to keep in touch. Reply to this email to opt out.</p>
             </td>
           </tr>
         </table>

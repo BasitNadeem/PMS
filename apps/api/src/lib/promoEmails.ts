@@ -8,14 +8,6 @@ const THEME_ACCENTS: Record<string, string> = {
   INDIGO_NIGHT: "#4F46A5",
 };
 
-// Deeper partner for the occasion band, which carries white text. Mail clients
-// have no color-mix(), so both ends of every theme are named here.
-const THEME_ACCENTS_DEEP: Record<string, string> = {
-  WARM_CLAY:    "#8C3A22",
-  PINE_TEAL:    "#0E4B47",
-  AZURE_SLATE:  "#234C63",
-  INDIGO_NIGHT: "#332C78",
-};
 
 export interface EnqueuePromoEmailArgs {
   codeId:        string;
@@ -83,7 +75,6 @@ export async function enqueuePromoCodeEmail(args: EnqueuePromoEmailArgs): Promis
       hotelEmail:    hotel.email,
       hotelWebsite:  hotel.website,
       accentColor:     THEME_ACCENTS[themeKey] ?? THEME_ACCENTS.WARM_CLAY,
-      accentDeepColor: THEME_ACCENTS_DEEP[themeKey] ?? THEME_ACCENTS_DEEP.WARM_CLAY,
       reason:        args.reason,
       occasionLabel: args.occasionLabel ?? null,
       code:          args.code,

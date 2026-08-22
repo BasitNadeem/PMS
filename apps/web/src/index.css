@@ -97,11 +97,17 @@
 }
 
 /* ── Sidebar surface ──────────────────────────────────────────────────────────
-   A quiet, warm navigation canvas: the page's own paper taken down a value
-   step and then given a light tint of the theme, with the selected tab
-   carrying the accent at full strength. Stripping the hue out of the rail
-   entirely to make that tab pop was tried and read as grey and lifeless —
-   the rail has to stay tinted; the selection separates on depth instead.
+   A tinted navigation canvas: the page's own --color-paper carrying a fifth
+   of the theme accent, with the selected tab in brand ink on top of it.
+   Blush under WARM_CLAY, mint under PINE_TEAL, blue-grey under AZURE_SLATE,
+   periwinkle under INDIGO_NIGHT — picked from a screenshot, then expressed
+   through the tokens so each theme gets its own rather than one fixed pink.
+
+   Note for later: mixing the accent into a near-white surface is what once
+   produced a rail the user rejected as salmon, and quieter versions have
+   been tried twice since. This saturation is their own pick. Do not walk it
+   back towards neutral — going grey was tried and rejected outright.
+
    Avoid glass cards and ornamental lines here: this surface frames the
    product rather than competing with it. */
 .sidebar-surface {
@@ -109,14 +115,12 @@
   isolation: isolate;
   background:
     linear-gradient(180deg,
-      color-mix(in srgb, rgb(var(--color-accent)) 13%,
-        color-mix(in srgb, rgb(var(--color-ink)) 5%, rgb(var(--color-paper)))) 0%,
-      color-mix(in srgb, rgb(var(--color-accent)) 10%,
-        color-mix(in srgb, rgb(var(--color-ink)) 9%, rgb(var(--color-paper)))) 100%);
-  border-right-color: color-mix(in srgb, rgb(var(--color-accent-deep)) 22%, rgb(var(--color-line)));
+      color-mix(in srgb, rgb(var(--color-accent)) 20%, rgb(var(--color-paper))) 0%,
+      color-mix(in srgb, rgb(var(--color-accent)) 23%, rgb(var(--color-paper))) 100%);
+  border-right-color: color-mix(in srgb, rgb(var(--color-accent-deep)) 24%, rgb(var(--color-line)));
   box-shadow:
-    inset -1px 0 0 rgb(255 255 255 / .5),
-    8px 0 30px rgb(var(--color-ink) / .05);
+    inset -1px 0 0 rgb(255 255 255 / .4),
+    8px 0 30px rgb(var(--color-ink) / .06);
 }
 
 /* The one piece of brand on the rail itself, and the only one that cannot be

@@ -9,10 +9,11 @@ import {
   UserX, X,
   ArrowRightLeft,
   RotateCcw,
-  IdCard,
+  IdCard, ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { currentPKTDate } from "@/lib/pktDate";
+import { getErrorDetails } from "@/lib/api";
+import { todayInHotelTime } from "@/lib/hotelTime";
 import {
   reservationsService,
   type ReservationDetail,
@@ -166,11 +167,20 @@ export default function ReservationDetailPage() {
   const canReadCompanies = has("companies:read");
   const canReadGroups = has("groups:read");
   const canReverseLifecycle = has("RESERVATION_REVERSE");
+  // Same key the API gates the override on — reservations:cancel is OWNER and
+  // MANAGER only, unlike RESERVATION_CANCEL which the front desk also holds.
+  const canOverrideId = has("reservations:cancel");
   const [showCheckOut, setShowCheckOut] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showNoShow, setShowNoShow] = useState(false);
   const [showManageStay, setShowManageStay] = useState(false);
   const [showCaptureId, setShowCaptureId] = useState(false);
+  // Most stays are booked by phone, mail or an agent, so check-in is the first
+  // moment an ID can be asked for. When the gate refuses, a toast is the wrong
+  // surface — it vanishes while the guest is still standing there and offers no
+  // way forward. This panel keeps both routes out in view instead.
+  const [idBlocked,      setIdBlocked]      = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
   const [noShowReason, setNoShowReason] = useState("");
   const [reversalAction, setReversalAction] = useState<"CHECK_IN" | "CHECK_OUT" | null>(null);
   const [reversalReason, setReversalReason] = useState("");
@@ -203,12 +213,19 @@ export default function ReservationDetailPage() {
         setShowNoShow(false);
         setNoShowReason("");
       }
+      setIdBlocked(false);
+      setOverrideReason("");
       addToast(labels[status] ?? "Status updated");
     },
     onError: (err: unknown) => {
       const msg =
         (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
         "Failed to update status";
+      const code = (getErrorDetails(err) as { code?: string } | undefined)?.code;
+      if (code === "ID_REQUIRED") {
+        setIdBlocked(true);
+        return;
+      }
       addToast(msg, "error");
     },
   });
@@ -274,7 +291,7 @@ export default function ReservationDetailPage() {
     && (reservation.status !== "CHECKED_IN" || canUpdateBilling)
     && !["CHECKED_OUT", "CANCELLED", "NO_SHOW"].includes(reservation.status);
   const arrivalDate = reservation.checkInDate.slice(0, 10);
-  const canMarkNoShow = canUpdate && reservation.status === "CONFIRMED" && arrivalDate <= currentPKTDate();
+  const canMarkNoShow = canUpdate && reservation.status === "CONFIRMED" && arrivalDate <= todayInHotelTime();
   const hasIdOnFile = idDocuments.length > 0;
 
   return (
@@ -625,6 +642,57 @@ export default function ReservationDetailPage() {
               <GuestIdDocuments guestId={reservation.guest.id} reservationId={reservation.id} />
             )}
 
+            {idBlocked && (
+              <div className="rounded-2xl border border-amber/40 bg-amber-soft/60 p-3.5">
+                <div className="flex items-start gap-2.5">
+                  <ShieldAlert size={17} className="text-amber shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-bold text-ink">ID required before check-in</div>
+                    <p className="mt-1 text-[12.5px] leading-relaxed text-ink-soft">
+                      {reservation.guest.fullName} has no ID on file. Capture it now, or have a
+                      manager record why check-in went ahead without one.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowCaptureId(true)}
+                  className="mt-3 w-full h-10 rounded-full bg-pine text-white text-[13px] font-semibold hover:bg-pine-deep transition-colors flex items-center justify-center gap-2"
+                >
+                  <IdCard size={16} /> Capture guest ID
+                </button>
+
+                {canOverrideId ? (
+                  <div className="mt-3 border-t border-amber/30 pt-3">
+                    <label className="block text-[11px] font-bold uppercase tracking-[0.12em] text-ink-mute mb-1.5">
+                      Manager override
+                    </label>
+                    <textarea
+                      value={overrideReason}
+                      onChange={(e) => setOverrideReason(e.target.value)}
+                      rows={2}
+                      placeholder="Why is this guest being checked in without ID?"
+                      className="w-full rounded-xl border border-line bg-card px-3 py-2 text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-coral/30 resize-none"
+                    />
+                    <button
+                      onClick={() => statusMutation.mutate({ status: "CHECKED_IN", reason: overrideReason.trim() })}
+                      disabled={overrideReason.trim().length < 10 || statusMutation.isPending}
+                      className="mt-2 w-full h-10 rounded-full border border-amber/50 text-amber text-[13px] font-semibold hover:bg-amber/10 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                    >
+                      {statusMutation.isPending ? "Checking in…" : "Check in without ID"}
+                    </button>
+                    <p className="mt-1.5 text-[11px] text-ink-mute">
+                      Recorded against this reservation with your name.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-[11.5px] text-ink-mute">
+                    Only a manager can approve check-in without ID.
+                  </p>
+                )}
+              </div>
+            )}
+
             {canUpdate && nextStatus && nextLabel && (
               <button
                 onClick={() => reservation.status === "CHECKED_IN" ? setShowCheckOut(true) : statusMutation.mutate({ status: nextStatus })}
@@ -772,6 +840,13 @@ export default function ReservationDetailPage() {
           onCaptured={() => {
             qc.invalidateQueries({ queryKey: ["reservation-documents", id] });
             qc.invalidateQueries({ queryKey: ["reservation", id] });
+            // Capturing was the answer to a blocked check-in, so carry it
+            // through rather than making the clerk press the button twice
+            // with the guest still at the desk.
+            if (idBlocked) {
+              setShowCaptureId(false);
+              statusMutation.mutate({ status: "CHECKED_IN" });
+            }
           }}
         />
       )}

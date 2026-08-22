@@ -518,9 +518,14 @@ export const ReservationService = {
 
           if (captured === 0) {
             if (!reason?.trim()) {
+              // Coded so the desk can render an actionable panel — capture the
+              // ID right here — instead of a toast the guest is left standing
+              // through. Most stays are booked by phone, mail or an agent, so
+              // this is the first moment anyone can photograph a document.
               throw new AppError(
                 409,
                 "This guest has no ID on file. Capture the ID, or ask a manager to check in with a recorded reason.",
+                { code: "ID_REQUIRED" },
               );
             }
             // Gated separately from RESERVATION_CHECKIN on purpose: waiving the

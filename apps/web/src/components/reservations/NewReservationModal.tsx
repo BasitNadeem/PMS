@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { getEmailErrorMessage, getPhoneErrorMessage, isValidEmail } from "@/lib/validation";
 import { useMutation, useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
-import { X, ChevronLeft, Check, CalendarPlus, CheckCircle2, ArrowRight, Minus, Plus, ChevronDown, Search, ShieldAlert, Star, Loader2, Tag } from "lucide-react";
+import { X, ChevronLeft, Check, CalendarPlus, CheckCircle2, ArrowRight, Minus, Plus, ChevronDown, Search, ShieldAlert, ShieldCheck, Smartphone, Star, Loader2, Tag } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { api, getErrorMessage, getErrorDetails } from "@/lib/api";
 import { roomsService, type Room } from "@/services/rooms";
@@ -13,6 +13,8 @@ import {
 } from "@/services/reservations";
 import type { PaymentMethod } from "@/services/folio";
 import { Avatar } from "@/components/ui/Avatar";
+import { CaptureIdModal } from "@/components/reservations/CaptureIdModal";
+import { todayInHotelTime } from "@/lib/hotelTime";
 import { TONE } from "@/components/ui/StatusBadge";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -374,13 +376,29 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
     staleTime: 60_000,
   });
 
+  // Where the booking came from decides whether anyone can be photographed now.
+  // A walk-in guest is at the desk; a phone, mail or agent booking is a person
+  // who will not arrive for days, so the ID belongs at check-in instead.
+  const [created,     setCreated]     = useState<{ id: string; guestName: string } | null>(null);
+  const [showCapture, setShowCapture] = useState(false);
+  const [captured,    setCaptured]    = useState(false);
+
+  const guestIsPresent = form.source === "WALK_IN";
+
+  function finish() {
+    onSuccess(captured ? "Reservation created and ID captured" : "Reservation created successfully");
+    onClose();
+  }
+
   const createReservationMutation = useMutation({
     mutationFn: (dto: CreateReservationDto) => reservationsService.createReservation(dto),
-    onSuccess: () => {
+    onSuccess: (reservation) => {
       qc.invalidateQueries({ queryKey: ["reservations"] });
       qc.invalidateQueries({ queryKey: ["rooms"] });
-      onSuccess("Reservation created successfully");
-      onClose();
+      setCreated({ id: reservation.id, guestName: reservation.guest?.fullName ?? "this guest" });
+      // The guest is standing at the desk — go straight to the QR rather than
+      // making the clerk find a button while the guest waits.
+      if (guestIsPresent) setShowCapture(true);
     },
   });
 
@@ -393,7 +411,7 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
   const subtotal = charges.subtotalAmount;
   const totalAmount = charges.totalAmount;
   const maxOccupancy = selectedRoom?.roomType.maxOccupancy ?? 10;
-  const today        = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
+  const today        = todayInHotelTime();
   const isPending    = createGuestMutation.isPending || createReservationMutation.isPending;
 
   // ── Validation ──────────────────────────────────────────────────────────────
@@ -501,6 +519,73 @@ export function NewReservationModal({ onClose, onSuccess, initialCheckInDate, in
 
 
   // ── Render ──────────────────────────────────────────────────────────────────
+
+  if (created) {
+    return (
+      <>
+        <div
+          className="fixed inset-0 bg-ink/35 backdrop-blur-[3px] z-50 grid place-items-center p-4 sm:p-6 anim-fade-in"
+          onMouseDown={finish}
+        >
+          <div
+            className="relative w-full max-w-md bg-card rounded-[1.75rem] shadow-float anim-scale-in p-7 text-center"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className={cn(
+              "mx-auto grid place-items-center h-12 w-12 rounded-2xl mb-4",
+              captured ? "bg-pine-soft text-pine-deep" : "bg-coral-soft text-coral-deep",
+            )}>
+              {captured ? <ShieldCheck size={22} /> : <Check size={22} strokeWidth={2.4} />}
+            </div>
+
+            <h3 className="serif text-[22px] leading-tight text-ink">Reservation created</h3>
+
+            {captured ? (
+              <p className="mt-2 text-[13.5px] leading-relaxed text-ink-mute">
+                {created.guestName}&apos;s ID is on file. Check-in will not be held up.
+              </p>
+            ) : guestIsPresent ? (
+              <p className="mt-2 text-[13.5px] leading-relaxed text-ink-mute">
+                This is a walk-in, so the guest is here now — the easiest time to photograph an ID.
+                Skip it and the front desk will be asked again at check-in.
+              </p>
+            ) : (
+              <p className="mt-2 text-[13.5px] leading-relaxed text-ink-mute">
+                {created.guestName} is not here yet, so there is nothing to photograph.
+                Their ID will be requested on arrival, before check-in can complete.
+              </p>
+            )}
+
+            <div className="mt-6 flex flex-col gap-2">
+              {!captured && (
+                <button
+                  onClick={() => setShowCapture(true)}
+                  className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-full bg-coral text-white text-[14px] font-semibold hover:bg-coral-dark transition-colors shadow-pop"
+                >
+                  <Smartphone size={16} /> Capture ID with a phone
+                </button>
+              )}
+              <button
+                onClick={finish}
+                className="h-11 px-5 rounded-full text-[13.5px] font-semibold text-ink-mute hover:text-ink hover:bg-line-soft transition-colors"
+              >
+                {captured ? "Done" : guestIsPresent ? "Skip for now" : "Done"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {showCapture && (
+          <CaptureIdModal
+            reservationId={created.id}
+            guestName={created.guestName}
+            onClose={() => setShowCapture(false)}
+            onCaptured={() => setCaptured(true)}
+          />
+        )}
+      </>
+    );
+  }
 
   return (
     <div

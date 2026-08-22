@@ -3,11 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   X, Copy, Phone, Mail, BadgeCheck, MapPin,
   LogIn, Check, Receipt, BedDouble, Users, Star, ArrowRight, Plus, Tag, Pencil, UserX,
+  IdCard, ShieldAlert,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/cn";
-import { api } from "@/lib/api";
-import { currentPKTDate } from "@/lib/pktDate";
+import { api, getErrorDetails } from "@/lib/api";
+import { todayInHotelTime } from "@/lib/hotelTime";
+import { CaptureIdModal } from "@/components/reservations/CaptureIdModal";
 import {
   reservationsService,
   type ReservationStatus,
@@ -102,6 +104,12 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
     staleTime: 60_000,
   });
 
+  // A blocked check-in used to fail silently here — the drawer's only error
+  // surface lives inside the no-show panel. The clerk pressed Check in, nothing
+  // moved, and no reason was given.
+  const [idBlocked,   setIdBlocked]   = useState(false);
+  const [showCapture, setShowCapture] = useState(false);
+
   const statusMutation = useMutation({
     // NO_SHOW is rejected by the API without a reason, so the reason travels
     // with the status rather than being a separate call.
@@ -115,7 +123,12 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       setShowNoShow(false);
       setNoShowReason("");
+      setIdBlocked(false);
       onStatusChange?.();
+    },
+    onError: (err: unknown) => {
+      const code = (getErrorDetails(err) as { code?: string } | undefined)?.code;
+      setIdBlocked(code === "ID_REQUIRED");
     },
   });
 
@@ -428,7 +441,7 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
                   {/* Mirrors the API rule: only a confirmed booking whose
                       arrival has already come round can be a no-show. */}
                   {canUpdate && reservation.status === "CONFIRMED"
-                    && reservation.checkInDate.slice(0, 10) <= currentPKTDate() && (
+                    && reservation.checkInDate.slice(0, 10) <= todayInHotelTime() && (
                     <button
                       onClick={() => setShowNoShow(true)}
                       disabled={statusMutation.isPending}
@@ -446,6 +459,26 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
                       <LogIn size={16} />
                       {statusMutation.isPending ? "Checking in…" : "Check in"}
                     </button>
+                  )}
+                  {idBlocked && (
+                    <div className="w-full rounded-2xl border border-amber/40 bg-amber-soft/60 p-3.5">
+                      <div className="flex items-start gap-2.5">
+                        <ShieldAlert size={16} className="text-amber shrink-0 mt-0.5" />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[13px] font-bold text-ink">ID required before check-in</div>
+                          <p className="mt-1 text-[12.5px] leading-relaxed text-ink-soft">
+                            No ID on file for {reservation.guest.fullName}. Capture it now — a manager
+                            override is available on the reservation page.
+                          </p>
+                          <button
+                            onClick={() => setShowCapture(true)}
+                            className="mt-2.5 inline-flex items-center gap-2 h-9 px-4 rounded-full bg-pine text-white text-[13px] font-semibold hover:bg-pine-deep transition-colors"
+                          >
+                            <IdCard size={15} /> Capture guest ID
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   )}
                   {reservation.status === "CHECKED_IN" && reservation.folio && (
                     <>
@@ -552,6 +585,19 @@ export function ReservationDrawer({ reservationId, onClose, onStatusChange }: Re
             }}
           />
         )
+      )}
+      {showCapture && reservation && (
+        <CaptureIdModal
+          reservationId={reservation.id}
+          guestName={reservation.guest.fullName}
+          onClose={() => setShowCapture(false)}
+          onCaptured={() => {
+            setShowCapture(false);
+            setIdBlocked(false);
+            // The gate reads the document count, so the retry now passes.
+            statusMutation.mutate({ status: "CHECKED_IN" });
+          }}
+        />
       )}
     </>
   );

@@ -583,12 +583,38 @@ export const GroupService = {
     const reservations = await withTenant((db) =>
       db.reservation.findMany({
         where: { groupId, status: "CONFIRMED" },
-        select: { id: true },
+        select: { id: true, guest: { select: { fullName: true } } },
       })
     );
 
+    // A group is checked in one reservation at a time, and the ID gate can
+    // reject any of them. Letting that throw would abandon the loop midway:
+    // some rooms checked in, some not, and nothing telling the desk which. A
+    // coach party where one guest left their CNIC on the bus must not strand
+    // the other nineteen at the counter.
+    const blocked: { reservationId: string; guestName: string; reason: string }[] = [];
     for (const r of reservations) {
-      await ReservationService.updateStatus(withTenant, actor, r.id, "CHECKED_IN");
+      try {
+        await ReservationService.updateStatus(withTenant, actor, r.id, "CHECKED_IN");
+      } catch (err) {
+        if (err instanceof AppError && err.statusCode === 409) {
+          blocked.push({ reservationId: r.id, guestName: r.guest.fullName, reason: err.message });
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    // The group only reaches CHECKED_IN once every room did. Reporting the
+    // stragglers is more useful than a status that quietly overstates reality.
+    if (blocked.length > 0) {
+      throw new AppError(
+        409,
+        blocked.length === reservations.length
+          ? "No one in this group could be checked in yet — none of them have ID on file."
+          : `${reservations.length - blocked.length} of ${reservations.length} checked in. ${blocked.length} still need ID.`,
+        { code: "ID_REQUIRED", blocked },
+      );
     }
 
     return withTenant(async (db) => {

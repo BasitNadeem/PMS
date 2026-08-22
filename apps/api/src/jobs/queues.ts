@@ -93,6 +93,10 @@ export interface PromoEmailJobData {
   codeId:       string;
   guestEmail:   string;
   guestName:    string;
+  /** Used in the body — "Hamza" reads like a person, "HAMZA YOLO" reads like a database row. */
+  guestFirstName: string;
+  /** Completed stays. Only ever used to say something true; 0 or 1 says nothing. */
+  stayCount:    number;
   hotelName:    string;
   hotelLogoUrl: string | null;
   hotelAddress: string | null;
@@ -102,6 +106,8 @@ export interface PromoEmailJobData {
   hotelEmail:   string | null;
   hotelWebsite: string | null;
   accentColor:  string;
+  /** Darker partner to accentColor, for bands that carry white text. */
+  accentDeepColor: string;
   reason:       PromoEmailReason;
   /** "birthday" / "5th anniversary" — already humanised for the subject line. */
   occasionLabel: string | null;

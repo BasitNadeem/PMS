@@ -13,6 +13,7 @@ import type {
   ReverseReservationLifecycleDto,
 } from "../schemas/reservations";
 import { AppError } from "../utils/AppError";
+import { resolveUserNames } from "../lib/userNames";
 import { paginationMeta } from "../utils/pagination";
 import { NotificationService } from "./NotificationService";
 import { notifyHousekeepingStaff } from "./HousekeepingService";
@@ -222,17 +223,22 @@ export const ReservationService = {
       })
     );
     if (!reservation) throw new AppError(404, "Reservation not found");
-    const activity = await withTenant((db) =>
+    const entries = await withTenant((db) =>
       db.auditLog.findMany({
         where: { entity: "reservation", entityId: id },
         orderBy: { createdAt: "desc" },
         take: 25,
         select: {
           id: true, action: true, notes: true, before: true, after: true,
-          createdAt: true, user: { select: { id: true, name: true } },
+          createdAt: true, userId: true,
         },
       })
     );
+    const actorNames = await resolveUserNames(entries.map((e) => e.userId));
+    const activity = entries.map(({ userId, ...entry }) => ({
+      ...entry,
+      user: userId ? { id: userId, name: actorNames.get(userId) ?? "Unknown" } : null,
+    }));
     return { ...reservation, activity };
   },
 

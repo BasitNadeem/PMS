@@ -1,5 +1,7 @@
 import type { TenantTx } from "@pms/db";
 
+import { resolveUserProfiles } from "../lib/userNames";
+
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
 
 export type SearchResultType = "guest" | "reservation" | "room" | "group" | "folio" | "staff";
@@ -99,14 +101,26 @@ export const SearchService = {
       }
 
       if (allowedTypes.has("staff")) {
+        // Staff cannot be matched with a `where` on the user relation: the RLS
+        // policy on `users` is `id = current_user_id()`, so joining through it
+        // from a tenant client only ever matches the searcher themselves. The
+        // hotel's membership rows come from the tenant client, which is what
+        // scopes the result, and the names are resolved separately.
         tasks.push(
-          db.hotelUser.findMany({
-            where: { user: { OR: [{ name: ci }, { email: ci }] } },
-            take: RESULTS_PER_TYPE,
-            include: { user: { select: { name: true, email: true } } },
-          }).then((rows) => {
-            for (const s of rows) {
-              results.push({ id: s.id, type: "staff", title: s.user.name, subtitle: s.user.email, route: "/team" });
+          db.hotelUser.findMany({ select: { id: true, userId: true } }).then(async (rows) => {
+            const profiles = await resolveUserProfiles(rows.map((row) => row.userId));
+            const needle = q.toLowerCase();
+            let matched = 0;
+            for (const row of rows) {
+              if (matched >= RESULTS_PER_TYPE) break;
+              const profile = profiles.get(row.userId);
+              if (!profile) continue;
+              if (
+                !profile.name.toLowerCase().includes(needle) &&
+                !profile.email.toLowerCase().includes(needle)
+              ) continue;
+              results.push({ id: row.id, type: "staff", title: profile.name, subtitle: profile.email, route: "/team" });
+              matched += 1;
             }
           }),
         );

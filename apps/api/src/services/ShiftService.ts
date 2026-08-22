@@ -6,6 +6,7 @@ import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
 import type { CreateShiftReportDto, SignOffDto, ListShiftsQuery } from "../schemas/shifts";
 import { getPKTDayRange } from "../lib/timezone";
+import { resolveUserNames } from "../lib/userNames";
 import { NotificationService } from "./NotificationService";
 import {
   getCurrentShiftContext,
@@ -212,12 +213,14 @@ export const ShiftService = {
               id: true,
               text: true,
               createdAt: true,
-              createdBy: { select: { name: true } },
+              createdById: true,
             },
             orderBy: { createdAt: "asc" },
           }),
         ])
       );
+
+    const noteAuthors = await resolveUserNames(unresolvedNotes.map((n) => n.createdById));
 
     return {
       shiftDate,
@@ -254,7 +257,7 @@ export const ShiftService = {
         id:            n.id,
         text:          n.text,
         createdAt:     n.createdAt,
-        createdByName: n.createdBy.name,
+        createdByName: noteAuthors.get(n.createdById) ?? "Unknown",
       })),
     };
   },

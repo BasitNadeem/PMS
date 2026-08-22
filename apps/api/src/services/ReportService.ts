@@ -3,6 +3,7 @@ import { adminPrisma, FolioItemType, PaymentStatus, HousekeepingTaskStatus, Main
 import { ExpenseService } from "./ExpenseService";
 import { getPKTDayRange, getPKTRangeFromStrings, getPKTMonthRange } from "../lib/timezone";
 import { HotelMetricsService } from "./HotelMetricsService";
+import { resolveUserNames } from "../lib/userNames";
 
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
 
@@ -868,14 +869,7 @@ export const ReportService = {
       for (const v of voidedItems) if (v.voidedBy) userIds.add(v.voidedBy);
       for (const p of refundPayments) if (p.postedBy) userIds.add(p.postedBy);
 
-      const userNames = new Map<string, string>();
-      if (userIds.size > 0) {
-        const hotelUsers = await db.hotelUser.findMany({
-          where: { userId: { in: [...userIds] } },
-          select: { userId: true, user: { select: { name: true } } },
-        });
-        for (const hu of hotelUsers) userNames.set(hu.userId, hu.user.name);
-      }
+      const userNames = await resolveUserNames(userIds);
 
       type LogEntry = {
         type: "VOID" | "REFUND";
@@ -1595,9 +1589,10 @@ export const ReportService = {
           completedAt: true,
           createdAt: true,
           assignedToId: true,
-          assignedTo: { select: { name: true } },
         },
       });
+
+      const assigneeNames = await resolveUserNames(tasks.map((t) => t.assignedToId));
 
       const staffMap = new Map<string, {
         staffName: string;
@@ -1611,7 +1606,9 @@ export const ReportService = {
 
       for (const t of tasks) {
         const sid = t.assignedToId ?? "__unassigned__";
-        const sName = t.assignedTo?.name ?? "Unassigned";
+        const sName = t.assignedToId
+          ? assigneeNames.get(t.assignedToId) ?? "Unknown"
+          : "Unassigned";
 
         if (!staffMap.has(sid)) {
           staffMap.set(sid, { staffName: sName, tasksCompleted: 0, totalMinutes: 0, timedCount: 0, byType: new Map() });
@@ -1753,10 +1750,11 @@ export const ReportService = {
           action: true,
           entity: true,
           createdAt: true,
-          user: { select: { name: true } },
         },
         orderBy: { createdAt: "desc" },
       });
+
+      const actorNames = await resolveUserNames(logs.map((l) => l.userId));
 
       function actionCategory(action: string): "create" | "update" | "delete" | "other" {
         if (action.endsWith("_CREATE")) return "create";
@@ -1794,7 +1792,9 @@ export const ReportService = {
 
       for (const log of logs) {
         const sid = log.userId ?? "__system__";
-        const sName = log.user?.name ?? "System";
+        const sName = log.userId
+          ? actorNames.get(log.userId) ?? "Unknown"
+          : "System";
         if (!staffMap.has(sid)) {
           staffMap.set(sid, {
             staffName: sName,

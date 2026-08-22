@@ -13,6 +13,7 @@ import type {
   HousekeepingPriority,
 } from "../schemas/housekeeping";
 import { AppError } from "../utils/AppError";
+import { hydrateAssignee, hydrateAssignees } from "../lib/userNames";
 import { paginationMeta } from "../utils/pagination";
 import { getEffectiveLimits } from "../lib/subscription";
 
@@ -108,6 +109,9 @@ export const HousekeepingService = {
       ...(query.assignedToId && { assignedToId:  query.assignedToId }),
     };
 
+    // `assignedTo` always resolves to null on a tenant client: `users` carries a
+    // self-access-only RLS policy. It stays in the select to hold the response
+    // shape, and hydrateAssignees puts the real name back.
     const [items, total] = await withTenant((db) =>
       Promise.all([
         db.housekeepingTask.findMany({
@@ -125,7 +129,7 @@ export const HousekeepingService = {
     );
 
     return {
-      data: items.map(mapTask),
+      data: await hydrateAssignees(items.map(mapTask)),
       meta: paginationMeta(total, query.page, query.limit),
     };
   },
@@ -141,7 +145,7 @@ export const HousekeepingService = {
       })
     );
     if (!task) throw new AppError(404, "Housekeeping task not found");
-    return mapTask(task);
+    return hydrateAssignee(mapTask(task));
   },
 
   async createTask(withTenant: WithTenantFn, actor: JwtPayload, dto: CreateTaskDto) {
@@ -210,7 +214,7 @@ export const HousekeepingService = {
       url:   "/housekeeping/mobile",
     });
 
-    return mapTask(task);
+    return hydrateAssignee(mapTask(task));
   },
 
   async updateTaskStatus(
@@ -287,7 +291,7 @@ export const HousekeepingService = {
       url:   "/housekeeping/mobile",
     });
 
-    return mapTask(task);
+    return hydrateAssignee(mapTask(task));
   },
 
   async updateTask(
@@ -329,7 +333,7 @@ export const HousekeepingService = {
     });
 
     notifyHotelDataChanged(actor.hotelId);
-    return mapTask(task);
+    return hydrateAssignee(mapTask(task));
   },
 
   async summary(withTenant: WithTenantFn) {

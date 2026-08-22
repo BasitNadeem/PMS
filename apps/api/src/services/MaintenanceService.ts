@@ -10,6 +10,7 @@ import type {
   UpdateTicketStatusDto,
 } from "../schemas/maintenance";
 import { AppError } from "../utils/AppError";
+import { hydrateAssignee, hydrateAssignees } from "../lib/userNames";
 import { paginationMeta } from "../utils/pagination";
 import { queueChannexSync } from "../lib/channexSync";
 
@@ -88,6 +89,9 @@ async function assertInventoryDatesAvailable(
   }
 }
 
+// `assignedTo` always comes back null here — the RLS policy on `users` is
+// self-access only, so a tenant client cannot see a colleague's row. It is
+// still selected to hold the response shape; hydrateAssignee fills the name in.
 const ticketInclude = {
   room: { select: { id: true, number: true, floor: true } },
   assignedTo: { select: { id: true, name: true } },
@@ -130,7 +134,7 @@ export const MaintenanceService = {
     );
 
     return {
-      data: items.map(mapTicket),
+      data: await hydrateAssignees(items.map(mapTicket)),
       meta: paginationMeta(total, query.page, query.limit),
     };
   },
@@ -143,7 +147,7 @@ export const MaintenanceService = {
       })
     );
     if (!ticket) throw new AppError(404, "Maintenance ticket not found");
-    return mapTicket(ticket);
+    return hydrateAssignee(mapTicket(ticket));
   },
 
   async createTicket(withTenant: WithTenantFn, actor: JwtPayload, dto: CreateTicketDto) {
@@ -250,7 +254,7 @@ export const MaintenanceService = {
     if (dto.roomUnavailable) {
       queueChannexSync({ hotelId: actor.hotelId, reason: "ROOM_INVENTORY_BLOCK_CHANGE", dateFrom: dto.unavailableFrom, dateTo: dto.sellableFrom });
     }
-    return mapTicket(ticket);
+    return hydrateAssignee(mapTicket(ticket));
   },
 
   async updateTicketStatus(
@@ -333,7 +337,7 @@ export const MaintenanceService = {
     if (ticket.inventoryBlock) {
       queueChannexSync({ hotelId: actor.hotelId, reason: "ROOM_INVENTORY_BLOCK_CHANGE" });
     }
-    return mapTicket(ticket);
+    return hydrateAssignee(mapTicket(ticket));
   },
 
   async updateTicket(
@@ -441,7 +445,7 @@ export const MaintenanceService = {
     if (dto.roomUnavailable !== undefined) {
       queueChannexSync({ hotelId: actor.hotelId, reason: "ROOM_INVENTORY_BLOCK_CHANGE", dateFrom: dto.unavailableFrom, dateTo: dto.sellableFrom });
     }
-    return mapTicket(ticket);
+    return hydrateAssignee(mapTicket(ticket));
   },
 
   async summary(withTenant: WithTenantFn) {

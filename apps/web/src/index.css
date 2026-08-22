@@ -196,18 +196,21 @@ button.sidebar-property:hover {
   color: rgb(var(--color-accent-deep));
 }
 
-/* The selected tab is the theme. The second stop lifts towards --color-accent
-   so the three themes whose deep and dark shades are identical still get some
-   modelling; both ends clear 5:1 against white. */
+/* The selected tab is the brand ink, not the accent. An accent tab sits on a
+   rail tinted with the same hue, so it could only separate on depth; ink is
+   off the rail's axis entirely and separates on both. It also holds still
+   across all four themes, which is what makes it read as "you are here"
+   rather than as more decoration.
+   The radial lift keeps it from being a flat slab and is the one place the
+   accent still touches it. */
 .sidebar-nav-item-active {
   border-color: transparent;
   background:
-    linear-gradient(135deg,
-      rgb(var(--color-accent-deep)),
-      color-mix(in srgb, rgb(var(--color-accent)) 45%, rgb(var(--color-accent-deep))));
+    radial-gradient(circle at 100% 0, rgb(var(--color-accent) / .3), transparent 52%),
+    rgb(var(--color-ink));
   box-shadow:
-    0 10px 22px color-mix(in srgb, rgb(var(--color-accent-deep)) 34%, transparent),
-    inset 0 1px 0 rgb(255 255 255 / .16);
+    0 10px 22px rgb(var(--color-ink) / .22),
+    inset 0 1px 0 rgb(255 255 255 / .12);
   color: rgb(var(--color-card));
 }
 
@@ -215,12 +218,12 @@ button.sidebar-property:hover {
   left: 7px;
   height: 16px;
   width: 2px;
-  background: rgb(255 255 255 / .85);
+  background: rgb(var(--color-accent-soft));
   box-shadow: none;
 }
 
 .sidebar-nav-item-active .sidebar-nav-icon {
-  color: rgb(255 255 255 / .95);
+  color: rgb(var(--color-accent-soft));
   filter: none;
 }
 

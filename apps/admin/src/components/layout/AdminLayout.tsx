@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Building2, LogOut, CreditCard } from "lucide-react";
+import { Building2, LogOut, CreditCard, Network } from "lucide-react";
 import { clearToken, decodeToken } from "@/lib/auth";
 
 export interface AdminLayoutProps {
@@ -35,6 +35,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           >
             <Building2 size={18} />
             Hotels
+          </Link>
+          <Link
+            to="/portfolios"
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white"
+          >
+            <Network size={18} />
+            Portfolios
           </Link>
           <Link
             to="/plans"

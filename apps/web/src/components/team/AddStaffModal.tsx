@@ -195,7 +195,9 @@ export function AddStaffModal({ onClose, onSuccess }: AddStaffModalProps) {
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            <p className="mt-1 text-[12px] text-ink-mute">Staff member can change this after first login.</p>
+            <p className="mt-1 text-[12px] text-ink-mute">
+              Used for a new account. If this email already belongs to an Innflo user, their existing password stays unchanged.
+            </p>
           </div>
 
           {/* Role grid */}

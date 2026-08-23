@@ -6,6 +6,7 @@ import {
   Sparkles, ShoppingCart, FileBarChart, LogOut,
   ChevronsUpDown, ChevronDown, PanelLeftClose, PanelLeftOpen, Menu, X, Settings,
   Receipt, TrendingDown, BookOpen, Wrench, ClipboardList, ChefHat, Monitor, Package, Network, Moon, Tag, Globe, CalendarRange, Sunrise,
+  ArrowRight, Check, KeyRound, Loader2, UserRoundCog,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useQuery } from "@tanstack/react-query";
@@ -21,6 +22,8 @@ import { useOperationalAlerts } from "@/hooks/useOperationalAlerts";
 import { useOperationalNotificationAlerts } from "@/hooks/useOperationalNotificationAlerts";
 import { OperationalAlertStack } from "@/components/ui/OperationalAlertStack";
 import { playNotificationSound, unlockNotificationSound } from "@/lib/notificationSound";
+import { authService, persistAuthSession, type LinkedProperty } from "@/services/auth";
+import { getErrorMessage } from "@/lib/api";
 
 function useOnlineStatus() {
   return useSyncExternalStore(
@@ -73,9 +76,10 @@ function OfflineBanner() {
 interface Hotel {
   id: string;
   name: string;
+  slug: string;
   propertyType: string;
   logoUrl?: string;
-  settings?: { themeKey?: string };
+  settings?: { themeKey?: string; logoUrl?: string };
 }
 
 function formatPropertyType(type?: string): string {
@@ -160,25 +164,35 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/financials/cashbook", label: "Balance Book", icon: BookOpen, permission: "cashbook:read", section: "finance" },
   { to: "/housekeeping", label: "Housekeeping", icon: Sparkles, permission: "housekeeping:read", section: "property" },
   { to: "/maintenance", label: "Maintenance", icon: Wrench, permission: "maintenance:read", featureGate: "maintenanceTickets", section: "property" },
+  // Operations is the daily operating cycle, listed in the order it runs: the
+  // desk hands over each shift, the day is closed by the night audit, the
+  // manager reads the result the next morning, and the forecast is what they
+  // plan the coming days against.
+  //
+  // Forecast lives here and nowhere else. It used to be a Reports entry that
+  // this group merely linked out to, which put one page in two sections and
+  // left neither owning it; it now has its own /operations route and has been
+  // taken off the Reports hub.
+  //
+  // `to` is only an identity for the group — the header expands rather than
+  // navigating, so nothing lands on a child the user cannot open.
   {
     to: "/operations", label: "Operations", icon: ClipboardList, permission: "shiftHandover:read", section: "management",
     children: [
-      { to: "/operations/early-bird", label: "Early Bird Report", icon: Sunrise, permission: "reports:read" },
-      { to: "/reports/forecast", label: "Forecast", icon: CalendarRange, permission: "reports:read" },
       { to: "/operations/shift-handover", label: "Shift Handover", icon: ClipboardList, permission: "shiftHandover:read" },
       { to: "/operations/night-audit", label: "Night Audit", icon: Moon, permission: "nightAudit:read", featureGate: "nightAudit" },
+      { to: "/operations/early-bird", label: "Early Bird Report", icon: Sunrise, permission: "reports:read" },
+      { to: "/operations/forecast", label: "Forecast", icon: CalendarRange, permission: "reports:read" },
     ],
   },
   { to: "/team",         label: "Team",         icon: Users2, permission: "team:read", section: "management" },
   { to: "/pos", label: "POS", icon: ShoppingCart, permission: "pos:read", featureGate: "posModule", section: "fnb" },
   { to: "/qr-orders", label: "QR Orders", icon: ClipboardList, permission: "pos:read", featureGate: "qrOrdering", section: "fnb" },
   { to: "/inventory", label: "Inventory", icon: Package, permission: "pos:read", featureGate: "inventoryManagement", section: "fnb" },
-  {
-    to: "/reports", label: "Reports", icon: FileBarChart, permission: "reports:read", section: "management",
-    children: [
-      { to: "/reports",             label: "All Reports", icon: FileBarChart, permission: "reports:read" },
-    ],
-  },
+  // A group whose only child was itself, which cost a disclosure arrow and a
+  // second click to reach the page the header already pointed at. /reports is
+  // a hub listing every report, so it is a plain link.
+  { to: "/reports", label: "Reports", icon: FileBarChart, permission: "reports:read", section: "management" },
   { to: "/rate-plans",      label: "Rate Plans", icon: Tag,     permission: "rates:read",      featureGate: "ratePlans", section: "distribution" },
   { to: "/booking-engine",  label: "Booking Engine", icon: Globe, permission: "bookingEngine:read", featureGate: "bookingEngine", section: "distribution" },
   { to: "/channel-manager", label: "Channels",  icon: Network, permission: "dashboard:read",  featureGate: "channelManager", section: "distribution" },
@@ -225,6 +239,108 @@ function SidebarTooltip({ label, children }: { label: string; children: React.Re
   );
 }
 
+function SwitchAccountModal({
+  hotel,
+  onClose,
+}: {
+  hotel: Hotel;
+  onClose: () => void;
+}) {
+  useEscapeKey(onClose);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      const session = await authService.switchAccount(email.trim(), password, hotel.slug);
+      persistAuthSession(session);
+      window.location.assign(session.user.role === "KITCHEN" ? "/kitchen/dashboard" : "/dashboard");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Could not switch staff account."));
+      setSubmitting(false);
+    }
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[350] flex items-center justify-center bg-ink/35 p-4 backdrop-blur-[3px]"
+      onMouseDown={onClose}
+    >
+      <form
+        onSubmit={submit}
+        onMouseDown={(event) => event.stopPropagation()}
+        className="w-full max-w-md overflow-hidden rounded-[1.75rem] border border-line bg-card shadow-float"
+      >
+        <div className="flex items-start gap-4 border-b border-line-soft px-6 py-5">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-coral-soft text-coral">
+            <UserRoundCog size={20} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] font-bold uppercase tracking-[0.15em] text-coral">Secure account switch</div>
+            <h2 className="serif mt-0.5 text-[24px] leading-tight text-ink">Switch staff account</h2>
+            <p className="mt-1 text-[12px] text-ink-mute">Sign in as another team member at {hotel.name}.</p>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full text-ink-mute hover:bg-line-soft">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-6 py-5">
+          {error && (
+            <div className="rounded-xl border border-coral/25 bg-coral-tint px-4 py-3 text-[13px] text-coral-deep">{error}</div>
+          )}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Email</label>
+            <input
+              type="email"
+              required
+              autoComplete="username"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="h-11 w-full rounded-xl border border-line bg-mist px-3.5 text-[14px] text-ink outline-none focus:border-coral/50 focus:ring-2 focus:ring-coral/15"
+              placeholder="staff@hotel.com"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Password</label>
+            <input
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="h-11 w-full rounded-xl border border-line bg-mist px-3.5 text-[14px] text-ink outline-none focus:border-coral/50 focus:ring-2 focus:ring-coral/15"
+              placeholder="Enter their password"
+            />
+          </div>
+          <div className="flex items-start gap-2 rounded-xl border border-line-soft bg-mist p-3 text-[12px] leading-5 text-ink-mute">
+            <KeyRound size={15} className="mt-0.5 shrink-0 text-pine" />
+            Your current session stays open unless these credentials are accepted.
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-line-soft px-6 py-4">
+          <button type="button" onClick={onClose} className="h-10 rounded-full px-5 text-[13px] font-semibold text-ink-soft hover:bg-line-soft">Cancel</button>
+          <button
+            type="submit"
+            disabled={submitting || !email.trim() || !password}
+            className="inline-flex h-10 items-center gap-2 rounded-full bg-ink px-5 text-[13px] font-semibold text-white disabled:opacity-45"
+          >
+            {submitting && <Loader2 size={15} className="animate-spin" />}
+            Switch account
+          </button>
+        </div>
+      </form>
+    </div>,
+    document.body,
+  );
+}
+
 /**
  * Whether a nav item owns the current path.
  *
@@ -263,9 +379,17 @@ function SidebarContent({
   const navigate       = useNavigate();
   const { pathname }   = useLocation();
   const { has, hasAny } = usePermissions();
+  const userName = getCurrentUserName();
+  const userRole = getCurrentUserRole();
+  const canUsePortfolio = userRole === "OWNER" || userRole === "MANAGER";
   const { data: hotel } = useQuery<Hotel>({
     queryKey: ["hotel"],
-    queryFn: () => api.get("/api/hotels/me").then((r) => r.data.data),
+    queryFn: () => api.get("/api/hotels/me").then((r) => {
+      const data = r.data.data as Hotel;
+      // Branding is stored inside settings; expose it to the shared property
+      // tile without changing the hotels/me response contract.
+      return { ...data, logoUrl: data.logoUrl ?? data.settings?.logoUrl };
+    }),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -278,17 +402,71 @@ function SidebarContent({
     staleTime: 5 * 60 * 1000,
   });
 
-  function logout() {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("pms-query-cache");
-    applyTheme(undefined);
-    navigate("/login");
+  const { data: linkedProperties = [] } = useQuery<LinkedProperty[]>({
+    queryKey: ["auth", "properties"],
+    queryFn: authService.getProperties,
+    enabled: canUsePortfolio,
+    staleTime: 60_000,
+  });
+
+  const [propertyMenuOpen, setPropertyMenuOpen] = useState(false);
+  const [propertyMenuPos, setPropertyMenuPos] = useState({ top: 0, left: 0, width: 280 });
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [accountMenuPos, setAccountMenuPos] = useState({ bottom: 0, left: 0, width: 250 });
+  const [switchAccountOpen, setSwitchAccountOpen] = useState(false);
+  const [switchingPropertyId, setSwitchingPropertyId] = useState<string | null>(null);
+  const [propertyError, setPropertyError] = useState<string | null>(null);
+  const propertyButtonRef = useRef<HTMLButtonElement>(null);
+  const accountButtonRef = useRef<HTMLButtonElement>(null);
+
+  const hasMultipleProperties = linkedProperties.length > 1;
+
+  function openPropertyMenu() {
+    if (!hasMultipleProperties || !propertyButtonRef.current) return;
+    const rect = propertyButtonRef.current.getBoundingClientRect();
+    setPropertyMenuPos({ top: rect.bottom + 8, left: rect.left, width: Math.max(rect.width, 280) });
+    setAccountMenuOpen(false);
+    setPropertyMenuOpen(true);
   }
 
-  const userName = getCurrentUserName();
-  const userRole = getCurrentUserRole();
+  function openAccountMenu() {
+    if (!accountButtonRef.current) return;
+    const rect = accountButtonRef.current.getBoundingClientRect();
+    setAccountMenuPos({ bottom: window.innerHeight - rect.top + 8, left: rect.left, width: Math.max(rect.width, 250) });
+    setPropertyMenuOpen(false);
+    setAccountMenuOpen(true);
+  }
+
+  async function switchProperty(property: LinkedProperty) {
+    if (property.isCurrent) {
+      setPropertyMenuOpen(false);
+      navigate("/dashboard");
+      return;
+    }
+    if (!property.canSwitch) return;
+    setPropertyError(null);
+    setSwitchingPropertyId(property.id);
+    try {
+      const session = await authService.switchProperty(property.id);
+      persistAuthSession(session);
+      window.location.assign("/dashboard");
+    } catch (err: unknown) {
+      setPropertyError(getErrorMessage(err, "Could not switch property."));
+      setSwitchingPropertyId(null);
+    }
+  }
+
+  function logout() {
+    const clear = () => {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("userName");
+      localStorage.removeItem("pms-query-cache");
+      applyTheme(undefined);
+      navigate("/login");
+    };
+    void api.post("/api/auth/logout").catch(() => undefined).finally(clear);
+  }
 
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const [submenuPos, setSubmenuPos] = useState({ top: 0, left: 0 });
@@ -325,6 +503,19 @@ function SidebarContent({
 
   const toggleSection = useCallback((id: NavSectionId) => {
     setClosedSections((prev) => ({ ...prev, [id]: !prev[id] }));
+  }, []);
+
+  // Nav groups expand in place instead of navigating. The header used to be a
+  // link to /operations, which redirected to a fixed child, so the only way to
+  // open the group at all was to be sent to the Early Bird Report — and anyone
+  // without reports:read hit a permission wall on a page they never asked for.
+  // A disclosure has no destination and cannot do that to anyone.
+  //
+  // Not persisted, and undefined means "follow the route": a group is open
+  // because you are in it, until you say otherwise.
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const toggleGroup = useCallback((to: string, isOpen: boolean) => {
+    setExpandedGroups((prev) => ({ ...prev, [to]: !isOpen }));
   }, []);
 
   const navItems = NAV_ITEMS
@@ -364,16 +555,28 @@ function SidebarContent({
             </div>
           )}
           <div className="flex justify-center pb-2">
-            <PropertyLogo hotel={hotel} size={34} />
+            {hasMultipleProperties ? (
+              <button ref={propertyButtonRef} type="button" onClick={openPropertyMenu} title="Switch property" className="rounded-xl p-1 hover:bg-line-soft">
+                <PropertyLogo hotel={hotel} size={34} />
+              </button>
+            ) : (
+              <PropertyLogo hotel={hotel} size={34} />
+            )}
           </div>
         </>
       ) : (
         <div className="sidebar-brand-wrap px-3 pt-3 pb-2 flex items-center gap-1.5">
           <div className="flex-1 min-w-0">
-            {(userRole === "OWNER" || userRole === "ADMIN") ? (
+            {canUsePortfolio ? (
               <button
-                onClick={() => navigate("/settings")}
-                className="sidebar-property group flex w-full items-center gap-3 rounded-2xl p-2.5 text-left cursor-pointer transition-all duration-200"
+                ref={propertyButtonRef}
+                type="button"
+                onClick={openPropertyMenu}
+                disabled={!hasMultipleProperties}
+                className={cn(
+                  "sidebar-property group flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-all duration-200",
+                  hasMultipleProperties ? "cursor-pointer" : "cursor-default",
+                )}
               >
                 <PropertyLogo hotel={hotel} />
                 <div className="min-w-0 flex-1 leading-tight">
@@ -382,7 +585,9 @@ function SidebarContent({
                     {formatPropertyType(hotel?.propertyType)}
                   </div>
                 </div>
-                <ChevronsUpDown size={14} className="text-ink-faint group-hover:text-ink-mute shrink-0" />
+                {hasMultipleProperties && (
+                  <ChevronsUpDown size={14} className="text-ink-faint group-hover:text-ink-mute shrink-0" />
+                )}
               </button>
             ) : (
               <div className="sidebar-property flex items-center gap-3 rounded-2xl px-2.5 py-2">
@@ -446,12 +651,19 @@ function SidebarContent({
               <div className="flex flex-col gap-0.5">
                 {items.map((item) => {
                   const hasChildren = !!item.children?.length;
-                  // Parent is active if path starts with its route (ignoring sub-routes).
+                  // A group holds the current page when one of its children
+                  // does. Matching item.to as a prefix instead would tie the
+                  // group to a route it does not own — children are free to
+                  // live outside the parent's path, and Forecast did.
+                  const holdsRoute = !!item.children?.some(
+                    (c) => pathname === c.to || pathname.startsWith(`${c.to}/`),
+                  );
+                  const groupOpen = expandedGroups[item.to] ?? holdsRoute;
                   // For items without children, itemMatchesPath still supplies
                   // the extra matches NavLink's own end/startsWith can't express
                   // (Billing owning the folio detail page, see itemMatchesPath).
                   const parentActive = hasChildren
-                    ? pathname.startsWith(item.to)
+                    ? holdsRoute
                     : itemMatchesPath(item, pathname) && pathname !== item.to;
 
                   return (
@@ -477,10 +689,52 @@ function SidebarContent({
                             </>
                           )}
                         </button>
+                      ) : hasChildren ? (
+                        <button
+                          onClick={(e) => {
+                            // Collapsed to the icon rail there is nowhere to
+                            // expand into, so a click raises the same flyout
+                            // that hovering does.
+                            if (collapsed) {
+                              openSubmenuFor(item.to, e.currentTarget.getBoundingClientRect());
+                              return;
+                            }
+                            toggleGroup(item.to, groupOpen);
+                          }}
+                          aria-expanded={collapsed ? undefined : groupOpen}
+                          title={collapsed ? item.label : undefined}
+                          className={cn(
+                            "sidebar-nav-item group relative flex w-full items-center gap-3 rounded-[10px] py-2 text-[13px] font-semibold transition-all duration-200",
+                            "outline-none focus-visible:ring-2 focus-visible:ring-coral/40 focus-visible:ring-offset-0",
+                            collapsed ? "justify-center px-0" : "px-3",
+                            parentActive ? "sidebar-nav-item-active text-ink" : "text-ink-soft",
+                          )}
+                        >
+                          {parentActive && !collapsed && (
+                            <span className="sidebar-active-marker absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-coral" />
+                          )}
+                          <item.icon
+                            size={18}
+                            strokeWidth={parentActive ? 2.1 : 1.9}
+                            className={cn("sidebar-nav-icon shrink-0", parentActive ? "text-coral" : "text-ink-mute group-hover:text-ink-soft")}
+                          />
+                          {!collapsed && (
+                            <>
+                              <span className="flex-1 text-left">{item.label}</span>
+                              <ChevronDown
+                                size={13}
+                                className={cn(
+                                  "shrink-0 opacity-70 transition-transform duration-200",
+                                  !groupOpen && "-rotate-90",
+                                )}
+                              />
+                            </>
+                          )}
+                        </button>
                       ) : (
                       <NavLink
                         to={item.to}
-                        end={item.end ?? (!hasChildren)}
+                        end={item.end ?? true}
                         onClick={onNavigate}
                         title={collapsed ? item.label : undefined}
                         className={({ isActive }) =>
@@ -514,7 +768,7 @@ function SidebarContent({
                       )}
 
                       {/* Sub-items — visible when parent route is active and sidebar is not collapsed */}
-                      {hasChildren && parentActive && !collapsed && (
+                      {hasChildren && groupOpen && !collapsed && (
                         <div className="sidebar-subnav mt-0.5 mb-1 ml-3 pl-3 border-l flex flex-col gap-0.5">
                           {item.children!.map((sub) => {
                             // Billing is active on /financials and /financials/folio/*
@@ -595,17 +849,134 @@ function SidebarContent({
         );
       })()}
 
+      {propertyMenuOpen && createPortal(
+        <>
+          <button
+            type="button"
+            aria-label="Close property switcher"
+            className="fixed inset-0 z-[239] cursor-default"
+            onClick={() => setPropertyMenuOpen(false)}
+          />
+          <div
+            className="fixed z-[240] overflow-hidden rounded-2xl border border-line bg-card shadow-float"
+            style={{ top: propertyMenuPos.top, left: propertyMenuPos.left, width: propertyMenuPos.width }}
+          >
+            <div className="border-b border-line-soft px-4 py-3">
+              <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-ink-faint">Your properties</div>
+              <div className="mt-0.5 text-[12px] text-ink-mute">Owner and manager access only</div>
+            </div>
+            <div className="max-h-[310px] overflow-y-auto p-2">
+              {linkedProperties.map((property) => (
+                <button
+                  key={property.id}
+                  type="button"
+                  disabled={switchingPropertyId !== null || (!property.isCurrent && !property.canSwitch)}
+                  onClick={() => void switchProperty(property)}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors disabled:opacity-60",
+                    property.isCurrent ? "bg-coral-soft" : "hover:bg-mist",
+                  )}
+                >
+                  {property.logoUrl ? (
+                    <img src={property.logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-xl object-cover" />
+                  ) : (
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-line-soft text-ink-mute">
+                      <Building2 size={17} />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13px] font-semibold text-ink">{property.name}</div>
+                    <div className="truncate text-[11px] text-ink-mute">
+                      {[property.city, formatPropertyType(property.propertyType)].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                  {switchingPropertyId === property.id
+                    ? <Loader2 size={16} className="shrink-0 animate-spin text-coral" />
+                    : property.isCurrent ? <Check size={16} className="shrink-0 text-pine" /> : !property.canSwitch ? <span className="text-[10px] font-semibold text-ink-faint">View only</span> : null}
+                </button>
+              ))}
+            </div>
+            {propertyError && (
+              <div className="mx-3 mb-2 rounded-xl border border-coral/20 bg-coral-tint px-3 py-2 text-[12px] text-coral-deep">
+                {propertyError}
+              </div>
+            )}
+            {linkedProperties.some((property) => property.canViewPortfolio) && <button
+              type="button"
+              onClick={() => { setPropertyMenuOpen(false); navigate("/portfolio"); onNavigate?.(); }}
+              className="flex w-full items-center justify-between border-t border-line-soft px-4 py-3 text-[13px] font-semibold text-ink hover:bg-mist"
+            >
+              View all properties
+              <ArrowRight size={15} className="text-coral" />
+            </button>}
+          </div>
+        </>,
+        document.body,
+      )}
+
+      {accountMenuOpen && createPortal(
+        <>
+          <button
+            type="button"
+            aria-label="Close account menu"
+            className="fixed inset-0 z-[239] cursor-default"
+            onClick={() => setAccountMenuOpen(false)}
+          />
+          <div
+            className="fixed z-[240] overflow-hidden rounded-2xl border border-line bg-card shadow-float"
+            style={{ bottom: accountMenuPos.bottom, left: accountMenuPos.left, width: accountMenuPos.width }}
+          >
+            <div className="flex items-center gap-3 border-b border-line-soft px-4 py-3">
+              <div
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-bold"
+                style={{ background: "rgb(var(--color-accent-soft))", color: "rgb(var(--color-accent-deep))" }}
+              >
+                {getInitials(userName) || "?"}
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-[13px] font-semibold text-ink">{userName ?? "User"}</div>
+                <div className="text-[11px] text-ink-mute">{formatRoleLabel(userRole)} · {hotel?.name}</div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setAccountMenuOpen(false); setSwitchAccountOpen(true); }}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-mist"
+            >
+              <UserRoundCog size={17} className="text-coral" />
+              <div>
+                <div className="text-[13px] font-semibold text-ink">Switch staff account</div>
+                <div className="text-[11px] text-ink-mute">Credentials are required</div>
+              </div>
+            </button>
+          </div>
+        </>,
+        document.body,
+      )}
+
+      {switchAccountOpen && hotel && (
+        <SwitchAccountModal hotel={hotel} onClose={() => setSwitchAccountOpen(false)} />
+      )}
+
       {/* User footer */}
       <div className="sidebar-footer border-t border-line/60 p-3">
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
             <button
-              onClick={logout}
-              title="Sign out"
+              ref={accountButtonRef}
+              onClick={openAccountMenu}
+              title="Account options"
               className="grid place-items-center rounded-full font-bold text-[12px] hover:opacity-80 transition-opacity"
               style={{ width: 32, height: 32, background: "rgb(var(--color-accent-soft))", color: "rgb(var(--color-accent-deep))" }}
             >
               {getInitials(userName) || "?"}
+            </button>
+            <button
+              onClick={logout}
+              className="grid place-items-center h-8 w-8 rounded-xl text-ink-mute hover:bg-line-soft transition-colors"
+              title="Sign out"
+            >
+              <LogOut size={16} />
             </button>
             {has("settings:read") && (
               <button
@@ -620,7 +991,8 @@ function SidebarContent({
         ) : (
           <div className="flex items-center gap-2">
             <button
-              onClick={logout}
+              ref={accountButtonRef}
+              onClick={openAccountMenu}
               className="flex flex-1 items-center gap-3 rounded-xl px-2 py-2 hover:bg-line-soft transition-colors text-left"
             >
               <div

@@ -103,7 +103,7 @@ export default function CreateHotelPage() {
             </div>
             <div className="flex justify-between">
               <dt className="text-gray-500">URL</dt>
-              <dd className="font-medium text-gray-900">{result.hotel.subdomain}.yourpms.com</dd>
+              <dd className="font-medium text-gray-900">https://{result.hotel.slug}.innflo.co</dd>
             </div>
           </dl>
 
@@ -132,7 +132,7 @@ export default function CreateHotelPage() {
           </div>
 
           <p className="mt-4 text-xs text-amber-700">
-            Share these with the owner. Password is shown once only.
+            Share these with the owner. Password is shown once only. Link this account to other properties from Portfolios when required.
           </p>
 
           <div className="mt-6 flex flex-col gap-2">

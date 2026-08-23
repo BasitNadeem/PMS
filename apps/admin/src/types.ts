@@ -65,3 +65,41 @@ export interface ApiError {
   error: string;
   details?: unknown;
 }
+
+export type PortfolioSwitchPolicy = "OWNERS_ONLY" | "OWNERS_AND_MANAGERS" | "SELECTED_ACCOUNTS";
+
+export interface PortfolioCandidateHotel {
+  id: string;
+  name: string;
+  slug: string;
+  city: string | null;
+  portfolioProperty: { portfolioId: string; portfolio: { name: string } } | null;
+  users: Array<{
+    role: "OWNER" | "MANAGER";
+    user: { id: string; name: string; email: string };
+  }>;
+}
+
+export interface PropertyPortfolio {
+  id: string;
+  name: string;
+  switchPolicy: PortfolioSwitchPolicy;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  properties: Array<{ hotelId: string; hotel: Hotel }>;
+  accesses: Array<{
+    id: string;
+    userId: string;
+    homeHotelId: string;
+    accessRole: "OWNER" | "MANAGER";
+    canViewPortfolio: boolean;
+    canSwitchProperties: boolean;
+    canViewFinancials: boolean;
+    allProperties: boolean;
+    isActive: boolean;
+    user: { id: string; name: string; email: string };
+    homeHotel: { id: string; name: string; slug?: string };
+    propertyGrants?: Array<{ hotelId: string }>;
+  }>;
+}

@@ -1,7 +1,14 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { adminAuth } from "../middleware/adminAuth";
-import { adminLoginSchema, createHotelSchema, updateHotelSchema, createPlanSchema, updatePlanSchema } from "../schemas/admin";
+import {
+  adminLoginSchema,
+  createHotelSchema,
+  updateHotelSchema,
+  createPlanSchema,
+  updatePlanSchema,
+  savePortfolioSchema,
+} from "../schemas/admin";
 import { AdminService } from "../services/AdminService";
 
 const router: Router = Router();
@@ -47,6 +54,38 @@ router.patch("/hotels/:id", adminAuth, async (req, res) => {
 router.post("/hotels/:id/reset-owner-password", adminAuth, async (req, res) => {
   const result = await AdminService.resetOwnerPassword(req.params.id as string);
   res.json({ data: result });
+});
+
+router.get("/portfolios/candidates", adminAuth, async (_req, res) => {
+  res.json({ data: await AdminService.listPortfolioCandidates() });
+});
+
+router.get("/portfolios", adminAuth, async (_req, res) => {
+  res.json({ data: await AdminService.listPortfolios() });
+});
+
+router.post("/portfolios", adminAuth, async (req, res) => {
+  const body = savePortfolioSchema.parse(req.body);
+  const portfolio = await AdminService.createPortfolio(body, {
+    email: req.admin!.email,
+    ipAddress: req.ip,
+    userAgent: req.headers["user-agent"],
+  });
+  res.status(201).json({ data: portfolio });
+});
+
+router.get("/portfolios/:id", adminAuth, async (req, res) => {
+  res.json({ data: await AdminService.getPortfolio(req.params.id as string) });
+});
+
+router.put("/portfolios/:id", adminAuth, async (req, res) => {
+  const body = savePortfolioSchema.parse(req.body);
+  const portfolio = await AdminService.updatePortfolio(req.params.id as string, body, {
+    email: req.admin!.email,
+    ipAddress: req.ip,
+    userAgent: req.headers["user-agent"],
+  });
+  res.json({ data: portfolio });
 });
 
 // GET /api/admin/plans

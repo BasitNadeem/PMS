@@ -10,7 +10,14 @@ import {
 } from "@pms/db";
 import { env } from "../lib/env";
 import { AppError } from "../utils/AppError";
-import type { AdminLoginDto, CreateHotelDto, UpdateHotelDto, CreatePlanDto, UpdatePlanDto } from "../schemas/admin";
+import type {
+  AdminLoginDto,
+  CreateHotelDto,
+  UpdateHotelDto,
+  CreatePlanDto,
+  UpdatePlanDto,
+  SavePortfolioDto,
+} from "../schemas/admin";
 
 const jwtOpts = (expiresIn: string): SignOptions => ({ expiresIn: expiresIn as SignOptions["expiresIn"] });
 
@@ -21,6 +28,82 @@ function generateTempPassword(): string {
   const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
   const sym = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
   return `${adj}${sym}2026`;
+}
+
+type AdminRequestContext = { email: string; ipAddress?: string; userAgent?: string };
+
+async function validatePortfolioConfiguration(dto: SavePortfolioDto, excludedPortfolioId?: string) {
+  const hotelIds = [...new Set(dto.hotelIds)];
+  if (hotelIds.length !== dto.hotelIds.length) throw new AppError(400, "A property can only appear once");
+  const hotels = await adminPrisma.hotel.findMany({
+    where: { id: { in: hotelIds }, isActive: true, deletedAt: null },
+    select: { id: true },
+  });
+  if (hotels.length !== hotelIds.length) throw new AppError(400, "One or more selected properties are inactive or missing");
+  const conflicts = await adminPrisma.propertyPortfolioHotel.findMany({
+    where: {
+      hotelId: { in: hotelIds },
+      ...(excludedPortfolioId ? { portfolioId: { not: excludedPortfolioId } } : {}),
+    },
+    select: { hotelId: true },
+  });
+  if (conflicts.length) throw new AppError(409, "A selected property already belongs to another portfolio");
+  const userConflicts = await adminPrisma.propertyPortfolioAccess.findMany({
+    where: {
+      userId: { in: dto.accesses.map((access) => access.userId) },
+      ...(excludedPortfolioId ? { portfolioId: { not: excludedPortfolioId } } : {}),
+    },
+    select: { userId: true },
+  });
+  if (userConflicts.length) throw new AppError(409, "A selected account already belongs to another portfolio");
+
+  const seenUsers = new Set<string>();
+  const normalizedAccesses = [];
+  for (const access of dto.accesses) {
+    if (seenUsers.has(access.userId)) throw new AppError(400, "An account can only be granted once per portfolio");
+    seenUsers.add(access.userId);
+    if (!hotelIds.includes(access.homeHotelId)) throw new AppError(400, "Every account's home property must be linked to the portfolio");
+    const membership = await adminPrisma.hotelUser.findUnique({
+      where: { hotelId_userId: { hotelId: access.homeHotelId, userId: access.userId } },
+      select: { isActive: true, role: true },
+    });
+    if (!membership?.isActive || !["OWNER", "MANAGER"].includes(membership.role)) {
+      throw new AppError(400, "Portfolio accounts must be active owners or managers of their home property");
+    }
+    const scopedHotelIds = access.allProperties ? [] : [...new Set(access.hotelIds)];
+    if (!access.allProperties) {
+      if (!scopedHotelIds.includes(access.homeHotelId)) scopedHotelIds.push(access.homeHotelId);
+      if (scopedHotelIds.some((hotelId) => !hotelIds.includes(hotelId))) {
+        throw new AppError(400, "An account's property scope must stay inside the portfolio");
+      }
+    }
+    normalizedAccesses.push({ ...access, accessRole: membership.role as "OWNER" | "MANAGER", hotelIds: scopedHotelIds });
+  }
+  return { hotelIds, accesses: normalizedAccesses };
+}
+
+async function writePortfolioAudit(
+  tx: Prisma.TransactionClient,
+  hotelIds: string[],
+  portfolioId: string,
+  action: string,
+  before: Prisma.InputJsonValue | undefined,
+  after: Prisma.InputJsonValue | undefined,
+  context: AdminRequestContext,
+) {
+  await Promise.all(hotelIds.map((hotelId) => tx.auditLog.create({
+    data: {
+      hotelId,
+      action,
+      entity: "property_portfolio",
+      entityId: portfolioId,
+      ...(before !== undefined ? { before } : {}),
+      ...(after !== undefined ? { after } : {}),
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+      notes: `Super-admin ${context.email}`,
+    },
+  })));
 }
 
 export const AdminService = {
@@ -84,6 +167,13 @@ export const AdminService = {
     const existing = await adminPrisma.hotel.findFirst({ where: { subdomain: dto.subdomain } });
     if (existing) throw new AppError(409, "Subdomain already taken");
 
+    const existingOwner = await adminPrisma.user.findUnique({ where: { email: dto.ownerEmail } });
+    if (existingOwner?.deletedAt) {
+      throw new AppError(409, "This owner email belongs to a suspended account");
+    }
+    if (existingOwner) {
+      throw new AppError(409, "Owner email already belongs to another account. Create this property with its own owner email, then link both accounts through a portfolio.");
+    }
     const tempPassword = generateTempPassword();
     const passwordHash = await bcrypt.hash(tempPassword, 10);
 
@@ -120,15 +210,15 @@ export const AdminService = {
       });
 
       const user = await tx.user.create({
-        data: {
-          name: dto.ownerName,
-          email: dto.ownerEmail,
-          passwordHash,
-          tempPassword,
-          isFirstLogin: true,
-          isSuperAdmin: false,
-        },
-      });
+          data: {
+            name: dto.ownerName,
+            email: dto.ownerEmail,
+            passwordHash,
+            tempPassword,
+            isFirstLogin: true,
+            isSuperAdmin: false,
+          },
+        });
 
       await tx.hotelUser.create({
         data: {
@@ -146,8 +236,158 @@ export const AdminService = {
 
     return {
       hotel: { id: result.hotel.id, name: result.hotel.name, subdomain: result.hotel.subdomain, slug: result.hotel.slug },
-      owner: { name: result.user.name, email: result.user.email, tempPassword },
+      owner: {
+        name: result.user.name,
+        email: result.user.email,
+        tempPassword,
+      },
     };
+  },
+
+  async listPortfolioCandidates() {
+    return adminPrisma.hotel.findMany({
+      where: { isActive: true, deletedAt: null },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        city: true,
+        portfolioProperty: { select: { portfolioId: true, portfolio: { select: { name: true } } } },
+        users: {
+          where: { isActive: true, role: { in: ["OWNER", "MANAGER"] } },
+          select: { role: true, user: { select: { id: true, name: true, email: true } } },
+          orderBy: { role: "asc" },
+        },
+      },
+    });
+  },
+
+  async listPortfolios() {
+    return adminPrisma.propertyPortfolio.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        properties: { select: { hotel: { select: { id: true, name: true, slug: true } } } },
+        accesses: {
+          select: {
+            id: true,
+            accessRole: true,
+            isActive: true,
+            user: { select: { id: true, name: true, email: true } },
+            homeHotel: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+  },
+
+  async getPortfolio(id: string) {
+    const portfolio = await adminPrisma.propertyPortfolio.findUnique({
+      where: { id },
+      include: {
+        properties: { orderBy: { hotel: { name: "asc" } }, include: { hotel: true } },
+        accesses: {
+          orderBy: { user: { name: "asc" } },
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+            homeHotel: { select: { id: true, name: true, slug: true } },
+            propertyGrants: { select: { hotelId: true } },
+          },
+        },
+      },
+    });
+    if (!portfolio) throw new AppError(404, "Portfolio not found");
+    return portfolio;
+  },
+
+  async createPortfolio(dto: SavePortfolioDto, context: AdminRequestContext) {
+    const normalized = await validatePortfolioConfiguration(dto);
+    return adminPrisma.$transaction(async (tx) => {
+      const portfolio = await tx.propertyPortfolio.create({
+        data: {
+          name: dto.name,
+          switchPolicy: dto.switchPolicy,
+          isActive: dto.isActive,
+          createdByAdminEmail: context.email,
+          updatedByAdminEmail: context.email,
+          properties: { create: normalized.hotelIds.map((hotelId) => ({ hotelId })) },
+          accesses: {
+            create: normalized.accesses.map((access) => ({
+              userId: access.userId,
+              homeHotelId: access.homeHotelId,
+              accessRole: access.accessRole,
+              canViewPortfolio: access.canViewPortfolio,
+              canSwitchProperties: access.canSwitchProperties,
+              canViewFinancials: access.canViewFinancials,
+              allProperties: access.allProperties,
+              isActive: access.isActive,
+              createdByAdminEmail: context.email,
+              updatedByAdminEmail: context.email,
+              propertyGrants: access.allProperties ? undefined : {
+                create: access.hotelIds.map((hotelId) => ({ hotelId })),
+              },
+            })),
+          },
+        },
+      });
+      await writePortfolioAudit(tx, normalized.hotelIds, portfolio.id, "PORTFOLIO_CREATED", undefined, {
+        name: dto.name,
+        switchPolicy: dto.switchPolicy,
+        hotelIds: normalized.hotelIds,
+        accountIds: normalized.accesses.map((access) => access.userId),
+      }, context);
+      return portfolio;
+    });
+  },
+
+  async updatePortfolio(id: string, dto: SavePortfolioDto, context: AdminRequestContext) {
+    const existing = await this.getPortfolio(id);
+    const normalized = await validatePortfolioConfiguration(dto, id);
+    const oldHotelIds = existing.properties.map((row) => row.hotelId);
+    const auditHotelIds = [...new Set([...oldHotelIds, ...normalized.hotelIds])];
+    return adminPrisma.$transaction(async (tx) => {
+      await tx.propertyPortfolioAccess.deleteMany({ where: { portfolioId: id } });
+      await tx.propertyPortfolioHotel.deleteMany({ where: { portfolioId: id } });
+      const portfolio = await tx.propertyPortfolio.update({
+        where: { id },
+        data: {
+          name: dto.name,
+          switchPolicy: dto.switchPolicy,
+          isActive: dto.isActive,
+          updatedByAdminEmail: context.email,
+          properties: { create: normalized.hotelIds.map((hotelId) => ({ hotelId })) },
+          accesses: {
+            create: normalized.accesses.map((access) => ({
+              userId: access.userId,
+              homeHotelId: access.homeHotelId,
+              accessRole: access.accessRole,
+              canViewPortfolio: access.canViewPortfolio,
+              canSwitchProperties: access.canSwitchProperties,
+              canViewFinancials: access.canViewFinancials,
+              allProperties: access.allProperties,
+              isActive: access.isActive,
+              createdByAdminEmail: context.email,
+              updatedByAdminEmail: context.email,
+              propertyGrants: access.allProperties ? undefined : {
+                create: access.hotelIds.map((hotelId) => ({ hotelId })),
+              },
+            })),
+          },
+        },
+      });
+      await writePortfolioAudit(tx, auditHotelIds, id, "PORTFOLIO_UPDATED", {
+        name: existing.name,
+        switchPolicy: existing.switchPolicy,
+        hotelIds: oldHotelIds,
+        accountIds: existing.accesses.map((access) => access.userId),
+      }, {
+        name: dto.name,
+        switchPolicy: dto.switchPolicy,
+        hotelIds: normalized.hotelIds,
+        accountIds: normalized.accesses.map((access) => access.userId),
+      }, context);
+      return portfolio;
+    });
   },
 
   async updateHotel(id: string, dto: UpdateHotelDto) {

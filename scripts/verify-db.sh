@@ -91,9 +91,9 @@ for t in $OP_TABLES; do
   fi
 done
 
-# ── Admin/Platform tables (no RLS — global, not hotel-scoped) ─────────────────
+# ── Admin/Platform tables ─────────────────────────────────────────────────────
 echo ""
-echo "── Admin/Platform tables (no RLS — global, not hotel-scoped) ──"
+echo "── Admin/Platform tables (global) ──"
 PLATFORM_TABLES="subscription_plans"
 for t in $PLATFORM_TABLES; do
   EXISTS=$(check_table "$t")
@@ -101,6 +101,21 @@ for t in $PLATFORM_TABLES; do
     echo "  ✅ exists           $t"
   else
     echo "  ❌ MISSING          $t"
+  fi
+done
+
+echo ""
+echo "── Cross-property authorization tables (RLS expected) ──"
+PORTFOLIO_TABLES="property_portfolios property_portfolio_hotels property_portfolio_accesses property_portfolio_access_hotels"
+for t in $PORTFOLIO_TABLES; do
+  EXISTS=$(check_table "$t")
+  RLS=$(check_rls "$t")
+  if [ "$EXISTS" != "1" ]; then
+    echo "  ❌ MISSING          $t"
+  elif [ "$RLS" = "t" ]; then
+    echo "  ✅ exists, RLS on   $t"
+  else
+    echo "  ⚠️  exists, RLS OFF  $t"
   fi
 done
 

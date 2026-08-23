@@ -6,6 +6,8 @@ import HotelsPage from "@/pages/HotelsPage";
 import CreateHotelPage from "@/pages/CreateHotelPage";
 import HotelDetailPage from "@/pages/HotelDetailPage";
 import PlansPage from "@/pages/PlansPage";
+import PortfoliosPage from "@/pages/PortfoliosPage";
+import PortfolioEditorPage from "@/pages/PortfolioEditorPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!isLoggedIn()) return <Navigate to="/login" replace />;
@@ -43,6 +45,18 @@ export default function App() {
               <HotelDetailPage />
             </ProtectedRoute>
           }
+        />
+        <Route
+          path="/portfolios"
+          element={<ProtectedRoute><PortfoliosPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/portfolios/new"
+          element={<ProtectedRoute><AdminLayout><PortfolioEditorPage /></AdminLayout></ProtectedRoute>}
+        />
+        <Route
+          path="/portfolios/:id"
+          element={<ProtectedRoute><AdminLayout><PortfolioEditorPage /></AdminLayout></ProtectedRoute>}
         />
         <Route
           path="/plans"

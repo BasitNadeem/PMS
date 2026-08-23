@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { getCurrentUserRole } from "./lib/jwt";
+import { usePermissions } from "./hooks/usePermissions";
 import { isMobileDevice } from "./lib/device";
 import { resolveAppMode } from "./lib/hostname";
 import { useQuery } from "@tanstack/react-query";
@@ -14,6 +15,7 @@ import { api } from "./lib/api";
 const LoginPage                    = lazy(() => import("./pages/LoginPage"));
 const OnboardingPage               = lazy(() => import("./pages/onboarding/OnboardingPage"));
 const DashboardPage                = lazy(() => import("./pages/DashboardPage"));
+const PortfolioPage                = lazy(() => import("./pages/portfolio/PortfolioPage"));
 const HousekeepingMobilePage       = lazy(() => import("./pages/housekeeping/HousekeepingMobilePage"));
 const RoomsPage                    = lazy(() => import("./pages/rooms/RoomsPage"));
 const GuestsPage                   = lazy(() => import("./pages/guests/GuestsPage"));
@@ -212,6 +214,16 @@ function PmsRoutes() {
             <PrivateRoute>
               <AppLayout>
                 <DashboardPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/portfolio"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <PortfolioPage />
               </AppLayout>
             </PrivateRoute>
           }
@@ -426,10 +438,7 @@ function PmsRoutes() {
             </PrivateRoute>
           }
         />
-        <Route
-          path="/operations"
-          element={<Navigate to="/operations/early-bird" replace />}
-        />
+        <Route path="/operations" element={<OperationsEntry />} />
         <Route
           path="/operations/early-bird"
           element={<PrivateRoute><AppLayout><EarlyBirdReportPage /></AppLayout></PrivateRoute>}
@@ -452,6 +461,7 @@ function PmsRoutes() {
           path="/reports/shifts"
           element={<Navigate to="/operations/shift-handover" replace />}
         />
+        <Route path="/reports/forecast" element={<LegacyForecastRedirect />} />
         <Route
           path="/reports/revenue-source"
           element={
@@ -533,7 +543,7 @@ function PmsRoutes() {
           }
         />
         <Route
-          path="/reports/forecast"
+          path="/operations/forecast"
           element={
             <PrivateRoute>
               <AppLayout>
@@ -743,6 +753,35 @@ function BookingEngineRoutes({ hotelSlug }: { hotelSlug: string }) {
       </Routes>
     </Suspense>
   );
+}
+
+/**
+ * /operations is no longer a page — the sidebar expands the group in place —
+ * but it stays routable for bookmarks and old links.
+ *
+ * It sends each user to the first tool in the group they can actually open.
+ * The fixed redirect it replaces always went to the Early Bird Report, so a
+ * front desk account holding shiftHandover:read but not reports:read was sent
+ * to a page it would be refused on.
+ */
+/**
+ * Forecast moved to /operations/forecast. This keeps bookmarks working, and
+ * the link out of the Early Bird Report, and carries the query string over —
+ * that link passes its start date and day count that way.
+ */
+function LegacyForecastRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={`/operations/forecast${search}`} replace />;
+}
+
+function OperationsEntry() {
+  const { has } = usePermissions();
+  const target =
+    has("shiftHandover:read") ? "/operations/shift-handover" :
+    has("nightAudit:read")    ? "/operations/night-audit"    :
+    has("reports:read")       ? "/operations/early-bird"     :
+    "/dashboard";
+  return <Navigate to={target} replace />;
 }
 
 export default function App() {

@@ -307,7 +307,7 @@ export default function EarlyBirdReportPage() {
             <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-ink-mute"><span className="rounded-full bg-mist px-3 py-1.5">{data.today.stayovers} stayovers</span><span className="rounded-full bg-mist px-3 py-1.5">{data.today.metrics.availableRooms} rooms available</span><span className="rounded-full bg-mist px-3 py-1.5">{data.today.metrics.outOfServiceRooms} out of service</span></div>
           </Panel>
 
-          <Panel title={`${data.outlook.days.length}-day forward outlook`} icon={TrendingUp} action={<Link to={`/reports/forecast?startDate=${date}&days=${data.outlook.days.length}`} className="text-[11px] font-semibold text-coral">Live forecast →</Link>}>
+          <Panel title={`${data.outlook.days.length}-day forward outlook`} icon={TrendingUp} action={<Link to={`/operations/forecast?startDate=${date}&days=${data.outlook.days.length}`} className="text-[11px] font-semibold text-coral">Live forecast →</Link>}>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[680px] text-left">
                 <thead><tr className="border-b border-line-soft text-[10px] font-bold uppercase tracking-wider text-ink-faint"><th className="pb-2">Date</th><th className="pb-2 text-right">Arrivals</th><th className="pb-2 text-right">Departures</th><th className="pb-2 text-right">Sold</th><th className="pb-2 text-right">Available</th><th className="pb-2 text-right">Occ.</th><th className="pb-2 text-right">Expected revenue</th></tr></thead>

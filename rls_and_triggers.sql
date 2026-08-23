@@ -219,6 +219,60 @@ CREATE POLICY user_self_access ON users
   WITH CHECK (id = current_user_id());
 
 
+-- ── Support-managed property portfolios ────────────────────────────────────
+-- These records intentionally span tenants, so a hotel_id = current_hotel_id()
+-- policy would be incorrect. Normal portfolio auth uses adminPrisma and then
+-- applies explicit user, home-property, capability, and property-scope checks.
+-- The policies below are defense in depth for any future tenant-client reads:
+-- a user can only see their own access record and the portfolio/property rows
+-- reachable through it. No tenant-client write policy is provided; only the
+-- separate super-admin workflow may configure portfolios.
+ALTER TABLE property_portfolios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE property_portfolios FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS portfolio_self_read ON property_portfolios;
+CREATE POLICY portfolio_self_read ON property_portfolios
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM property_portfolio_accesses access
+      WHERE access.portfolio_id = property_portfolios.id
+        AND access.user_id = current_user_id()
+        AND access.is_active = true
+    )
+  );
+
+ALTER TABLE property_portfolio_hotels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE property_portfolio_hotels FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS portfolio_hotel_self_read ON property_portfolio_hotels;
+CREATE POLICY portfolio_hotel_self_read ON property_portfolio_hotels
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM property_portfolio_accesses access
+      WHERE access.portfolio_id = property_portfolio_hotels.portfolio_id
+        AND access.user_id = current_user_id()
+        AND access.is_active = true
+    )
+  );
+
+ALTER TABLE property_portfolio_accesses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE property_portfolio_accesses FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS portfolio_access_self_read ON property_portfolio_accesses;
+CREATE POLICY portfolio_access_self_read ON property_portfolio_accesses
+  FOR SELECT USING (user_id = current_user_id());
+
+ALTER TABLE property_portfolio_access_hotels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE property_portfolio_access_hotels FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS portfolio_access_hotel_self_read ON property_portfolio_access_hotels;
+CREATE POLICY portfolio_access_hotel_self_read ON property_portfolio_access_hotels
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM property_portfolio_accesses access
+      WHERE access.id = property_portfolio_access_hotels.access_id
+        AND access.user_id = current_user_id()
+        AND access.is_active = true
+    )
+  );
+
+
 -- ── roles: system roles readable by all; custom roles scoped to hotel ────────
 -- System roles (hotel_id IS NULL) must be readable by every hotel so the app
 -- can load permission sets. Custom roles are hotel-scoped.

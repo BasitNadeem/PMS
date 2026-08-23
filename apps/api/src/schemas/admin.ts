@@ -54,6 +54,26 @@ export const updateHotelSchema = z.object({
 });
 export type UpdateHotelDto = z.infer<typeof updateHotelSchema>;
 
+const portfolioAccessSchema = z.object({
+  userId: z.string().uuid(),
+  homeHotelId: z.string().uuid(),
+  canViewPortfolio: z.boolean().default(true),
+  canSwitchProperties: z.boolean().default(true),
+  canViewFinancials: z.boolean().default(true),
+  allProperties: z.boolean().default(true),
+  hotelIds: z.array(z.string().uuid()).default([]),
+  isActive: z.boolean().default(true),
+});
+
+export const savePortfolioSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  switchPolicy: z.enum(["OWNERS_ONLY", "OWNERS_AND_MANAGERS", "SELECTED_ACCOUNTS"]),
+  isActive: z.boolean().default(true),
+  hotelIds: z.array(z.string().uuid()).min(2, "A portfolio needs at least two properties"),
+  accesses: z.array(portfolioAccessSchema).min(1, "Grant access to at least one owner or manager"),
+});
+export type SavePortfolioDto = z.infer<typeof savePortfolioSchema>;
+
 export const createPlanSchema = z.object({
   name: z.string().trim().min(1),
   slug: z.string().trim().min(1).regex(/^[a-z0-9-]+$/),

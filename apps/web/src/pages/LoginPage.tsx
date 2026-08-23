@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { unlockNotificationSound } from "@/lib/notificationSound";
+import { persistAuthSession, type AuthSession } from "@/services/auth";
 
 function InnfloMark({ tone = "light" }: { tone?: "light" | "dark" }) {
   const dark = tone === "dark";
@@ -55,13 +56,12 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const { data } = await api.post("/api/auth/login", form);
-      localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
-      localStorage.setItem("userName", data.user.name);
-      localStorage.setItem("userRole", data.user.role ?? "");
-      localStorage.setItem("isFirstLogin", data.user.isFirstLogin.toString());
-      localStorage.setItem("onboardingCompleted", data.hotel.onboardingCompleted.toString());
+      const { data } = await api.post<AuthSession>("/api/auth/login", {
+        email: form.email,
+        password: form.password,
+        ...(form.hotelSlug.trim() ? { hotelSlug: form.hotelSlug.trim() } : {}),
+      });
+      persistAuthSession(data);
       if (data.user.role === "KITCHEN") {
         navigate("/kitchen/dashboard");
       } else {
@@ -148,7 +148,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <label className="block">
               <span className="mb-2 block text-[12px] font-bold uppercase tracking-[0.08em] text-ink-soft">
-                Property ID
+                Property ID <span className="normal-case tracking-normal text-ink-faint">(optional)</span>
               </span>
               <span className="group relative block">
                 <Building2
@@ -162,8 +162,8 @@ export default function LoginPage() {
                   placeholder="e.g. grand-hotel"
                   value={form.hotelSlug}
                   onChange={(e) => setForm({ ...form, hotelSlug: e.target.value })}
-                  required
                 />
+                <span className="mt-1.5 block text-[11px] font-normal normal-case tracking-normal text-ink-faint">Leave blank to open this account’s home property.</span>
               </span>
             </label>
 

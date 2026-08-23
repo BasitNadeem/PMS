@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   Building2, Clock, Receipt, AlertTriangle, ChevronLeft, Check,
   MessageSquare, Info, ShieldCheck, KeyRound, Share2, Eye, EyeOff, History, QrCode, Copy, Download, CreditCard, Lock, Loader2, ImagePlus, Gift,
+  LifeBuoy, Phone, Mail, ExternalLink,
 } from "lucide-react";
 import QRCode from "qrcode";
 import { cn } from "@/lib/cn";
@@ -19,6 +20,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { ThemePicker } from "@/components/settings/ThemePicker";
 import { applyTheme, isThemeKey } from "@/lib/theme";
 import { uploadService } from "@/services/upload";
+import { INNFLO_CONTACT } from "@/lib/contact";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -71,7 +73,7 @@ function SaveButton({ saving, saved, onClick }: { saving: boolean; saved: boolea
 
 // ── Section types ─────────────────────────────────────────────────────────────
 
-type Section = "plan" | "profile" | "operations" | "permissions" | "tax" | "notifications" | "channels" | "security" | "danger";
+type Section = "plan" | "profile" | "operations" | "permissions" | "tax" | "notifications" | "channels" | "security" | "support" | "danger";
 const ALL_SECTIONS: { key: Section; label: string; icon: React.ElementType; ownerOnly?: boolean }[] = [
   { key: "plan",          label: "Current Plan",         icon: CreditCard },
   { key: "profile",       label: "Hotel Profile",        icon: Building2 },
@@ -81,6 +83,7 @@ const ALL_SECTIONS: { key: Section; label: string; icon: React.ElementType; owne
   { key: "notifications", label: "Notifications",        icon: MessageSquare, ownerOnly: true },
   { key: "channels",      label: "Channel Manager",      icon: Share2, ownerOnly: true },
   { key: "security",      label: "Security",             icon: KeyRound },
+  { key: "support",       label: "Help & Support",       icon: LifeBuoy },
   { key: "danger",        label: "Danger Zone",          icon: AlertTriangle },
 ];
 
@@ -1657,6 +1660,66 @@ export default function SettingsPage() {
                   {passwordSaving ? "Updating…" : "Update Password"}
                 </button>
               </div>
+            </div>
+          )}
+
+          {activeSection === "support" && (
+            <div className={sectionCardCls}>
+              <div className="flex items-start gap-3 mb-6">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-coral-soft text-coral">
+                  <LifeBuoy size={20} />
+                </div>
+                <div>
+                  <h2 className="serif text-[22px] text-ink mb-1">Help & Support</h2>
+                  <p className="text-[13px] text-ink-mute">Talk to the Innflo team when your hotel needs help.</p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <a
+                  href={INNFLO_CONTACT.whatsappUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group rounded-xl border border-line bg-mist p-4 transition-colors hover:border-coral/30 hover:bg-coral-tint"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-pine-soft text-pine"><MessageSquare size={17} /></div>
+                    <ExternalLink size={15} className="text-ink-faint group-hover:text-coral" />
+                  </div>
+                  <div className="mt-4 text-[14px] font-semibold text-ink">WhatsApp support</div>
+                  <div className="mt-1 text-[12px] text-ink-mute">{INNFLO_CONTACT.phoneDisplay}</div>
+                </a>
+
+                <a
+                  href={`tel:${INNFLO_CONTACT.phoneNumber}`}
+                  className="group rounded-xl border border-line bg-mist p-4 transition-colors hover:border-coral/30 hover:bg-coral-tint"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-coral-soft text-coral"><Phone size={17} /></div>
+                    <ExternalLink size={15} className="text-ink-faint group-hover:text-coral" />
+                  </div>
+                  <div className="mt-4 text-[14px] font-semibold text-ink">Call Innflo</div>
+                  <div className="mt-1 text-[12px] text-ink-mute">{INNFLO_CONTACT.phoneDisplay}</div>
+                </a>
+
+                <a
+                  href={`mailto:${INNFLO_CONTACT.supportEmail}`}
+                  className="group rounded-xl border border-line bg-mist p-4 transition-colors hover:border-coral/30 hover:bg-coral-tint sm:col-span-2"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-line-soft text-ink-soft"><Mail size={17} /></div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[14px] font-semibold text-ink">Email support</div>
+                      <div className="mt-0.5 text-[12px] text-ink-mute">{INNFLO_CONTACT.supportEmail}</div>
+                    </div>
+                    <ExternalLink size={15} className="text-ink-faint group-hover:text-coral" />
+                  </div>
+                </a>
+              </div>
+
+              <p className="mt-5 text-[12px] leading-5 text-ink-mute">
+                General enquiries: <a className="font-semibold text-ink-soft hover:text-coral" href={`mailto:${INNFLO_CONTACT.helloEmail}`}>{INNFLO_CONTACT.helloEmail}</a>
+              </p>
             </div>
           )}
 

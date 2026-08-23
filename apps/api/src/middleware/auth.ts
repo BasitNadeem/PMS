@@ -8,6 +8,7 @@ export interface JwtPayload {
   role: string;
   permissions: string[];
   isFirstLogin: boolean;
+  portfolioAccessId?: string;
 }
 
 declare global {

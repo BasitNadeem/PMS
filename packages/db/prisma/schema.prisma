@@ -59,6 +59,20 @@ enum UserRole {
   ACCOUNTANT
 }
 
+// Multi-property access is support-managed. These roles are deliberately
+// separate from hotel staff roles: a portfolio grant never creates a staff
+// membership in another tenant.
+enum PortfolioAccessRole {
+  OWNER
+  MANAGER
+}
+
+enum PortfolioSwitchPolicy {
+  OWNERS_ONLY
+  OWNERS_AND_MANAGERS
+  SELECTED_ACCOUNTS
+}
+
 enum RoomStatus {
   VACANT_CLEAN
   VACANT_DIRTY
@@ -468,6 +482,9 @@ model Hotel {
   nightAuditRecords             NightAuditRecord[]
   earlyBirdReports              EarlyBirdReportArchive[]
   bookingPaceSnapshots          BookingPaceSnapshot[]
+  portfolioProperty             PropertyPortfolioHotel?
+  portfolioHomeAccesses         PropertyPortfolioAccess[]      @relation("PortfolioHomeHotel")
+  portfolioScopedAccesses       PropertyPortfolioAccessHotel[]
   subscriptionPlanId            String?                        @map("subscription_plan_id") @db.Uuid
   subscriptionPlan              SubscriptionPlan?              @relation(fields: [subscriptionPlanId], references: [id])
   limitOverrides                Json?                          @map("limit_overrides")
@@ -588,12 +605,13 @@ model User {
 
   hotels                HotelUser[]
   auditLogs             AuditLog[]
-  assignedTasks         HousekeepingTask[]  @relation("assignedTo")
-  assignedMaintenance   MaintenanceTicket[] @relation("assignedMaintenance")
+  assignedTasks         HousekeepingTask[]       @relation("assignedTo")
+  assignedMaintenance   MaintenanceTicket[]      @relation("assignedMaintenance")
   assignedConversations Conversation[]
-  notesCreated          FrontDeskNote[]     @relation("NoteCreatedBy")
-  notesCompleted        FrontDeskNote[]     @relation("NoteCompletedBy")
+  notesCreated          FrontDeskNote[]          @relation("NoteCreatedBy")
+  notesCompleted        FrontDeskNote[]          @relation("NoteCompletedBy")
   pushSubscriptions     PushSubscription[]
+  portfolioAccess       PropertyPortfolioAccess?
 
   @@index([deletedAt])
   @@map("users")
@@ -624,6 +642,92 @@ model HotelUser {
   @@index([hotelId, role])
   @@index([roleId])
   @@map("hotel_users")
+}
+
+// ============================================================================
+// SUPPORT-MANAGED MULTI-PROPERTY PORTFOLIOS
+//
+// These records authorize cross-property discovery and session switching.
+// They never replace HotelUser and never merge user credentials. A linked
+// account keeps its own home hotel membership; switching issues a new JWT for
+// a hotel explicitly linked and granted below.
+// ============================================================================
+
+model PropertyPortfolio {
+  id           String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  switchPolicy PortfolioSwitchPolicy @default(OWNERS_ONLY) @map("switch_policy")
+  isActive     Boolean               @default(true) @map("is_active")
+
+  createdByAdminEmail String   @map("created_by_admin_email")
+  updatedByAdminEmail String   @map("updated_by_admin_email")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  properties PropertyPortfolioHotel[]
+  accesses   PropertyPortfolioAccess[]
+
+  @@index([isActive])
+  @@map("property_portfolios")
+}
+
+model PropertyPortfolioHotel {
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  portfolioId String @map("portfolio_id") @db.Uuid
+  hotelId     String @unique @map("hotel_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  portfolio PropertyPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  hotel     Hotel             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, hotelId])
+  @@index([portfolioId])
+  @@map("property_portfolio_hotels")
+}
+
+model PropertyPortfolioAccess {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  portfolioId String              @map("portfolio_id") @db.Uuid
+  userId      String              @unique @map("user_id") @db.Uuid
+  homeHotelId String              @map("home_hotel_id") @db.Uuid
+  accessRole  PortfolioAccessRole @map("access_role")
+
+  canViewPortfolio    Boolean @default(true) @map("can_view_portfolio")
+  canSwitchProperties Boolean @default(true) @map("can_switch_properties")
+  canViewFinancials   Boolean @default(true) @map("can_view_financials")
+  allProperties       Boolean @default(true) @map("all_properties")
+  isActive            Boolean @default(true) @map("is_active")
+
+  createdByAdminEmail String   @map("created_by_admin_email")
+  updatedByAdminEmail String   @map("updated_by_admin_email")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  portfolio      PropertyPortfolio              @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  user           User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  homeHotel      Hotel                          @relation("PortfolioHomeHotel", fields: [homeHotelId], references: [id], onDelete: Restrict)
+  propertyGrants PropertyPortfolioAccessHotel[]
+
+  @@unique([portfolioId, userId])
+  @@index([portfolioId, isActive])
+  @@index([homeHotelId])
+  @@map("property_portfolio_accesses")
+}
+
+model PropertyPortfolioAccessHotel {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accessId String @map("access_id") @db.Uuid
+  hotelId  String @map("hotel_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  access PropertyPortfolioAccess @relation(fields: [accessId], references: [id], onDelete: Cascade)
+  hotel  Hotel                   @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([accessId, hotelId])
+  @@index([hotelId])
+  @@map("property_portfolio_access_hotels")
 }
 
 // ============================================================================

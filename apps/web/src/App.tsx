@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { getCurrentUserRole } from "./lib/jwt";
@@ -82,6 +82,12 @@ const MobileIdCapturePage          = lazy(() => import("./pages/MobileIdCaptureP
 const NightAuditPage               = lazy(() => import("./pages/nightaudit/NightAuditPage"));
 const BookingLandingPage           = lazy(() => import("./pages/booking-engine/BookingLandingPage"));
 const BookingFormPage              = lazy(() => import("./pages/booking-engine/BookingFormPage"));
+const BackOfficeLoginPage          = lazy(() => import("./pages/BackOfficeLoginPage"));
+const BackOfficeOverviewPage       = lazy(() => import("./pages/backoffice/BackOfficeOverviewPage"));
+const BackOfficeAttendancePage     = lazy(() => import("./pages/backoffice/BackOfficeAttendancePage"));
+const BackOfficeLeavePage          = lazy(() => import("./pages/backoffice/BackOfficeLeavePage"));
+const BackOfficeFinancePage        = lazy(() => import("./pages/backoffice/BackOfficeFinancePage"));
+const BackOfficeLayout             = lazy(() => import("./components/layout/BackOfficeLayout").then((module) => ({ default: module.BackOfficeLayout })));
 
 function usePlanFeatures(enabled: boolean) {
   return useQuery<Record<string, boolean>>({
@@ -739,7 +745,8 @@ function PmsRoutes() {
   );
 }
 
-// Hotel subdomains (any *.innflo.co host other than app.innflo.co) render
+// Hotel subdomains (any *.innflo.co host other than app.innflo.co and
+// backoffice.innflo.co) render
 // ONLY these two routes — no /login, no PrivateRoute, no PMS routes exist
 // on this branch at all. hotelSlug comes from the hostname (see
 // lib/hostname.ts), never from the URL path.
@@ -749,6 +756,94 @@ function BookingEngineRoutes({ hotelSlug }: { hotelSlug: string }) {
       <Routes>
         <Route path="/" element={<BookingLandingPage hotelSlug={hotelSlug} />} />
         <Route path="/reserve" element={<BookingFormPage hotelSlug={hotelSlug} />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
+  );
+}
+
+const BACKOFFICE_ROLES = new Set(["OWNER", "MANAGER"]);
+
+function BackOfficePrivateRoute({ children }: { children: React.ReactNode }) {
+  const token = localStorage.getItem("accessToken");
+  const role = getCurrentUserRole();
+  if (!token) return <Navigate to="/login" replace />;
+  if (!role || !BACKOFFICE_ROLES.has(role)) return <BackOfficeAccessDenied />;
+  return <>{children}</>;
+}
+
+function BackOfficeAccessDenied() {
+  return (
+    <main className="grid min-h-screen place-items-center bg-mist px-5 text-center">
+      <div className="max-w-[430px]">
+        <img src="/brand/mark-clay-tight.svg" alt="" aria-hidden="true" className="mx-auto h-14 w-14" />
+        <div className="mt-6 text-[11px] font-bold uppercase tracking-[0.18em] text-coral">Innflo back office</div>
+        <h1 className="serif mt-3 text-[38px] leading-none text-ink">Manager access only.</h1>
+        <p className="mt-4 text-[14px] leading-6 text-ink-mute">This workspace is for hotel owners and managers. Use the daily PMS for operational work.</p>
+        <a href="https://app.innflo.co" className="mt-7 inline-flex h-11 items-center rounded-full bg-coral px-5 text-[13px] font-bold text-white shadow-pop hover:bg-coral-dark">Open app.innflo.co</a>
+      </div>
+    </main>
+  );
+}
+
+function BackOfficeScreen({ children }: { children: React.ReactNode }) {
+  return (
+    <BackOfficePrivateRoute>
+      <BackOfficeLayout>{children}</BackOfficeLayout>
+    </BackOfficePrivateRoute>
+  );
+}
+
+function BackOfficeRoutes() {
+  return (
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
+        <Route path="/login" element={<BackOfficeLoginPage />} />
+        <Route path="/" element={<BackOfficeScreen><BackOfficeOverviewPage /></BackOfficeScreen>} />
+        <Route path="/staff" element={<BackOfficeScreen><TeamPage /></BackOfficeScreen>} />
+        <Route path="/attendance" element={<BackOfficeScreen><BackOfficeAttendancePage /></BackOfficeScreen>} />
+        <Route path="/leave" element={<BackOfficeScreen><BackOfficeLeavePage /></BackOfficeScreen>} />
+        <Route path="/finance" element={<BackOfficeScreen><BackOfficeFinancePage /></BackOfficeScreen>} />
+        <Route path="/finance/expenses" element={<BackOfficeScreen><ExpensesPage /></BackOfficeScreen>} />
+
+        <Route path="/reports" element={<BackOfficeScreen><ReportsPage /></BackOfficeScreen>} />
+        <Route path="/reports/daily" element={<BackOfficeScreen><DailyReportPage /></BackOfficeScreen>} />
+        <Route path="/reports/monthly" element={<BackOfficeScreen><MonthlyReportPage /></BackOfficeScreen>} />
+        <Route path="/reports/revenue-source" element={<BackOfficeScreen><RevenueSourcePage /></BackOfficeScreen>} />
+        <Route path="/reports/payment-methods" element={<BackOfficeScreen><PaymentMethodsPage /></BackOfficeScreen>} />
+        <Route path="/reports/outstanding-balances" element={<BackOfficeScreen><OutstandingBalancesPage /></BackOfficeScreen>} />
+        <Route path="/reports/void-refund-log" element={<BackOfficeScreen><VoidRefundLogPage /></BackOfficeScreen>} />
+        <Route path="/reports/accounting-export" element={<BackOfficeScreen><AccountingExportPage /></BackOfficeScreen>} />
+        <Route path="/reports/cash-reconciliation" element={<BackOfficeScreen><CashReconciliationPage /></BackOfficeScreen>} />
+        <Route path="/reports/occupancy-trend" element={<BackOfficeScreen><OccupancyTrendPage /></BackOfficeScreen>} />
+        <Route path="/reports/adr-revpar" element={<BackOfficeScreen><ADRRevPARPage /></BackOfficeScreen>} />
+        <Route path="/reports/historical-comparison" element={<BackOfficeScreen><HistoricalComparisonPage /></BackOfficeScreen>} />
+        <Route path="/reports/pickup-pace" element={<BackOfficeScreen><PickupPacePage /></BackOfficeScreen>} />
+        <Route path="/reports/room-type-performance" element={<BackOfficeScreen><RoomTypePerformancePage /></BackOfficeScreen>} />
+        <Route path="/reports/source-of-business" element={<BackOfficeScreen><SourceOfBusinessPage /></BackOfficeScreen>} />
+        <Route path="/reports/length-of-stay" element={<BackOfficeScreen><LengthOfStayPage /></BackOfficeScreen>} />
+        <Route path="/reports/guest-directory" element={<BackOfficeScreen><GuestDirectoryPage /></BackOfficeScreen>} />
+        <Route path="/reports/repeat-guests" element={<BackOfficeScreen><RepeatGuestsPage /></BackOfficeScreen>} />
+        <Route path="/reports/guest-blacklist-report" element={<BackOfficeScreen><GuestBlacklistPage /></BackOfficeScreen>} />
+        <Route path="/reports/guest-demographics" element={<BackOfficeScreen><GuestDemographicsPage /></BackOfficeScreen>} />
+        <Route path="/reports/housekeeping-performance" element={<BackOfficeScreen><HousekeepingPerformancePage /></BackOfficeScreen>} />
+        <Route path="/reports/maintenance-summary" element={<BackOfficeScreen><MaintenanceSummaryPage /></BackOfficeScreen>} />
+        <Route path="/reports/staff-activity" element={<BackOfficeScreen><StaffActivityPage /></BackOfficeScreen>} />
+        <Route path="/reports/group-bookings-summary" element={<BackOfficeScreen><GroupBookingsSummaryPage /></BackOfficeScreen>} />
+        <Route path="/reports/stock-consumption" element={<BackOfficeScreen><StockConsumptionPage /></BackOfficeScreen>} />
+        <Route path="/reports/waste-loss" element={<BackOfficeScreen><WasteLossPage /></BackOfficeScreen>} />
+        <Route path="/reports/low-stock-reorder" element={<BackOfficeScreen><LowStockReorderPage /></BackOfficeScreen>} />
+        <Route path="/reports/pos-sales" element={<BackOfficeScreen><POSSalesPage /></BackOfficeScreen>} />
+        <Route path="/reports/qr-orders" element={<BackOfficeScreen><QROrdersReportPage /></BackOfficeScreen>} />
+
+        <Route path="/operations/early-bird" element={<BackOfficeScreen><EarlyBirdReportPage /></BackOfficeScreen>} />
+        <Route path="/operations/shift-handover" element={<BackOfficeScreen><ShiftHandoverPage /></BackOfficeScreen>} />
+        <Route path="/operations/night-audit" element={<BackOfficeScreen><NightAuditPage /></BackOfficeScreen>} />
+        <Route path="/operations/forecast" element={<BackOfficeScreen><ForecastPage /></BackOfficeScreen>} />
+        <Route path="/reports/shifts" element={<Navigate to="/operations/shift-handover" replace />} />
+        <Route path="/reports/forecast" element={<Navigate to="/operations/forecast" replace />} />
+        <Route path="/reports/night-audit" element={<Navigate to="/operations/night-audit" replace />} />
+        <Route path="/reports/early-bird" element={<Navigate to="/operations/early-bird" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
@@ -789,11 +884,19 @@ export default function App() {
   // hostname can't change without a full navigation anyway.
   const [appMode] = useState(() => resolveAppMode());
 
+  useEffect(() => {
+    if (appMode.type === "backoffice") {
+      document.title = "Innflo · Back Office";
+    }
+  }, [appMode.type]);
+
   return (
     <BrowserRouter>
       {appMode.type === "booking-engine"
         ? <BookingEngineRoutes hotelSlug={appMode.hotelSlug} />
-        : <PmsRoutes />}
+        : appMode.type === "backoffice"
+          ? <BackOfficeRoutes />
+          : <PmsRoutes />}
     </BrowserRouter>
   );
 }

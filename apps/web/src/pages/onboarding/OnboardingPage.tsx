@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   Sparkles,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -33,6 +34,7 @@ import { authService } from "@/services/auth";
 import { settingsService, type ThemeKey, type UpdateSettingsDto } from "@/services/settings";
 import { roomsService, type RoomTypeName } from "@/services/rooms";
 import { usersService, type Role } from "@/services/users";
+import { cashbookService } from "@/services/cashbook";
 import { applyTheme } from "@/lib/theme";
 import { pkrInWords } from "@/lib/numberToWords";
 import { ThemePicker } from "@/components/settings/ThemePicker";
@@ -903,6 +905,7 @@ function StepTeam({ onBack, onNext }: { onBack: () => void; onNext: () => void }
 
 function StepTheme({ onBack, onFinish }: { onBack: () => void; onFinish: () => void }) {
   const [themeKey, setThemeKey] = useState<ThemeKey>("WARM_CLAY");
+  const [openingCash, setOpeningCash] = useState("");
   const [saving, setSaving] = useState(false);
 
   function chooseTheme(key: ThemeKey) {
@@ -910,9 +913,30 @@ function StepTheme({ onBack, onFinish }: { onBack: () => void; onFinish: () => v
     applyTheme(key);
   }
 
+  /**
+   * Optional, and only possible here: an opening balance can never be recorded
+   * once the account has its first transaction. A property switching to Innflo
+   * mid-operation has cash in the drawer already; without this its Balance Book
+   * is permanently short by that amount. A brand-new property leaves it blank.
+   */
+  async function saveOpeningCash() {
+    const rupees = Number(openingCash);
+    if (!openingCash.trim() || !Number.isFinite(rupees) || rupees <= 0) return;
+    try {
+      // GET /accounts provisions the standard accounts on first call.
+      const accounts = await cashbookService.getAccounts();
+      const drawer   = accounts.find((a) => a.account_type === "CASH_DRAWER" && a.canSetOpeningBalance);
+      if (drawer) await cashbookService.setOpeningBalance(drawer.id, Math.round(rupees * 100));
+    } catch {
+      // Never block opening the hotel over an optional figure. It stays
+      // settable from Finance → Account Balances until the first transaction.
+    }
+  }
+
   async function finish() {
     setSaving(true);
     try {
+      await saveOpeningCash();
       await settingsService.updateSettings({ themeKey, onboardingStep: 4 });
     } catch {
       // Theme is a preference, not a reason to block the hotel from opening.
@@ -937,6 +961,28 @@ function StepTheme({ onBack, onFinish }: { onBack: () => void; onFinish: () => v
           <div><p className="text-[13px] font-bold">Choose a palette</p><p className="text-[11px] text-ink-mute">Live preview is applied immediately</p></div>
         </div>
         <ThemePicker value={themeKey} onChange={chooseTheme} />
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-line bg-card p-5">
+        <div className="flex items-center gap-3">
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-amber-soft"><Wallet className="h-4 w-4 text-amber" /></div>
+          <div>
+            <p className="text-[13px] font-bold">Cash already in the drawer <span className="font-medium text-ink-faint">— optional</span></p>
+            <p className="text-[11px] text-ink-mute">Only if you are moving to Innflo with money on hand. Can’t be set after your first transaction.</p>
+          </div>
+        </div>
+        <div className="relative mt-4 max-w-[260px]">
+          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[11px] text-ink-faint">PKR</span>
+          <input
+            type="number"
+            min="0"
+            inputMode="decimal"
+            placeholder="Leave blank if starting at zero"
+            value={openingCash}
+            onChange={(event) => setOpeningCash(event.target.value)}
+            className="h-10 w-full rounded-xl border border-line bg-paper pl-12 pr-3 text-[13px] tnum text-ink outline-none focus:border-coral"
+          />
+        </div>
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">

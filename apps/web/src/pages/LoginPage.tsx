@@ -163,8 +163,8 @@ export default function LoginPage() {
                   value={form.hotelSlug}
                   onChange={(e) => setForm({ ...form, hotelSlug: e.target.value })}
                 />
-                <span className="mt-1.5 block text-[11px] font-normal normal-case tracking-normal text-ink-faint">Leave blank to open this account’s home property.</span>
               </span>
+              <span className="mt-1.5 block text-[11px] font-normal normal-case tracking-normal text-ink-faint">Leave blank to open this account’s home property.</span>
             </label>
 
             <label className="block">
@@ -249,6 +249,9 @@ export default function LoginPage() {
             <a href="mailto:support@innflo.co" className="font-semibold text-ink-mute transition-colors hover:text-coral">
               Need help? support@innflo.co
             </a>
+          </div>
+          <div className="mt-5 text-center text-[12px] text-ink-faint">
+            Hotel owner or manager? <a href="https://backoffice.innflo.co/login" className="font-semibold text-coral hover:text-coral-dark">Open Back Office</a>
           </div>
         </div>
       </section>

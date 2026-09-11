@@ -123,10 +123,17 @@ export default function PosPage() {
   const cartTotal     = cart.reduce((s, i) => s + i.price * i.quantity, 0);
   const cartItemCount = cart.reduce((s, i) => s + i.quantity, 0);
 
+  // A recipe can only be made as many times as its scarcest ingredient allows.
+  // No ingredients means the item is not stock-tracked and sells freely.
   function maxSellableQuantity(item: PosItem): number | null {
-    if (!item.inventoryItemId || !item.inventoryQtyUsed) return null;
-    if (!item.inventoryIsActive) return 0;
-    return Math.max(0, Math.floor((item.inventoryCurrentStock ?? 0) / item.inventoryQtyUsed));
+    if (item.ingredients.length === 0) return null;
+    let fewest = Infinity;
+    for (const line of item.ingredients) {
+      if (!line.isActive) return 0;
+      if (line.qtyUsed <= 0) continue;
+      fewest = Math.min(fewest, Math.floor(line.currentStock / line.qtyUsed));
+    }
+    return Number.isFinite(fewest) ? Math.max(0, fewest) : null;
   }
 
   function addToCart(item: PosItem) {

@@ -33,7 +33,7 @@ function StockBar({ current, par, reorder, unit }: {
   const pct   = par > 0 ? Math.min((current / par) * 100, 100) : 0;
   const isOut = current <= 0;
   const isLow = current <= reorder && !isOut;
-  const barColor = isOut ? "bg-clay" : isLow ? "bg-amber" : current <= par ? "bg-amber/60" : "bg-pine";
+  const barColor = isOut ? "bg-clay" : isLow ? "bg-amber" : current < par ? "bg-amber/60" : "bg-pine";
 
   return (
     <div>

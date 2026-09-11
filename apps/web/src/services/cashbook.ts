@@ -98,6 +98,12 @@ export interface CashAccount {
   name: string;
   account_type: AccountType;
   balance: number;
+  /**
+   * False once the account has any ledger entry. An opening balance can only be
+   * recorded before the first transaction, so the UI must hide the control
+   * rather than offer one that will be rejected.
+   */
+  canSetOpeningBalance: boolean;
 }
 
 export const cashbookService = {
@@ -108,6 +114,9 @@ export const cashbookService = {
   getAccounts: async (): Promise<CashAccount[]> => {
     const res = await api.get("/api/cashbook/accounts");
     return res.data.data;
+  },
+  setOpeningBalance: async (accountId: string, amount: number): Promise<void> => {
+    await api.patch(`/api/cashbook/accounts/${accountId}/opening`, { amount });
   },
   getBalances: async (params: { asOf?: string }): Promise<AccountBalance[]> => {
     const res = await api.get("/api/cashbook/balances", { params });

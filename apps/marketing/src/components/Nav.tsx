@@ -123,7 +123,7 @@ export default function Nav() {
         } border`}
       >
         <div className={`relative flex items-center transition-[height,padding] duration-500 ${scrolled ? "h-[66px] px-3.5 sm:px-4" : "h-24 px-1 sm:px-2"}`}>
-          <Link to="/" onPointerEnter={() => void preloadRoute("/")} onFocus={() => void preloadRoute("/")} className="group flex shrink-0 items-center" aria-label="Innflo home">
+          <Link to="/" onPointerEnter={() => void preloadRoute("/")} onFocus={() => void preloadRoute("/")} className="group flex shrink-0 items-center gap-1.5 sm:gap-2" aria-label="Innflo home">
             <span className="grid h-[46px] w-[46px] shrink-0 place-items-center transition-transform duration-300 group-hover:scale-[1.04] sm:h-12 sm:w-12">
               <img
                 src="/brand/mark-clay-tight.svg"
@@ -131,6 +131,15 @@ export default function Nav() {
                 aria-hidden="true"
                 className="h-full w-full"
               />
+            </span>
+            {/* Size tracks `scrolled` (the bar shrinks 96px -> 66px), colour tracks
+                `darkMode` — the open mobile panel is light even while scrolled. */}
+            <span
+              className={`font-display font-medium leading-none tracking-[-.01em] transition-[color,font-size] duration-500 ${
+                scrolled ? "text-[21px]" : "text-[26px]"
+              } ${darkMode ? "text-white" : "text-ink"}`}
+            >
+              Innflo
             </span>
           </Link>
 

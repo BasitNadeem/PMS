@@ -2,8 +2,8 @@ import { Worker, type Job } from "bullmq";
 import { adminPrisma, Prisma } from "@pms/db";
 import { redisConnectionOptions } from "../lib/redis";
 import { collectBriefingData } from "./collectBriefingData";
-import { formatBriefingMessage } from "./formatBriefingMessage";
-import { sendWhatsappMessage } from "./sendWhatsappMessage";
+import { formatBriefingMessage, buildBriefingTemplateParams } from "./formatBriefingMessage";
+import { sendBriefingTemplate } from "./sendWhatsappMessage";
 import type { BriefingJobData } from "./queues";
 
 type LogStatus = "SENT" | "FAILED" | "STUB";
@@ -44,13 +44,18 @@ async function processBriefing(job: Job<BriefingJobData>): Promise<{ success: bo
 
   const briefingData = await collectBriefingData(hotelId);
   const message      = formatBriefingMessage(briefingData);
-  const result       = await sendWhatsappMessage(ownerWhatsappNumber, message);
+  const params       = buildBriefingTemplateParams(briefingData);
+  const result       = await sendBriefingTemplate(ownerWhatsappNumber, params, message);
+
+  // STUB only when nothing left the process — a real send must never be logged as
+  // STUB, or the log stops being usable evidence that a briefing was delivered.
+  const status: LogStatus = !result.success ? "FAILED" : result.stubbed ? "STUB" : "SENT";
 
   await logBriefing(
     hotelId,
     ownerWhatsappNumber,
     message,
-    result.success ? "STUB" : "FAILED",
+    status,
     result.error,
     result.messageId,
   );

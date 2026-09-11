@@ -14,6 +14,8 @@ export interface DatePickerProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** Override the visible date label while retaining the YYYY-MM-DD value contract. */
+  displayFormat?: Intl.DateTimeFormatOptions;
   /** Renders as a square icon-only button — for use next to a date label shown elsewhere. */
   iconOnly?: boolean;
 }
@@ -27,7 +29,7 @@ function parseLocalDate(s: string): Date {
   return new Date(y, m - 1, d);
 }
 
-export function DatePicker({ value, onChange, min, max, placeholder = "Select date", className, disabled, iconOnly }: DatePickerProps) {
+export function DatePicker({ value, onChange, min, max, placeholder = "Select date", className, disabled, displayFormat, iconOnly }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -65,7 +67,7 @@ export function DatePicker({ value, onChange, min, max, placeholder = "Select da
   }, [open]);
 
   const displayValue = value
-    ? new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short", year: "numeric" }).format(parseLocalDate(value))
+    ? new Intl.DateTimeFormat("en-US", displayFormat ?? { day: "numeric", month: "short", year: "numeric" }).format(parseLocalDate(value))
     : "";
 
   return (

@@ -23,6 +23,18 @@ export interface CashAccountRow {
   updated_at:   Date;
 }
 
+/**
+ * An account plus whether it can still be given an opening balance.
+ *
+ * setOpeningBalance() refuses once ANY entry exists on the account, so the
+ * window closes permanently at the first payment, expense or POS sale. The flag
+ * lets the UI show the control only while it would actually work, instead of
+ * offering a button that always 400s.
+ */
+export interface CashAccountWithSetupRow extends CashAccountRow {
+  canSetOpeningBalance: boolean;
+}
+
 export interface LedgerEntryRow {
   id:             string;
   hotel_id:       string;
@@ -105,14 +117,22 @@ type InternalEntryDto = CreateEntryDto & {
 
 export const CashBookService = {
 
-  async getAccounts(hotelId: string): Promise<CashAccountRow[]> {
+  async getAccounts(hotelId: string): Promise<CashAccountWithSetupRow[]> {
     try {
-      const rows = await adminPrisma.$queryRaw<CashAccountDbRow[]>`
-        SELECT * FROM cash_accounts
-        WHERE hotel_id = ${hotelId}::uuid
-        ORDER BY account_type ASC, created_at ASC
+      const rows = await adminPrisma.$queryRaw<(CashAccountDbRow & { has_entries: boolean })[]>`
+        SELECT ca.*,
+               EXISTS (
+                 SELECT 1 FROM ledger_entries le
+                 WHERE le.account_id = ca.id AND le.hotel_id = ca.hotel_id
+               ) AS has_entries
+        FROM  cash_accounts ca
+        WHERE ca.hotel_id = ${hotelId}::uuid
+        ORDER BY ca.account_type ASC, ca.created_at ASC
       `;
-      return rows.map(serializeCashAccount);
+      return rows.map(({ has_entries, ...row }) => ({
+        ...serializeCashAccount(row),
+        canSetOpeningBalance: !has_entries,
+      }));
     } catch (err) {
       console.error("[CashBook] getAccounts error:", err);
       throw new AppError(500, "Failed to load cash accounts");

@@ -1,7 +1,7 @@
 import type { TenantTx } from "@pms/db";
 import { adminPrisma, FolioItemType, PaymentStatus, HousekeepingTaskStatus, MaintenanceStatus } from "@pms/db";
 import { ExpenseService } from "./ExpenseService";
-import { getPKTDayRange, getPKTRangeFromStrings, getPKTMonthRange } from "../lib/timezone";
+import { dateOnlyUTC, getPKTDayRange, getPKTRangeFromStrings, getPKTMonthRange } from "../lib/timezone";
 import { HotelMetricsService } from "./HotelMetricsService";
 import { resolveUserNames } from "../lib/userNames";
 
@@ -143,8 +143,8 @@ export const ReportService = {
       ] = await Promise.all([
         db.hotel.findFirst({ select: { name: true, address: true, phone: true, city: true } }),
         db.room.count({ where: { isActive: true } }),
-        db.room.count({ where: { status: "OCCUPIED" } }),
-        db.room.count({ where: { status: "VACANT_CLEAN" } }),
+        db.room.count({ where: { isActive: true, status: "OCCUPIED" } }),
+        db.room.count({ where: { isActive: true, status: "VACANT_CLEAN" } }),
         db.reservation.count({ where: { actualCheckIn: { gte: dayStart, lt: dayEnd } } }),
         db.reservation.count({ where: { status: "CHECKED_OUT", actualCheckOut: { gte: dayStart, lt: dayEnd } } }),
 
@@ -356,11 +356,17 @@ export const ReportService = {
   async getMonthlyReport(withTenant: WithTenantFn, hotelId: string, year: number, month: number) {
     const { start: monthStart, end: monthEndExcl } = getPKTMonthRange(year, month);
     const daysInMonth = new Date(year, month, 0).getDate();
+    const startDateStr = `${year}-${String(month).padStart(2, "0")}-01`;
+    const endDateStr = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+    // Reservation dates are Postgres DATE values, not event timestamps. Use
+    // UTC-midnight date boundaries here; PKT instant boundaries belong only on
+    // createdAt/chargeDate/payment timestamps.
+    const monthDateStart = dateOnlyUTC(startDateStr);
+    const monthDateEndExcl = dateOnlyUTC(shiftIsoDays(endDateStr, 1));
 
     const data = await withTenant(async (db) => {
       const [
         hotel,
-        totalRooms,
         roomTypes,
         allPayments,
         roomChargeItems,
@@ -369,15 +375,14 @@ export const ReportService = {
         totalReservations,
         monthReservations,
         occupancyReservations,
-        occupancyReservationRooms,
         hkCompleted,
         maintCreated,
         maintResolved,
         groupReservations,
         posDirectMonthlyList,
+        monthlyMetrics,
       ] = await Promise.all([
         db.hotel.findFirst({ select: { name: true, address: true, phone: true, city: true } }),
-        db.room.count({ where: { isActive: true } }),
         db.roomType.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
 
         db.payment.findMany({
@@ -387,7 +392,7 @@ export const ReportService = {
 
         db.folioItem.findMany({
           where: { chargeDate: { gte: monthStart, lt: monthEndExcl }, isVoided: false, type: FolioItemType.ROOM_CHARGE },
-          select: { amount: true, roomId: true },
+          select: { amount: true },
         }),
         db.folioItem.aggregate({
           _sum: { amount: true },
@@ -407,20 +412,11 @@ export const ReportService = {
 
         db.reservation.findMany({
           where: {
-            status: { in: ["CHECKED_IN", "CHECKED_OUT"] },
-            checkInDate: { lt: monthEndExcl },
-            checkOutDate: { gt: monthStart },
+            status: { in: ["CONFIRMED", "CHECKED_IN", "CHECKED_OUT"] },
+            checkInDate: { lt: monthDateEndExcl },
+            checkOutDate: { gt: monthDateStart },
           },
           select: { checkInDate: true, checkOutDate: true },
-        }),
-
-        db.reservationRoom.findMany({
-          where: {
-            checkInDate: { lt: monthEndExcl },
-            checkOutDate: { gt: monthStart },
-            reservation: { status: { not: "CANCELLED" } },
-          },
-          select: { roomTypeId: true, checkInDate: true, checkOutDate: true },
         }),
 
         db.housekeepingTask.count({
@@ -437,7 +433,7 @@ export const ReportService = {
         }),
 
         db.reservation.findMany({
-          where: { groupId: { not: null }, checkInDate: { gte: monthStart, lt: monthEndExcl } },
+          where: { groupId: { not: null }, checkInDate: { gte: monthDateStart, lt: monthDateEndExcl } },
           select: { groupId: true, totalAmount: true, rooms: { select: { id: true } } },
         }),
 
@@ -446,6 +442,7 @@ export const ReportService = {
           where: { createdAt: { gte: monthStart, lt: monthEndExcl }, isPostedToFolio: false, tableNumber: { startsWith: "PAID:" } },
           select: { total: true, tableNumber: true, createdAt: true },
         }),
+        HotelMetricsService.getRangeFromDb(db, startDateStr, endDateStr),
       ]);
 
       // ── revenue by day ──────────────────────────────────────────────────
@@ -460,10 +457,7 @@ export const ReportService = {
           .filter((o) => o.createdAt >= dayStart && o.createdAt < dayEnd)
           .reduce((s, o) => s + o.total, 0);
         const revenue = paymentsRevenue + posDirectRevenue;
-        const occupiedRooms = occupancyReservations.filter(
-          (r) => r.checkInDate < dayEnd && r.checkOutDate > dayStart,
-        ).length;
-        const occupancy = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 1000) / 10 : 0;
+        const occupancy = monthlyMetrics.days[i]?.occupancyRate ?? 0;
         return {
           date: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
           revenue,
@@ -480,13 +474,18 @@ export const ReportService = {
       const posRevenue = posRevenueAgg._sum.total ?? 0;
 
       const uniqueGuests = new Set(monthReservations.map((r) => r.guestId)).size;
-      const averageOccupancy = revenueByDay.reduce((s, d) => s + d.occupancy, 0) / daysInMonth;
-      const totalOccupiedNights = occupancyReservationRooms.reduce(
-        (s, rr) => s + overlapDays(rr.checkInDate, rr.checkOutDate, monthStart, monthEndExcl), 0,
+      const averageOccupancy = monthlyMetrics.summary.occupancyRate;
+      const adr = monthlyMetrics.summary.adr;
+      const revpar = monthlyMetrics.summary.revpar;
+      const totalNightsBooked = occupancyReservations.reduce(
+        (sum, reservation) => sum + overlapDays(
+          reservation.checkInDate,
+          reservation.checkOutDate,
+          monthDateStart,
+          monthDateEndExcl,
+        ),
+        0,
       );
-      const adr = totalOccupiedNights > 0 ? Math.round(roomRevenue / totalOccupiedNights) : 0;
-      const revpar = totalRooms > 0 ? Math.round(roomRevenue / (totalRooms * daysInMonth)) : 0;
-      const totalNightsBooked = occupancyReservations.reduce((s, r) => s + diffDays(r.checkInDate, r.checkOutDate), 0);
       const averageLengthOfStay = occupancyReservations.length > 0
         ? Math.round((totalNightsBooked / occupancyReservations.length) * 10) / 10
         : 0;
@@ -535,40 +534,22 @@ export const ReportService = {
         : 0;
 
       // ── occupancy by room type ───────────────────────────────────────────
-      const occupiedNightsByType = new Map<string, number>();
-      for (const rr of occupancyReservationRooms) {
-        const nights = overlapDays(rr.checkInDate, rr.checkOutDate, monthStart, monthEndExcl);
-        occupiedNightsByType.set(rr.roomTypeId, (occupiedNightsByType.get(rr.roomTypeId) ?? 0) + nights);
-      }
-      const revenueByRoomType = new Map<string, number>();
-      const roomIdToType = new Map<string, string>();
-      // FolioItem only has roomId — map via reservationRoom roomId->roomTypeId for rooms seen this month
-      for (const rr of await db.reservationRoom.findMany({
-        where: { checkInDate: { lt: monthEndExcl }, checkOutDate: { gt: monthStart } },
-        select: { roomId: true, roomTypeId: true },
-      })) {
-        roomIdToType.set(rr.roomId, rr.roomTypeId);
-      }
-      for (const fi of roomChargeItems) {
-        if (!fi.roomId) continue;
-        const typeId = roomIdToType.get(fi.roomId);
-        if (!typeId) continue;
-        revenueByRoomType.set(typeId, (revenueByRoomType.get(typeId) ?? 0) + fi.amount);
-      }
       const totalRoomsByType = new Map<string, number>();
       for (const room of await db.room.findMany({ where: { isActive: true }, select: { roomTypeId: true } })) {
         totalRoomsByType.set(room.roomTypeId, (totalRoomsByType.get(room.roomTypeId) ?? 0) + 1);
       }
       const occupancyByRoomType = roomTypes.map((rt) => {
         const roomsOfType = totalRoomsByType.get(rt.id) ?? 0;
-        const occupiedNights = Math.round((occupiedNightsByType.get(rt.id) ?? 0) * 10) / 10;
-        const possibleNights = roomsOfType * daysInMonth;
+        const metrics = monthlyMetrics.roomTypes.find((roomType) => roomType.id === rt.id);
+        const occupiedNights = metrics?.days.reduce((sum, day) => sum + day.roomsSold, 0) ?? 0;
+        const sellableNights = metrics?.days.reduce((sum, day) => sum + day.sellableRooms, 0) ?? 0;
+        const expectedRoomRevenue = metrics?.days.reduce((sum, day) => sum + day.expectedRoomRevenue, 0) ?? 0;
         return {
           roomType: rt.name,
           totalRooms: roomsOfType,
           occupiedNights,
-          occupancyRate: possibleNights > 0 ? Math.round((occupiedNights / possibleNights) * 1000) / 10 : 0,
-          revenue: revenueByRoomType.get(rt.id) ?? 0,
+          occupancyRate: sellableNights > 0 ? Math.round((occupiedNights / sellableNights) * 1000) / 10 : 0,
+          revenue: expectedRoomRevenue,
         };
       }).filter((rt) => rt.totalRooms > 0);
 
@@ -608,8 +589,6 @@ export const ReportService = {
     });
 
     // Expenses — raw query outside withTenant (table not in Prisma schema)
-    const startDateStr = `${year}-${String(month).padStart(2, "0")}-01`;
-    const endDateStr = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
     let expensesByCategory: { category: string; amount: number; count: number }[] = [];
     let totalExpenses = 0;
     try {

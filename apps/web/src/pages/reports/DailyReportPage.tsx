@@ -481,7 +481,7 @@ export default function DailyReportPage() {
           <div className="print-section">
             <SectionHeading title="At a Glance" />
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <KpiCard icon={BedDouble} toneName="pine" label="Occupancy Rate" value={`${report.occupancy.occupancyRate}%`} sub={`${report.occupancy.occupied}/${report.occupancy.totalRooms} rooms`} />
+              <KpiCard icon={BedDouble} toneName="pine" label="Current Room Occupancy" value={`${report.occupancy.occupancyRate}%`} sub={`${report.occupancy.occupied}/${report.occupancy.totalRooms} active rooms · point in time`} />
               <KpiCard icon={Banknote} toneName="coral" label="Collected Today" value={formatPKR(report.revenue.totalCollected)} sub="Cash-basis — includes prior-day balances paid today" />
               <KpiCard icon={LogIn} toneName="slate" label="Check-ins" value={String(report.occupancy.checkIns)} sub={`${report.arrivals.length} arrivals expected`} />
               <KpiCard icon={LogOut} toneName="amber" label="Check-outs" value={String(report.occupancy.checkOuts)} sub={`${report.departures.length} departures expected`} />

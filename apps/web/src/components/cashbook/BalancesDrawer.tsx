@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   X, Wallet, Landmark, Smartphone, Coins, CircleDollarSign,
   ArrowDownLeft, ArrowUpRight, TrendingUp, TrendingDown, CalendarDays,
-  GripVertical,
+  GripVertical, Check,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -47,6 +47,109 @@ const ACCOUNT_META: Record<string, AccountMeta> = {
   PETTY_CASH:   { label: "Petty Cash",   Icon: Coins,            bg: "bg-amber-soft",  iconCls: "text-amber",      accentIn: "text-pine-deep", accentOut: "text-clay" },
   OTHER:        { label: "Other",        Icon: CircleDollarSign, bg: "bg-mist",        iconCls: "text-ink-mute",   accentIn: "text-pine-deep", accentOut: "text-clay" },
 };
+
+
+/**
+ * Opening balances can only ever be recorded BEFORE an account's first
+ * transaction — setOpeningBalance() refuses once any entry exists. So this is
+ * not a permanent control: it renders only while at least one account is still
+ * eligible, and each row disappears the moment its balance is set. On a hotel
+ * that has been running for a week it renders nothing at all.
+ *
+ * It matters because without it the ledger measures "money moved since we
+ * started using Innflo", not "money in the drawer" — wrong by the starting
+ * amount forever, with nothing in the app able to detect the gap.
+ */
+function OpeningBalanceSetup() {
+  const queryClient = useQueryClient();
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["cashbook", "accounts"],
+    queryFn:  cashbookService.getAccounts,
+    staleTime: 30_000,
+  });
+
+  const eligible = accounts.filter((a) => a.canSetOpeningBalance);
+  if (eligible.length === 0) return null;
+
+  async function save(accountId: string) {
+    const rupees = Number(amounts[accountId]);
+    if (!Number.isFinite(rupees) || rupees <= 0) {
+      setError("Enter an amount greater than zero.");
+      return;
+    }
+    setError(null);
+    setSavingId(accountId);
+    try {
+      // Stored in paisas, like every other amount in the system.
+      await cashbookService.setOpeningBalance(accountId, Math.round(rupees * 100));
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["cashbook", "accounts"] }),
+        queryClient.invalidateQueries({ queryKey: ["cashbook", "balances"] }),
+      ]);
+      setAmounts((current) => ({ ...current, [accountId]: "" }));
+    } catch {
+      setError("Could not save that opening balance. Please try again.");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-amber/40 bg-amber-soft/40 p-5">
+      <div className="flex items-center gap-2.5">
+        <div className="grid place-items-center h-8 w-8 rounded-lg bg-amber-soft shrink-0">
+          <Wallet size={15} className="text-amber" />
+        </div>
+        <div>
+          <p className="text-[13.5px] font-bold text-ink">Set your starting balances</p>
+          <p className="text-[11.5px] text-ink-mute">One time only — this can’t be changed after the first transaction.</p>
+        </div>
+      </div>
+
+      <p className="mt-3 text-[12px] leading-relaxed text-ink-mute">
+        Enter what each account already holds today. Skip any that start at zero.
+      </p>
+
+      <div className="mt-4 space-y-2.5">
+        {eligible.map((account) => {
+          const meta = ACCOUNT_META[account.account_type] ?? ACCOUNT_META.OTHER;
+          return (
+            <div key={account.id} className="flex items-center gap-2">
+              <span className="w-[104px] shrink-0 truncate text-[12px] font-semibold text-ink-soft" title={account.name}>
+                {account.name || meta.label}
+              </span>
+              <div className="relative flex-1">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-ink-faint">PKR</span>
+                <input
+                  type="number"
+                  min="0"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={amounts[account.id] ?? ""}
+                  onChange={(e) => setAmounts((c) => ({ ...c, [account.id]: e.target.value }))}
+                  className="h-9 w-full rounded-lg border border-line bg-card pl-11 pr-3 text-[13px] tnum text-ink outline-none focus:border-coral"
+                />
+              </div>
+              <button
+                onClick={() => save(account.id)}
+                disabled={savingId === account.id || !amounts[account.id]}
+                className="h-9 shrink-0 rounded-lg bg-ink px-3.5 text-[12px] font-semibold text-white transition-opacity disabled:opacity-35"
+              >
+                {savingId === account.id ? "Saving…" : <Check size={14} />}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {error && <p className="mt-3 text-[11.5px] text-clay">{error}</p>}
+    </div>
+  );
+}
 
 export interface BalancesDrawerProps {
   onClose: () => void;
@@ -183,6 +286,7 @@ export function BalancesDrawer({ onClose }: BalancesDrawerProps) {
 
         {/* Account cards */}
         <div className="flex-1 overflow-y-auto scroll-area pl-8 pr-6 py-5 space-y-4">
+          <OpeningBalanceSetup />
           {isLoading ? (
             Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="h-[120px] rounded-xl bg-mist animate-pulse" />
@@ -212,7 +316,12 @@ export function BalancesDrawer({ onClose }: BalancesDrawerProps) {
                     <div className={cn("grid place-items-center h-9 w-9 rounded-lg shrink-0", meta.bg)}>
                       <Icon size={16} className={meta.iconCls} />
                     </div>
-                    <span className="text-[14px] font-bold text-ink">{meta.label}</span>
+                    <div className="min-w-0">
+                      <div className="truncate text-[14px] font-bold text-ink">{account.name || meta.label}</div>
+                      {account.name && account.name !== meta.label && (
+                        <div className="text-[11px] text-ink-mute">{meta.label}</div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Balance */}

@@ -2,7 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { z } from "zod";
-import { adminPrisma, UserRole } from "@pms/db";
+import { adminPrisma, UserRole, withTenant } from "@pms/db";
 import { env } from "../lib/env";
 import { authenticate } from "../middleware/auth";
 import { tenantMiddleware } from "../middleware/tenant";
@@ -162,10 +162,11 @@ const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   hotelSlug: z.string().trim().min(1).optional(),
+  surface: z.enum(["BACKOFFICE"]).optional(),
 });
 
 router.post("/login", async (req, res) => {
-  const { email, password, hotelSlug } = loginSchema.parse(req.body);
+  const { email, password, hotelSlug, surface } = loginSchema.parse(req.body);
 
   const user = await adminPrisma.user.findUnique({ where: { email } });
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
@@ -212,6 +213,14 @@ router.post("/login", async (req, res) => {
     return;
   }
 
+  // Back Office is a restricted management surface. The hostname only picks
+  // the UI; this server-side check is what prevents an operational staff
+  // account from obtaining a Back Office session.
+  if (surface === "BACKOFFICE" && !["OWNER", "MANAGER"].includes(hotelUser.role)) {
+    res.status(403).json({ error: "Back Office access is available to hotel owners and managers only" });
+    return;
+  }
+
   const session = await issueHotelSession(
     user,
     hotel,
@@ -230,6 +239,31 @@ router.post("/login", async (req, res) => {
       userAgent: req.headers["user-agent"] as string | undefined,
     },
   });
+
+  // A successful daily-app login is the automatic attendance signal. The
+  // record is unique per hotel, staff member and Pakistan calendar date, so
+  // repeated logins update activity instead of creating duplicate rows. A
+  // manager opening the restricted Back Office does not count as a PMS sign-in.
+  if (surface !== "BACKOFFICE" && hotelUser.role !== "OWNER") {
+    const attendanceDate = dateOnlyUTC(getCurrentPKTDate());
+    await withTenant(hotel.id, user.id, (db) => db.$executeRaw`
+      INSERT INTO attendance_records
+        (hotel_id, user_id, attendance_date, first_login_at, last_login_at,
+         login_count, source, status, role, created_at, updated_at)
+      VALUES
+        (${hotel.id}::uuid, ${user.id}::uuid, ${attendanceDate}::date, now(), now(),
+         1, 'APP_LOGIN', 'PRESENT', ${hotelUser.role}, now(), now())
+      ON CONFLICT (hotel_id, user_id, attendance_date)
+      DO UPDATE SET
+        first_login_at = COALESCE(attendance_records.first_login_at, EXCLUDED.first_login_at),
+        last_login_at = EXCLUDED.last_login_at,
+        login_count = attendance_records.login_count + 1,
+        source = 'APP_LOGIN',
+        status = 'PRESENT',
+        role = EXCLUDED.role,
+        updated_at = now()
+    `);
+  }
 
   res.json(session);
 });

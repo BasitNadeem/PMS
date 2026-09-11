@@ -26,20 +26,23 @@ async function reserveInventoryForOrder(
   posItems: Array<{
     id: string;
     name: string;
-    inventoryItemId: string | null;
-    inventoryQtyUsed: Prisma.Decimal | null;
+    ingredients: Array<{ inventoryItemId: string; qtyUsed: Prisma.Decimal }>;
   }>,
 ) {
+  // Totalled per inventory item, not per dish: two dishes on one order can
+  // draw on the same ingredient, and only their sum has to be in stock.
   const requiredByInventoryId = new Map<string, { quantity: number; menuItems: string[] }>();
   for (const orderItem of orderItems) {
     const posItem = posItems.find((item) => item.id === orderItem.posItemId);
-    if (!posItem?.inventoryItemId || !posItem.inventoryQtyUsed) continue;
-    const required = orderItem.quantity * Number(posItem.inventoryQtyUsed);
-    if (required <= 0) continue;
-    const existing = requiredByInventoryId.get(posItem.inventoryItemId) ?? { quantity: 0, menuItems: [] };
-    existing.quantity += required;
-    if (!existing.menuItems.includes(posItem.name)) existing.menuItems.push(posItem.name);
-    requiredByInventoryId.set(posItem.inventoryItemId, existing);
+    if (!posItem) continue;
+    for (const line of posItem.ingredients) {
+      const required = orderItem.quantity * Number(line.qtyUsed);
+      if (required <= 0) continue;
+      const existing = requiredByInventoryId.get(line.inventoryItemId) ?? { quantity: 0, menuItems: [] };
+      existing.quantity += required;
+      if (!existing.menuItems.includes(posItem.name)) existing.menuItems.push(posItem.name);
+      requiredByInventoryId.set(line.inventoryItemId, existing);
+    }
   }
 
   const inventoryIds = [...requiredByInventoryId.keys()].sort();
@@ -170,7 +173,8 @@ export const PosService = {
       // Fetch and validate all requested items
       const posItemIds = dto.items.map((i) => i.posItemId);
       const posItems   = await db.posItem.findMany({
-        where: { id: { in: posItemIds }, isAvailable: true },
+        where:   { id: { in: posItemIds }, isAvailable: true },
+        include: { ingredients: { select: { inventoryItemId: true, qtyUsed: true } } },
       });
       if (posItems.length !== posItemIds.length) {
         throw new AppError(400, "One or more items are unavailable or not found");

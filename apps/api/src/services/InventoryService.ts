@@ -4,6 +4,7 @@ import { adminPrisma } from "@pms/db";
 import { AppError } from "../utils/AppError";
 import { paginationMeta } from "../utils/pagination";
 import { notifyHotelDataChanged } from "../lib/realtime";
+import { REORDER_ABOVE_PAR } from "../schemas/inventory";
 import type {
   ListInventoryQuery,
   CreateInventoryItemDto,
@@ -280,6 +281,14 @@ export const InventoryService = {
     );
     if (!existing) throw new AppError(404, "Item not found");
 
+    // Only enforced when the update touches one of the two, so rows that
+    // predate the rule stay editable in every other respect.
+    if (data.parLevel !== undefined || data.reorderLevel !== undefined) {
+      const nextPar     = data.parLevel     ?? parseFloat(existing.parLevel.toString());
+      const nextReorder = data.reorderLevel ?? parseFloat(existing.reorderLevel.toString());
+      if (nextReorder > nextPar) throw new AppError(400, REORDER_ABOVE_PAR);
+    }
+
     const updateData: {
       name?:        string;
       category?:    string;
@@ -480,14 +489,15 @@ export const InventoryService = {
   },
 };
 
-// PrismaClient and TenantTx both expose the same posItem/inventoryTransaction
-// methods used here — share one implementation across both call sites.
+// PrismaClient and TenantTx both expose the same posItemIngredient/
+// inventoryTransaction methods used here — share one implementation across
+// both call sites.
 interface DbLike {
-  posItem: {
+  posItemIngredient: {
     findMany: (args: {
-      where: { id: { in: string[] }; hotelId: string };
-      select: { id: true; inventoryItemId: true; inventoryQtyUsed: true };
-    }) => Promise<{ id: string; inventoryItemId: string | null; inventoryQtyUsed: Prisma.Decimal | null }[]>;
+      where: { posItemId: { in: string[] }; hotelId: string };
+      select: { posItemId: true; inventoryItemId: true; qtyUsed: true };
+    }) => Promise<{ posItemId: string; inventoryItemId: string; qtyUsed: Prisma.Decimal }[]>;
   };
   inventoryTransaction: {
     create: (args: {
@@ -513,30 +523,42 @@ async function runInventoryDeduction(
   actorId: string,
 ): Promise<void> {
   const posItemIds = orderItems.map((i) => i.posItemId);
-  const posItems = await db.posItem.findMany({
-    where:  { id: { in: posItemIds }, hotelId },
-    select: { id: true, inventoryItemId: true, inventoryQtyUsed: true },
+  const recipeLines = await db.posItemIngredient.findMany({
+    where:  { posItemId: { in: posItemIds }, hotelId },
+    select: { posItemId: true, inventoryItemId: true, qtyUsed: true },
   });
+  if (recipeLines.length === 0) return;
 
+  // Totalled per inventory item so the ledger gets one CONSUMPTION row per
+  // ingredient, however many dishes on the order happened to use it.
+  const totalByInventoryId = new Map<string, number>();
   for (const orderItem of orderItems) {
-    const posItem = posItems.find((p) => p.id === orderItem.posItemId);
-    if (!posItem?.inventoryItemId || !posItem.inventoryQtyUsed) continue;
+    for (const line of recipeLines) {
+      if (line.posItemId !== orderItem.posItemId) continue;
+      const qty = orderItem.quantity * parseFloat(line.qtyUsed.toString());
+      if (qty <= 0) continue;
+      totalByInventoryId.set(
+        line.inventoryItemId,
+        (totalByInventoryId.get(line.inventoryItemId) ?? 0) + qty,
+      );
+    }
+  }
 
-    const qty = orderItem.quantity * parseFloat(posItem.inventoryQtyUsed.toString());
+  for (const [itemId, quantity] of totalByInventoryId) {
     try {
       await db.inventoryTransaction.create({
         data: {
           hotelId,
-          itemId:        posItem.inventoryItemId,
+          itemId,
           type:          InventoryTransactionType.CONSUMPTION,
-          quantity:      qty,
+          quantity,
           referenceType,
           referenceId:   orderId,
           performedBy:   actorId,
         },
       });
     } catch (err) {
-      console.error("[Inventory] deduction failed for posItem", posItem.id, err);
+      console.error("[Inventory] deduction failed for inventory item", itemId, err);
     }
   }
 }

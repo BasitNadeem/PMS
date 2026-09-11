@@ -97,12 +97,16 @@ export function AddItemModal({ onClose, onSuccess }: AddItemModalProps) {
     if (!category)          { setError("Category is required."); return; }
     if (!unit)              { setError("Unit is required."); return; }
 
+    const parValue     = parseFloat(form.parLevel)     || 0;
+    const reorderValue = parseFloat(form.reorderLevel) || 0;
+    if (reorderValue > parValue) { setError("Reorder level cannot be higher than par level."); return; }
+
     const dto: CreateInventoryItemDto = {
       name:         form.name.trim(),
       category,
       unit,
-      parLevel:     parseFloat(form.parLevel)     || 0,
-      reorderLevel: parseFloat(form.reorderLevel) || 0,
+      parLevel:     parValue,
+      reorderLevel: reorderValue,
       costPerUnit:  parseFloat(form.costPerUnit)  || 0,
       supplier:     form.supplier.trim() || undefined,
       openingStock: parseFloat(form.openingStock) || 0,

@@ -8,7 +8,7 @@ export const listInventorySchema = z.object({
   limit:        z.coerce.number().int().min(1).max(500).default(50),
 });
 
-export const createInventoryItemSchema = z.object({
+const inventoryItemFields = z.object({
   name:         z.string().trim().min(1),
   category:     z.string().trim().min(1),
   unit:         z.string().trim().min(1),
@@ -20,7 +20,19 @@ export const createInventoryItemSchema = z.object({
   sku:          z.string().trim().optional(),
 });
 
-export const updateInventoryItemSchema = createInventoryItemSchema
+// Reorder level triggers the low-stock alert; par level is the top-up target.
+// Suggested order qty is (par - current), so reorder above par would flag an
+// item as low with nothing to order.
+export const REORDER_ABOVE_PAR = "Reorder level cannot be higher than par level";
+
+export const createInventoryItemSchema = inventoryItemFields.refine(
+  (v) => v.reorderLevel <= v.parLevel,
+  { message: REORDER_ABOVE_PAR, path: ["reorderLevel"] },
+);
+
+// A partial update may send either field alone, so the resulting pair is
+// re-checked against the stored row in InventoryService.updateItem.
+export const updateInventoryItemSchema = inventoryItemFields
   .omit({ openingStock: true })
   .partial();
 

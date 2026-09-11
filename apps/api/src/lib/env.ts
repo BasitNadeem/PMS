@@ -56,6 +56,24 @@ const envSchema = z.object({
   // Defaulted rather than required so a deployment that has not set it still
   // boots and still captures leads, just to the default inbox.
   SALES_LEAD_EMAIL:        z.string().email().default("hello@innflo.co"),
+  // ── WhatsApp Cloud API (nightly owner briefings) ─────────────────────────
+  // Permanent system-user token from the Innflo business portfolio. Optional at
+  // boot so a deployment with no WhatsApp set up still starts — sendWhatsappMessage
+  // falls back to console logging when either this or the phone number ID is absent.
+  WHATSAPP_ACCESS_TOKEN:    z.string().optional(),
+  // The *phone number ID* from WhatsApp Manager, not the phone number itself.
+  WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
+  // Pinned rather than tracking "latest": Meta retires a Graph version roughly two
+  // years after release, and a silent bump can change response shapes mid-flight.
+  WHATSAPP_API_VERSION:     z.string().default("v23.0"),
+  // Must match an APPROVED template of category UTILITY in WhatsApp Manager. The
+  // briefing is business-initiated, so a plain text send would be dropped.
+  WHATSAPP_BRIEFING_TEMPLATE: z.string().default("nightly_briefing"),
+  WHATSAPP_TEMPLATE_LANG:     z.string().default("en"),
+  // Same reasoning as LOG_EMAILS_INSTEAD_OF_SENDING above — an explicit opt-in flag
+  // rather than a NODE_ENV check, so no ambient misconfiguration can silently stop
+  // real briefings going out. Only the exact string "true" enables it.
+  LOG_WHATSAPP_INSTEAD_OF_SENDING: z.string().optional().transform((v) => v === "true"),
   // ── Channel manager (Channex) ────────────────────────────────────────────
   // Staging → production is a pure env swap; the URL is never hardcoded in the
   // service. Defaulted rather than required because the integration is inert

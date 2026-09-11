@@ -11,6 +11,7 @@
 // public landing page; it can never grant access to anything.
 export type AppMode =
   | { type: "pms" }
+  | { type: "backoffice" }
   | { type: "booking-engine"; hotelSlug: string };
 
 export function resolveAppMode(): AppMode {
@@ -20,6 +21,14 @@ export function resolveAppMode(): AppMode {
   const PMS_HOSTNAMES = ["app.innflo.co", "localhost", "127.0.0.1"];
   if (PMS_HOSTNAMES.includes(hostname)) {
     return { type: "pms" };
+  }
+
+  // Back Office is a management-only surface. Keep this check ahead of the
+  // generic hotel-subdomain branch below, otherwise backoffice.innflo.co
+  // would be mistaken for a hotel's public booking engine.
+  const BACKOFFICE_HOSTNAMES = ["backoffice.innflo.co", "backoffice.localhost"];
+  if (BACKOFFICE_HOSTNAMES.includes(hostname)) {
+    return { type: "backoffice" };
   }
 
   // Any other *.innflo.co hostname → extract the hotel slug.

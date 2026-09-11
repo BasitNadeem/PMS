@@ -461,6 +461,7 @@ model Hotel {
   conversations                 Conversation[]
   posCategories                 PosCategory[]
   posItems                      PosItem[]
+  posItemIngredients            PosItemIngredient[]
   posOrders                     PosOrder[]
   ratePlans                     RatePlan[]
   ratePlanCodes                 RatePlanCode[]
@@ -1775,6 +1776,11 @@ model PosItem {
   taxRate     Decimal @default(0) @map("tax_rate") @db.Decimal(5, 4)
   unit        String  @default("piece")
 
+  // DEPRECATED — superseded by PosItemIngredient, which allows more than one
+  // ingredient per menu item. Backfilled into pos_item_ingredients and no
+  // longer read or written. Kept until the phase-2 drop so that the running
+  // API survives `migrate deploy` before its restart. See
+  // packages/db/prisma/manual/2026xxxx_drop_pos_item_legacy_inventory_columns.sql
   inventoryItemId  String?  @map("inventory_item_id") @db.Uuid
   inventoryQtyUsed Decimal? @map("inventory_qty_used") @db.Decimal(10, 3)
 
@@ -1790,16 +1796,41 @@ model PosItem {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  hotel         Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  category      PosCategory    @relation(fields: [categoryId], references: [id])
-  inventoryItem InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+  hotel         Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  category      PosCategory         @relation(fields: [categoryId], references: [id])
+  inventoryItem InventoryItem?      @relation(fields: [inventoryItemId], references: [id])
   orderItems    PosOrderItem[]
+  ingredients   PosItemIngredient[]
 
   @@index([hotelId])
   @@index([hotelId, categoryId])
   @@index([hotelId, isAvailable])
   @@index([inventoryItemId])
   @@map("pos_items")
+}
+
+/// One ingredient line of a menu item's recipe: "Biryani consumes 0.25 kg of
+/// Chicken". A menu item has zero or more of these; zero means it is not
+/// stock-tracked and sells freely.
+model PosItemIngredient {
+  id              String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hotelId         String  @map("hotel_id") @db.Uuid
+  posItemId       String  @map("pos_item_id") @db.Uuid
+  inventoryItemId String  @map("inventory_item_id") @db.Uuid
+  qtyUsed         Decimal @map("qty_used") @db.Decimal(10, 3)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  hotel         Hotel         @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  posItem       PosItem       @relation(fields: [posItemId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  @@unique([posItemId, inventoryItemId])
+  @@index([hotelId])
+  @@index([posItemId])
+  @@index([inventoryItemId])
+  @@map("pos_item_ingredients")
 }
 
 model PosOrder {
@@ -1964,6 +1995,7 @@ model InventoryItem {
   hotel        Hotel                  @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   transactions InventoryTransaction[]
   posItems     PosItem[]
+  recipeLines  PosItemIngredient[]
 
   @@index([hotelId])
   @@index([hotelId, category])

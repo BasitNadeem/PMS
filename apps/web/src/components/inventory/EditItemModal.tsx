@@ -69,12 +69,16 @@ export function EditItemModal({ item, onClose, onSuccess }: EditItemModalProps) 
     if (!category)    { setError("Category is required."); return; }
     if (!unit)        { setError("Unit is required."); return; }
 
+    const parValue     = parseFloat(parLevel)     || 0;
+    const reorderValue = parseFloat(reorderLevel) || 0;
+    if (reorderValue > parValue) { setError("Reorder level cannot be higher than par level."); return; }
+
     const dto: UpdateInventoryItemDto = {
       name:         name.trim(),
       category,
       unit,
-      parLevel:     parseFloat(parLevel)     || 0,
-      reorderLevel: parseFloat(reorderLevel) || 0,
+      parLevel:     parValue,
+      reorderLevel: reorderValue,
       costPerUnit:  parseFloat(costPerUnit)  || 0,
       supplier:     supplier.trim() || undefined,
       sku:          sku.trim() || undefined,

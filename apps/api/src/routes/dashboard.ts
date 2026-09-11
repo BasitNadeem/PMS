@@ -72,9 +72,9 @@ router.get("/", async (req, res) => {
       scheduleDeparturesRaw,
       scheduleHousekeepingRaw,
     ] = await Promise.all([
-      db.room.count(),
-      db.room.count({ where: { status: "OCCUPIED" } }),
-      db.room.count({ where: { status: "VACANT_CLEAN" } }),
+      db.room.count({ where: { isActive: true } }),
+      db.room.count({ where: { isActive: true, status: "OCCUPIED" } }),
+      db.room.count({ where: { isActive: true, status: "VACANT_CLEAN" } }),
       db.reservation.count({
         where: {
           checkInDate: dayDate,

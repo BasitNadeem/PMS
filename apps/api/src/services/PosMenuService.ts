@@ -7,9 +7,37 @@ import type {
   UpdateCategoryDto,
   CreateItemDto,
   UpdateItemDto,
+  RecipeIngredientDto,
 } from "../schemas/pos";
 
 type WithTenantFn = <T>(fn: (db: TenantTx) => Promise<T>) => Promise<T>;
+
+// A foreign key to inventory_items proves the row exists, not that it belongs
+// to this hotel — Postgres checks FKs with RLS bypassed. Without this, a
+// crafted request could point a recipe at another tenant's stock.
+async function assertIngredientsBelongToHotel(
+  db: TenantTx,
+  hotelId: string,
+  lines: RecipeIngredientDto[],
+): Promise<void> {
+  if (lines.length === 0) return;
+  const ids = [...new Set(lines.map((line) => line.inventoryItemId))];
+  const found = await db.inventoryItem.findMany({
+    where:  { id: { in: ids }, hotelId },
+    select: { id: true },
+  });
+  if (found.length !== ids.length) {
+    throw new AppError(400, "One or more ingredients are not inventory items of this hotel");
+  }
+}
+
+function ingredientRows(hotelId: string, lines: RecipeIngredientDto[]) {
+  return lines.map((line) => ({
+    hotelId,
+    inventoryItemId: line.inventoryItemId,
+    qtyUsed:         line.qtyUsed,
+  }));
+}
 
 export const PosMenuService = {
   // includeInactive=true also returns categories hidden from the POS terminal
@@ -23,8 +51,12 @@ export const PosMenuService = {
           items: {
             where:   includeInactive ? {} : { isAvailable: true },
             include: {
-              inventoryItem: {
-                select: { name: true, unit: true, currentStock: true, isActive: true },
+              ingredients: {
+                include: {
+                  inventoryItem: {
+                    select: { name: true, unit: true, currentStock: true, isActive: true },
+                  },
+                },
               },
             },
             orderBy: { sortOrder: "asc" },
@@ -35,12 +67,19 @@ export const PosMenuService = {
 
       return categories.map((category) => ({
         ...category,
-        items: category.items.map(({ inventoryItem, ...item }) => ({
+        // inventoryItemId / inventoryQtyUsed are dropped here on purpose: the
+        // columns survive until the phase-2 migration, but they hold stale
+        // pre-backfill values and nothing should read them again.
+        items: category.items.map(({ inventoryItemId, inventoryQtyUsed, ingredients, ...item }) => ({
           ...item,
-          inventoryItemName: inventoryItem?.name ?? null,
-          inventoryUnit: inventoryItem?.unit ?? null,
-          inventoryCurrentStock: inventoryItem ? Number(inventoryItem.currentStock) : null,
-          inventoryIsActive: inventoryItem?.isActive ?? null,
+          ingredients: ingredients.map((line) => ({
+            inventoryItemId: line.inventoryItemId,
+            name:            line.inventoryItem.name,
+            unit:            line.inventoryItem.unit,
+            qtyUsed:         Number(line.qtyUsed),
+            currentStock:    Number(line.inventoryItem.currentStock),
+            isActive:        line.inventoryItem.isActive,
+          })),
         })),
       }));
     });
@@ -149,6 +188,8 @@ export const PosMenuService = {
       const category = await db.posCategory.findUnique({ where: { id: categoryId } });
       if (!category) throw new AppError(404, "Category not found");
 
+      await assertIngredientsBelongToHotel(db, actor.hotelId, dto.ingredients);
+
       const item = await db.posItem.create({
         data: {
           hotelId:          actor.hotelId,
@@ -158,8 +199,7 @@ export const PosMenuService = {
           price:            dto.price,
           isAvailable:      dto.isAvailable,
           sortOrder:        dto.sortOrder,
-          inventoryItemId:  dto.inventoryItemId ?? null,
-          inventoryQtyUsed: dto.inventoryQtyUsed ?? null,
+          ingredients:      { create: ingredientRows(actor.hotelId, dto.ingredients) },
           photoUrl:         dto.photoUrl ?? null,
           isQrVisible:      dto.isQrVisible,
           isFeatured:       dto.isFeatured,
@@ -193,6 +233,8 @@ export const PosMenuService = {
       const existing = await db.posItem.findUnique({ where: { id } });
       if (!existing) throw new AppError(404, "Menu item not found");
 
+      if (dto.ingredients) await assertIngredientsBelongToHotel(db, actor.hotelId, dto.ingredients);
+
       const updated = await db.posItem.update({
         where: { id },
         data: {
@@ -201,8 +243,14 @@ export const PosMenuService = {
           ...(dto.price            !== undefined && { price:            dto.price }),
           ...(dto.isAvailable      !== undefined && { isAvailable:      dto.isAvailable }),
           ...(dto.sortOrder        !== undefined && { sortOrder:        dto.sortOrder }),
-          ...(dto.inventoryItemId  !== undefined && { inventoryItemId:  dto.inventoryItemId }),
-          ...(dto.inventoryQtyUsed !== undefined && { inventoryQtyUsed: dto.inventoryQtyUsed }),
+          // Sending `ingredients` replaces the recipe wholesale; omitting it
+          // leaves the existing lines untouched.
+          ...(dto.ingredients !== undefined && {
+            ingredients: {
+              deleteMany: {},
+              create:     ingredientRows(actor.hotelId, dto.ingredients),
+            },
+          }),
           ...(dto.photoUrl         !== undefined && { photoUrl:         dto.photoUrl }),
           ...(dto.isQrVisible      !== undefined && { isQrVisible:      dto.isQrVisible }),
           ...(dto.isFeatured       !== undefined && { isFeatured:       dto.isFeatured }),

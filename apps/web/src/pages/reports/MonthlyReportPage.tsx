@@ -151,7 +151,7 @@ function RoomTypeTable({ rows }: { rows: OccupancyByRoomType[] }) {
           <th className={thRightCls}>Rooms</th>
           <th className={thRightCls}>Occupied Nights</th>
           <th className={thRightCls}>Occupancy %</th>
-          <th className={thRightCls}>Revenue</th>
+          <th className={thRightCls}>Expected Room Revenue</th>
         </tr>
       </thead>
       <tbody>
@@ -543,7 +543,7 @@ export default function MonthlyReportPage() {
                 sub={`Margin: ${report.summary.profitMargin}%`}
               />
               <KpiCard icon={Wallet} toneName="coral" label="Total Revenue" value={formatPKR(report.summary.totalRevenue)} />
-              <KpiCard icon={BedDouble} toneName="slate" label="Avg Occupancy" value={`${report.summary.averageOccupancy}%`} sub={`ADR: ${formatPKR(report.summary.adr)}`} />
+              <KpiCard icon={BedDouble} toneName="slate" label="Avg Occupancy" value={`${report.summary.averageOccupancy}%`} sub={`ADR: ${formatPKR(report.summary.adr)} · sellable room-nights`} />
               <KpiCard icon={Users} toneName="amber" label="Total Guests" value={String(report.summary.totalGuests)} sub={`${report.summary.totalReservations} reservations`} />
             </div>
           </div>
@@ -630,7 +630,7 @@ export default function MonthlyReportPage() {
           {/* Occupancy by Room Type */}
           <Card className="print-section" pad={false}>
             <div className="p-5 pb-0">
-              <SectionHeading title="Occupancy by Room Type" />
+              <SectionHeading title="Occupancy by Room Type" sub="Sellable room-nights and contracted room rates" />
             </div>
             <div className="overflow-x-auto px-5 pb-5">
               <RoomTypeTable rows={report.occupancyByRoomType} />

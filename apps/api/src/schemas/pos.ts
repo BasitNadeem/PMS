@@ -29,6 +29,24 @@ export type UpdateCategoryDto = z.infer<typeof updateCategorySchema>;
 
 // ── Items ─────────────────────────────────────────────────────────────────────
 
+// One line of a menu item's recipe. A menu item carries zero or more; zero
+// means it is not stock-tracked. Sending `ingredients` replaces the whole set.
+export const recipeIngredientSchema = z.object({
+  inventoryItemId: z.string().uuid(),
+  qtyUsed:         z.coerce.number().positive("Quantity used must be greater than zero"),
+});
+export type RecipeIngredientDto = z.infer<typeof recipeIngredientSchema>;
+
+// Mirrors the @@unique([posItemId, inventoryItemId]) constraint so a repeated
+// ingredient comes back as a 400 rather than a Prisma P2002.
+const ingredientList = z
+  .array(recipeIngredientSchema)
+  .max(50, "A recipe cannot have more than 50 ingredients")
+  .refine(
+    (lines) => new Set(lines.map((l) => l.inventoryItemId)).size === lines.length,
+    { message: "Each inventory item can only appear once in a recipe" },
+  );
+
 export const createItemSchema = z.object({
   name:             z.string().trim().min(1, "Name is required"),
   description:      z.string().trim().optional(),
@@ -36,8 +54,7 @@ export const createItemSchema = z.object({
   categoryId:       z.string().uuid(),
   isAvailable:      z.boolean().default(true),
   sortOrder:        z.number().int().min(0).default(0),
-  inventoryItemId:  z.string().uuid().nullable().optional(),
-  inventoryQtyUsed: z.coerce.number().min(0).nullable().optional(),
+  ingredients:      ingredientList.default([]),
   photoUrl:         z.string().url("Must be a valid URL").nullable().optional(),
   isQrVisible:      z.boolean().default(true),
   isFeatured:       z.boolean().default(false),
@@ -51,8 +68,7 @@ export const updateItemSchema = z.object({
   price:             z.number().int().positive().optional(),
   isAvailable:       z.boolean().optional(),
   sortOrder:         z.number().int().min(0).optional(),
-  inventoryItemId:   z.string().uuid().nullable().optional(),
-  inventoryQtyUsed:  z.coerce.number().min(0).nullable().optional(),
+  ingredients:       ingredientList.optional(),
   photoUrl:          z.string().url("Must be a valid URL").nullable().optional(),
   isQrVisible:       z.boolean().optional(),
   isFeatured:        z.boolean().optional(),

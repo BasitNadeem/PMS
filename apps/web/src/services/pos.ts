@@ -3,6 +3,16 @@ import type { PaginationMeta } from "./rooms";
 
 export type OrderStatus = "OPEN" | "POSTED_TO_FOLIO" | "PAID" | "CANCELLED";
 
+/** One line of a menu item's recipe, joined with live stock for the till. */
+export interface PosItemIngredient {
+  inventoryItemId: string;
+  name: string;
+  unit: string;
+  qtyUsed: number;
+  currentStock: number;
+  isActive: boolean;
+}
+
 export interface PosItem {
   id: string;
   name: string;
@@ -12,12 +22,7 @@ export interface PosItem {
   isAvailable: boolean;
   categoryId: string;
   sortOrder: number;
-  inventoryItemId:  string | null;
-  inventoryQtyUsed: number | null;
-  inventoryItemName: string | null;
-  inventoryUnit: string | null;
-  inventoryCurrentStock: number | null;
-  inventoryIsActive: boolean | null;
+  ingredients: PosItemIngredient[];
   photoUrl: string | null;
   // QR guest-menu visibility — independent of isAvailable (POS terminal).
   isQrVisible: boolean;
@@ -101,11 +106,15 @@ export interface CreateItemDto {
   categoryId: string;
   isAvailable?: boolean;
   sortOrder?: number;
-  inventoryItemId?: string | null;
-  inventoryQtyUsed?: number | null;
+  ingredients?: RecipeLineDto[];
   photoUrl?: string | null;
   isQrVisible?: boolean;
   isFeatured?: boolean;
+}
+
+export interface RecipeLineDto {
+  inventoryItemId: string;
+  qtyUsed: number;
 }
 
 export interface UpdateItemDto {
@@ -115,8 +124,7 @@ export interface UpdateItemDto {
   taxRate?: number;
   isAvailable?: boolean;
   sortOrder?: number;
-  inventoryItemId?: string | null;
-  inventoryQtyUsed?: number | null;
+  ingredients?: RecipeLineDto[];
   photoUrl?: string | null;
   isQrVisible?: boolean;
   isFeatured?: boolean;

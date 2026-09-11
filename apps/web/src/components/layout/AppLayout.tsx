@@ -78,27 +78,12 @@ interface Hotel {
   name: string;
   slug: string;
   propertyType: string;
-  logoUrl?: string;
-  settings?: { themeKey?: string; logoUrl?: string };
+  settings?: { themeKey?: string };
 }
 
 function formatPropertyType(type?: string): string {
   if (!type) return "Property";
   return type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function PropertyLogo({ hotel, size = 38 }: { hotel?: Hotel | null; size?: number }) {
-  if (hotel?.logoUrl) {
-    return (
-      <img
-        src={hotel.logoUrl}
-        alt={hotel.name}
-        className="rounded-2xl object-cover shrink-0"
-        style={{ width: size, height: size }}
-      />
-    );
-  }
-  return <Logo size={size} />;
 }
 
 interface NavSubItem {
@@ -384,12 +369,7 @@ function SidebarContent({
   const canUsePortfolio = userRole === "OWNER" || userRole === "MANAGER";
   const { data: hotel } = useQuery<Hotel>({
     queryKey: ["hotel"],
-    queryFn: () => api.get("/api/hotels/me").then((r) => {
-      const data = r.data.data as Hotel;
-      // Branding is stored inside settings; expose it to the shared property
-      // tile without changing the hotels/me response contract.
-      return { ...data, logoUrl: data.logoUrl ?? data.settings?.logoUrl };
-    }),
+    queryFn: () => api.get("/api/hotels/me").then((r) => r.data.data as Hotel),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -557,10 +537,10 @@ function SidebarContent({
           <div className="flex justify-center pb-2">
             {hasMultipleProperties ? (
               <button ref={propertyButtonRef} type="button" onClick={openPropertyMenu} title="Switch property" className="rounded-xl p-1 hover:bg-line-soft">
-                <PropertyLogo hotel={hotel} size={34} />
+                <Logo size={34} />
               </button>
             ) : (
-              <PropertyLogo hotel={hotel} size={34} />
+              <Logo size={34} />
             )}
           </div>
         </>
@@ -578,7 +558,7 @@ function SidebarContent({
                   hasMultipleProperties ? "cursor-pointer" : "cursor-default",
                 )}
               >
-                <PropertyLogo hotel={hotel} />
+                <Logo />
                 <div className="min-w-0 flex-1 leading-tight">
                   <div className="serif text-[18px] text-ink truncate">{hotel?.name ?? "Loading…"}</div>
                   <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-mute">
@@ -591,7 +571,7 @@ function SidebarContent({
               </button>
             ) : (
               <div className="sidebar-property flex items-center gap-3 rounded-2xl px-2.5 py-2">
-                <PropertyLogo hotel={hotel} />
+                <Logo />
                 <div className="min-w-0 flex-1 leading-tight">
                   <div className="serif text-[18px] text-ink truncate">{hotel?.name ?? "Loading…"}</div>
                   <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-mute">
@@ -1159,7 +1139,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         {/* Mobile topbar */}
         <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between gap-3 bg-mist/90 backdrop-blur border-b border-line px-4 h-14">
           <div className="flex items-center gap-2.5">
-            <PropertyLogo hotel={hotel} size={32} />
+            <Logo size={32} />
             <span className="serif text-[17px] whitespace-nowrap truncate max-w-[160px]">{hotel?.name ?? ""}</span>
           </div>
           <div className="flex items-center gap-2">

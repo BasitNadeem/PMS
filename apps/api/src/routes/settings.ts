@@ -6,8 +6,8 @@ import { SettingsService } from "../services/SettingsService";
 import { PermissionsService } from "../services/PermissionsService";
 import { AppError } from "../utils/AppError";
 import { collectBriefingData } from "../jobs/collectBriefingData";
-import { formatBriefingMessage } from "../jobs/formatBriefingMessage";
-import { sendWhatsappMessage } from "../jobs/sendWhatsappMessage";
+import { formatBriefingMessage, buildBriefingTemplateParams } from "../jobs/formatBriefingMessage";
+import { sendBriefingTemplate } from "../jobs/sendWhatsappMessage";
 import { scheduleHotelBriefing } from "../jobs/briefingScheduler";
 import { getEffectiveLimits, checkFeatureAccess } from "../lib/subscription";
 import { adminPrisma } from "@pms/db";
@@ -80,7 +80,8 @@ router.post("/test-briefing", async (req, res) => {
 
   const briefingData = await collectBriefingData(req.user!.hotelId);
   const message      = formatBriefingMessage(briefingData);
-  const result       = await sendWhatsappMessage(number, message);
+  const params       = buildBriefingTemplateParams(briefingData);
+  const result       = await sendBriefingTemplate(number, params, message);
 
   if (!result.success) {
     throw new AppError(500, result.error ?? "Failed to send briefing");
@@ -89,7 +90,7 @@ router.post("/test-briefing", async (req, res) => {
   res.json({
     data: {
       success:   true,
-      stubMode:  result.messageId?.startsWith("stub_") ?? false,
+      stubMode:  result.stubbed ?? false,
       messageId: result.messageId,
       sentTo:    number,
     },

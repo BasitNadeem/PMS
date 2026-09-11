@@ -43,7 +43,7 @@ housekeeping_tasks maintenance_tickets \
 inventory_items inventory_transactions \
 conversations messages \
 rate_plans rate_plan_items rate_plan_codes channel_configs \
-staff shift_reports tax_configs \
+staff shift_reports attendance_records leave_records tax_configs \
 audit_logs notifications \
 custom_field_definitions custom_field_values \
 night_audit_records early_bird_report_archives booking_pace_snapshots"

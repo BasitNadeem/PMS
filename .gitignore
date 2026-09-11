@@ -34,3 +34,9 @@ packages/ui/.ds-styles.css
 # Local agent tooling — not needed for the deployed app
 graphify-out/
 .codex/
+
+# WhatsApp template setup notes are kept locally with the briefing work
+/apps/api/WHATSAPP_BRIEFING.md
+
+# Channex remediation notes stay with the dedicated integration worktree
+/CHANNEX_REMEDIATION.md

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { Component, lazy, Suspense, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { getCurrentUserRole } from "./lib/jwt";
@@ -155,6 +155,48 @@ function RouteFallback() {
       Loading…
     </div>
   );
+}
+
+interface BackOfficeErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface BackOfficeErrorBoundaryState {
+  hasError: boolean;
+}
+
+class BackOfficeErrorBoundary extends Component<BackOfficeErrorBoundaryProps, BackOfficeErrorBoundaryState> {
+  state: BackOfficeErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): BackOfficeErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error("Back Office render error", error, info.componentStack);
+  }
+
+  render() {
+    if (!this.state.hasError) return this.props.children;
+
+    return (
+      <main className="grid min-h-screen place-items-center bg-mist px-5 text-center">
+        <div className="max-w-[430px]">
+          <img src="/brand/mark-clay-tight.svg" alt="" aria-hidden="true" className="mx-auto h-14 w-14" />
+          <div className="mt-6 text-[11px] font-bold uppercase tracking-[0.18em] text-coral">Innflo back office</div>
+          <h1 className="serif mt-3 text-[38px] leading-none text-ink">This workspace needs a reload.</h1>
+          <p className="mt-4 text-[14px] leading-6 text-ink-mute">The Back Office could not render this view. Your session is still safe.</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-7 inline-flex h-11 items-center rounded-full bg-coral px-5 text-[13px] font-bold text-white shadow-pop hover:bg-coral-dark"
+          >
+            Reload Back Office
+          </button>
+        </div>
+      </main>
+    );
+  }
 }
 
 // PMS mode: app.innflo.co, localhost, or 127.0.0.1 (see lib/hostname.ts).
@@ -788,9 +830,11 @@ function BackOfficeAccessDenied() {
 
 function BackOfficeScreen({ children }: { children: React.ReactNode }) {
   return (
-    <BackOfficePrivateRoute>
-      <BackOfficeLayout>{children}</BackOfficeLayout>
-    </BackOfficePrivateRoute>
+    <BackOfficeErrorBoundary>
+      <BackOfficePrivateRoute>
+        <BackOfficeLayout>{children}</BackOfficeLayout>
+      </BackOfficePrivateRoute>
+    </BackOfficeErrorBoundary>
   );
 }
 

@@ -104,7 +104,8 @@ function getAttentionItems(
   if (!dashboard) return [];
 
   const items: AttentionItem[] = [];
-  for (const reminder of dashboard.operationalReminders.slice(0, 2)) {
+  const reminders = Array.isArray(dashboard.operationalReminders) ? dashboard.operationalReminders : [];
+  for (const reminder of reminders.slice(0, 2)) {
     const isShift = reminder.kind === "SHIFT_HANDOVER";
     items.push({
       label: isShift
@@ -116,7 +117,7 @@ function getAttentionItems(
       tone: reminder.status === "OVERDUE" ? "coral" : "amber",
     });
   }
-  if (dashboard.maintenance.urgent > 0) {
+  if ((dashboard.maintenance?.urgent ?? 0) > 0) {
     items.push({
       label: `${dashboard.maintenance.urgent} urgent maintenance ${dashboard.maintenance.urgent === 1 ? "issue" : "issues"}`,
       detail: "Needs a decision before it affects a guest or room.",
@@ -125,7 +126,7 @@ function getAttentionItems(
       tone: "coral",
     });
   }
-  if (dashboard.maintenance.overdue > 0) {
+  if ((dashboard.maintenance?.overdue ?? 0) > 0) {
     items.push({
       label: `${dashboard.maintenance.overdue} overdue maintenance ${dashboard.maintenance.overdue === 1 ? "ticket" : "tickets"}`,
       detail: "Open tickets have been waiting longer than expected.",
@@ -134,7 +135,7 @@ function getAttentionItems(
       tone: "amber",
     });
   }
-  if (dashboard.housekeeping.checkoutCleansPending > 0) {
+  if ((dashboard.housekeeping?.checkoutCleansPending ?? 0) > 0) {
     items.push({
       label: `${dashboard.housekeeping.checkoutCleansPending} checkout ${dashboard.housekeeping.checkoutCleansPending === 1 ? "room" : "rooms"} to clean`,
       detail: "Housekeeping needs to release these rooms for arrivals.",
@@ -143,7 +144,7 @@ function getAttentionItems(
       tone: "amber",
     });
   }
-  if (dashboard.inventory.lowStockCount > 0) {
+  if ((dashboard.inventory?.lowStockCount ?? 0) > 0) {
     items.push({
       label: `${dashboard.inventory.lowStockCount} low-stock ${dashboard.inventory.lowStockCount === 1 ? "item" : "items"}`,
       detail: "Review reorder levels before the next busy period.",
@@ -152,7 +153,7 @@ function getAttentionItems(
       tone: "amber",
     });
   }
-  if (dashboard.departuresToCollect.total > 0) {
+  if ((dashboard.departuresToCollect?.total ?? 0) > 0) {
     items.push({
       label: `${formatPkr(dashboard.departuresToCollect.total)} to collect on departures`,
       detail: "Outstanding balances are attached to today’s departing stays.",
@@ -243,15 +244,15 @@ export default function BackOfficeOverviewPage() {
   });
 
   const dashboard = dashboardQuery.data;
-  const staff = staffQuery.data ?? [];
+  const staff = Array.isArray(staffQuery.data) ? staffQuery.data : [];
   const activeStaff = staff.filter((member) => member.isActive && member.role !== "OWNER");
-  const attendance = attendanceQuery.data?.data ?? [];
-  const openNotes = (notesQuery.data ?? []).filter((note) => !note.isCompleted);
+  const attendance = Array.isArray(attendanceQuery.data?.data) ? attendanceQuery.data.data : [];
+  const openNotes = (Array.isArray(notesQuery.data) ? notesQuery.data : []).filter((note) => !note.isCompleted);
   const signedInIds = new Set(attendance.filter((record) => record.source === "APP_LOGIN").map((record) => record.userId));
   const notSeenStaff = activeStaff.filter((member) => !signedInIds.has(member.userId));
   const attentionItems = getAttentionItems(dashboard, openNotes);
-  const nextArrivals = dashboard?.upcomingReservations.slice(0, 4) ?? [];
-  const upcomingLeaveDays = upcomingLeaveQuery.data?.data ?? [];
+  const nextArrivals = Array.isArray(dashboard?.upcomingReservations) ? dashboard.upcomingReservations.slice(0, 4) : [];
+  const upcomingLeaveDays = Array.isArray(upcomingLeaveQuery.data?.data) ? upcomingLeaveQuery.data.data : [];
 
   return (
     <div className="space-y-7">
@@ -267,9 +268,9 @@ export default function BackOfficeOverviewPage() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
-            <BriefMetric label="Occupancy" value={dashboard ? `${Math.round(dashboard.occupancy.occupancyRate)}%` : "—"} detail={dashboard ? `${dashboard.occupancy.occupiedRooms}/${dashboard.occupancy.totalRooms} rooms` : "Loading"} icon={BedDouble} />
-            <BriefMetric label="Arrivals" value={dashboard ? String(dashboard.today.arrivalsToday) : "—"} detail="today" icon={CalendarClock} />
-            <BriefMetric label="Departures" value={dashboard ? String(dashboard.today.departuresToday) : "—"} detail="today" icon={ArrowUpRight} />
+            <BriefMetric label="Occupancy" value={dashboard?.occupancy ? `${Math.round(dashboard.occupancy.occupancyRate)}%` : "—"} detail={dashboard?.occupancy ? `${dashboard.occupancy.occupiedRooms}/${dashboard.occupancy.totalRooms} rooms` : "Loading"} icon={BedDouble} />
+            <BriefMetric label="Arrivals" value={dashboard?.today ? String(dashboard.today.arrivalsToday) : "—"} detail="today" icon={CalendarClock} />
+            <BriefMetric label="Departures" value={dashboard?.today ? String(dashboard.today.departuresToday) : "—"} detail="today" icon={ArrowUpRight} />
             <BriefMetric label="People in" value={`${attendance.filter((record) => record.status === "PRESENT" || record.status === "HALF_DAY").length}/${activeStaff.length}`} detail="on attendance sheet" icon={Users} />
           </div>
         </div>
@@ -301,9 +302,14 @@ export default function BackOfficeOverviewPage() {
               <span className="rounded-full bg-pine-soft px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-pine">{signedInIds.size} app sign-ins</span>
             </div>
             <div className="divide-y divide-line-soft">
-              {notSeenStaff.length > 0 ? notSeenStaff.slice(0, 4).map((member: StaffUser) => (
-                <div key={member.userId} className="flex items-center gap-3 px-5 py-3.5"><span className="grid h-8 w-8 place-items-center rounded-full bg-amber-soft text-[11px] font-bold text-amber">{member.user.name.slice(0, 1).toUpperCase()}</span><div className="min-w-0 flex-1"><div className="truncate text-[13px] font-semibold text-ink">{member.user.name}</div><div className="text-[11px] text-ink-mute">{member.assignedRole.displayName}</div></div><span className="text-[11px] font-semibold text-amber">Not seen yet</span></div>
-              )) : (
+              {notSeenStaff.length > 0 ? (
+                notSeenStaff.slice(0, 4).map((member: StaffUser) => {
+                  const name = member.user?.name?.trim() || "Unnamed staff member";
+                  return (
+                    <div key={member.userId} className="flex items-center gap-3 px-5 py-3.5"><span className="grid h-8 w-8 place-items-center rounded-full bg-amber-soft text-[11px] font-bold text-amber">{name.slice(0, 1).toUpperCase()}</span><div className="min-w-0 flex-1"><div className="truncate text-[13px] font-semibold text-ink">{name}</div><div className="text-[11px] text-ink-mute">{member.assignedRole?.displayName ?? member.role}</div></div><span className="text-[11px] font-semibold text-amber">Not seen yet</span></div>
+                  );
+                })
+              ) : (
                 <div className="flex items-center gap-3 px-5 py-6 text-[13px] text-ink-mute"><ShieldCheck size={18} className="text-pine" /> Everyone with a staff account has been seen or manually marked today.</div>
               )}
               {notSeenStaff.length > 4 && <Link to="/attendance" className="block px-5 py-3 text-[12px] font-bold text-coral hover:bg-mist">View {notSeenStaff.length - 4} more staff follow-ups</Link>}
@@ -315,9 +321,9 @@ export default function BackOfficeOverviewPage() {
         <section>
           <SectionHeading eyebrow="Cash & control" title="Today in numbers" action={<Link to="/finance" className="inline-flex items-center gap-1 text-[12px] font-bold text-coral hover:text-coral-dark">Open finance <ChevronRight size={14} /></Link>} />
           <Card className="space-y-4">
-            <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink-mute"><CircleDollarSign size={16} className="text-coral" /> Revenue today</span><span className="text-[16px] font-bold text-ink">{dashboard ? formatPkr(dashboard.revenue.revenueToday) : "—"}</span></div>
-            <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink-mute"><Receipt size={16} className="text-pine" /> Payments received</span><span className="text-[16px] font-bold text-ink">{dashboard ? formatPkr(dashboard.revenue.paymentsToday) : "—"}</span></div>
-            <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink-mute"><XCircle size={16} className="text-amber" /> Outstanding guest balance</span><span className="text-[16px] font-bold text-ink">{dashboard ? formatPkr(dashboard.revenue.outstandingBalance) : "—"}</span></div>
+            <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink-mute"><CircleDollarSign size={16} className="text-coral" /> Revenue today</span><span className="text-[16px] font-bold text-ink">{dashboard?.revenue ? formatPkr(dashboard.revenue.revenueToday) : "—"}</span></div>
+            <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink-mute"><Receipt size={16} className="text-pine" /> Payments received</span><span className="text-[16px] font-bold text-ink">{dashboard?.revenue ? formatPkr(dashboard.revenue.paymentsToday) : "—"}</span></div>
+            <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink-mute"><XCircle size={16} className="text-amber" /> Outstanding guest balance</span><span className="text-[16px] font-bold text-ink">{dashboard?.revenue ? formatPkr(dashboard.revenue.outstandingBalance) : "—"}</span></div>
             <div className="border-t border-line-soft pt-4"><div className="flex items-center justify-between"><span className="text-[12px] font-semibold text-ink-mute">Expenses this month</span><span className="text-[16px] font-bold text-ink">{formatPkr(expenseQuery.data?.totalAmount ?? 0)}</span></div><div className="mt-1 text-[11px] text-ink-faint">From the existing expense register</div></div>
           </Card>
         </section>
@@ -334,7 +340,7 @@ export default function BackOfficeOverviewPage() {
         <section>
           <SectionHeading eyebrow="Handover" title="Open notes" action={<ExternalPmsLink href={dailyPmsUrl("/dashboard")}>Review in PMS</ExternalPmsLink>} />
           <Card pad={false}>
-            {openNotes.length === 0 ? <div className="flex items-center gap-3 px-5 py-8 text-[13px] text-ink-mute"><CheckCircle2 size={18} className="text-pine" /> No unresolved front desk notes.</div> : <div className="divide-y divide-line-soft">{openNotes.slice(0, 4).map((note) => <a key={note.id} href={dailyPmsUrl("/dashboard")} target="_blank" rel="noreferrer" className="group flex items-start gap-3 px-5 py-3.5 hover:bg-mist"><span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-amber-soft text-amber"><FileText size={15} /></span><div className="min-w-0 flex-1"><div className="text-[13px] leading-5 text-ink">{note.text}</div><div className="mt-1 flex items-center gap-2 text-[11px] text-ink-mute"><span>{note.createdBy.name}</span><span>·</span><span>{timeLabel(note.createdAt)}</span></div></div><ChevronRight size={15} className="mt-1 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-coral" /></a>)}</div>}
+            {openNotes.length === 0 ? <div className="flex items-center gap-3 px-5 py-8 text-[13px] text-ink-mute"><CheckCircle2 size={18} className="text-pine" /> No unresolved front desk notes.</div> : <div className="divide-y divide-line-soft">{openNotes.slice(0, 4).map((note) => <a key={note.id} href={dailyPmsUrl("/dashboard")} target="_blank" rel="noreferrer" className="group flex items-start gap-3 px-5 py-3.5 hover:bg-mist"><span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-amber-soft text-amber"><FileText size={15} /></span><div className="min-w-0 flex-1"><div className="text-[13px] leading-5 text-ink">{note.text}</div><div className="mt-1 flex items-center gap-2 text-[11px] text-ink-mute"><span>{note.createdBy?.name ?? "Unknown staff"}</span><span>·</span><span>{timeLabel(note.createdAt)}</span></div></div><ChevronRight size={15} className="mt-1 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-coral" /></a>)}</div>}
           </Card>
         </section>
       </div>

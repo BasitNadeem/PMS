@@ -7,7 +7,7 @@ import { PermissionsService } from "../services/PermissionsService";
 import { AppError } from "../utils/AppError";
 import { collectBriefingData } from "../jobs/collectBriefingData";
 import { formatBriefingMessage, buildBriefingTemplateParams } from "../jobs/formatBriefingMessage";
-import { sendBriefingTemplate } from "../jobs/sendWhatsappMessage";
+import { sendBriefingTemplate, whatsappDeliveryMode } from "../jobs/sendWhatsappMessage";
 import { scheduleHotelBriefing } from "../jobs/briefingScheduler";
 import { getEffectiveLimits, checkFeatureAccess } from "../lib/subscription";
 import { adminPrisma } from "@pms/db";
@@ -47,6 +47,21 @@ router.patch("/", async (req, res) => {
     req.user!.role,
   );
   res.json({ data: updated });
+});
+
+// GET /api/settings/briefing-status
+// Whether a nightly briefing would actually reach this hotel's owner: the plan
+// entitlement, plus whether this server holds live Meta credentials. The
+// Settings UI reads both rather than hardcoding an answer that goes stale the
+// moment credentials land on the server.
+router.get("/briefing-status", async (req, res) => {
+  const { features } = await getEffectiveLimits(req.user!.hotelId);
+  res.json({
+    data: {
+      featureEnabled: features.whatsappBriefing,
+      deliveryMode:   whatsappDeliveryMode(),
+    },
+  });
 });
 
 // POST /api/settings/schedule-briefing

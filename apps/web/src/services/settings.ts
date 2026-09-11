@@ -77,6 +77,13 @@ export interface UpdateSettingsDto {
   bookingPaymentTerms?: string | null;
 }
 
+export interface BriefingStatus {
+  /** Whether the hotel's plan (and live trial) includes the nightly briefing. */
+  featureEnabled: boolean;
+  /** STUB means the server holds no Meta credentials — briefings are logged, not sent. */
+  deliveryMode:   "LIVE" | "STUB";
+}
+
 export interface TestBriefingResult {
   success:   boolean;
   stubMode:  boolean;
@@ -260,6 +267,10 @@ export const settingsService = {
   },
   updateSettings: async (dto: UpdateSettingsDto): Promise<HotelSettings> => {
     const res = await api.patch("/api/settings", dto);
+    return res.data.data;
+  },
+  getBriefingStatus: async (): Promise<BriefingStatus> => {
+    const res = await api.get("/api/settings/briefing-status");
     return res.data.data;
   },
   scheduleBriefing: async (): Promise<void> => {

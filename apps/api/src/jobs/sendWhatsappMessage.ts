@@ -35,6 +35,21 @@ export function toE164Digits(raw: string): string | null {
 
 const GRAPH_BASE = "https://graph.facebook.com";
 
+export type WhatsappDeliveryMode = "LIVE" | "STUB";
+
+/**
+ * Whether a send would actually leave this process.
+ *
+ * Exported so the Settings UI can tell an owner the truth rather than asserting
+ * stub mode unconditionally — and deliberately the single expression the sender
+ * itself branches on, so the two can never disagree about whether a briefing is
+ * really being delivered.
+ */
+export function whatsappDeliveryMode(): WhatsappDeliveryMode {
+  const credentialsMissing = !env.WHATSAPP_ACCESS_TOKEN || !env.WHATSAPP_PHONE_NUMBER_ID;
+  return env.LOG_WHATSAPP_INSTEAD_OF_SENDING || credentialsMissing ? "STUB" : "LIVE";
+}
+
 interface CloudApiResponse {
   messages?: { id: string; message_status?: string }[];
   error?:    { message?: string; code?: number };
@@ -62,9 +77,8 @@ export async function sendBriefingTemplate(
     return { success: false, error: `Not a valid Pakistani mobile number: ${toNumber}` };
   }
 
-  const credentialsMissing = !env.WHATSAPP_ACCESS_TOKEN || !env.WHATSAPP_PHONE_NUMBER_ID;
-
-  if (env.LOG_WHATSAPP_INSTEAD_OF_SENDING || credentialsMissing) {
+  if (whatsappDeliveryMode() === "STUB") {
+    const credentialsMissing = !env.WHATSAPP_ACCESS_TOKEN || !env.WHATSAPP_PHONE_NUMBER_ID;
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     console.log(`📱 WhatsApp briefing (NOT SENT — ${credentialsMissing ? "no credentials" : "dev logging"})`);
     console.log(`To: +${to}`);

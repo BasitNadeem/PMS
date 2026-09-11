@@ -1,5 +1,6 @@
 import { adminPrisma } from "@pms/db";
 import { briefingQueue, type BriefingJobData } from "./queues";
+import { getEffectiveLimits } from "../lib/subscription";
 
 const BRIEFING_CRON = "0 18 * * *"; // 18:00 UTC = 23:00 PKT
 
@@ -22,6 +23,16 @@ export async function scheduleBriefings(): Promise<void> {
     const settings   = (hotel.settings as Record<string, unknown>) ?? {};
     const hasNumber  = !!(settings.ownerWhatsappNumber);
     if (!hasNumber) continue;
+
+    // A saved number is intent, not entitlement. Briefings cost real Cloud API
+    // conversations, so a hotel whose plan (or expired trial) does not include
+    // the feature must never get a repeatable job. The worker re-checks this,
+    // because this loop only runs at boot and plans change in between.
+    const { features } = await getEffectiveLimits(hotel.id);
+    if (!features.whatsappBriefing) {
+      console.log(`  ⏭️  Skipped ${hotel.name} — WhatsApp briefing not on its plan`);
+      continue;
+    }
 
     const jobData: BriefingJobData = { hotelId: hotel.id, hotelName: hotel.name };
     await briefingQueue.add(

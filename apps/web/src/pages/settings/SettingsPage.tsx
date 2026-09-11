@@ -264,6 +264,18 @@ export default function SettingsPage() {
     staleTime: 60_000,
   });
 
+  // Drives the WhatsApp briefing section. Owner-only, like the section itself.
+  const { data: briefingStatus } = useQuery({
+    queryKey: ["settings", "briefing-status"],
+    queryFn: settingsService.getBriefingStatus,
+    enabled: isOwner,
+    staleTime: 60_000,
+  });
+
+  // The status line must describe what the server will actually do tonight, so
+  // it reads the saved number rather than the input, which changes as you type.
+  const savedWhatsappNumber = String(settings?.settings?.ownerWhatsappNumber ?? "");
+
   // ── Profile form ────────────────────────────────────────────────────────────
   const [profile, setProfile] = useState({
     name: "", propertyType: "HOTEL", starRating: "" as string,
@@ -651,7 +663,11 @@ export default function SettingsPage() {
         occasionOfferLeadDays: leadDays,
         occasionOfferValidityDays: validityDays,
       });
-      if (whatsappNumber) await settingsService.scheduleBriefing();
+      // scheduleBriefing 403s when the plan excludes the feature, which would
+      // surface here as "failed to save" even though the settings did save.
+      if (whatsappNumber && briefingStatus?.featureEnabled) {
+        await settingsService.scheduleBriefing();
+      }
       setNotifSaved(true);
       setTimeout(() => setNotifSaved(false), 2000);
     } catch { addToast("Failed to save notification settings", "error"); }
@@ -1489,20 +1505,40 @@ export default function SettingsPage() {
               </p>
 
               <div className="space-y-4">
-                {/* Status indicator */}
+                {/* Status indicator — four states, because "a number is saved"
+                    is not the same thing as "a message will arrive tonight". */}
                 <div className="flex items-center gap-2.5 py-2">
-                  {whatsappNumber ? (
+                  {!briefingStatus ? (
                     <>
-                      <span className="h-2 w-2 rounded-full bg-pine shrink-0" />
-                      <span className="text-[13px] text-pine-deep font-medium">
-                        Briefings scheduled — next send at 11:00 PM PKT
+                      <span className="h-2 w-2 rounded-full bg-line shrink-0" />
+                      <span className="text-[13px] text-ink-mute">Checking briefing status…</span>
+                    </>
+                  ) : !briefingStatus.featureEnabled ? (
+                    <>
+                      <span className="h-2 w-2 rounded-full bg-amber shrink-0" />
+                      <span className="text-[13px] text-ink-soft font-medium">
+                        Not included in your current plan
                       </span>
                     </>
-                  ) : (
+                  ) : !savedWhatsappNumber ? (
                     <>
                       <span className="h-2 w-2 rounded-full bg-line shrink-0" />
                       <span className="text-[13px] text-ink-mute">
                         Enter your number to enable nightly briefings
+                      </span>
+                    </>
+                  ) : briefingStatus.deliveryMode === "STUB" ? (
+                    <>
+                      <span className="h-2 w-2 rounded-full bg-amber shrink-0" />
+                      <span className="text-[13px] text-ink-soft font-medium">
+                        Number saved — but this server cannot send yet
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="h-2 w-2 rounded-full bg-pine shrink-0" />
+                      <span className="text-[13px] text-pine-deep font-medium">
+                        Briefings scheduled — next send at 11:00 PM PKT
                       </span>
                     </>
                   )}
@@ -1531,7 +1567,7 @@ export default function SettingsPage() {
                   {canUpdateSettings && (
                     <SaveButton saving={notifSaving} saved={notifSaved} onClick={saveNotifications} />
                   )}
-                  {whatsappNumber && (
+                  {whatsappNumber && briefingStatus?.featureEnabled && (
                     <button
                       onClick={sendTestBriefing}
                       disabled={testSending}
@@ -1542,15 +1578,29 @@ export default function SettingsPage() {
                   )}
                 </div>
 
-                {/* Stub mode info card */}
-                <div className="rounded-xl bg-amber-soft border border-amber/20 p-4 flex items-start gap-3 mt-2">
-                  <Info size={16} className="text-amber shrink-0 mt-0.5" />
-                  <p className="text-[13px] text-ink-soft leading-relaxed">
-                    WhatsApp sending is currently in <strong>stub mode</strong>. The briefing will be
-                    logged to the server console instead of sent via WhatsApp. To enable real sending,
-                    add your Meta Cloud API credentials to the server environment variables.
-                  </p>
-                </div>
+                {/* Shown only when something really would stop a briefing arriving.
+                    When the plan covers it and the server has credentials, silence
+                    is the correct message. */}
+                {briefingStatus && !briefingStatus.featureEnabled && (
+                  <div className="rounded-xl bg-amber-soft border border-amber/20 p-4 flex items-start gap-3 mt-2">
+                    <Lock size={16} className="text-amber shrink-0 mt-0.5" />
+                    <p className="text-[13px] text-ink-soft leading-relaxed">
+                      Nightly briefings are <strong>not part of your current plan</strong>. You can save
+                      a number here, but nothing will be sent until the feature is enabled — contact
+                      support to add it.
+                    </p>
+                  </div>
+                )}
+                {briefingStatus?.featureEnabled && briefingStatus.deliveryMode === "STUB" && (
+                  <div className="rounded-xl bg-amber-soft border border-amber/20 p-4 flex items-start gap-3 mt-2">
+                    <Info size={16} className="text-amber shrink-0 mt-0.5" />
+                    <p className="text-[13px] text-ink-soft leading-relaxed">
+                      WhatsApp sending is in <strong>stub mode</strong> on this server. Briefings are
+                      written to the server log instead of delivered. Add the Meta Cloud API
+                      credentials to the server environment to start sending.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
             <div className={sectionCardCls}>

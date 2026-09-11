@@ -4,6 +4,7 @@ import { redisConnectionOptions } from "../lib/redis";
 import { collectBriefingData } from "./collectBriefingData";
 import { formatBriefingMessage, buildBriefingTemplateParams } from "./formatBriefingMessage";
 import { sendBriefingTemplate } from "./sendWhatsappMessage";
+import { getEffectiveLimits } from "../lib/subscription";
 import type { BriefingJobData } from "./queues";
 
 type LogStatus = "SENT" | "FAILED" | "STUB";
@@ -40,6 +41,20 @@ async function processBriefing(job: Job<BriefingJobData>): Promise<{ success: bo
   if (!ownerWhatsappNumber) {
     console.log(`⚠️  No WhatsApp number configured for hotel ${hotelName} — skipping`);
     return { success: true, skipped: true, reason: "No WhatsApp number configured" };
+  }
+
+  // The repeatable job outlives a plan change: scheduleBriefings only re-reads
+  // entitlement at boot, so without this a hotel downgraded (or whose trial
+  // lapsed) mid-month keeps receiving briefings — and keeps billing us for the
+  // conversations — until the API next restarts.
+  //
+  // Skipped rather than cancelled on purpose. Cancelling would leave a hotel
+  // that re-upgrades with no job until the next restart, since nothing
+  // reschedules on a plan change; a nightly no-op costs one query.
+  const { features } = await getEffectiveLimits(hotelId);
+  if (!features.whatsappBriefing) {
+    console.log(`⚠️  WhatsApp briefing is not on ${hotelName}'s plan — skipping`);
+    return { success: true, skipped: true, reason: "Feature not enabled on plan" };
   }
 
   const briefingData = await collectBriefingData(hotelId);
